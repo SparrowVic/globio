@@ -13,6 +13,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { CountryFeature, CountryPolygon } from '../../renderer/country-feature';
+import { easeHoverBoost } from './dotted-effects';
 
 export interface CountriesDottedLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;
@@ -29,6 +30,15 @@ export interface CountriesDottedLayerOptions {
   readonly flashStrength: number;
   readonly flashDecay: number;
   readonly flashEnabled: boolean;
+  readonly driftEnabled: boolean;
+  readonly driftAmplitude: number;
+  readonly driftSpeed: number;
+  readonly driftFreq: number;
+  readonly driftAxis: 'ns' | 'ew';
+  readonly hoverEnabled: boolean;
+  readonly hoverScale: number;
+  readonly hoverBrightnessBoost: number;
+  readonly hoverDuration: number;
 }
 
 interface ActiveRipple {
@@ -156,6 +166,15 @@ const VERT_SHADER = /* glsl */ `
   uniform float uRippleBoost;
   uniform float uRippleWidth;
   uniform float uFlashStrength[${MAX_FLASHES}];
+  uniform float uTime;
+  uniform vec3 uDriftAxis;
+  uniform float uDriftAmp;
+  uniform float uDriftFreq;
+  uniform float uDriftSpeed;
+  uniform int uHoveredCountry;
+  uniform float uHoverBoost;
+  uniform float uHoverScale;
+  uniform float uHoverBrightnessBoost;
 
   varying float vBrightness;
   varying float vFlashStrength;
@@ -170,9 +189,20 @@ const VERT_SHADER = /* glsl */ `
       float band = (d - r.w) / max(uRippleWidth, 1e-4);
       ripple += exp(-band * band);
     }
-    vBrightness = clamp(ripple, 0.0, 1.0) * uRippleBoost;
+    float rippleBrightness = clamp(ripple, 0.0, 1.0) * uRippleBoost;
 
+    // Ambient drift wave — bands of equal phase perpendicular to uDriftAxis.
+    float driftPhase = dot(dir, uDriftAxis) * uDriftFreq - uDriftSpeed * uTime;
+    float driftBrightness = sin(driftPhase) * uDriftAmp;
+
+    // Hover boost — applied when this dot's country matches the active one.
     int idx = int(aCountryIndex + 0.5);
+    float hoverActive = (idx == uHoveredCountry) ? uHoverBoost : 0.0;
+    float hoverBrightness = hoverActive * uHoverBrightnessBoost;
+    float hoverSize = 1.0 + hoverActive * (uHoverScale - 1.0);
+
+    vBrightness = rippleBrightness + driftBrightness + hoverBrightness;
+
     float fs = 0.0;
     for (int i = 0; i < ${MAX_FLASHES}; i++) {
       if (i == idx) { fs = uFlashStrength[i]; break; }
@@ -181,7 +211,7 @@ const VERT_SHADER = /* glsl */ `
 
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = uPointSize * uPixelRatio * (1.0 / -mv.z);
+    gl_PointSize = uPointSize * uPixelRatio * (1.0 / -mv.z) * hoverSize;
   }
 `;
 
@@ -229,6 +259,10 @@ export class CountriesDottedLayer {
   private readonly activeRipples: Array<ActiveRipple> = [];
   private readonly activeFlashes: Array<ActiveFlash> = [];
   private readonly opts: CountriesDottedLayerOptions;
+  private elapsed = 0;
+  private hoveredId: string | null = null;
+  private hoverBoost = 0;
+  private hoverTarget = 0;
 
   public constructor(options: CountriesDottedLayerOptions) {
     this.opts = options;
@@ -240,6 +274,10 @@ export class CountriesDottedLayer {
 
     const baseColor = new Color(options.color);
     const flashColor = new Color(options.flashColor);
+    const driftAxis = options.driftAxis === 'ew' ? new Vector3(0, 0, 1) : new Vector3(0, 1, 0);
+    const driftAmp = options.driftEnabled ? options.driftAmplitude : 0;
+    const hoverScale = options.hoverEnabled ? options.hoverScale : 1;
+    const hoverBrightnessBoost = options.hoverEnabled ? options.hoverBrightnessBoost : 0;
 
     this.material = new ShaderMaterial({
       uniforms: {
@@ -257,6 +295,15 @@ export class CountriesDottedLayer {
         uFlashStrength: { value: this.flashState },
         uTexture: { value: this.texture },
         uUseTexture: { value: this.texture !== null },
+        uTime: { value: 0 },
+        uDriftAxis: { value: driftAxis },
+        uDriftAmp: { value: driftAmp },
+        uDriftFreq: { value: options.driftFreq },
+        uDriftSpeed: { value: options.driftSpeed },
+        uHoveredCountry: { value: -1 },
+        uHoverBoost: { value: 0 },
+        uHoverScale: { value: hoverScale },
+        uHoverBrightnessBoost: { value: hoverBrightnessBoost },
       },
       vertexShader: VERT_SHADER,
       fragmentShader: FRAG_SHADER,
@@ -304,8 +351,55 @@ export class CountriesDottedLayer {
     }
   }
 
+  /**
+   * Set the currently-hovered country. The shader's hover boost eases
+   * smoothly toward 1 when set, toward 0 when cleared. Swapping countries
+   * snaps the index instantly but preserves the boost value, so the visual
+   * fades from old → new without strobing.
+   */
+  public setHoveredCountry(id: string | null): void {
+    if (!this.opts.hoverEnabled) return;
+    if (id === this.hoveredId) return;
+    this.hoveredId = id;
+    if (id === null) {
+      this.hoverTarget = 0;
+      return;
+    }
+    const idx = this.countryIndex.get(id);
+    if (idx === undefined) {
+      this.hoverTarget = 0;
+      return;
+    }
+    this.material.uniforms['uHoveredCountry']!.value = idx;
+    this.hoverTarget = 1;
+  }
+
   /** Per-frame tick. Advances ripple/flash ages and writes uniforms. */
-  public update(delta: number): void {
+  public update(delta: number, elapsedSeconds?: number): void {
+    if (typeof elapsedSeconds === 'number') {
+      this.elapsed = elapsedSeconds;
+    } else {
+      this.elapsed += delta;
+    }
+    this.material.uniforms['uTime']!.value = this.elapsed;
+
+    if (this.opts.hoverEnabled) {
+      this.hoverBoost = easeHoverBoost(
+        this.hoverBoost,
+        this.hoverTarget,
+        delta,
+        this.opts.hoverDuration > 0 ? this.opts.hoverDuration : 0.25
+      );
+      this.material.uniforms['uHoverBoost']!.value = this.hoverBoost;
+      // When the boost ramps to ~0 with no active hover, drop the index too
+      // so a stale match can't flicker if uniforms drift.
+      if (this.hoveredId === null && this.hoverBoost < 1e-4) {
+        this.material.uniforms['uHoveredCountry']!.value = -1;
+        this.hoverBoost = 0;
+        this.material.uniforms['uHoverBoost']!.value = 0;
+      }
+    }
+
     const speed = this.opts.rippleSpeed > 0 ? this.opts.rippleSpeed : 1;
     for (let i = this.activeRipples.length - 1; i >= 0; i--) {
       const r = this.activeRipples[i];

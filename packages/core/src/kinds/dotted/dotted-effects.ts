@@ -54,3 +54,58 @@ export const angularDistance = (
   const c = dot < -1 ? -1 : dot > 1 ? 1 : dot;
   return Math.acos(c);
 };
+
+/**
+ * Ambient drift wave contribution. `positionDotAxis` is the dot product of
+ * a normalised position vector with the drift axis vector — bands of equal
+ * phase form rings perpendicular to the axis. Result is `sin(phase) *
+ * amplitude`, finite-safe.
+ */
+export const driftBrightness = (
+  positionDotAxis: number,
+  freq: number,
+  speed: number,
+  elapsed: number,
+  amplitude: number
+): number => {
+  if (
+    !Number.isFinite(positionDotAxis) ||
+    !Number.isFinite(freq) ||
+    !Number.isFinite(speed) ||
+    !Number.isFinite(elapsed) ||
+    !Number.isFinite(amplitude)
+  ) {
+    return 0;
+  }
+  if (amplitude === 0) return 0;
+  const phase = positionDotAxis * freq - speed * elapsed;
+  const v = Math.sin(phase) * amplitude;
+  return Number.isFinite(v) ? v : 0;
+};
+
+/**
+ * Critically-damped-ish ramp toward `target`. Reaches `target` in roughly
+ * `durationSeconds` of continuous calls. `delta = 0` returns `current` (no
+ * time, no movement). Used to ease the hover-boost uniform smoothly when
+ * the cursor enters / leaves a country.
+ */
+export const easeHoverBoost = (
+  current: number,
+  target: number,
+  delta: number,
+  durationSeconds: number
+): number => {
+  if (
+    !Number.isFinite(current) ||
+    !Number.isFinite(target) ||
+    !Number.isFinite(delta) ||
+    !Number.isFinite(durationSeconds)
+  ) {
+    return current;
+  }
+  if (delta <= 0) return current;
+  if (durationSeconds <= 0) return target;
+  const step = delta / durationSeconds;
+  if (step >= 1) return target;
+  return current + (target - current) * step;
+};

@@ -32,6 +32,13 @@ export type TokenKey =
   | 'countries.dotted.flashColor'
   | 'countries.dotted.flashStrength'
   | 'countries.dotted.flashDecay'
+  | 'countries.dotted.driftAmplitude'
+  | 'countries.dotted.driftSpeed'
+  | 'countries.dotted.driftFreq'
+  | 'countries.dotted.driftAxis'
+  | 'countries.dotted.hoverScale'
+  | 'countries.dotted.hoverBrightnessBoost'
+  | 'countries.dotted.hoverDuration'
   | 'countries.label.color'
   | 'countries.label.fontSize'
   | 'countries.label.fontFamily'
@@ -112,6 +119,13 @@ export interface TokenSet {
   readonly 'countries.dotted.flashColor': string;
   readonly 'countries.dotted.flashStrength': number;
   readonly 'countries.dotted.flashDecay': number;
+  readonly 'countries.dotted.driftAmplitude': number;
+  readonly 'countries.dotted.driftSpeed': number;
+  readonly 'countries.dotted.driftFreq': number;
+  readonly 'countries.dotted.driftAxis': string;
+  readonly 'countries.dotted.hoverScale': number;
+  readonly 'countries.dotted.hoverBrightnessBoost': number;
+  readonly 'countries.dotted.hoverDuration': number;
   readonly 'countries.label.color': string;
   readonly 'countries.label.fontSize': number;
   readonly 'countries.label.fontFamily': string;

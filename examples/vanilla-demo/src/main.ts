@@ -46,6 +46,8 @@ const $axisTiltValue = document.getElementById('axis-tilt-value') as HTMLSpanEle
 const $arcs = document.getElementById('toggle-arcs') as HTMLInputElement;
 const $dottedRipple = document.getElementById('toggle-dotted-ripple') as HTMLInputElement;
 const $dottedFlash = document.getElementById('toggle-dotted-flash') as HTMLInputElement;
+const $dottedDrift = document.getElementById('toggle-dotted-drift') as HTMLInputElement;
+const $dottedHover = document.getElementById('toggle-dotted-hover') as HTMLInputElement;
 const $snapshot = document.getElementById('btn-snapshot') as HTMLButtonElement;
 const $storyPrev = document.getElementById('story-prev') as HTMLButtonElement;
 const $storyPlay = document.getElementById('story-play') as HTMLButtonElement;
@@ -90,6 +92,8 @@ const settings = {
   axisTilt: 23.5,
   dottedRippleEnabled: true,
   dottedFlashEnabled: true,
+  dottedDriftEnabled: true,
+  dottedHoverEnabled: true,
   wireframeClickPulse: true,
   wireframeEmphasis: true,
   wireframeGlitch: true,
@@ -277,6 +281,8 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     dotted: {
       clickRipple: { enabled: settings.dottedRippleEnabled },
       dataFlash: { enabled: settings.dottedFlashEnabled },
+      drift: { enabled: settings.dottedDriftEnabled },
+      hoverDots: { enabled: settings.dottedHoverEnabled },
     },
     htmlMarkers: settings.htmlMarkersEnabled ? HTML_MARKERS : [],
     arcs: settings.arcsEnabled ? ARCS : [],
@@ -481,7 +487,7 @@ const themesForKind = (kind: GlobeKind): ReadonlyArray<HTMLButtonElement> =>
 // arbitrary checkboxes when you switch kinds.
 const KIND_FX_BLURBS: Readonly<Record<GlobeKind, string>> = {
   outline: 'Halo around the hovered country and a sonar pulse on focus.',
-  dotted: 'Brightening waves on click and a flash when country data updates.',
+  dotted: 'Click ripples, data flashes, ambient drift, and hover dot expansion.',
   wireframe: 'Pulse along the grid on click, equator emphasis, occasional CRT glitch.',
 };
 
@@ -632,6 +638,14 @@ $dottedRipple.addEventListener('change', () => {
 });
 $dottedFlash.addEventListener('change', () => {
   settings.dottedFlashEnabled = $dottedFlash.checked;
+  buildGlobe(settings.themeName);
+});
+$dottedDrift.addEventListener('change', () => {
+  settings.dottedDriftEnabled = $dottedDrift.checked;
+  buildGlobe(settings.themeName);
+});
+$dottedHover.addEventListener('change', () => {
+  settings.dottedHoverEnabled = $dottedHover.checked;
   buildGlobe(settings.themeName);
 });
 $snapshot.addEventListener('click', async () => {
