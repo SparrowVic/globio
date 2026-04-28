@@ -1,0 +1,106 @@
+export type LatLng = readonly [latitude: number, longitude: number];
+
+export type ResolutionLevel = 'low' | 'medium' | 'high';
+
+export type CountryStyle = 'borders' | 'dotted' | 'filled';
+
+export type GlobeMode = 'sphere' | 'flat';
+
+export interface CountryData {
+  readonly id: string;
+  readonly name: string;
+  readonly iso2?: string;
+  readonly iso3?: string;
+}
+
+export interface CountryEvent {
+  readonly country: CountryData;
+  readonly point: LatLng;
+}
+
+export interface MarkerConfig {
+  readonly id: string;
+  readonly position: LatLng;
+  readonly color?: string;
+  readonly size?: number;
+  readonly label?: string;
+  readonly data?: Readonly<Record<string, unknown>>;
+}
+
+export interface MarkerEvent {
+  readonly marker: MarkerConfig;
+}
+
+export interface CountriesConfig {
+  readonly resolution?: ResolutionLevel;
+  readonly style?: CountryStyle;
+  readonly borderColor?: string;
+  readonly borderWidth?: number;
+  readonly fillColor?: string;
+  readonly hoverColor?: string;
+  readonly hoverEnabled?: boolean;
+}
+
+export interface AtmosphereConfig {
+  readonly enabled?: boolean;
+  readonly color?: string;
+  readonly intensity?: number;
+}
+
+export interface AutoRotateConfig {
+  readonly enabled?: boolean;
+  readonly speed?: number;
+}
+
+export interface PerformanceConfig {
+  readonly antialias?: boolean;
+  readonly pixelRatio?: number | 'auto';
+  readonly maxFps?: number;
+  readonly adaptiveQuality?: boolean;
+}
+
+export interface GlobeConfig {
+  readonly container: HTMLElement;
+  readonly mode?: GlobeMode;
+  readonly backgroundColor?: string;
+  readonly globeColor?: string;
+  readonly textureUrl?: string;
+  readonly countries?: CountriesConfig;
+  readonly markers?: ReadonlyArray<MarkerConfig>;
+  readonly atmosphere?: AtmosphereConfig;
+  readonly autoRotate?: AutoRotateConfig;
+  readonly performance?: PerformanceConfig;
+  readonly initialPosition?: LatLng;
+  readonly minZoom?: number;
+  readonly maxZoom?: number;
+}
+
+export interface GlobeEvents {
+  readonly countryClick: (event: CountryEvent) => void;
+  readonly countryHover: (event: CountryEvent | null) => void;
+  readonly markerClick: (event: MarkerEvent) => void;
+  readonly markerHover: (event: MarkerEvent | null) => void;
+  readonly ready: () => void;
+  readonly error: (error: Error) => void;
+}
+
+export type GlobeEventName = keyof GlobeEvents;
+
+export type GlobeEventUnsubscribe = () => void;
+
+export interface GlobeInstance {
+  readonly mount: () => void;
+  readonly destroy: () => void;
+  readonly update: (config: Partial<GlobeConfig>) => void;
+  readonly on: <K extends GlobeEventName>(
+    event: K,
+    handler: GlobeEvents[K]
+  ) => GlobeEventUnsubscribe;
+  readonly off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => void;
+  readonly setRotation: (position: LatLng, animate?: boolean) => void;
+  readonly setMarkers: (markers: ReadonlyArray<MarkerConfig>) => void;
+  readonly addMarker: (marker: MarkerConfig) => void;
+  readonly removeMarker: (id: string) => void;
+  readonly resize: () => void;
+  readonly getCanvas: () => HTMLCanvasElement;
+}

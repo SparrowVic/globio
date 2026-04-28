@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Globe Vanilla Demo</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #000010;
+        color: #cfd8ff;
+        font-family: system-ui, sans-serif;
+        overflow: hidden;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      #hud {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        padding: 10px 14px;
+        background: rgba(10, 14, 30, 0.6);
+        border: 1px solid rgba(74, 158, 255, 0.4);
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.4;
+        backdrop-filter: blur(6px);
+        max-width: 320px;
+      }
+      #hud b {
+        color: #ffd700;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud">
+      <b>Globe Core demo</b><br />
+      Drag — obrót · Scroll — zoom<br />
+      <span id="status">Ładowanie granic państw…</span>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

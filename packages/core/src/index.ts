@@ -1,0 +1,20 @@
+export { createGlobe } from './globe';
+export type {
+  AtmosphereConfig,
+  AutoRotateConfig,
+  CountriesConfig,
+  CountryData,
+  CountryEvent,
+  CountryStyle,
+  GlobeConfig,
+  GlobeEventName,
+  GlobeEvents,
+  GlobeEventUnsubscribe,
+  GlobeInstance,
+  GlobeMode,
+  LatLng,
+  MarkerConfig,
+  MarkerEvent,
+  PerformanceConfig,
+  ResolutionLevel,
+} from './types';

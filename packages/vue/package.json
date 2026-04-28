@@ -1,0 +1,38 @@
+{
+  "name": "@your-globe/vue",
+  "version": "0.1.0",
+  "description": "Vue 3 wrapper for @your-globe/core",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "peerDependencies": {
+    "@your-globe/core": "workspace:*",
+    "three": ">=0.160.0",
+    "vue": ">=3.3.0"
+  },
+  "devDependencies": {
+    "@your-globe/core": "workspace:*",
+    "three": "^0.160.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vue": "^3.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
