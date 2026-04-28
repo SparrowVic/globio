@@ -581,7 +581,9 @@ $storyNext.addEventListener('click', () => {
 
 const $dataNato = document.getElementById('data-nato') as HTMLButtonElement;
 const $dataEu = document.getElementById('data-eu') as HTMLButtonElement;
-const $dataPop = document.getElementById('data-pop') as HTMLButtonElement;
+const $dataPopReds = document.getElementById('data-pop-reds') as HTMLButtonElement;
+const $dataPopViridis = document.getElementById('data-pop-viridis') as HTMLButtonElement;
+const $dataGrowth = document.getElementById('data-growth') as HTMLButtonElement;
 const $dataClear = document.getElementById('data-clear') as HTMLButtonElement;
 
 const NATO_IDS = [
@@ -625,14 +627,32 @@ const POPULATION: ReadonlyArray<readonly [string, number]> = [
   ['616', 38],   // Poland
 ];
 
-const choroplethColor = (millions: number): string => {
-  if (millions >= 500) return '#7f0000';
-  if (millions >= 200) return '#b30000';
-  if (millions >= 100) return '#d7301f';
-  if (millions >= 50) return '#ef6548';
-  if (millions >= 20) return '#fc8d59';
-  return '#fdbb84';
-};
+// Hand-picked sample of recent annual GDP growth rates (% YoY). Mix of
+// negatives and positives so the diverging scale has something to do.
+const GDP_GROWTH: ReadonlyArray<readonly [string, number]> = [
+  ['840', 2.5],   // USA
+  ['156', 5.2],   // China
+  ['356', 7.6],   // India
+  ['276', -0.3],  // Germany
+  ['826', 0.4],   // UK
+  ['250', 0.7],   // France
+  ['380', 0.9],   // Italy
+  ['724', 2.4],   // Spain
+  ['616', 3.0],   // Poland
+  ['392', 1.9],   // Japan
+  ['410', 1.4],   // South Korea
+  ['76', 2.9],    // Brazil
+  ['484', 3.2],   // Mexico
+  ['32', -2.5],   // Argentina
+  ['643', 3.6],   // Russia
+  ['792', 4.5],   // Turkey
+  ['818', 3.0],   // Egypt
+  ['710', 0.6],   // South Africa
+  ['566', 2.9],   // Nigeria
+  ['36', 2.0],    // Australia
+  ['124', 1.1],   // Canada
+  ['682', -0.8],  // Saudi Arabia
+];
 
 const buildSetMap = (ids: ReadonlyArray<string>, color: string): CountryDataMap => {
   const map: Record<string, { color: string; opacity: number }> = {};
@@ -640,11 +660,11 @@ const buildSetMap = (ids: ReadonlyArray<string>, color: string): CountryDataMap 
   return map;
 };
 
-const buildPopulationMap = (): CountryDataMap => {
-  const map: Record<string, { color: string; value: number; opacity: number }> = {};
-  for (const [id, m] of POPULATION) {
-    map[id] = { color: choroplethColor(m), value: m, opacity: 0.85 };
-  }
+const buildValueMap = (
+  rows: ReadonlyArray<readonly [string, number]>
+): CountryDataMap => {
+  const map: Record<string, { value: number; opacity: number }> = {};
+  for (const [id, v] of rows) map[id] = { value: v, opacity: 0.85 };
   return map;
 };
 
@@ -656,9 +676,29 @@ $dataEu.addEventListener('click', () => {
   globe?.setCountryData(buildSetMap(EU_IDS, '#ffd700'));
   setStatus('Country data: EU members');
 });
-$dataPop.addEventListener('click', () => {
-  globe?.setCountryData(buildPopulationMap());
-  setStatus('Country data: population (millions)');
+$dataPopReds.addEventListener('click', () => {
+  globe?.setCountryData(buildValueMap(POPULATION), {
+    type: 'sequential',
+    palette: 'reds',
+    domain: [0, 1500],
+  });
+  setStatus('Country data: population · reds');
+});
+$dataPopViridis.addEventListener('click', () => {
+  globe?.setCountryData(buildValueMap(POPULATION), {
+    type: 'sequential',
+    palette: 'viridis',
+    domain: [0, 1500],
+  });
+  setStatus('Country data: population · viridis');
+});
+$dataGrowth.addEventListener('click', () => {
+  globe?.setCountryData(buildValueMap(GDP_GROWTH), {
+    type: 'diverging',
+    palette: 'RdBu',
+    domain: [-5, 0, 8],
+  });
+  setStatus('Country data: GDP growth (RdBu diverging)');
 });
 $dataClear.addEventListener('click', () => {
   globe?.setCountryData(null);

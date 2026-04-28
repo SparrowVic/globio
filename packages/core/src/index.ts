@@ -26,6 +26,17 @@ export type {
   FocusOptions,
 } from './types';
 export { linear, easeOutCubic, easeInOutCubic } from './utils/easing';
+export {
+  interpolatePalette,
+  colorForValue,
+  type CategoricalScale,
+  type DivergingScale,
+  type ScaleConfig,
+  type ScalePalette,
+  type ScalePaletteName,
+  type SequentialScale,
+  type ThresholdScale,
+} from './data/scales';
 export type {
   SceneConfig,
   StoryConfig,

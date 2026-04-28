@@ -460,9 +460,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       }
     },
     getActiveCountry: () => state.activeCountryId,
-    setCountryData: (data) => {
+    setCountryData: (data, scale) => {
       state.countryData = data;
-      state.countriesFillLayer?.setData(data);
+      state.countriesFillLayer?.setData(data, scale);
     },
     getCountryData: () => state.countryData,
     setStory: (story: StoryConfig | null) => storyController.setStory(story),

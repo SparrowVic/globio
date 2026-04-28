@@ -5,6 +5,7 @@ import type {
   StorySceneEvent,
   StoryCompleteEvent,
 } from './story/types';
+import type { ScaleConfig } from './data/scales';
 
 export type LatLng = readonly [latitude: number, longitude: number];
 
@@ -278,7 +279,13 @@ export interface GlobeInstance {
   readonly focusOnCountry: (id: string, options?: FocusOptions) => void;
   readonly setActiveCountry: (id: string | null) => void;
   readonly getActiveCountry: () => string | null;
-  readonly setCountryData: (data: CountryDataMap | null) => void;
+  /**
+   * Apply a country-data map. When `scale` is provided, entries' `value` is
+   * mapped to a color via the scale (sequential/diverging/threshold/
+   * categorical); explicit `color` on an entry always wins over the scale.
+   * Pass `null` to hide the fill layer.
+   */
+  readonly setCountryData: (data: CountryDataMap | null, scale?: ScaleConfig) => void;
   readonly getCountryData: () => CountryDataMap | null;
   readonly setStory: (story: StoryConfig | null) => void;
   readonly playStory: () => void;
