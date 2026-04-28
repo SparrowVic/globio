@@ -46,6 +46,24 @@ export {
   type LegendPosition,
   type LegendStyle,
 } from './data/legend';
+export {
+  G7,
+  G20,
+  NATO,
+  EU,
+  BRICS,
+  ASEAN,
+  OECD,
+  EFTA,
+  MERCOSUR,
+  AU,
+  EUROPE,
+  ASIA,
+  AFRICA,
+  NORTH_AMERICA,
+  SOUTH_AMERICA,
+  OCEANIA,
+} from './data/regions';
 export type {
   SceneConfig,
   StoryConfig,
