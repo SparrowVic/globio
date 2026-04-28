@@ -1,0 +1,43 @@
+/**
+ * Token keys are dot-namespaced for grouping. v0.2 ships the minimum set
+ * needed to retrofit the existing outline renderer.
+ */
+export type TokenKey =
+  | 'background.color'
+  | 'globe.surface'
+  | 'globe.surfaceTexture'
+  | 'borders.color'
+  | 'borders.width'
+  | 'borders.opacity'
+  | 'markers.defaultColor'
+  | 'atmosphere.color'
+  | 'atmosphere.intensity';
+
+/**
+ * All tokens are either a string (color hex/rgb or texture URL) or a number.
+ * Texture token uses '' to mean "no texture" — keeps the type simple.
+ */
+export interface TokenSet {
+  readonly 'background.color': string;
+  readonly 'globe.surface': string;
+  readonly 'globe.surfaceTexture': string;
+  readonly 'borders.color': string;
+  readonly 'borders.width': number;
+  readonly 'borders.opacity': number;
+  readonly 'markers.defaultColor': string;
+  readonly 'atmosphere.color': string;
+  readonly 'atmosphere.intensity': number;
+}
+
+export type PartialTokenSet = Partial<TokenSet>;
+
+/**
+ * User-supplied theme. v0.2 supports only direct token overrides;
+ * `extends` and named presets ship in a future plan.
+ */
+export interface ThemeConfig {
+  readonly tokens?: PartialTokenSet;
+}
+
+/** Output of `resolveTheme()` — every key present, deeply readonly. */
+export type ResolvedTokens = TokenSet;
