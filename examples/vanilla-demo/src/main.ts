@@ -1,6 +1,7 @@
 import {
   createGlobe,
   resolveTheme,
+  PRESET_DEFAULT_KIND,
   THEME_PRESETS,
   G7,
   NATO,
@@ -8,6 +9,7 @@ import {
   BRICS,
   type CountryDataMap,
   type GlobeInstance,
+  type GlobeKind,
   type PartialTokenSet,
   type ThemePresetName,
   type TokenKey,
@@ -427,12 +429,48 @@ $studioExport.addEventListener('click', () => {
   );
 });
 
-document.querySelectorAll<HTMLButtonElement>('button[data-theme]').forEach((btn) => {
+// ---------- Globe kind + theme variant selectors ----------
+
+const $kindButtons = document.querySelectorAll<HTMLButtonElement>('#kind-buttons button');
+const $themeButtons = document.querySelectorAll<HTMLButtonElement>('#theme-buttons button');
+
+const themesForKind = (kind: GlobeKind): ReadonlyArray<HTMLButtonElement> =>
+  Array.from($themeButtons).filter((btn) => btn.dataset['kind'] === kind);
+
+const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
+  const activeKind = PRESET_DEFAULT_KIND[themeName] ?? 'outline';
+  $kindButtons.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset['kind'] === activeKind);
+  });
+  $themeButtons.forEach((btn) => {
+    const matchesKind = btn.dataset['kind'] === activeKind;
+    btn.hidden = !matchesKind;
+    btn.classList.toggle('active', btn.dataset['theme'] === themeName);
+  });
+};
+
+const switchTheme = (themeName: ThemePresetName): void => {
+  tokenOverrides = {}; // theme switch resets overrides
+  buildGlobe(themeName);
+  refreshKindAndThemeUI(themeName);
+  renderStudio();
+};
+
+$kindButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
-    const name = btn.dataset['theme'] as ThemePresetName;
-    tokenOverrides = {}; // theme switch resets overrides
-    buildGlobe(name);
-    renderStudio();
+    const kind = btn.dataset['kind'] as GlobeKind | undefined;
+    if (!kind) return;
+    // Pick the first theme registered for this kind. Outline has 5
+    // variants; dotted/wireframe currently have one each.
+    const firstTheme = themesForKind(kind)[0]?.dataset['theme'] as ThemePresetName | undefined;
+    if (firstTheme) switchTheme(firstTheme);
+  });
+});
+
+$themeButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset['theme'] as ThemePresetName | undefined;
+    if (theme) switchTheme(theme);
   });
 });
 
@@ -751,6 +789,7 @@ $dataClear.addEventListener('click', () => {
 updateSpeedDisplay();
 updateZoomDisplay();
 buildGlobe(settings.themeName);
+refreshKindAndThemeUI(settings.themeName);
 renderStudio();
 
 window.addEventListener('beforeunload', () => globe?.destroy());

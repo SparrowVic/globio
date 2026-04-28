@@ -86,3 +86,4 @@ export {
   type TokenKey,
   type TokenSet,
 } from './theme';
+export { PRESET_DEFAULT_KIND } from './kinds/registry';
