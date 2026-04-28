@@ -230,6 +230,39 @@ export interface WireframeConfig {
   /** Override token-driven pulse amplitude (0..1, 0 = disabled). */
   readonly pulse?: number;
   readonly pulseSpeed?: number;
+  /**
+   * Click pulse — radial brightness wave expanding along the grid from any
+   * surface click. Tron-style impact feedback.
+   */
+  readonly clickPulse?: {
+    readonly enabled?: boolean;
+    /** Wavefront expansion in radians/sec. Default 1.5. */
+    readonly speed?: number;
+    /** Gaussian band half-width in radians. Default 0.18. */
+    readonly width?: number;
+    /** Peak brightness multiplier at the wavefront. Default 2.5. */
+    readonly boost?: number;
+    /** Maximum simultaneous click pulses (older ones recycle). Default 4. */
+    readonly maxConcurrent?: number;
+  };
+  /**
+   * Geographic emphasis — equator + tropics get 2× brightness; prime meridian
+   * + antimeridian get half emphasis. Subtle visual hierarchy.
+   */
+  readonly emphasis?: {
+    readonly enabled?: boolean;
+  };
+  /**
+   * CRT-glitch transients — every interval seconds, a horizontal band briefly
+   * shears laterally then snaps back. Atmosphere, not noise.
+   */
+  readonly glitch?: {
+    readonly enabled?: boolean;
+    /** Lower bound of inter-glitch wait (seconds). Default 5. */
+    readonly intervalMin?: number;
+    /** Upper bound of inter-glitch wait (seconds). Default 15. */
+    readonly intervalMax?: number;
+  };
 }
 
 export interface StarfieldConfig {

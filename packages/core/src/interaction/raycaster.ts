@@ -1,12 +1,12 @@
 import { Raycaster, Vector2, type Camera, type Object3D, type Vector3 } from 'three';
 
 export interface RaycasterTarget {
-  readonly type: 'marker' | 'country';
+  readonly type: 'marker' | 'country' | 'surface';
   readonly object: Object3D;
 }
 
 export interface RaycasterHit {
-  readonly type: 'marker' | 'country';
+  readonly type: 'marker' | 'country' | 'surface';
   readonly object: Object3D;
   readonly instanceId?: number;
   readonly point?: Vector3;

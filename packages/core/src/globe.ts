@@ -413,6 +413,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         raycaster.setTargets([
           { type: 'marker', object: markersLayer.mesh },
           { type: 'country', object: picking.group },
+          { type: 'surface', object: globeMesh.mesh },
         ]);
 
         const highlight = new CountryHighlightLayer({
@@ -437,6 +438,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         state.countryActiveLayer = activeLayer;
         // Re-apply pending active country if user called setActiveCountry before features loaded
         if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
+      } else {
+        // No country surface (wireframe). Marker raycasting plus the globe
+        // sphere as a generic 'surface' target so kinds can still react to
+        // any-click pulses via onPointerDown.
+        raycaster.setTargets([
+          { type: 'marker', object: markersLayer.mesh },
+          { type: 'surface', object: globeMesh.mesh },
+        ]);
       }
 
       const labelsConfig = config.countryLabels;
