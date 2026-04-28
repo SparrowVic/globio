@@ -320,6 +320,18 @@ export interface WireframeConfig {
   };
 }
 
+/**
+ * Paper kind — vintage atlas: cream parchment surface, hand-drawn jittered
+ * ink borders, optional pastel country fill, optional faint atlas grid.
+ * `borderRoughness` overrides the `paper.borderRoughness` token (degrees of
+ * lng/lat jitter per vertex; ~0.25 reads as confident pen, ~0.6 looks shaky).
+ */
+export interface PaperConfig {
+  readonly grid?: { readonly enabled?: boolean };
+  readonly fill?: { readonly enabled?: boolean };
+  readonly borderRoughness?: number;
+}
+
 export interface StarfieldConfig {
   readonly enabled?: boolean;
 }
@@ -414,6 +426,7 @@ export interface GlobeConfig {
   readonly outline?: OutlineConfig;
   readonly dotted?: DottedConfig;
   readonly wireframe?: WireframeConfig;
+  readonly paper?: PaperConfig;
   readonly starfield?: StarfieldConfig;
   /**
    * Tilt the globe's axis around the Z axis (in degrees, like Earth's 23.5°).

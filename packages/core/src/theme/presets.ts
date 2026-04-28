@@ -14,7 +14,8 @@ export type ThemePresetName =
   | 'outline-cyber'
   | 'outline-monochrome'
   | 'dotted-dark'
-  | 'wireframe-tron';
+  | 'wireframe-tron'
+  | 'paper-default';
 
 /**
  * Built-in theme presets — each is a `Partial<TokenSet>` that only declares
@@ -196,5 +197,40 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
     'wireframe.opacity': 0.7,
     'wireframe.density': 1.2,
     'wireframe.pulse': 0.15,
+  }),
+
+  // Paper kind — vintage atlas: cream parchment sphere, hand-drawn ink borders.
+  'paper-default': Object.freeze({
+    'background.color': '#1a1410',
+    'globe.surfaceColor': '#f4ecd6',
+    'countries.border.color': '#5b3a1f',
+    'countries.border.opacity': 0.85,
+    'countries.borderHover.color': '#3a2410',
+    'countries.borderHover.width': 2,
+    'countries.borderHover.glowColor': '#3a2410',
+    'countries.borderHover.glowOpacity': 0.25,
+    'countries.borderActive.color': '#1a0e05',
+    'countries.fill.defaultColor': '#e9dcae',
+    'countries.fill.opacity': 0.35,
+    'countries.label.color': '#3a2410',
+    'countries.label.fontFamily': 'Georgia, "Times New Roman", serif',
+    'countries.label.textShadow': '0 0 4px rgba(244, 236, 214, 0.85)',
+    'tooltip.backgroundColor': 'rgba(244, 236, 214, 0.92)',
+    'tooltip.textColor': '#3a2410',
+    'tooltip.fontFamily': 'Georgia, "Times New Roman", serif',
+    'legend.backgroundColor': 'rgba(244, 236, 214, 0.92)',
+    'legend.textColor': '#3a2410',
+    'legend.titleColor': '#1a0e05',
+    'legend.fontFamily': 'Georgia, "Times New Roman", serif',
+    'lights.ambient.intensity': 0.7,
+    'lights.directional.intensity': 0.5,
+    'markers.defaultColor': '#a83a25',
+    'atmosphere.color': '#a89478',
+    'atmosphere.intensity': 0.7,
+    'starfield.color': '#bfa974',
+    'starfield.density': 400,
+    'starfield.size': 0.9,
+    'arcs.color': '#5b3a1f',
+    'arcs.headColor': '#a83a25',
   }),
 });

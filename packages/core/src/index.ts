@@ -19,6 +19,7 @@ export type {
   MarkerConfig,
   MarkerEvent,
   OutlineConfig,
+  PaperConfig,
   PerformanceConfig,
   ResolutionLevel,
   WireframeConfig,

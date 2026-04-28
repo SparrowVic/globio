@@ -70,6 +70,8 @@ const $wireframeEmphasis = document.getElementById('toggle-wireframe-emphasis') 
 const $wireframeGlitch = document.getElementById('toggle-wireframe-glitch') as HTMLInputElement;
 const $wireframeActiveRing = document.getElementById('toggle-wireframe-activering') as HTMLInputElement;
 const $wireframeStreams = document.getElementById('toggle-wireframe-streams') as HTMLInputElement;
+const $paperGrid = document.getElementById('toggle-paper-grid') as HTMLInputElement;
+const $paperFill = document.getElementById('toggle-paper-fill') as HTMLInputElement;
 
 let tokenOverrides: PartialTokenSet = {};
 
@@ -101,6 +103,8 @@ const settings = {
   wireframeGlitch: true,
   wireframeActiveRing: true,
   wireframeStreams: true,
+  paperGrid: true,
+  paperFill: true,
 };
 
 const WORLD_TOUR = {
@@ -296,6 +300,10 @@ const buildGlobe = (themeName: ThemePresetName): void => {
       glitch: { enabled: settings.wireframeGlitch },
       activeRing: { enabled: settings.wireframeActiveRing },
       poleStreams: { enabled: settings.wireframeStreams },
+    },
+    paper: {
+      grid: { enabled: settings.paperGrid },
+      fill: { enabled: settings.paperFill },
     },
     markers: [
       { id: 'waw', position: [52.2297, 21.0122], label: 'Warsaw', color: '#4a9eff' },
@@ -498,6 +506,7 @@ const KIND_FX_BLURBS: Readonly<Record<GlobeKind, string>> = {
     'Click ripples, data flashes, ambient drift, and hover dot expansion.',
   wireframe:
     'Click pulses, equator emphasis, CRT glitch, active-country ring, pole-to-pole streams.',
+  paper: 'Hand-drawn borders, pastel fills, optional atlas grid.',
 };
 
 const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
@@ -916,6 +925,14 @@ $wireframeActiveRing.addEventListener('change', () => {
 });
 $wireframeStreams.addEventListener('change', () => {
   settings.wireframeStreams = $wireframeStreams.checked;
+  buildGlobe(settings.themeName);
+});
+$paperGrid.addEventListener('change', () => {
+  settings.paperGrid = $paperGrid.checked;
+  buildGlobe(settings.themeName);
+});
+$paperFill.addEventListener('change', () => {
+  settings.paperFill = $paperFill.checked;
   buildGlobe(settings.themeName);
 });
 

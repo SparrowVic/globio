@@ -95,7 +95,16 @@ export type TokenKey =
   | 'wireframe.streamCount'
   | 'wireframe.streamSize'
   | 'wireframe.streamSpeed'
-  | 'wireframe.streamOpacity';
+  | 'wireframe.streamOpacity'
+  | 'paper.surfaceColor'
+  | 'paper.surfaceNoiseAmount'
+  | 'paper.borderColor'
+  | 'paper.borderOpacity'
+  | 'paper.borderRoughness'
+  | 'paper.fillColor'
+  | 'paper.fillOpacity'
+  | 'paper.gridColor'
+  | 'paper.gridOpacity';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -193,6 +202,15 @@ export interface TokenSet {
   readonly 'wireframe.streamSize': number;
   readonly 'wireframe.streamSpeed': number;
   readonly 'wireframe.streamOpacity': number;
+  readonly 'paper.surfaceColor': string;
+  readonly 'paper.surfaceNoiseAmount': number;
+  readonly 'paper.borderColor': string;
+  readonly 'paper.borderOpacity': number;
+  readonly 'paper.borderRoughness': number;
+  readonly 'paper.fillColor': string;
+  readonly 'paper.fillOpacity': number;
+  readonly 'paper.gridColor': string;
+  readonly 'paper.gridOpacity': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;
