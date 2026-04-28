@@ -143,12 +143,14 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 > Centralny system designerski — wszystkie kolory, gradienty i parametry estetyczne wyrażone tokenami.
 
-- **Theme tokens** `[v1·GLOBAL·M]` 🌟 — ~30 nazwanych tokenów (`globe.surface`,
-  `globe.borders`, `markers.default`, `arcs.color`, `atmosphere.color`, `background.color`,
-  `labels.text`, `popup.bg`...). Każdy może być stringiem (kolor), gradientem albo functionem od `(value, ctx)`.
+- **Theme tokens** `[v1·GLOBAL·M·built]` 🌟 — ~9 tokenów w v0.2 (`background.color`,
+  `globe.surface`, `globe.surfaceTexture`, `borders.color/width/opacity`, `markers.defaultColor`,
+  `atmosphere.color/intensity`); rozszerzane wraz z kolejnymi stylami (arcs, labels, popup itd.).
+  Każdy token to string (kolor/URL) albo number; w przyszłości też gradient i function `(value, ctx)`.
+- **Theme tokens override** `[v1·GLOBAL·S·built]` — `theme: { tokens: { 'globe.surface': '#f00' } }`.
 - **Built-in theme presets** `[v1·GLOBAL·S]` — 6 nazwanych zestawów (po 1-2 per styl):
   `outline-dark`, `outline-light`, `dotted-blue`, `dotted-monochrome`, `paper-classic`, `hologram-teal`...
-- **Theme override / extension** `[v1·GLOBAL·S]` — `theme: { extends: 'dotted-blue', tokens: { 'markers.default': '#f00' } }`.
+- **Theme `extends` (inherit from named preset)** `[v1·GLOBAL·S]` — `theme: { extends: 'dotted-blue', tokens: { 'markers.defaultColor': '#f00' } }`. Wymaga presets registry.
 - **Light / dark variants per styl** `[v1.x·GLOBAL·S]` — `theme: { name: 'paper', mode: 'dark' }`.
 - **Live theme transition** `[v1.x·GLOBAL·M]` — animacja zmian tokenów (np. day→night switch).
 - **CSS variable bridge** `[v2+·GLOBAL·S]` — `theme: 'css-vars'` czyta `--globio-globe-surface` etc.
