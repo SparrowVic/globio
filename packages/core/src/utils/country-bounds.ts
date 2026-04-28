@@ -36,8 +36,25 @@ export const computeBounds = (
   return { minLat, maxLat, minLng, maxLng };
 };
 
+/**
+ * Polar-cap detection. A bounding box that spans almost the whole world in
+ * longitude AND touches a pole is really a continuous cap around that pole
+ * (Antarctica, polar Russia in some renderings). The naive bbox center / lng
+ * extent is meaningless in that case — `[-180, 180]` lng spans nothing
+ * geographically once the ring closes around the pole.
+ */
+const isPolarCap = (b: LatLngBounds): 'north' | 'south' | null => {
+  if (b.maxLng - b.minLng < 270) return null;
+  if (b.minLat <= -85) return 'south';
+  if (b.maxLat >= 85) return 'north';
+  return null;
+};
+
 /** Center of a bounding box as `[lat, lng]`. Wraps lng back to [-180, 180]. */
 export const boundsCenter = (b: LatLngBounds): readonly [number, number] => {
+  const cap = isPolarCap(b);
+  if (cap === 'south') return [-90, 0];
+  if (cap === 'north') return [90, 0];
   let lng = (b.minLng + b.maxLng) / 2;
   while (lng > 180) lng -= 360;
   while (lng < -180) lng += 360;
@@ -70,8 +87,15 @@ const computeBoundsForRing = (
 /**
  * Maximum angular extent (in radians) — the larger of lat-extent and
  * lng-extent. Used to compute a fitting camera distance for `focusOnCountry`.
+ *
+ * For polar caps (e.g. Antarctica) the lng "extent" of 360° is meaningless —
+ * the ring wraps the pole. Return the cap's angular diameter instead, which
+ * is twice the angular distance from the pole to the cap edge.
  */
 export const angularExtent = (b: LatLngBounds): number => {
+  const cap = isPolarCap(b);
+  if (cap === 'south') return ((90 + b.maxLat) * 2 * Math.PI) / 180;
+  if (cap === 'north') return ((90 - b.minLat) * 2 * Math.PI) / 180;
   const latExt = ((b.maxLat - b.minLat) * Math.PI) / 180;
   const lngExt = ((b.maxLng - b.minLng) * Math.PI) / 180;
   return Math.max(latExt, lngExt);

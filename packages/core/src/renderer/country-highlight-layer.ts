@@ -18,6 +18,12 @@ export interface CountryHighlightLayerOptions {
    * through the globe (x-ray feel). Default behavior is decided by globe.ts.
    */
   readonly occludeBackSide: boolean;
+  /**
+   * Fade-in / fade-out duration in seconds. 0 disables the tween (snap to
+   * visible / hidden). Default 0.18s — fast enough to feel responsive while
+   * smoothing the transition between hover targets.
+   */
+  readonly fadeDuration?: number;
 }
 
 /**
@@ -32,14 +38,20 @@ export class CountryHighlightLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
   private readonly featuresById = new Map<string, CountryFeature>();
+  private readonly baseOpacity: number;
+  private readonly fadeDuration: number;
   private currentId: string | null = null;
+  private targetT = 0; // 0 → hidden, 1 → fully visible
+  private currentT = 0;
 
   public constructor(options: CountryHighlightLayerOptions) {
+    this.baseOpacity = options.hoverOpacity;
+    this.fadeDuration = options.fadeDuration ?? 0.18;
     this.material = new LineBasicMaterial({
       color: new Color(options.hoverColor),
       linewidth: options.hoverWidth,
       transparent: true,
-      opacity: options.hoverOpacity,
+      opacity: 0,
       depthTest: options.occludeBackSide,
     });
     this.object = new LineSegments(new BufferGeometry(), this.material);
@@ -55,23 +67,38 @@ export class CountryHighlightLayer {
   }
 
   public showCountry(id: string): void {
-    if (id === this.currentId) {
-      this.object.visible = true;
-      return;
+    if (id !== this.currentId) {
+      const feature = this.featuresById.get(id);
+      if (!feature) {
+        this.targetT = 0;
+        return;
+      }
+      this.rebuildGeometry(feature);
+      // When jumping between hovered countries the fade-in restart looks
+      // like a flash — keep the existing visibility and just swap geometry.
+      if (this.currentId !== null) this.currentT = Math.max(this.currentT, 1);
+      this.currentId = id;
     }
-    const feature = this.featuresById.get(id);
-    if (!feature) {
-      this.clear();
-      return;
-    }
-    this.rebuildGeometry(feature);
-    this.currentId = id;
-    this.object.visible = true;
+    this.targetT = 1;
   }
 
   public clear(): void {
-    this.object.visible = false;
+    this.targetT = 0;
     this.currentId = null;
+  }
+
+  /** Step the fade tween. Should be called once per render frame. */
+  public update(delta: number): void {
+    if (this.currentT === this.targetT) return;
+    if (this.fadeDuration <= 0) {
+      this.currentT = this.targetT;
+    } else {
+      const step = delta / this.fadeDuration;
+      const dir = this.targetT > this.currentT ? 1 : -1;
+      this.currentT = Math.max(0, Math.min(1, this.currentT + dir * step));
+    }
+    this.material.opacity = this.currentT * this.baseOpacity;
+    this.object.visible = this.currentT > 0;
   }
 
   public dispose(): void {
