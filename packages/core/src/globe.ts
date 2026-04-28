@@ -15,6 +15,7 @@ import { ArcsLayer } from './renderer/arcs-layer';
 import { StoryController } from './story/story-controller';
 import type { SceneConfig, StoryConfig } from './story/types';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
+import { WireframeGridLayer, WIREFRAME_DEFAULT_RADIUS } from './renderer/wireframe-grid-layer';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
@@ -89,6 +90,7 @@ interface InternalState {
   htmlMarkersLayer: HtmlMarkersLayer;
   arcsLayer: ArcsLayer;
   atmosphereLayer: AtmosphereLayer | null;
+  wireframeLayer: WireframeGridLayer | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
   emitter: GlobeEventEmitter;
@@ -115,6 +117,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.controls.update(delta);
       state.elapsedSeconds += delta;
       arcsLayer.update(state.elapsedSeconds);
+      state.wireframeLayer?.update(state.elapsedSeconds);
       state.htmlMarkersLayer.update();
       state.markersLayer.update(delta);
       state.countryHighlightLayer?.update(delta);
@@ -178,6 +181,26 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       })
     : null;
   if (atmosphereLayer) globeGroup.add(atmosphereLayer.mesh);
+
+  // Wireframe grid: explicit opt-in via config.wireframe.enabled, OR implicit
+  // via theme tokens (a preset like `wireframe-tron` ships opacity > 0 so the
+  // grid appears automatically when the user picks that theme).
+  const wireframeEnabled =
+    config.wireframe?.enabled === true ||
+    (config.wireframe?.enabled !== false && tokens['wireframe.opacity'] > 0);
+  const wireframeLayer = wireframeEnabled
+    ? new WireframeGridLayer({
+        color: tokens['wireframe.color'],
+        opacity: tokens['wireframe.opacity'] > 0 ? tokens['wireframe.opacity'] : 0.55,
+        density: config.wireframe?.density ?? tokens['wireframe.density'],
+        pulse: config.wireframe?.pulse ?? tokens['wireframe.pulse'],
+        ...(config.wireframe?.pulseSpeed !== undefined && {
+          pulseSpeed: config.wireframe.pulseSpeed,
+        }),
+        radius: WIREFRAME_DEFAULT_RADIUS,
+      })
+    : null;
+  if (wireframeLayer) globeGroup.add(wireframeLayer.group);
 
   const htmlMarkersLayer = new HtmlMarkersLayer({
     container: config.container,
@@ -297,6 +320,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     htmlMarkersLayer,
     arcsLayer,
     atmosphereLayer,
+    wireframeLayer,
     controls,
     raycaster,
     emitter,
@@ -326,14 +350,18 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countriesFillLayer = fill;
       if (state.countryData) fill.setData(state.countryData);
 
-      const visible = new CountriesLayer({
-        features: features as ReadonlyArray<CountryFeature>,
-        borderColor: tokens['countries.border.color'],
-        borderWidth: tokens['countries.border.width'],
-        borderOpacity: tokens['countries.border.opacity'],
-      });
-      globeGroup.add(visible.group);
-      state.countriesLayer = visible;
+      // Skip the visible borders layer entirely for `style: 'none'` — the
+      // picking layer below stays so hover/click still works on the wireframe.
+      if (countries.style !== 'none') {
+        const visible = new CountriesLayer({
+          features: features as ReadonlyArray<CountryFeature>,
+          borderColor: tokens['countries.border.color'],
+          borderWidth: tokens['countries.border.width'],
+          borderOpacity: tokens['countries.border.opacity'],
+        });
+        globeGroup.add(visible.group);
+        state.countriesLayer = visible;
+      }
 
       const picking = new CountriesPickingLayer({
         features: features as ReadonlyArray<CountryFeature>,
@@ -477,6 +505,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.arcsLayer.dispose();
       starfieldLayer?.dispose();
       atmosphereLayer?.dispose();
+      wireframeLayer?.dispose();
       scene.destroy();
       emitter.clear();
     },

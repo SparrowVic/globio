@@ -51,7 +51,11 @@ export type TokenKey =
   | 'arcs.width'
   | 'arcs.opacity'
   | 'arcs.headColor'
-  | 'arcs.headSize';
+  | 'arcs.headSize'
+  | 'wireframe.color'
+  | 'wireframe.opacity'
+  | 'wireframe.density'
+  | 'wireframe.pulse';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -105,6 +109,10 @@ export interface TokenSet {
   readonly 'arcs.opacity': number;
   readonly 'arcs.headColor': string;
   readonly 'arcs.headSize': number;
+  readonly 'wireframe.color': string;
+  readonly 'wireframe.opacity': number;
+  readonly 'wireframe.density': number;
+  readonly 'wireframe.pulse': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;

@@ -19,6 +19,7 @@ export type {
   MarkerEvent,
   PerformanceConfig,
   ResolutionLevel,
+  WireframeConfig,
   ZoomConfig,
   ZoomMode,
   EasingFunction,

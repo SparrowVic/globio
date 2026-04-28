@@ -52,4 +52,8 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
   'arcs.opacity': 0.9,
   'arcs.headColor': '#ffffff',
   'arcs.headSize': 0.012,
+  'wireframe.color': '#22d3ee',
+  'wireframe.opacity': 0.55,
+  'wireframe.density': 1,
+  'wireframe.pulse': 0,
 });

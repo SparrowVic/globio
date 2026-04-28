@@ -7,6 +7,7 @@ import {
   EU,
   BRICS,
   type CountryDataMap,
+  type CountryStyle,
   type GlobeInstance,
   type PartialTokenSet,
   type ThemePresetName,
@@ -226,12 +227,14 @@ const setStatus = (text: string): void => {
 const buildGlobe = (themeName: ThemePresetName): void => {
   globe?.destroy();
   settings.themeName = themeName;
+  // Wireframe preset hides country geometry — pure lat/lng grid only.
+  const countryStyle: CountryStyle = themeName === 'wireframe-tron' ? 'none' : 'borders';
   globe = createGlobe({
     container,
     theme: { extends: themeName, tokens: tokenOverrides },
     countries: {
       resolution: 'low',
-      style: 'borders',
+      style: countryStyle,
       hoverEnabled: true,
       hoverOccludeBackSide: settings.hoverOccludeBackSide,
     },

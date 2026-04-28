@@ -83,13 +83,19 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Sub-warianty (`v1.x`):** dotted-grid (regularna siatka), dotted-organic (Poisson),
   dotted-data (gęstość zależna od metryki).
 
-### 3.3 Wireframe / Retro Tron `[v1·S]` 🎨 `A·F`
+### 3.3 Wireframe / Retro Tron `[v1·S·built]` 🌟 🎨 `A·F`
 
 - **Vibe:** sama siatka południków/równoleżników, brak kontynentów.
 - **Anatomia:** generowane LineSegments dla siatki lat/long + opcjonalne pulsowanie linii.
 - **Tokens:** `wireframe.color`, `wireframe.density`, `wireframe.opacity`, `wireframe.pulse`.
 - **Best for:** vintage-tech, hacker-look, gry retro, also tryb "bez danych geo" (offline-first).
 - **References:** Tron, Mass Effect Galaxy Map, retro Apple ][.
+- **Status:** ✅ shipped. Preset `wireframe-tron` (cyan `#22d3ee` na pure black, density 1.2,
+  pulse 0.15) renderuje sferyczną siatkę lat/lng jako pojedynczy `LineSegments` (jeden draw call),
+  z opcjonalnym sin-wave pulsowaniem opacity. `CountryStyle = 'none'` ukrywa geometrię państw,
+  pozostawiając picking layer aktywną — hover/click nadal działa. API: `wireframe?: { enabled?,
+  density?, pulse?, pulseSpeed? }` w `GlobeConfig`. Auto-enable, gdy aktywny preset ma
+  `wireframe.opacity > 0`. Demo: nowy przycisk "Wireframe" obok 5 outline'owych presetów.
 
 ### 3.4 Choropleth Heatmap `[v1·M-L]` 🎨 `B·C`
 
