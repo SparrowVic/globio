@@ -51,3 +51,28 @@ export const angularExtent = (b: LatLngBounds): number => {
   const lngExt = ((b.maxLng - b.minLng) * Math.PI) / 180;
   return Math.max(latExt, lngExt);
 };
+
+/**
+ * Bounds of the *largest* ring by lat/lng-area. Used by `focusOnCountry` so
+ * countries with disjoint MultiPolygons (USA with Hawaii/Alaska, Russia
+ * across the antimeridian) frame on their main land mass instead of the
+ * full feature bbox — which can span half the globe.
+ *
+ * For features with a single ring this is identical to `computeBounds`.
+ * Returns the same EMPTY sentinel as `computeBounds` for empty input.
+ */
+export const computeMainRingBounds = (
+  rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>
+): LatLngBounds => {
+  let bestArea = -1;
+  let bestBounds: LatLngBounds = computeBounds([]);
+  for (const ring of rings) {
+    const b = computeBounds([ring]);
+    const area = (b.maxLat - b.minLat) * (b.maxLng - b.minLng);
+    if (area > bestArea) {
+      bestArea = area;
+      bestBounds = b;
+    }
+  }
+  return bestBounds;
+};

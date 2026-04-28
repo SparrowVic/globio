@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBounds, boundsCenter, angularExtent } from '../country-bounds';
+import { computeBounds, boundsCenter, angularExtent, computeMainRingBounds } from '../country-bounds';
 
 const square: ReadonlyArray<readonly [number, number]> = [
   [0, 0],
@@ -60,5 +60,38 @@ describe('angularExtent', () => {
     const point: ReadonlyArray<readonly [number, number]> = [[5, 5], [5, 5]];
     const b = computeBounds([point]);
     expect(angularExtent(b)).toBe(0);
+  });
+});
+
+describe('computeMainRingBounds', () => {
+  it('returns the bounds of the single ring when only one is provided', () => {
+    const b = computeMainRingBounds([square]);
+    expect(b).toEqual(computeBounds([square]));
+  });
+
+  it('picks the larger-area ring out of multiple disjoint rings', () => {
+    // square has 200° area; offsetTriangle has 50° area → square wins.
+    const b = computeMainRingBounds([offsetTriangle, square]);
+    expect(b).toEqual(computeBounds([square]));
+  });
+
+  it('frames mainland for USA-like feature (continental + far island)', () => {
+    const continental: ReadonlyArray<readonly [number, number]> = [
+      [-125, 25],
+      [-65, 25],
+      [-65, 50],
+      [-125, 50],
+      [-125, 25],
+    ];
+    const hawaii: ReadonlyArray<readonly [number, number]> = [
+      [-160, 19],
+      [-155, 19],
+      [-155, 22],
+      [-160, 22],
+      [-160, 19],
+    ];
+    const main = computeMainRingBounds([continental, hawaii]);
+    expect(main.minLng).toBe(-125);
+    expect(main.maxLng).toBe(-65);
   });
 });

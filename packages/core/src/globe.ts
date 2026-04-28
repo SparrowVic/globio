@@ -37,6 +37,7 @@ const DEFAULT_COUNTRIES: Required<CountriesConfig> = {
   resolution: 'medium',
   style: 'borders',
   hoverEnabled: true,
+  hoverOccludeBackSide: true,
 };
 
 /**
@@ -223,6 +224,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       const highlight = new CountryHighlightLayer({
         hoverColor: tokens['countries.hoverColor'],
         hoverWidth: tokens['countries.hoverWidth'],
+        occludeBackSide: countries.hoverOccludeBackSide,
       });
       highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
       scene.scene.add(highlight.object);
@@ -275,6 +277,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       const bounds = layer.getCountryBounds(id);
       if (!bounds) return;
       const padding = options?.padding ?? 0.15;
+      const pauseAutoRotate = options?.pauseAutoRotateOnFocus ?? true;
       const distance = computeFocusDistance(
         bounds,
         scene.camera,
@@ -283,6 +286,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         scene.camera.position.length()
       );
       const center = boundsCenter(bounds);
+      if (pauseAutoRotate) controls.setAutoRotate(false);
       controls.flyTo(center, distance, options ?? {});
     },
     setMarkers: (markers: ReadonlyArray<MarkerConfig>) => markersLayer.setMarkers(markers),

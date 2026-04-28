@@ -165,9 +165,9 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
   (Google-Maps-style); `attract` przyciąga punkt pod kursorem ku środkowi; `strength` 0..1
   reguluje siłę. `smooth: true` (default) interpoluje radius+kąty po `targetSpherical`.
 - **Auto-rotate** `[v1·GLOBAL·S·built]` — z konfigurowalną osią, prędkością i easeOnInteract.
-- **Smooth `flyTo(lat, lng, zoom)`** `[v1·GLOBAL·M]` — easing, duration, callback, anulowanie.
-- **`focusOnCountry(iso)`** `[v1·GLOBAL·M]` 🌟 — auto-frame country bbox z paddingiem.
-- **`focusOnRegion(bounds)`** `[v1·GLOBAL·S]` — frame dowolny obszar.
+- **Smooth `flyTo(lat, lng, distance)`** `[v1·GLOBAL·M·built]` — `globe.flyTo([lat, lng], distance?, { duration?, easing? })`. Easings exported (`linear`, `easeOutCubic`, `easeInOutCubic`); cancellation on drag/wheel.
+- **`focusOnCountry(id)`** `[v1·GLOBAL·M·built]` 🌟 — `globe.focusOnCountry('616', { duration?, padding? })`. Auto-computes camera distance from country bbox + FOV; default padding 15%.
+- **`focusOnRegion(bounds)`** `[v1·GLOBAL·S]` — frame dowolny obszar (osobny plan, używa tej samej infrastruktury).
 - **Inertia / damping** `[v1·GLOBAL·S]` — momentum po puszczeniu drag.
 - **Keyboard navigation** `[v1·GLOBAL·M]` — WASD/strzałki/Tab; bazowe a11y.
 - **Camera distance limits** `[v1·GLOBAL·S·built]`.

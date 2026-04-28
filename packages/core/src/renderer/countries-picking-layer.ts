@@ -9,7 +9,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS } from '../utils/coordinates';
 import { triangulateRing } from '../utils/triangulate-ring';
-import { computeBounds, type LatLngBounds } from '../utils/country-bounds';
+import { computeMainRingBounds, type LatLngBounds } from '../utils/country-bounds';
 import type { CountryFeature } from './countries-layer';
 import type { CountryData } from '../types';
 
@@ -75,7 +75,7 @@ export class CountriesPickingLayer {
   private buildMeshes(features: ReadonlyArray<CountryFeature>, radius: number): void {
     for (const feature of features) {
       this.countriesById.set(feature.id, { id: feature.id, name: feature.name });
-      this.boundsById.set(feature.id, computeBounds(feature.coordinates));
+      this.boundsById.set(feature.id, computeMainRingBounds(feature.coordinates));
       for (const ring of feature.coordinates) {
         const tri = triangulateRing(ring, radius);
         if (!tri) continue;

@@ -37,6 +37,13 @@ export interface CountriesConfig {
   readonly resolution?: ResolutionLevel;
   readonly style?: CountryStyle;
   readonly hoverEnabled?: boolean;
+  /**
+   * When true (default), the hover highlight respects the globe's depth —
+   * the back-side portions of a country (e.g. the part wrapped around the
+   * far side) are hidden. Set to false for an "x-ray" feel where the entire
+   * country outline is always visible.
+   */
+  readonly hoverOccludeBackSide?: boolean;
 }
 
 export interface AtmosphereConfig {
@@ -86,6 +93,12 @@ export interface FocusOptions extends FlyToOptions {
    * 0.15 means ~15% of the viewport edge is empty space. Default 0.15.
    */
   readonly padding?: number;
+  /**
+   * If true (default), auto-rotation is disabled when the focus animation
+   * starts — natural for "I'm clicking to inspect this country, stop spinning".
+   * Set to false to keep rotating after focus completes.
+   */
+  readonly pauseAutoRotateOnFocus?: boolean;
 }
 
 export interface PerformanceConfig {

@@ -20,6 +20,7 @@ const $zoomStrengthRow = document.getElementById('zoom-strength-row') as HTMLDiv
 const $smoothZoom = document.getElementById('toggle-smooth-zoom') as HTMLInputElement;
 const $clickToFocus = document.getElementById('toggle-click-to-focus') as HTMLInputElement;
 const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
+const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
 
 const settings = {
   themeName: 'outline-dark' as ThemePresetName,
@@ -30,6 +31,7 @@ const settings = {
   zoomStrength: 1,
   smoothZoom: true,
   clickToFocus: true,
+  hoverOccludeBackSide: true,
 };
 
 let globe: GlobeInstance | undefined;
@@ -44,7 +46,12 @@ const buildGlobe = (themeName: ThemePresetName): void => {
   globe = createGlobe({
     container,
     theme: themeName,
-    countries: { resolution: 'low', style: 'borders', hoverEnabled: true },
+    countries: {
+      resolution: 'low',
+      style: 'borders',
+      hoverEnabled: true,
+      hoverOccludeBackSide: settings.hoverOccludeBackSide,
+    },
     atmosphere: { enabled: true },
     autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
     zoom: { mode: settings.zoomMode, strength: settings.zoomStrength, smooth: settings.smoothZoom },
@@ -67,6 +74,11 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     setStatus(`Klik: ${country.name} (${country.id})`);
     if (settings.clickToFocus) {
       globe?.focusOnCountry(country.id);
+      // focusOnCountry pauses auto-rotate by default — sync the UI checkbox.
+      if (settings.autoRotateEnabled) {
+        settings.autoRotateEnabled = false;
+        $autoRotate.checked = false;
+      }
     }
   });
 
@@ -145,6 +157,13 @@ $clickToFocus.addEventListener('change', () => {
 
 $flyHome.addEventListener('click', () => {
   globe?.flyTo([20, 0], 3, { duration: 1500 });
+});
+
+$hoverOcclude.addEventListener('change', () => {
+  settings.hoverOccludeBackSide = $hoverOcclude.checked;
+  // hoverOccludeBackSide is a constructor option for the highlight layer,
+  // so we rebuild the globe instance to apply it cleanly.
+  buildGlobe(settings.themeName);
 });
 
 updateSpeedDisplay();
