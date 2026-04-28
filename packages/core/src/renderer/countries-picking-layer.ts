@@ -9,6 +9,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS } from '../utils/coordinates';
 import { triangulateRing } from '../utils/triangulate-ring';
+import { computeMainRingBounds, type LatLngBounds } from '../utils/country-bounds';
 import type { CountryFeature } from './countries-layer';
 import type { CountryData } from '../types';
 
@@ -26,6 +27,7 @@ export class CountriesPickingLayer {
   private readonly material: MeshBasicMaterial;
   private readonly geometries: Array<BufferGeometry> = [];
   private readonly countriesById = new Map<string, CountryData>();
+  private readonly boundsById = new Map<string, LatLngBounds>();
 
   public constructor(options: CountriesPickingLayerOptions) {
     this.group = new Group();
@@ -58,16 +60,22 @@ export class CountriesPickingLayer {
     return this.countriesById.get(id) ?? null;
   }
 
+  public getCountryBounds(id: string): LatLngBounds | null {
+    return this.boundsById.get(id) ?? null;
+  }
+
   public dispose(): void {
     this.geometries.forEach((g) => g.dispose());
     this.material.dispose();
     this.group.clear();
     this.countriesById.clear();
+    this.boundsById.clear();
   }
 
   private buildMeshes(features: ReadonlyArray<CountryFeature>, radius: number): void {
     for (const feature of features) {
       this.countriesById.set(feature.id, { id: feature.id, name: feature.name });
+      this.boundsById.set(feature.id, computeMainRingBounds(feature.coordinates));
       for (const ring of feature.coordinates) {
         const tri = triangulateRing(ring, radius);
         if (!tri) continue;

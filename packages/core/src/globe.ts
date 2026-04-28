@@ -11,7 +11,8 @@ import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
 import { loadCountries } from './data/geo-loader';
 import { resolveTheme } from './theme/resolver';
-import { vector3ToLatLng } from './utils/coordinates';
+import { GLOBE_RADIUS, vector3ToLatLng } from './utils/coordinates';
+import { angularExtent, boundsCenter, type LatLngBounds } from './utils/country-bounds';
 import type {
   CountriesConfig,
   CountryData,
@@ -36,6 +37,30 @@ const DEFAULT_COUNTRIES: Required<CountriesConfig> = {
   resolution: 'medium',
   style: 'borders',
   hoverEnabled: true,
+  hoverOccludeBackSide: true,
+};
+
+/**
+ * Compute camera radius such that the angular extent fits inside the
+ * limiting field-of-view dimension with the given padding. Exact geometry:
+ * tan(theta_screen) = R_g * sin(g/2) / (R - R_g * cos(g/2)).
+ */
+const computeFocusDistance = (
+  bounds: LatLngBounds,
+  camera: import('three').PerspectiveCamera,
+  padding: number,
+  globeRadius: number,
+  fallbackRadius: number
+): number => {
+  const gamma = angularExtent(bounds);
+  if (gamma <= 0) return fallbackRadius;
+  const fovV = (camera.fov * Math.PI) / 180;
+  const fovH = 2 * Math.atan(Math.tan(fovV / 2) * camera.aspect);
+  const limitingFov = Math.min(fovV, fovH);
+  const targetScreen = ((1 - 2 * padding) * limitingFov) / 2;
+  const tanT = Math.tan(targetScreen);
+  if (tanT <= 0) return fallbackRadius;
+  return (globeRadius * Math.sin(gamma / 2)) / tanT + globeRadius * Math.cos(gamma / 2);
 };
 
 interface InternalState {
@@ -199,6 +224,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       const highlight = new CountryHighlightLayer({
         hoverColor: tokens['countries.hoverColor'],
         hoverWidth: tokens['countries.hoverWidth'],
+        occludeBackSide: countries.hoverOccludeBackSide,
       });
       highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
       scene.scene.add(highlight.object);
@@ -241,6 +267,27 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.off(event, handler),
     setRotation: (_position: LatLng) => {
       // implementacja do uzupełnienia - smooth rotation do danej pozycji
+    },
+    flyTo: (position, distance, options) => {
+      controls.flyTo(position, distance, options ?? {});
+    },
+    focusOnCountry: (id, options) => {
+      const layer = state.countriesPickingLayer;
+      if (!layer) return;
+      const bounds = layer.getCountryBounds(id);
+      if (!bounds) return;
+      const padding = options?.padding ?? 0.15;
+      const pauseAutoRotate = options?.pauseAutoRotateOnFocus ?? true;
+      const distance = computeFocusDistance(
+        bounds,
+        scene.camera,
+        padding,
+        GLOBE_RADIUS,
+        scene.camera.position.length()
+      );
+      const center = boundsCenter(bounds);
+      if (pauseAutoRotate) controls.setAutoRotate(false);
+      controls.flyTo(center, distance, options ?? {});
     },
     setMarkers: (markers: ReadonlyArray<MarkerConfig>) => markersLayer.setMarkers(markers),
     addMarker: (marker: MarkerConfig) => markersLayer.addMarker(marker),

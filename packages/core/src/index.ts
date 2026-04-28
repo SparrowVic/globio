@@ -19,7 +19,11 @@ export type {
   ResolutionLevel,
   ZoomConfig,
   ZoomMode,
+  EasingFunction,
+  FlyToOptions,
+  FocusOptions,
 } from './types';
+export { linear, easeOutCubic, easeInOutCubic } from './utils/easing';
 export {
   DEFAULT_TOKENS,
   THEME_PRESETS,

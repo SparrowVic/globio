@@ -37,6 +37,13 @@ export interface CountriesConfig {
   readonly resolution?: ResolutionLevel;
   readonly style?: CountryStyle;
   readonly hoverEnabled?: boolean;
+  /**
+   * When true (default), the hover highlight respects the globe's depth —
+   * the back-side portions of a country (e.g. the part wrapped around the
+   * far side) are hidden. Set to false for an "x-ray" feel where the entire
+   * country outline is always visible.
+   */
+  readonly hoverOccludeBackSide?: boolean;
 }
 
 export interface AtmosphereConfig {
@@ -68,6 +75,30 @@ export interface ZoomConfig {
    * post-scroll target each frame instead of snapping. Applies to all modes.
    */
   readonly smooth?: boolean;
+}
+
+/** Easing function — receives normalized progress t∈[0,1], returns eased t∈[0,1]. */
+export type EasingFunction = (t: number) => number;
+
+export interface FlyToOptions {
+  /** Animation duration in milliseconds. Default 1500. */
+  readonly duration?: number;
+  /** Easing function. Default `easeInOutCubic`. */
+  readonly easing?: EasingFunction;
+}
+
+export interface FocusOptions extends FlyToOptions {
+  /**
+   * Fraction of the viewport to leave as padding around the focused country, 0..0.5.
+   * 0.15 means ~15% of the viewport edge is empty space. Default 0.15.
+   */
+  readonly padding?: number;
+  /**
+   * If true (default), auto-rotation is disabled when the focus animation
+   * starts — natural for "I'm clicking to inspect this country, stop spinning".
+   * Set to false to keep rotating after focus completes.
+   */
+  readonly pauseAutoRotateOnFocus?: boolean;
 }
 
 export interface PerformanceConfig {
@@ -115,6 +146,8 @@ export interface GlobeInstance {
   ) => GlobeEventUnsubscribe;
   readonly off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => void;
   readonly setRotation: (position: LatLng, animate?: boolean) => void;
+  readonly flyTo: (position: LatLng, distance?: number, options?: FlyToOptions) => void;
+  readonly focusOnCountry: (id: string, options?: FocusOptions) => void;
   readonly setMarkers: (markers: ReadonlyArray<MarkerConfig>) => void;
   readonly addMarker: (marker: MarkerConfig) => void;
   readonly removeMarker: (id: string) => void;

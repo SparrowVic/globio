@@ -1,6 +1,7 @@
 import { Spherical, Vector2, Vector3, type PerspectiveCamera } from 'three';
-import { GLOBE_RADIUS } from '../utils/coordinates';
-import type { ZoomConfig, ZoomMode } from '../types';
+import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
+import { easeInOutCubic } from '../utils/easing';
+import type { EasingFunction, FlyToOptions, LatLng, ZoomConfig, ZoomMode } from '../types';
 
 export interface ControlsOptions {
   readonly camera: PerspectiveCamera;
@@ -31,6 +32,13 @@ export class GlobeControls {
   private readonly zoomSpeed: number;
   private readonly tempVec = new Vector3();
   private readonly tempSpherical = new Spherical();
+  private activeTween: {
+    readonly startSpherical: Spherical;
+    readonly endSpherical: Spherical;
+    elapsed: number;
+    readonly duration: number;
+    readonly easing: EasingFunction;
+  } | null = null;
 
   public constructor(private readonly options: ControlsOptions) {
     this.minDistance = options.minDistance ?? 1.5;
@@ -58,7 +66,51 @@ export class GlobeControls {
     if (config.smooth !== undefined) this.smoothZoom = config.smooth;
   }
 
+  public flyTo(position: LatLng, distance?: number, options: FlyToOptions = {}): void {
+    const radius = clamp(
+      distance ?? this.spherical.radius,
+      this.minDistance,
+      this.maxDistance
+    );
+    const targetVec = latLngToVector3(position, radius);
+    const endSpherical = new Spherical().setFromVector3(targetVec);
+    this.activeTween = {
+      startSpherical: this.spherical.clone(),
+      endSpherical,
+      elapsed: 0,
+      duration: options.duration ?? 1500,
+      easing: options.easing ?? easeInOutCubic,
+    };
+    this.targetSpherical.copy(endSpherical);
+  }
+
+  public cancelTween(): void {
+    if (this.activeTween) {
+      this.activeTween = null;
+      this.targetSpherical.copy(this.spherical);
+    }
+  }
+
   public update(deltaSeconds: number): void {
+    // While a tween is active, it owns the camera. Auto-rotate and smooth-zoom are paused.
+    if (this.activeTween) {
+      this.activeTween.elapsed += deltaSeconds * 1000;
+      const t = Math.min(1, this.activeTween.elapsed / this.activeTween.duration);
+      const eased = this.activeTween.easing(t);
+      const start = this.activeTween.startSpherical;
+      const end = this.activeTween.endSpherical;
+      this.spherical.radius = lerp(start.radius, end.radius, eased);
+      this.spherical.theta = lerpAngle(start.theta, end.theta, eased);
+      this.spherical.phi = lerp(start.phi, end.phi, eased);
+      if (t >= 1) this.activeTween = null;
+
+      this.spherical.radius = clamp(this.spherical.radius, this.minDistance, this.maxDistance);
+      this.spherical.phi = clamp(this.spherical.phi, 0.05, Math.PI - 0.05);
+      this.options.camera.position.setFromSpherical(this.spherical);
+      this.options.camera.lookAt(0, 0, 0);
+      return;
+    }
+
     // Auto-rotate updates BOTH current and target so the smooth lerp doesn't fight it.
     if (this.autoRotate && !this.isPointerDown) {
       const delta = this.autoRotateSpeed * deltaSeconds * 0.2;
@@ -100,6 +152,7 @@ export class GlobeControls {
   }
 
   private onPointerDown = (event: PointerEvent): void => {
+    this.cancelTween();
     this.isPointerDown = true;
     this.previousPointer.set(event.clientX, event.clientY);
     this.options.domElement.setPointerCapture(event.pointerId);
@@ -129,6 +182,7 @@ export class GlobeControls {
   };
 
   private onWheel = (event: WheelEvent): void => {
+    this.cancelTween();
     event.preventDefault();
     const factor = Math.exp((event.deltaY * this.zoomSpeed) / 500);
 
