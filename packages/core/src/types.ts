@@ -1,4 +1,10 @@
 import type { ThemeInput } from './theme/types';
+import type {
+  SceneConfig,
+  StoryConfig,
+  StorySceneEvent,
+  StoryCompleteEvent,
+} from './story/types';
 
 export type LatLng = readonly [latitude: number, longitude: number];
 
@@ -224,6 +230,9 @@ export interface GlobeEvents {
   readonly markerHover: (event: MarkerEvent | null) => void;
   readonly ready: () => void;
   readonly error: (error: Error) => void;
+  readonly sceneEnter: (event: StorySceneEvent) => void;
+  readonly sceneExit: (event: StorySceneEvent) => void;
+  readonly storyComplete: (event: StoryCompleteEvent) => void;
 }
 
 export type GlobeEventName = keyof GlobeEvents;
@@ -244,6 +253,14 @@ export interface GlobeInstance {
   readonly focusOnCountry: (id: string, options?: FocusOptions) => void;
   readonly setActiveCountry: (id: string | null) => void;
   readonly getActiveCountry: () => string | null;
+  readonly setStory: (story: StoryConfig | null) => void;
+  readonly playStory: () => void;
+  readonly pauseStory: () => void;
+  readonly nextScene: () => void;
+  readonly prevScene: () => void;
+  readonly goToScene: (id: string) => void;
+  readonly getCurrentScene: () => SceneConfig | null;
+  readonly isStoryPlaying: () => boolean;
   readonly setMarkers: (markers: ReadonlyArray<MarkerConfig>) => void;
   readonly addMarker: (marker: MarkerConfig) => void;
   readonly removeMarker: (id: string) => void;

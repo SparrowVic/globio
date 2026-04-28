@@ -24,6 +24,12 @@ export type {
   FocusOptions,
 } from './types';
 export { linear, easeOutCubic, easeInOutCubic } from './utils/easing';
+export type {
+  SceneConfig,
+  StoryConfig,
+  StorySceneEvent,
+  StoryCompleteEvent,
+} from './story/types';
 export {
   DEFAULT_TOKENS,
   THEME_PRESETS,
