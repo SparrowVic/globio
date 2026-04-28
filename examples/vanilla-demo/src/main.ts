@@ -40,6 +40,8 @@ const $htmlMarkers = document.getElementById('toggle-html-markers') as HTMLInput
 const $axisTilt = document.getElementById('axis-tilt') as HTMLInputElement;
 const $axisTiltValue = document.getElementById('axis-tilt-value') as HTMLSpanElement;
 const $arcs = document.getElementById('toggle-arcs') as HTMLInputElement;
+const $dottedRipple = document.getElementById('toggle-dotted-ripple') as HTMLInputElement;
+const $dottedFlash = document.getElementById('toggle-dotted-flash') as HTMLInputElement;
 const $snapshot = document.getElementById('btn-snapshot') as HTMLButtonElement;
 const $storyPrev = document.getElementById('story-prev') as HTMLButtonElement;
 const $storyPlay = document.getElementById('story-play') as HTMLButtonElement;
@@ -69,6 +71,8 @@ const settings = {
   htmlMarkersEnabled: true,
   arcsEnabled: true,
   axisTilt: 23.5,
+  dottedRippleEnabled: true,
+  dottedFlashEnabled: true,
 };
 
 const WORLD_TOUR = {
@@ -244,6 +248,10 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     zoom: { mode: settings.zoomMode, strength: settings.zoomStrength, smooth: settings.smoothZoom },
     starfield: { enabled: settings.starfieldEnabled },
     axisTilt: settings.axisTilt,
+    dotted: {
+      clickRipple: { enabled: settings.dottedRippleEnabled },
+      dataFlash: { enabled: settings.dottedFlashEnabled },
+    },
     htmlMarkers: settings.htmlMarkersEnabled ? HTML_MARKERS : [],
     arcs: settings.arcsEnabled ? ARCS : [],
     markers: [
@@ -437,6 +445,8 @@ const $themeButtons = document.querySelectorAll<HTMLButtonElement>('#theme-butto
 const themesForKind = (kind: GlobeKind): ReadonlyArray<HTMLButtonElement> =>
   Array.from($themeButtons).filter((btn) => btn.dataset['kind'] === kind);
 
+const $dottedExtras = document.getElementById('dotted-extras') as HTMLElement | null;
+
 const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
   const activeKind = PRESET_DEFAULT_KIND[themeName] ?? 'outline';
   $kindButtons.forEach((btn) => {
@@ -447,6 +457,7 @@ const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
     btn.hidden = !matchesKind;
     btn.classList.toggle('active', btn.dataset['theme'] === themeName);
   });
+  if ($dottedExtras) $dottedExtras.style.display = activeKind === 'dotted' ? '' : 'none';
 };
 
 const switchTheme = (themeName: ThemePresetName): void => {
@@ -564,6 +575,14 @@ $htmlMarkers.addEventListener('change', () => {
 $arcs.addEventListener('change', () => {
   settings.arcsEnabled = $arcs.checked;
   globe?.setArcs(settings.arcsEnabled ? ARCS : []);
+});
+$dottedRipple.addEventListener('change', () => {
+  settings.dottedRippleEnabled = $dottedRipple.checked;
+  buildGlobe(settings.themeName);
+});
+$dottedFlash.addEventListener('change', () => {
+  settings.dottedFlashEnabled = $dottedFlash.checked;
+  buildGlobe(settings.themeName);
 });
 $snapshot.addEventListener('click', async () => {
   if (!globe) return;

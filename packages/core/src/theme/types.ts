@@ -23,6 +23,12 @@ export type TokenKey =
   | 'countries.dotted.size'
   | 'countries.dotted.density'
   | 'countries.dotted.opacity'
+  | 'countries.dotted.rippleBoost'
+  | 'countries.dotted.rippleSpeed'
+  | 'countries.dotted.rippleWidth'
+  | 'countries.dotted.flashColor'
+  | 'countries.dotted.flashStrength'
+  | 'countries.dotted.flashDecay'
   | 'countries.label.color'
   | 'countries.label.fontSize'
   | 'countries.label.fontFamily'
@@ -84,6 +90,12 @@ export interface TokenSet {
   readonly 'countries.dotted.size': number;
   readonly 'countries.dotted.density': number;
   readonly 'countries.dotted.opacity': number;
+  readonly 'countries.dotted.rippleBoost': number;
+  readonly 'countries.dotted.rippleSpeed': number;
+  readonly 'countries.dotted.rippleWidth': number;
+  readonly 'countries.dotted.flashColor': string;
+  readonly 'countries.dotted.flashStrength': number;
+  readonly 'countries.dotted.flashDecay': number;
   readonly 'countries.label.color': string;
   readonly 'countries.label.fontSize': number;
   readonly 'countries.label.fontFamily': string;

@@ -276,6 +276,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     domElement: scene.renderer.domElement,
     targets: [{ type: 'marker', object: markersLayer.mesh }],
     onClick: (hit) => {
+      // Kind-level click hook fires for any surface hit so kinds can launch
+      // ripples / pulses from the impact point. We hand it the raycast
+      // intersection in globe-local 3D and the same as lat/lng.
+      if (hit?.point) {
+        const localPoint = hit.point.clone();
+        globeGroup.updateMatrixWorld();
+        const inverse = globeGroup.matrixWorld.clone().invert();
+        localPoint.applyMatrix4(inverse);
+        state.kindHandle?.onPointerDown?.(localPoint, vector3ToLatLng(localPoint));
+      }
       if (hit?.type === 'marker' && hit.instanceId !== undefined) {
         const marker = markersLayer.getMarkerByInstanceId(hit.instanceId);
         if (marker) emitter.emit('markerClick', { marker });
@@ -561,8 +571,10 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
     getActiveCountry: () => state.activeCountryId,
     setCountryData: (data, scale) => {
+      const prev = state.countryData;
       state.countryData = data;
       state.countriesFillLayer?.setData(data, scale);
+      state.kindHandle?.onCountryDataChange?.(data, prev);
     },
     getCountryData: () => state.countryData,
     setCountryLabelsEnabled: (enabled) => {
