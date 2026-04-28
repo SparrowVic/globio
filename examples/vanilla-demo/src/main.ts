@@ -39,6 +39,17 @@ const buildGlobe = (themeName: ThemePresetName): void => {
   globe.on('markerClick', ({ marker }) => {
     if (status) status.textContent = `Kliknięto marker: ${marker.id}`;
   });
+  globe.on('countryHover', (event) => {
+    if (!status) return;
+    if (event) {
+      status.textContent = `Hover: ${event.country.name}`;
+    } else {
+      status.textContent = `Theme: ${themeName}`;
+    }
+  });
+  globe.on('countryClick', ({ country }) => {
+    if (status) status.textContent = `Klik: ${country.name} (${country.id})`;
+  });
 
   globe.mount();
 };

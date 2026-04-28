@@ -175,8 +175,9 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 ### 4.3 Country interaction
 
-- **Hover state** `[v1·EVENT·S]` — change border/fill on hover; emit event z `CountryData`.
-- **Click events** `[v1·EVENT·S]` — emit event; `preventDefault` żeby ograniczyć wbudowane reakcje.
+- **Hover events** `[v1·EVENT·S·built]` — `countryHover` z `CountryData` + `point: LatLng`. Visual hover indicator (zmiana koloru granicy) → osobny plan.
+- **Click events** `[v1·EVENT·S·built]` — `countryClick` z `CountryData` + `point: LatLng`. Markery mają wyższy priorytet w raycaster.
+- **Country picking limitations (v0.3)** — drobna część triangulacji ma luki w okolicach: (a) państw przecinających antymerydian (Russia, Fiji), (b) enklaw (Lesotho, Vatican), (c) niektórych skomplikowanych MultiPolygon. Pełny fix wymaga zachowania struktury polygon-with-holes w geo-loaderze — zaplanowane w osobnym v0.3.x.
 - **Active / selected state** `[v1·EVENT·M]` — pin kraju (zostaje highlighted nawet po hover-out).
 - **Country -> data binding** `[v1·LAYER·M]` — `countryData: { 'PL': { value: 42, color: '#f00' } }` driving styling.
 - **Country labels on hover** `[v1·LAYER·S]` — auto-pop tooltip z nazwą + custom content.

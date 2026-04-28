@@ -3,14 +3,17 @@ import { SceneManager } from './renderer/scene-manager';
 import { GlobeMesh } from './renderer/globe-mesh';
 import { MarkersLayer } from './renderer/markers-layer';
 import { CountriesLayer, type CountryFeature } from './renderer/countries-layer';
+import { CountriesPickingLayer } from './renderer/countries-picking-layer';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
 import { loadCountries } from './data/geo-loader';
 import { resolveTheme } from './theme/resolver';
+import { vector3ToLatLng } from './utils/coordinates';
 import type {
   CountriesConfig,
+  CountryData,
   GlobeConfig,
   GlobeEventName,
   GlobeEvents,
@@ -19,6 +22,7 @@ import type {
   MarkerConfig,
   PerformanceConfig,
 } from './types';
+import type { Object3D, Vector3 } from 'three';
 
 const DEFAULT_PERFORMANCE: Required<PerformanceConfig> = {
   antialias: true,
@@ -39,6 +43,7 @@ interface InternalState {
   globeMesh: GlobeMesh;
   markersLayer: MarkersLayer;
   countriesLayer: CountriesLayer | null;
+  countriesPickingLayer: CountriesPickingLayer | null;
   atmosphereLayer: AtmosphereLayer | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
@@ -94,6 +99,19 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   });
   if (config.autoRotate?.enabled) controls.setAutoRotate(true, config.autoRotate.speed);
 
+  const handleCountryHit = (
+    object: Object3D | null,
+    point: Vector3 | undefined
+  ): { country: CountryData; point: LatLng } | null => {
+    if (!object || !state.countriesPickingLayer) return null;
+    const id = object.userData['countryId'];
+    if (typeof id !== 'string') return null;
+    const country = state.countriesPickingLayer.getCountry(id);
+    if (!country) return null;
+    const ll: LatLng = point ? vector3ToLatLng(point) : [0, 0];
+    return { country, point: ll };
+  };
+
   const raycaster = new PointerRaycaster({
     camera: scene.camera,
     domElement: scene.renderer.domElement,
@@ -102,15 +120,28 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (hit?.type === 'marker' && hit.instanceId !== undefined) {
         const marker = markersLayer.getMarkerByInstanceId(hit.instanceId);
         if (marker) emitter.emit('markerClick', { marker });
+        return;
+      }
+      if (hit?.type === 'country') {
+        const event = handleCountryHit(hit.object, hit.point);
+        if (event) emitter.emit('countryClick', event);
       }
     },
     onHover: (hit) => {
       if (hit?.type === 'marker' && hit.instanceId !== undefined) {
         const marker = markersLayer.getMarkerByInstanceId(hit.instanceId);
         emitter.emit('markerHover', marker ? { marker } : null);
-      } else {
-        emitter.emit('markerHover', null);
+        emitter.emit('countryHover', null);
+        return;
       }
+      if (hit?.type === 'country') {
+        const event = handleCountryHit(hit.object, hit.point);
+        emitter.emit('countryHover', event);
+        emitter.emit('markerHover', null);
+        return;
+      }
+      emitter.emit('markerHover', null);
+      emitter.emit('countryHover', null);
     },
   });
 
@@ -120,6 +151,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     globeMesh,
     markersLayer,
     countriesLayer: null,
+    countriesPickingLayer: null,
     atmosphereLayer,
     controls,
     raycaster,
@@ -136,14 +168,25 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     try {
       const features = await loadCountries({ resolution: countries.resolution });
       if (state.destroyed) return;
-      const layer = new CountriesLayer({
+
+      const visible = new CountriesLayer({
         features: features as ReadonlyArray<CountryFeature>,
         borderColor: tokens['borders.color'],
         borderWidth: tokens['borders.width'],
         borderOpacity: tokens['borders.opacity'],
       });
-      scene.scene.add(layer.group);
-      state.countriesLayer = layer;
+      scene.scene.add(visible.group);
+      state.countriesLayer = visible;
+
+      const picking = new CountriesPickingLayer({
+        features: features as ReadonlyArray<CountryFeature>,
+      });
+      scene.scene.add(picking.group);
+      state.countriesPickingLayer = picking;
+      raycaster.setTargets([
+        { type: 'marker', object: markersLayer.mesh },
+        { type: 'country', object: picking.group },
+      ]);
     } catch (error) {
       emitter.emit('error', error instanceof Error ? error : new Error(String(error)));
     }
@@ -162,6 +205,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       markersLayer.dispose();
       globeMesh.dispose();
       state.countriesLayer?.dispose();
+      state.countriesPickingLayer?.dispose();
       atmosphereLayer?.dispose();
       scene.destroy();
       emitter.clear();
