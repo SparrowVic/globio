@@ -5,6 +5,9 @@ export interface CountryTooltipOptions {
   readonly background: string;
   readonly textColor: string;
   readonly fontSize: number;
+  readonly fontFamily: string;
+  readonly padding: string;
+  readonly borderRadius: string;
 }
 
 /**
@@ -20,10 +23,10 @@ export class CountryTooltip {
     Object.assign(this.element.style, {
       position: 'absolute',
       pointerEvents: 'none',
-      padding: '4px 8px',
-      borderRadius: '4px',
+      padding: options.padding,
+      borderRadius: options.borderRadius,
       fontSize: `${options.fontSize}px`,
-      fontFamily: 'system-ui, sans-serif',
+      fontFamily: options.fontFamily,
       lineHeight: '1.2',
       background: options.background,
       color: options.textColor,

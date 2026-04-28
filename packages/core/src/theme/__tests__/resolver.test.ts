@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { resolveTheme } from '../resolver';
 import { DEFAULT_TOKENS } from '../tokens';
 import { THEME_PRESETS } from '../presets';
+import { registerThemePreset, unregisterThemePreset, listCustomPresets } from '../registry';
 import type { PartialTokenSet } from '../types';
 
 describe('resolveTheme', () => {
@@ -86,5 +87,44 @@ describe('resolveTheme: extends + shorthand', () => {
   it('THEME_PRESETS is frozen', () => {
     expect(Object.isFrozen(THEME_PRESETS)).toBe(true);
     expect(Object.isFrozen(THEME_PRESETS['outline-dark'])).toBe(true);
+  });
+});
+
+describe('custom theme preset registry', () => {
+  afterEach(() => {
+    listCustomPresets().forEach(unregisterThemePreset);
+  });
+
+  it('registered preset is usable as extends source', () => {
+    const myTokens = { ...THEME_PRESETS['outline-dark'], 'globe.surface': '#abcdef' };
+    registerThemePreset('my-brand', myTokens);
+    const result = resolveTheme({ extends: 'my-brand' });
+    expect(result['globe.surface']).toBe('#abcdef');
+  });
+
+  it('registered preset works with string shorthand', () => {
+    const myTokens = { ...THEME_PRESETS['outline-cyber'], 'borders.color': '#feedfa' };
+    registerThemePreset('neon-pink', myTokens);
+    const result = resolveTheme('neon-pink');
+    expect(result['borders.color']).toBe('#feedfa');
+  });
+
+  it('custom preset shadows a built-in name', () => {
+    const override = { ...THEME_PRESETS['outline-dark'], 'globe.surface': '#001122' };
+    registerThemePreset('outline-dark', override);
+    const result = resolveTheme('outline-dark');
+    expect(result['globe.surface']).toBe('#001122');
+  });
+
+  it('unregister removes the preset', () => {
+    registerThemePreset('temp', THEME_PRESETS['outline-dark']);
+    expect(listCustomPresets()).toContain('temp');
+    unregisterThemePreset('temp');
+    expect(listCustomPresets()).not.toContain('temp');
+  });
+
+  it('falls back to DEFAULT_TOKENS when extends names a non-existent preset', () => {
+    const result = resolveTheme({ extends: 'does-not-exist' });
+    expect(result).toEqual(DEFAULT_TOKENS);
   });
 });

@@ -143,14 +143,18 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 > Centralny system designerski — wszystkie kolory, gradienty i parametry estetyczne wyrażone tokenami.
 
-- **Theme tokens** `[v1·GLOBAL·M·built]` 🌟 — ~9 tokenów w v0.2 (`background.color`,
-  `globe.surface`, `globe.surfaceTexture`, `borders.color/width/opacity`, `markers.defaultColor`,
-  `atmosphere.color/intensity`); rozszerzane wraz z kolejnymi stylami (arcs, labels, popup itd.).
-  Każdy token to string (kolor/URL) albo number; w przyszłości też gradient i function `(value, ctx)`.
+- **Theme tokens** `[v1·GLOBAL·M·built]` 🌟 — **23 tokeny** w bieżącej wersji: `background.color`,
+  `globe.surface/surfaceTexture`, `borders.color/width/opacity`, `countries.hover/activeColor/Width/Opacity`,
+  `tooltip.background/textColor/fontSize/fontFamily/padding/borderRadius`, `lights.ambient.color/intensity`,
+  `lights.directional.color/intensity`, `markers.defaultColor`, `atmosphere.color/intensity`. Każdy token
+  to string (kolor/URL/CSS) albo number; w przyszłości też gradient i function `(value, ctx)`.
 - **Theme tokens override** `[v1·GLOBAL·S·built]` — `theme: { tokens: { 'globe.surface': '#f00' } }`.
 - **Built-in theme presets** `[v1·GLOBAL·S·built]` — v0.2.x ships 5 outline-style presets:
   `outline-dark`, `outline-light`, `outline-sunset`, `outline-cyber`, `outline-monochrome`. Presety dla
   pozostałych stylów (dotted, paper, hologram) dochodzą wraz z ich implementacją.
+- **Custom theme presets (`registerThemePreset`)** `[v1·GLOBAL·S·built]` 🌟 — `registerThemePreset('my-brand', tokens)`
+  rejestruje własny preset jako pełnoprawnego obywatela; działa wszędzie gdzie built-in
+  (`theme: 'my-brand'` lub `theme: { extends: 'my-brand', tokens: {...} }`). Custom shadow built-in (rebrand without fork).
 - **Theme `extends` (inherit from named preset)** `[v1·GLOBAL·S·built]` — `theme: { extends: 'outline-cyber', tokens: { 'markers.defaultColor': '#f00' } }`. Skrót: `theme: 'outline-cyber'`.
 - **Light / dark variants per styl** `[v1.x·GLOBAL·S]` — `theme: { name: 'paper', mode: 'dark' }`.
 - **Live theme transition** `[v1.x·GLOBAL·M]` — animacja zmian tokenów (np. day→night switch).

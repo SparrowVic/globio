@@ -13,10 +13,20 @@ export type TokenKey =
   | 'borders.opacity'
   | 'countries.hoverColor'
   | 'countries.hoverWidth'
+  | 'countries.hoverOpacity'
   | 'countries.activeColor'
   | 'countries.activeWidth'
+  | 'countries.activeOpacity'
   | 'tooltip.background'
   | 'tooltip.textColor'
+  | 'tooltip.fontSize'
+  | 'tooltip.fontFamily'
+  | 'tooltip.padding'
+  | 'tooltip.borderRadius'
+  | 'lights.ambient.color'
+  | 'lights.ambient.intensity'
+  | 'lights.directional.color'
+  | 'lights.directional.intensity'
   | 'markers.defaultColor'
   | 'atmosphere.color'
   | 'atmosphere.intensity';
@@ -34,10 +44,20 @@ export interface TokenSet {
   readonly 'borders.opacity': number;
   readonly 'countries.hoverColor': string;
   readonly 'countries.hoverWidth': number;
+  readonly 'countries.hoverOpacity': number;
   readonly 'countries.activeColor': string;
   readonly 'countries.activeWidth': number;
+  readonly 'countries.activeOpacity': number;
   readonly 'tooltip.background': string;
   readonly 'tooltip.textColor': string;
+  readonly 'tooltip.fontSize': number;
+  readonly 'tooltip.fontFamily': string;
+  readonly 'tooltip.padding': string;
+  readonly 'tooltip.borderRadius': string;
+  readonly 'lights.ambient.color': string;
+  readonly 'lights.ambient.intensity': number;
+  readonly 'lights.directional.color': string;
+  readonly 'lights.directional.intensity': number;
   readonly 'markers.defaultColor': string;
   readonly 'atmosphere.color': string;
   readonly 'atmosphere.intensity': number;
@@ -46,11 +66,12 @@ export interface TokenSet {
 export type PartialTokenSet = Partial<TokenSet>;
 
 /**
- * User-supplied theme config. `extends` selects a built-in preset as the
- * merge floor; `tokens` overrides individual values on top of that floor.
+ * User-supplied theme config. `extends` selects a built-in preset (autocompletes)
+ * OR a custom preset registered via `registerThemePreset()`; `tokens` overrides
+ * individual values on top of that floor.
  */
 export interface ThemeConfig {
-  readonly extends?: ThemePresetName;
+  readonly extends?: ThemePresetName | (string & {});
   readonly tokens?: PartialTokenSet;
 }
 
@@ -58,7 +79,7 @@ export interface ThemeConfig {
 export type ResolvedTokens = TokenSet;
 
 /**
- * Public theme entry point. Accepts either a preset name (shorthand)
- * or a full ThemeConfig object.
+ * Public theme entry point. Accepts either a preset name (shorthand) — built-in
+ * or custom — or a full ThemeConfig object.
  */
-export type ThemeInput = ThemePresetName | ThemeConfig;
+export type ThemeInput = ThemePresetName | (string & {}) | ThemeConfig;

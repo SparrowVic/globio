@@ -1,7 +1,11 @@
 import {
   createGlobe,
+  resolveTheme,
+  THEME_PRESETS,
   type GlobeInstance,
+  type PartialTokenSet,
   type ThemePresetName,
+  type TokenKey,
   type ZoomMode,
 } from '@your-globe/core';
 
@@ -23,6 +27,11 @@ const $clickToPin = document.getElementById('toggle-click-to-pin') as HTMLInputE
 const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
 const $clearActive = document.getElementById('btn-clear-active') as HTMLButtonElement;
 const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
+const $studioBody = document.getElementById('studio-body') as HTMLDivElement;
+const $studioResetAll = document.getElementById('studio-reset-all') as HTMLButtonElement;
+const $studioExport = document.getElementById('studio-export') as HTMLButtonElement;
+
+let tokenOverrides: PartialTokenSet = {};
 
 const settings = {
   themeName: 'outline-dark' as ThemePresetName,
@@ -48,7 +57,7 @@ const buildGlobe = (themeName: ThemePresetName): void => {
   settings.themeName = themeName;
   globe = createGlobe({
     container,
-    theme: themeName,
+    theme: { extends: themeName, tokens: tokenOverrides },
     countries: {
       resolution: 'low',
       style: 'borders',
@@ -91,10 +100,149 @@ const buildGlobe = (themeName: ThemePresetName): void => {
   globe.mount();
 };
 
+// ---------- Theme Studio ----------
+
+const TOKEN_GROUPS: ReadonlyArray<readonly [string, ReadonlyArray<TokenKey>]> = [
+  ['Background & Globe', ['background.color', 'globe.surface', 'globe.surfaceTexture']],
+  ['Borders', ['borders.color', 'borders.width', 'borders.opacity']],
+  [
+    'Country hover/active',
+    [
+      'countries.hoverColor',
+      'countries.hoverWidth',
+      'countries.hoverOpacity',
+      'countries.activeColor',
+      'countries.activeWidth',
+      'countries.activeOpacity',
+    ],
+  ],
+  [
+    'Tooltip',
+    [
+      'tooltip.background',
+      'tooltip.textColor',
+      'tooltip.fontSize',
+      'tooltip.fontFamily',
+      'tooltip.padding',
+      'tooltip.borderRadius',
+    ],
+  ],
+  [
+    'Lights',
+    [
+      'lights.ambient.color',
+      'lights.ambient.intensity',
+      'lights.directional.color',
+      'lights.directional.intensity',
+    ],
+  ],
+  ['Markers', ['markers.defaultColor']],
+  ['Atmosphere', ['atmosphere.color', 'atmosphere.intensity']],
+];
+
+const isHexColor = (v: unknown): v is string =>
+  typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+
+const renderStudio = (): void => {
+  const resolved = resolveTheme({ extends: settings.themeName, tokens: tokenOverrides });
+  const presetTokens = THEME_PRESETS[settings.themeName];
+  $studioBody.innerHTML = '';
+
+  for (const [groupName, keys] of TOKEN_GROUPS) {
+    const group = document.createElement('div');
+    group.className = 'studio-group';
+    const title = document.createElement('div');
+    title.className = 'studio-group-title';
+    title.textContent = groupName;
+    group.appendChild(title);
+
+    for (const key of keys) {
+      const row = document.createElement('div');
+      row.className = 'studio-row';
+
+      const label = document.createElement('label');
+      label.textContent = key;
+      label.title = key;
+      row.appendChild(label);
+
+      const value = resolved[key];
+      const isOverridden = key in tokenOverrides;
+
+      let editor: HTMLInputElement;
+      if (typeof value === 'number') {
+        editor = document.createElement('input');
+        editor.type = 'number';
+        editor.step = key.toLowerCase().includes('intensity') || key.toLowerCase().includes('opacity') ? '0.1' : '1';
+        editor.value = String(value);
+        editor.addEventListener('input', () => {
+          const num = Number.parseFloat(editor.value);
+          if (Number.isFinite(num)) setOverride(key, num);
+        });
+      } else if (isHexColor(value)) {
+        editor = document.createElement('input');
+        editor.type = 'color';
+        editor.value = value;
+        editor.addEventListener('input', () => setOverride(key, editor.value));
+      } else {
+        editor = document.createElement('input');
+        editor.type = 'text';
+        editor.value = String(value);
+        editor.addEventListener('change', () => setOverride(key, editor.value));
+      }
+      row.appendChild(editor);
+
+      const reset = document.createElement('button');
+      reset.className = 'studio-reset';
+      reset.textContent = '↺';
+      reset.title = `Reset to preset value (${String(presetTokens[key])})`;
+      if (isOverridden) reset.classList.add('dirty');
+      reset.addEventListener('click', () => clearOverride(key));
+      row.appendChild(reset);
+
+      group.appendChild(row);
+    }
+    $studioBody.appendChild(group);
+  }
+};
+
+const setOverride = (key: TokenKey, value: string | number): void => {
+  tokenOverrides = { ...tokenOverrides, [key]: value } as PartialTokenSet;
+  buildGlobe(settings.themeName);
+  renderStudio();
+};
+
+const clearOverride = (key: TokenKey): void => {
+  const next = { ...tokenOverrides } as Record<string, unknown>;
+  delete next[key];
+  tokenOverrides = next as PartialTokenSet;
+  buildGlobe(settings.themeName);
+  renderStudio();
+};
+
+const resetAll = (): void => {
+  tokenOverrides = {};
+  buildGlobe(settings.themeName);
+  renderStudio();
+};
+
+$studioResetAll.addEventListener('click', resetAll);
+$studioExport.addEventListener('click', () => {
+  const resolved = resolveTheme({ extends: settings.themeName, tokens: tokenOverrides });
+  const json = JSON.stringify(resolved, null, 2);
+  // eslint-disable-next-line no-console
+  console.log('[Theme Export]\n' + json);
+  navigator.clipboard?.writeText(json).then(
+    () => setStatus('Theme exported to clipboard + console'),
+    () => setStatus('Theme exported to console (clipboard blocked)')
+  );
+});
+
 document.querySelectorAll<HTMLButtonElement>('button[data-theme]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const name = btn.dataset['theme'] as ThemePresetName;
+    tokenOverrides = {}; // theme switch resets overrides
     buildGlobe(name);
+    renderStudio();
   });
 });
 
@@ -183,5 +331,6 @@ $hoverOcclude.addEventListener('change', () => {
 updateSpeedDisplay();
 updateZoomDisplay();
 buildGlobe(settings.themeName);
+renderStudio();
 
 window.addEventListener('beforeunload', () => globe?.destroy());

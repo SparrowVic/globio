@@ -97,8 +97,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     onRender: (delta) => state.controls.update(delta),
   });
 
-  scene.scene.add(new AmbientLight(0xffffff, 0.6));
-  const dirLight = new DirectionalLight(0xffffff, 0.8);
+  scene.scene.add(
+    new AmbientLight(tokens['lights.ambient.color'], tokens['lights.ambient.intensity'])
+  );
+  const dirLight = new DirectionalLight(
+    tokens['lights.directional.color'],
+    tokens['lights.directional.intensity']
+  );
   dirLight.position.set(5, 3, 5);
   scene.scene.add(dirLight);
 
@@ -125,7 +130,10 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     container: config.container,
     background: tokens['tooltip.background'],
     textColor: tokens['tooltip.textColor'],
-    fontSize: 12,
+    fontSize: tokens['tooltip.fontSize'],
+    fontFamily: tokens['tooltip.fontFamily'],
+    padding: tokens['tooltip.padding'],
+    borderRadius: tokens['tooltip.borderRadius'],
   });
 
   const controls = new GlobeControls({
@@ -245,6 +253,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       const highlight = new CountryHighlightLayer({
         hoverColor: tokens['countries.hoverColor'],
         hoverWidth: tokens['countries.hoverWidth'],
+        hoverOpacity: tokens['countries.hoverOpacity'],
         occludeBackSide: countries.hoverOccludeBackSide,
       });
       highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
@@ -254,6 +263,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       const activeLayer = new CountryHighlightLayer({
         hoverColor: tokens['countries.activeColor'],
         hoverWidth: tokens['countries.activeWidth'],
+        hoverOpacity: tokens['countries.activeOpacity'],
         occludeBackSide: countries.hoverOccludeBackSide,
       });
       activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
