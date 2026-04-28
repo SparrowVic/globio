@@ -200,7 +200,9 @@ export interface OutlineConfig {
  * Per-instance overrides for the dotted kind's interactive effects.
  * `clickRipple` spawns a brightening sonar wave at every globe click;
  * `dataFlash` momentarily boosts a country's dots whenever its value in
- * `setCountryData()` changes.
+ * `setCountryData()` changes; `drift` is a low-amplitude ambient wave that
+ * gently breathes across the globe; `hoverDots` scales + brightens the
+ * dots of the hovered country.
  */
 export interface DottedConfig {
   readonly clickRipple?: {
@@ -214,6 +216,29 @@ export interface DottedConfig {
     readonly enabled?: boolean;
     readonly strength?: number;
     readonly decay?: number;
+  };
+  /**
+   * Ambient drift wave — `sin(dot(position, axis) * freq - elapsed * speed)`
+   * added to per-dot brightness, very small amplitude so it feels like the
+   * globe is breathing rather than strobing. Default-on.
+   */
+  readonly drift?: {
+    readonly enabled?: boolean;
+    readonly amplitude?: number;
+    readonly speed?: number;
+    readonly freq?: number;
+    /** `'ns'` = north-south wave (drift along Y axis); `'ew'` = east-west. */
+    readonly axis?: 'ns' | 'ew';
+  };
+  /**
+   * Hover dot expansion — when a country is hovered, its dots scale up and
+   * brighten, easing in/out smoothly. Default-on.
+   */
+  readonly hoverDots?: {
+    readonly enabled?: boolean;
+    readonly scale?: number;
+    readonly brightnessBoost?: number;
+    readonly duration?: number;
   };
 }
 
