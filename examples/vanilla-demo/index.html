@@ -200,6 +200,33 @@
         padding: 4px 8px;
         cursor: pointer;
       }
+      .kind-buttons {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .kind-buttons button {
+        flex: 1;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-weight: 500;
+        background: rgba(30, 38, 56, 0.6);
+        border: 1px solid rgba(120, 140, 180, 0.3);
+        color: #cfd8e3;
+        border-radius: 4px;
+      }
+      .kind-buttons button.active {
+        background: rgba(74, 158, 255, 0.25);
+        border-color: #4a9eff;
+        color: #ffffff;
+      }
+      .theme-buttons button.active {
+        outline: 2px solid #4a9eff;
+        outline-offset: -2px;
+      }
+      .theme-buttons button[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -210,15 +237,21 @@
       <span id="status">Ładowanie granic państw…</span>
 
       <div class="hud-section">
-        <div class="hud-section-title">Theme</div>
-        <div class="theme-buttons">
-          <button data-theme="outline-dark">Dark</button>
-          <button data-theme="outline-light">Light</button>
-          <button data-theme="outline-sunset">Sunset</button>
-          <button data-theme="outline-cyber">Cyber</button>
-          <button data-theme="outline-monochrome">Mono</button>
-          <button data-theme="dotted-dark" id="theme-dotted-dark">Dotted</button>
-          <button data-theme="wireframe-tron" id="theme-wireframe-tron">Wireframe</button>
+        <div class="hud-section-title">Globe kind</div>
+        <div class="kind-buttons" id="kind-buttons">
+          <button data-kind="outline">Outline</button>
+          <button data-kind="dotted">Dotted</button>
+          <button data-kind="wireframe">Wireframe</button>
+        </div>
+        <div class="hud-section-title" style="margin-top: 4px;">Theme variant</div>
+        <div class="theme-buttons" id="theme-buttons">
+          <button data-theme="outline-dark" data-kind="outline">Dark</button>
+          <button data-theme="outline-light" data-kind="outline">Light</button>
+          <button data-theme="outline-sunset" data-kind="outline">Sunset</button>
+          <button data-theme="outline-cyber" data-kind="outline">Cyber</button>
+          <button data-theme="outline-monochrome" data-kind="outline">Mono</button>
+          <button data-theme="dotted-dark" data-kind="dotted">Dark</button>
+          <button data-theme="wireframe-tron" data-kind="wireframe">Tron</button>
         </div>
       </div>
 
