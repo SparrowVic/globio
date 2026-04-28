@@ -19,7 +19,9 @@ const $zoomStrengthValue = document.getElementById('zoom-strength-value') as HTM
 const $zoomStrengthRow = document.getElementById('zoom-strength-row') as HTMLDivElement;
 const $smoothZoom = document.getElementById('toggle-smooth-zoom') as HTMLInputElement;
 const $clickToFocus = document.getElementById('toggle-click-to-focus') as HTMLInputElement;
+const $clickToPin = document.getElementById('toggle-click-to-pin') as HTMLInputElement;
 const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
+const $clearActive = document.getElementById('btn-clear-active') as HTMLButtonElement;
 const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
 
 const settings = {
@@ -31,6 +33,7 @@ const settings = {
   zoomStrength: 1,
   smoothZoom: true,
   clickToFocus: true,
+  clickToPin: true,
   hoverOccludeBackSide: true,
 };
 
@@ -79,6 +82,9 @@ const buildGlobe = (themeName: ThemePresetName): void => {
         settings.autoRotateEnabled = false;
         $autoRotate.checked = false;
       }
+    }
+    if (settings.clickToPin) {
+      globe?.setActiveCountry(country.id);
     }
   });
 
@@ -157,6 +163,14 @@ $clickToFocus.addEventListener('change', () => {
 
 $flyHome.addEventListener('click', () => {
   globe?.flyTo([20, 0], 3, { duration: 1500 });
+});
+
+$clickToPin.addEventListener('change', () => {
+  settings.clickToPin = $clickToPin.checked;
+});
+
+$clearActive.addEventListener('click', () => {
+  globe?.setActiveCountry(null);
 });
 
 $hoverOcclude.addEventListener('change', () => {
