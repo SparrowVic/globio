@@ -691,7 +691,52 @@ tokens."
 
 ---
 
-## Task 6: Update vanilla demo to use the theme API
+## Task 6: Strip dead config refs from Angular & Vue wrapper skeletons
+
+**Files:**
+- Modify: `packages/angular/src/globe.component.ts`
+- Modify: `packages/vue/src/VueGlobe.ts`
+
+The Angular and Vue wrapper skeletons (from the earlier monorepo bootstrap) still expose `backgroundColor`, `globeColor`, and `textureUrl` as `@Input`/`prop`. After Task 5 those fields no longer exist on `GlobeConfig` so workspace typecheck breaks. Strip the dead refs now — wrappers get a proper `theme` input/prop in a future plan when we redesign them.
+
+React's `Globe.tsx` does not reference any of these — confirmed by grep — so it needs no change.
+
+- [ ] **Step 1: Patch `globe.component.ts`**
+
+In `packages/angular/src/globe.component.ts`:
+
+- Remove the three `@Input` declarations for `backgroundColor`, `globeColor`, `textureUrl` (around lines 43-45).
+- Remove the three matching lines from the config object passed to `createGlobe` (around lines 119-121).
+
+After the patch, the `@Input` block carries only the props that map to fields still in `GlobeConfig` (e.g. `countries`, `markers`, `atmosphere`, `autoRotate`).
+
+- [ ] **Step 2: Patch `VueGlobe.ts`**
+
+In `packages/vue/src/VueGlobe.ts`:
+
+- Remove the three `props` definitions for `backgroundColor`, `globeColor`, `textureUrl` (around lines 29-31).
+- Remove the three matching lines from the config object passed to `createGlobe` (around lines 55-57).
+
+- [ ] **Step 3: Typecheck the workspace**
+
+```bash
+pnpm typecheck
+```
+
+Expected: zero errors across all packages.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add packages/angular/src/globe.component.ts packages/vue/src/VueGlobe.ts
+git commit -m "chore(wrappers): drop dead config refs after token migration
+
+Angular and Vue skeletons referenced backgroundColor/globeColor/textureUrl which no longer exist on GlobeConfig. Strip them to keep workspace typecheck green; wrappers get a proper 'theme' input/prop when we redesign them in a future plan."
+```
+
+---
+
+## Task 7: Update vanilla demo to use the theme API
 
 **Files:**
 - Modify: `examples/vanilla-demo/src/main.ts`
@@ -829,7 +874,7 @@ git commit -m "feat(demo): theme switcher (default/sunset/cyber) using new theme
 
 ---
 
-## Task 7: Update FEATURES.md status flags
+## Task 8: Update FEATURES.md status flags
 
 **Files:**
 - Modify: `FEATURES.md`
@@ -870,7 +915,7 @@ git commit -m "docs: mark theme token system features as built in v0.2"
 
 ---
 
-## Task 8: Final verification
+## Task 9: Final verification
 
 **Files:** none (verification only)
 
