@@ -33,4 +33,9 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
   'starfield.color': '#ffffff',
   'starfield.density': 1500,
   'starfield.size': 1.4,
+  'arcs.color': '#ffd700',
+  'arcs.width': 1.5,
+  'arcs.opacity': 0.9,
+  'arcs.headColor': '#ffffff',
+  'arcs.headSize': 0.012,
 });

@@ -34,6 +34,54 @@ export interface MarkerEvent {
 }
 
 /**
+ * Arc / connection between two lat/lng points, drawn as a great-circle
+ * lifted off the globe surface to form a curve.
+ */
+export interface ArcConfig {
+  readonly id: string;
+  readonly from: LatLng;
+  readonly to: LatLng;
+  /** Override `arcs.color` token for this arc. */
+  readonly color?: string;
+  /** Override `arcs.width` token for this arc. */
+  readonly width?: number;
+  /**
+   * Curve apex elevation factor.
+   * - `number`: fixed factor (0 = flat on surface, 1 ≈ globe-radius above).
+   * - `'auto'`: interpolated between `minHeight` and `maxHeight` based on
+   *   great-circle angular distance (long arcs rise higher).
+   *
+   * Default 0.4.
+   */
+  readonly height?: number | 'auto';
+  /** Lower bound for `height: 'auto'`. Default 0.15. */
+  readonly minHeight?: number;
+  /** Upper bound for `height: 'auto'`. Default 0.6. */
+  readonly maxHeight?: number;
+  /** Line drawing style. Default `'solid'`. */
+  readonly style?: 'solid' | 'dashed';
+  /** Dash segment length when `style: 'dashed'`. Default 0.04. */
+  readonly dashSize?: number;
+  /** Dash gap length when `style: 'dashed'`. Default 0.02. */
+  readonly dashGap?: number;
+  /**
+   * If true (default false), a moving "head" particle slides along the
+   * arc, looped. Useful for showing direction of travel/data flow.
+   */
+  readonly animated?: boolean;
+  /** Animation cycle duration in seconds. Default 2. */
+  readonly animationDuration?: number;
+  /**
+   * Head movement style when `animated: true`. Default `'linear'`.
+   * - `'linear'`: constant speed along the arc.
+   * - `'easeInOut'`: slow at endpoints, fast through middle (cubic ease).
+   * - `'pulse'`: linear position, but the head fades in/out so it appears
+   *   strongest near the arc midpoint and disappears at the ends.
+   */
+  readonly headEasing?: 'linear' | 'easeInOut' | 'pulse';
+}
+
+/**
  * HTML overlay marker — a DOM element anchored to a lat/lng position on the
  * globe. Renders above the canvas, follows camera transforms each frame, and
  * automatically hides when on the far side of the globe (occluded by sphere).
@@ -151,6 +199,7 @@ export interface GlobeConfig {
   readonly countries?: CountriesConfig;
   readonly markers?: ReadonlyArray<MarkerConfig>;
   readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
+  readonly arcs?: ReadonlyArray<ArcConfig>;
   readonly atmosphere?: AtmosphereConfig;
   readonly starfield?: StarfieldConfig;
   /**
@@ -201,6 +250,10 @@ export interface GlobeInstance {
   readonly setHtmlMarkers: (markers: ReadonlyArray<HtmlMarkerConfig>) => void;
   readonly addHtmlMarker: (marker: HtmlMarkerConfig) => void;
   readonly removeHtmlMarker: (id: string) => void;
+  readonly setArcs: (arcs: ReadonlyArray<ArcConfig>) => void;
+  readonly addArc: (arc: ArcConfig) => void;
+  readonly removeArc: (id: string) => void;
+  readonly toImage: (options?: { width?: number; height?: number }) => Promise<string>;
   readonly resize: () => void;
   readonly getCanvas: () => HTMLCanvasElement;
 }
