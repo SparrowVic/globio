@@ -9,6 +9,8 @@ import { CountryTooltip } from './renderer/country-tooltip';
 import { HtmlMarkersLayer } from './renderer/html-markers-layer';
 import { StarfieldLayer } from './renderer/starfield-layer';
 import { ArcsLayer } from './renderer/arcs-layer';
+import { StoryController } from './story/story-controller';
+import type { SceneConfig, StoryConfig } from './story/types';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
@@ -337,6 +339,50 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     return vector3ToLatLng(worldVec);
   };
 
+  // Story orchestration. The adapter bridges StoryController (pure logic) to
+  // the existing instance primitives. Scene popups use a reserved html-marker
+  // id so they never collide with user-supplied markers.
+  const STORY_POPUP_ID = '__story_popup';
+  const storyController = new StoryController({
+    flyTo: (position, distance, options) => {
+      controls.flyTo(globeLocalToWorldLatLng(position), distance, options);
+    },
+    focusOnCountry: (id, options) => {
+      const layer = state.countriesPickingLayer;
+      if (!layer) return;
+      const bounds = layer.getCountryBounds(id);
+      if (!bounds) return;
+      const distance = computeFocusDistance(
+        bounds,
+        scene.camera,
+        0.15,
+        GLOBE_RADIUS,
+        scene.camera.position.length()
+      );
+      controls.setAutoRotate(false);
+      controls.flyTo(globeLocalToWorldLatLng(boundsCenter(bounds)), distance, options);
+    },
+    setActiveCountry: (id) => {
+      state.activeCountryId = id;
+      if (id === null) state.countryActiveLayer?.clear();
+      else state.countryActiveLayer?.showCountry(id);
+    },
+    setStoryPopup: (popup) => {
+      htmlMarkersLayer.removeMarker(STORY_POPUP_ID);
+      if (popup) {
+        htmlMarkersLayer.addMarker({
+          id: STORY_POPUP_ID,
+          position: popup.position,
+          content: popup.content,
+          ...(popup.anchor && { anchor: popup.anchor }),
+        });
+      }
+    },
+    emitSceneEnter: (event) => emitter.emit('sceneEnter', event),
+    emitSceneExit: (event) => emitter.emit('sceneExit', event),
+    emitStoryComplete: (event) => emitter.emit('storyComplete', event),
+  });
+
   const instance: GlobeInstance = {
     mount: () => {
       scene.start();
@@ -345,6 +391,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     destroy: () => {
       if (state.destroyed) return;
       state.destroyed = true;
+      storyController.setStory(null);
       raycaster.destroy();
       controls.destroy();
       markersLayer.dispose();
@@ -388,6 +435,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       }
     },
     getActiveCountry: () => state.activeCountryId,
+    setStory: (story: StoryConfig | null) => storyController.setStory(story),
+    playStory: () => storyController.play(),
+    pauseStory: () => storyController.pause(),
+    nextScene: () => storyController.next(),
+    prevScene: () => storyController.prev(),
+    goToScene: (id: string) => storyController.goTo(id),
+    getCurrentScene: (): SceneConfig | null => storyController.getCurrentScene(),
+    isStoryPlaying: () => storyController.isPlaying(),
     focusOnCountry: (id, options) => {
       const layer = state.countriesPickingLayer;
       if (!layer) return;

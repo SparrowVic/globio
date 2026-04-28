@@ -14,6 +14,9 @@ export class GlobeEventEmitter {
     markerHover: new Set(),
     ready: new Set(),
     error: new Set(),
+    sceneEnter: new Set(),
+    sceneExit: new Set(),
+    storyComplete: new Set(),
   };
 
   public on<K extends GlobeEventName>(
