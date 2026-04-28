@@ -110,47 +110,107 @@ describe('triangulatePolygon', () => {
     expect(triangulatePolygon([], GLOBE_RADIUS)).toBeNull();
   });
 
-  it('triangulates a simple polygon (no holes) like triangulateRing', () => {
+  it('triangulates a simple polygon and returns something renderable', () => {
     const result = triangulatePolygon([square], GLOBE_RADIUS);
     expect(result).not.toBeNull();
     if (!result) return;
-    expect(result.indices.length).toBe(6);
+    expect(result.indices.length).toBeGreaterThan(0);
+    expect(result.indices.length % 3).toBe(0);
   });
 
-  it('subtracts a hole from the outer ring', () => {
-    // 20×20 outer with a 10×10 hole centered → triangulation has more triangles
-    // than a no-hole version, but excludes the inner area.
+  it('keeps every vertex on the sphere surface (including subdivision midpoints)', () => {
+    // Subdivision inserts midpoint vertices and re-projects them onto the sphere.
+    // Verify the invariant for a polygon big enough to actually subdivide.
+    const big: ReadonlyArray<readonly [number, number]> = [
+      [0, 0], [40, 0], [40, 40], [0, 40], [0, 0],
+    ];
+    const result = triangulatePolygon([big], GLOBE_RADIUS);
+    expect(result).not.toBeNull();
+    if (!result) return;
+    for (let i = 0; i < result.positions.length; i += 3) {
+      const x = result.positions[i] ?? 0;
+      const y = result.positions[i + 1] ?? 0;
+      const z = result.positions[i + 2] ?? 0;
+      expect(Math.sqrt(x * x + y * y + z * z)).toBeCloseTo(GLOBE_RADIUS, 3);
+    }
+  });
+
+  it('subdivides large triangles so chord-cuts stay shallow on the sphere', () => {
+    // Without subdivision, a 60×60° square produces 2 huge triangles whose
+    // chord midpoint dips ~13% of radius below the surface — the bug that
+    // caused fill to bleed through to the far side. With subdivision the
+    // resulting triangles must all stay close to the sphere.
+    const big: ReadonlyArray<readonly [number, number]> = [
+      [0, 0], [60, 0], [60, 60], [0, 60], [0, 0],
+    ];
+    const result = triangulatePolygon([big], GLOBE_RADIUS);
+    expect(result).not.toBeNull();
+    if (!result) return;
+    // 2 raw triangles would be 6 indices; subdivision must produce more.
+    expect(result.indices.length).toBeGreaterThan(6);
+    // Verify the edge-length invariant: every triangle edge is below the
+    // subdivision threshold (chord for 6° at unit radius ≈ 0.105 → at
+    // GLOBE_RADIUS we have 0.105*radius, with a small slack for rounding).
+    const maxChord = 2 * GLOBE_RADIUS * Math.sin((6 * Math.PI / 180) / 2) * 1.0001;
+    for (let t = 0; t < result.indices.length; t += 3) {
+      const a = result.indices[t]! * 3;
+      const b = result.indices[t + 1]! * 3;
+      const c = result.indices[t + 2]! * 3;
+      const len = (i: number, j: number) => {
+        const dx = (result.positions[i] ?? 0) - (result.positions[j] ?? 0);
+        const dy = (result.positions[i + 1] ?? 0) - (result.positions[j + 1] ?? 0);
+        const dz = (result.positions[i + 2] ?? 0) - (result.positions[j + 2] ?? 0);
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+      };
+      expect(len(a, b)).toBeLessThanOrEqual(maxChord);
+      expect(len(b, c)).toBeLessThanOrEqual(maxChord);
+      expect(len(c, a)).toBeLessThanOrEqual(maxChord);
+    }
+  });
+
+  it('subtracts a hole — no triangle centroid lands inside the hole region', () => {
+    // 20×20 outer with a 10×10 hole. Project triangle centroids back to
+    // lng/lat and verify none lie inside the hole's lng/lat bbox.
     const outer: ReadonlyArray<readonly [number, number]> = [
       [0, 0], [20, 0], [20, 20], [0, 20], [0, 0],
     ];
     const hole: ReadonlyArray<readonly [number, number]> = [
-      // wound opposite to outer (CW vs the outer's CCW)
-      [5, 5], [5, 15], [15, 15], [15, 5], [5, 5],
+      [6, 6], [6, 14], [14, 14], [14, 6], [6, 6],
     ];
-    const without = triangulatePolygon([outer], GLOBE_RADIUS);
-    const withHole = triangulatePolygon([outer, hole], GLOBE_RADIUS);
-    expect(without).not.toBeNull();
-    expect(withHole).not.toBeNull();
-    if (!without || !withHole) return;
-    // With a hole earcut emits more triangles (annulus has 8+ tris vs 2)
-    expect(withHole.indices.length).toBeGreaterThan(without.indices.length);
-    // And more vertices (outer 4 + hole 4)
-    expect(withHole.positions.length / 3).toBe(8);
+    const result = triangulatePolygon([outer, hole], GLOBE_RADIUS);
+    expect(result).not.toBeNull();
+    if (!result) return;
+    let inside = 0;
+    for (let t = 0; t < result.indices.length; t += 3) {
+      const ai = result.indices[t]! * 3;
+      const bi = result.indices[t + 1]! * 3;
+      const ci = result.indices[t + 2]! * 3;
+      const cx = ((result.positions[ai]! + result.positions[bi]! + result.positions[ci]!) / 3);
+      const cy = ((result.positions[ai + 1]! + result.positions[bi + 1]! + result.positions[ci + 1]!) / 3);
+      const cz = ((result.positions[ai + 2]! + result.positions[bi + 2]! + result.positions[ci + 2]!) / 3);
+      // Inverse of latLngToVector3(lat, lng): lng = atan2(z, x), lat = asin(y / r)
+      const r = Math.sqrt(cx * cx + cy * cy + cz * cz);
+      const lng = (Math.atan2(cz, cx) * 180) / Math.PI;
+      const lat = (Math.asin(cy / r) * 180) / Math.PI;
+      // Hole bbox is lng [6,14], lat [6,14]. Some slack near the edges
+      // because centroids can land just outside even when the triangle
+      // touches the hole boundary.
+      if (lng > 7 && lng < 13 && lat > 7 && lat < 13) inside++;
+    }
+    expect(inside).toBe(0);
   });
 
-  it('handles antimeridian-crossing rings without producing degenerate triangles', () => {
-    // A "Russia-shaped" rectangle from lng=170 to lng=-170 (i.e. 20° wide spanning
-    // the antimeridian). Without the unwrap, earcut sees a 340°-wide flat polygon
-    // and produces a giant zero-area mess.
+  it('handles antimeridian-crossing rings without degenerate huge triangles', () => {
+    // 20°-wide rectangle straddling lng=180. Without the unwrap, earcut sees
+    // a 340° flat polygon and produces a single zero-area mess.
     const ring: ReadonlyArray<readonly [number, number]> = [
       [170, 60], [-170, 60], [-170, 70], [170, 70], [170, 60],
     ];
     const result = triangulatePolygon([ring], GLOBE_RADIUS);
     expect(result).not.toBeNull();
     if (!result) return;
-    // 4 unique vertices → 2 triangles → 6 indices
-    expect(result.indices.length).toBe(6);
-    // All 3D positions stay on the requested sphere radius
+    expect(result.indices.length).toBeGreaterThan(0);
+    // All vertices must remain on the sphere after unwrap + subdivision.
     for (let i = 0; i < result.positions.length; i += 3) {
       const x = result.positions[i] ?? 0;
       const y = result.positions[i + 1] ?? 0;

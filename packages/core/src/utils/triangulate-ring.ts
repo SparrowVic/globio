@@ -115,11 +115,87 @@ export const triangulateRing = (
 };
 
 /**
+ * Subdivide a triangulation so no edge spans more than `maxAngle` radians on
+ * the sphere. Earcut works in flat lng-lat space; for large countries it can
+ * produce triangles spanning 30-50° geographically. When projected to 3D, the
+ * straight-line chord between such vertices dives deep below the sphere
+ * surface (a 30° chord drops ~3.4% of radius) and the fill mesh ends up
+ * intersecting / poking through the globe.
+ *
+ * Recursive 4-way midpoint subdivision: each oversize triangle is split into
+ * four by inserting midpoint vertices on each edge, with each midpoint
+ * normalized back onto the sphere surface. Cap recursion at `maxLevels` so
+ * pathological inputs can't blow up.
+ */
+const subdivideOnSphere = (
+  positions: Array<number>,
+  indices: Array<number>,
+  radius: number,
+  maxAngle: number,
+  maxLevels: number
+): { positions: Array<number>; indices: Array<number> } => {
+  const maxChord = 2 * radius * Math.sin(maxAngle / 2);
+  const maxChordSq = maxChord * maxChord;
+
+  for (let level = 0; level < maxLevels; level++) {
+    const midCache = new Map<string, number>();
+    const midpoint = (i1: number, i2: number): number => {
+      const key = i1 < i2 ? `${i1}_${i2}` : `${i2}_${i1}`;
+      const cached = midCache.get(key);
+      if (cached !== undefined) return cached;
+      const ax = positions[i1 * 3] ?? 0;
+      const ay = positions[i1 * 3 + 1] ?? 0;
+      const az = positions[i1 * 3 + 2] ?? 0;
+      const bx = positions[i2 * 3] ?? 0;
+      const by = positions[i2 * 3 + 1] ?? 0;
+      const bz = positions[i2 * 3 + 2] ?? 0;
+      const mx = (ax + bx) / 2;
+      const my = (ay + by) / 2;
+      const mz = (az + bz) / 2;
+      const len = Math.sqrt(mx * mx + my * my + mz * mz) || 1;
+      const newIdx = positions.length / 3;
+      positions.push((mx / len) * radius, (my / len) * radius, (mz / len) * radius);
+      midCache.set(key, newIdx);
+      return newIdx;
+    };
+    const distSq = (i1: number, i2: number): number => {
+      const dx = (positions[i1 * 3] ?? 0) - (positions[i2 * 3] ?? 0);
+      const dy = (positions[i1 * 3 + 1] ?? 0) - (positions[i2 * 3 + 1] ?? 0);
+      const dz = (positions[i1 * 3 + 2] ?? 0) - (positions[i2 * 3 + 2] ?? 0);
+      return dx * dx + dy * dy + dz * dz;
+    };
+
+    const next: Array<number> = [];
+    let changed = false;
+    for (let t = 0; t < indices.length; t += 3) {
+      const a = indices[t]!;
+      const b = indices[t + 1]!;
+      const c = indices[t + 2]!;
+      if (distSq(a, b) <= maxChordSq && distSq(b, c) <= maxChordSq && distSq(c, a) <= maxChordSq) {
+        next.push(a, b, c);
+        continue;
+      }
+      const ab = midpoint(a, b);
+      const bc = midpoint(b, c);
+      const ca = midpoint(c, a);
+      next.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca);
+      changed = true;
+    }
+    indices = next;
+    if (!changed) break;
+  }
+  return { positions, indices };
+};
+
+/**
  * Triangulate a GeoJSON-style polygon (outer ring + zero or more holes) on
  * a sphere of given radius. Unlike `triangulateRing`, this:
  * - subtracts holes (so e.g. Lesotho doesn't get filled with South Africa's
  *   color when SA is colored)
  * - shifts antimeridian-crossing rings so earcut sees a continuous 2D polygon
+ * - subdivides oversized triangles so they hug the sphere instead of cutting
+ *   chord-shortcuts through the globe interior (visible as fill bleeding to
+ *   the far side for big countries)
  *
  * Returns null for degenerate input (no usable outer ring).
  */
@@ -176,22 +252,27 @@ export const triangulatePolygon = (
   const triIndices = earcut(flat, holeIndices.length > 0 ? holeIndices : undefined);
   if (triIndices.length === 0) return null;
 
-  const totalVerts = cursor;
-  const positions = new Float32Array(totalVerts * 3);
+  const positionsList: Array<number> = [];
   const allRings = [outer, ...preparedHoles];
-  let i = 0;
   for (const ring of allRings) {
     for (const point of ring) {
       const v = latLngToVector3([point[1], point[0]], radius);
-      positions[i * 3] = v.x;
-      positions[i * 3 + 1] = v.y;
-      positions[i * 3 + 2] = v.z;
-      i++;
+      positionsList.push(v.x, v.y, v.z);
     }
   }
 
+  // ~6° max edge keeps each triangle's chord well within the 0.0008R fill
+  // lift, so the mesh stays above globe surface even for big countries.
+  const subdivided = subdivideOnSphere(
+    positionsList,
+    Array.from(triIndices),
+    radius,
+    (6 * Math.PI) / 180,
+    6
+  );
+
   return {
-    positions,
-    indices: new Uint32Array(triIndices),
+    positions: new Float32Array(subdivided.positions),
+    indices: new Uint32Array(subdivided.indices),
   };
 };
