@@ -7,7 +7,6 @@ import {
   EU,
   BRICS,
   type CountryDataMap,
-  type CountryStyle,
   type GlobeInstance,
   type PartialTokenSet,
   type ThemePresetName,
@@ -227,18 +226,14 @@ const setStatus = (text: string): void => {
 const buildGlobe = (themeName: ThemePresetName): void => {
   globe?.destroy();
   settings.themeName = themeName;
-  // Style-presets need a matching country render mode: dots-only for the
-  // dotted preset, no countries for the wireframe preset.
-  const countryStyle: CountryStyle =
-    themeName === 'dotted-dark' ? 'dotted'
-    : themeName === 'wireframe-tron' ? 'none'
-    : 'borders';
+  // Globe kind is auto-resolved from the theme preset (PRESET_DEFAULT_KIND
+  // in core: outline-* → 'outline', 'dotted-dark' → 'dotted', 'wireframe-tron'
+  // → 'wireframe'). No need to set `kind` explicitly here.
   globe = createGlobe({
     container,
     theme: { extends: themeName, tokens: tokenOverrides },
     countries: {
       resolution: 'low',
-      style: countryStyle,
       hoverEnabled: true,
       hoverOccludeBackSide: settings.hoverOccludeBackSide,
     },

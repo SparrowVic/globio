@@ -7,14 +7,17 @@ import type {
 } from './story/types';
 import type { ScaleConfig } from './data/scales';
 import type { LegendOptions } from './data/legend';
+// Re-exported below for the public API.
+import type { GlobeKind as _GlobeKind } from './kinds/types';
+type GlobeKind = _GlobeKind;
 
 export type LatLng = readonly [latitude: number, longitude: number];
 
 export type ResolutionLevel = 'low' | 'medium' | 'high';
 
-export type CountryStyle = 'borders' | 'dotted' | 'filled' | 'none';
-
 export type GlobeMode = 'sphere' | 'flat';
+
+export type { GlobeKind } from './kinds/types';
 
 export interface CountryData {
   readonly id: string;
@@ -147,7 +150,6 @@ export interface HtmlMarkerConfig {
 
 export interface CountriesConfig {
   readonly resolution?: ResolutionLevel;
-  readonly style?: CountryStyle;
   readonly hoverEnabled?: boolean;
   /**
    * When true (default), the hover highlight respects the globe's depth —
@@ -269,6 +271,14 @@ export interface PerformanceConfig {
 export interface GlobeConfig {
   readonly container: HTMLElement;
   readonly mode?: GlobeMode;
+  /**
+   * Visual identity of the rendered globe. Each kind owns its renderer
+   * pipeline + per-kind tokens + per-kind config. Defaults to the kind
+   * registered for the active theme preset (`outline-*` → `'outline'`,
+   * `'dotted-dark'` → `'dotted'`, `'wireframe-tron'` → `'wireframe'`),
+   * falling back to `'outline'` for custom themes.
+   */
+  readonly kind?: GlobeKind;
   readonly theme?: ThemeInput;
   readonly countries?: CountriesConfig;
   readonly countryLabels?: CountryLabelsConfig;

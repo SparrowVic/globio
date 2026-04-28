@@ -2,10 +2,9 @@ import { AmbientLight, DirectionalLight, Group, Vector2 } from 'three';
 import { SceneManager } from './renderer/scene-manager';
 import { GlobeMesh } from './renderer/globe-mesh';
 import { MarkersLayer } from './renderer/markers-layer';
-import { CountriesLayer, type CountryFeature } from './renderer/countries-layer';
+import type { CountryFeature } from './renderer/country-feature';
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
 import { CountriesFillLayer } from './renderer/countries-fill-layer';
-import { CountriesDottedLayer } from './renderer/countries-dotted-layer';
 import { CountryLabelsLayer } from './renderer/country-labels-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
@@ -16,7 +15,9 @@ import { ArcsLayer } from './renderer/arcs-layer';
 import { StoryController } from './story/story-controller';
 import type { SceneConfig, StoryConfig } from './story/types';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
-import { WireframeGridLayer, WIREFRAME_DEFAULT_RADIUS } from './renderer/wireframe-grid-layer';
+import { KIND_MODULES, PRESET_DEFAULT_KIND } from './kinds/registry';
+import type { KindHandle } from './kinds/types';
+import type { GlobeKind } from './kinds/types';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
@@ -48,9 +49,32 @@ const DEFAULT_PERFORMANCE: Required<PerformanceConfig> = {
 
 const DEFAULT_COUNTRIES: Required<CountriesConfig> = {
   resolution: 'medium',
-  style: 'borders',
   hoverEnabled: true,
   hoverOccludeBackSide: true,
+};
+
+/**
+ * Decide the active globe kind:
+ * 1. explicit `config.kind` wins
+ * 2. else, look up the active theme preset in `PRESET_DEFAULT_KIND`
+ * 3. else, fall back to `'outline'`
+ *
+ * The preset name is read off `theme: 'name'` shorthand or
+ * `theme: { extends: 'name' }`. Pure custom themes with no preset and no
+ * explicit kind get `'outline'`.
+ */
+const resolveActiveKind = (config: GlobeConfig): GlobeKind => {
+  if (config.kind) return config.kind;
+  const theme = config.theme;
+  let presetName: string | undefined;
+  if (typeof theme === 'string') presetName = theme;
+  else if (theme && typeof theme === 'object' && 'extends' in theme) {
+    presetName = theme.extends as string | undefined;
+  }
+  if (presetName && presetName in PRESET_DEFAULT_KIND) {
+    return PRESET_DEFAULT_KIND[presetName as keyof typeof PRESET_DEFAULT_KIND];
+  }
+  return 'outline';
 };
 
 /**
@@ -81,8 +105,13 @@ interface InternalState {
   scene: SceneManager;
   globeMesh: GlobeMesh;
   markersLayer: MarkersLayer;
-  countriesLayer: CountriesLayer | null;
-  countriesDottedLayer: CountriesDottedLayer | null;
+  /**
+   * Active kind module's runtime handle. Built by the dispatcher in
+   * `initCountries` once country features have loaded. Null on a globe
+   * whose kind has no per-feature visual (none ship today, but reserved).
+   */
+  kindHandle: KindHandle | null;
+  resolvedKind: GlobeKind;
   countriesPickingLayer: CountriesPickingLayer | null;
   countriesFillLayer: CountriesFillLayer | null;
   countryLabelsLayer: CountryLabelsLayer | null;
@@ -92,7 +121,6 @@ interface InternalState {
   htmlMarkersLayer: HtmlMarkersLayer;
   arcsLayer: ArcsLayer;
   atmosphereLayer: AtmosphereLayer | null;
-  wireframeLayer: WireframeGridLayer | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
   emitter: GlobeEventEmitter;
@@ -119,7 +147,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.controls.update(delta);
       state.elapsedSeconds += delta;
       arcsLayer.update(state.elapsedSeconds);
-      state.wireframeLayer?.update(state.elapsedSeconds);
+      state.kindHandle?.update?.(delta, state.elapsedSeconds);
       state.htmlMarkersLayer.update();
       state.markersLayer.update(delta);
       state.countryHighlightLayer?.update(delta);
@@ -184,25 +212,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     : null;
   if (atmosphereLayer) globeGroup.add(atmosphereLayer.mesh);
 
-  // Wireframe grid: explicit opt-in via config.wireframe.enabled, OR implicit
-  // via theme tokens (a preset like `wireframe-tron` ships opacity > 0 so the
-  // grid appears automatically when the user picks that theme).
-  const wireframeEnabled =
-    config.wireframe?.enabled === true ||
-    (config.wireframe?.enabled !== false && tokens['wireframe.opacity'] > 0);
-  const wireframeLayer = wireframeEnabled
-    ? new WireframeGridLayer({
-        color: tokens['wireframe.color'],
-        opacity: tokens['wireframe.opacity'] > 0 ? tokens['wireframe.opacity'] : 0.55,
-        density: config.wireframe?.density ?? tokens['wireframe.density'],
-        pulse: config.wireframe?.pulse ?? tokens['wireframe.pulse'],
-        ...(config.wireframe?.pulseSpeed !== undefined && {
-          pulseSpeed: config.wireframe.pulseSpeed,
-        }),
-        radius: WIREFRAME_DEFAULT_RADIUS,
-      })
-    : null;
-  if (wireframeLayer) globeGroup.add(wireframeLayer.group);
+  // The active globe kind (outline / dotted / wireframe / future). Each kind
+  // owns its visible country/grid pipeline; built later in `initCountries`
+  // once features have loaded. The kind itself is decided once here so the
+  // dispatcher and event handlers can branch on it before features arrive.
+  const resolvedKind: GlobeKind = resolveActiveKind(config);
+  const kindModule = KIND_MODULES[resolvedKind];
 
   const htmlMarkersLayer = new HtmlMarkersLayer({
     container: config.container,
@@ -312,8 +327,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     scene,
     globeMesh,
     markersLayer,
-    countriesLayer: null,
-    countriesDottedLayer: null,
+    kindHandle: null,
+    resolvedKind,
     countriesPickingLayer: null,
     countriesFillLayer: null,
     countryLabelsLayer: null,
@@ -323,7 +338,6 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     htmlMarkersLayer,
     arcsLayer,
     atmosphereLayer,
-    wireframeLayer,
     controls,
     raycaster,
     emitter,
@@ -353,63 +367,55 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countriesFillLayer = fill;
       if (state.countryData) fill.setData(state.countryData);
 
-      // Country style decides which visible layer renders. `dotted` swaps in
-      // a Points cloud filling each country; `none` skips visible geometry
-      // entirely (used by the wireframe preset). Picking layer is built
-      // unconditionally below so hover/click still work in either case.
-      if (countries.style === 'dotted') {
-        const dotted = new CountriesDottedLayer({
-          features: features as ReadonlyArray<CountryFeature>,
-          color: tokens['countries.dotted.color'],
-          size: tokens['countries.dotted.size'],
-          density: tokens['countries.dotted.density'],
-          opacity: tokens['countries.dotted.opacity'],
-        });
-        globeGroup.add(dotted.group);
-        state.countriesDottedLayer = dotted;
-      } else if (countries.style !== 'none') {
-        const visible = new CountriesLayer({
-          features: features as ReadonlyArray<CountryFeature>,
-          borderColor: tokens['countries.border.color'],
-          borderWidth: tokens['countries.border.width'],
-          borderOpacity: tokens['countries.border.opacity'],
-        });
-        globeGroup.add(visible.group);
-        state.countriesLayer = visible;
-      }
-
-      const picking = new CountriesPickingLayer({
+      // Dispatch to the active kind module — outline draws borders, dotted
+      // a Points cloud, wireframe a lat/lng grid (without country geometry),
+      // future kinds whatever they want. The picking layer is mounted
+      // separately below for kinds that opt into country interaction.
+      state.kindHandle = kindModule.build({
+        globeGroup,
         features: features as ReadonlyArray<CountryFeature>,
+        tokens,
+        config,
       });
-      globeGroup.add(picking.group);
-      state.countriesPickingLayer = picking;
-      raycaster.setTargets([
-        { type: 'marker', object: markersLayer.mesh },
-        { type: 'country', object: picking.group },
-      ]);
 
-      const highlight = new CountryHighlightLayer({
-        hoverColor: tokens['countries.borderHover.color'],
-        hoverWidth: tokens['countries.borderHover.width'],
-        hoverOpacity: tokens['countries.borderHover.opacity'],
-        occludeBackSide: countries.hoverOccludeBackSide,
-      });
-      highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
-      globeGroup.add(highlight.object);
-      state.countryHighlightLayer = highlight;
+      // Country interaction (picking + hover/active highlight) is gated by
+      // the kind module — kinds without country surface (wireframe) skip
+      // these entirely. Marker raycasting still works either way because
+      // markers are a separate raycaster target.
+      if (kindModule.hasCountryInteraction) {
+        const picking = new CountriesPickingLayer({
+          features: features as ReadonlyArray<CountryFeature>,
+        });
+        globeGroup.add(picking.group);
+        state.countriesPickingLayer = picking;
+        raycaster.setTargets([
+          { type: 'marker', object: markersLayer.mesh },
+          { type: 'country', object: picking.group },
+        ]);
 
-      const activeLayer = new CountryHighlightLayer({
-        hoverColor: tokens['countries.borderActive.color'],
-        hoverWidth: tokens['countries.borderActive.width'],
-        hoverOpacity: tokens['countries.borderActive.opacity'],
-        occludeBackSide: countries.hoverOccludeBackSide,
-      });
-      activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
-      activeLayer.object.renderOrder = 11;
-      globeGroup.add(activeLayer.object);
-      state.countryActiveLayer = activeLayer;
-      // Re-apply pending active country if user called setActiveCountry before features loaded
-      if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
+        const highlight = new CountryHighlightLayer({
+          hoverColor: tokens['countries.borderHover.color'],
+          hoverWidth: tokens['countries.borderHover.width'],
+          hoverOpacity: tokens['countries.borderHover.opacity'],
+          occludeBackSide: countries.hoverOccludeBackSide,
+        });
+        highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
+        globeGroup.add(highlight.object);
+        state.countryHighlightLayer = highlight;
+
+        const activeLayer = new CountryHighlightLayer({
+          hoverColor: tokens['countries.borderActive.color'],
+          hoverWidth: tokens['countries.borderActive.width'],
+          hoverOpacity: tokens['countries.borderActive.opacity'],
+          occludeBackSide: countries.hoverOccludeBackSide,
+        });
+        activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
+        activeLayer.object.renderOrder = 11;
+        globeGroup.add(activeLayer.object);
+        state.countryActiveLayer = activeLayer;
+        // Re-apply pending active country if user called setActiveCountry before features loaded
+        if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
+      }
 
       const labelsConfig = config.countryLabels;
       const labelsLayer = new CountryLabelsLayer({
@@ -507,8 +513,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       controls.destroy();
       markersLayer.dispose();
       globeMesh.dispose();
-      state.countriesLayer?.dispose();
-      state.countriesDottedLayer?.dispose();
+      state.kindHandle?.dispose();
       state.countriesFillLayer?.dispose();
       state.legend?.dispose();
       state.countriesPickingLayer?.dispose();
@@ -521,7 +526,6 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.arcsLayer.dispose();
       starfieldLayer?.dispose();
       atmosphereLayer?.dispose();
-      wireframeLayer?.dispose();
       scene.destroy();
       emitter.clear();
     },

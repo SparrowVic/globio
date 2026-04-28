@@ -6,7 +6,7 @@ import {
   LineSegments,
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
-import type { CountryFeature } from './countries-layer';
+import type { CountryFeature } from './country-feature';
 
 export interface CountryHighlightLayerOptions {
   readonly hoverColor: string;

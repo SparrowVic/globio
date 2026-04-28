@@ -1,7 +1,7 @@
 import { Vector3, type Object3D, type PerspectiveCamera } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
 import { angularExtent, boundsCenter, computeMainRingBounds } from '../utils/country-bounds';
-import type { CountryFeature } from './countries-layer';
+import type { CountryFeature } from './country-feature';
 
 export interface CountryLabelsLayerOptions {
   readonly container: HTMLElement;

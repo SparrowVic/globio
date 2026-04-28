@@ -10,7 +10,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS } from '../utils/coordinates';
 import { triangulatePolygon } from '../utils/triangulate-ring';
-import type { CountryFeature } from './countries-layer';
+import type { CountryFeature } from './country-feature';
 import type { CountryDataMap } from '../types';
 import { colorForValue, dataExtentFor, type ScaleConfig } from '../data/scales';
 
