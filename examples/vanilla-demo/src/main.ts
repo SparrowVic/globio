@@ -103,23 +103,23 @@ const buildGlobe = (themeName: ThemePresetName): void => {
 // ---------- Theme Studio ----------
 
 const TOKEN_GROUPS: ReadonlyArray<readonly [string, ReadonlyArray<TokenKey>]> = [
-  ['Background & Globe', ['background.color', 'globe.surface', 'globe.surfaceTexture']],
-  ['Borders', ['borders.color', 'borders.width', 'borders.opacity']],
+  ['Background & Globe', ['background.color', 'globe.surfaceColor', 'globe.surfaceTextureUrl']],
+  ['Borders', ['countries.border.color', 'countries.border.width', 'countries.border.opacity']],
   [
     'Country hover/active',
     [
-      'countries.hoverColor',
-      'countries.hoverWidth',
-      'countries.hoverOpacity',
-      'countries.activeColor',
-      'countries.activeWidth',
-      'countries.activeOpacity',
+      'countries.borderHover.color',
+      'countries.borderHover.width',
+      'countries.borderHover.opacity',
+      'countries.borderActive.color',
+      'countries.borderActive.width',
+      'countries.borderActive.opacity',
     ],
   ],
   [
     'Tooltip',
     [
-      'tooltip.background',
+      'tooltip.backgroundColor',
       'tooltip.textColor',
       'tooltip.fontSize',
       'tooltip.fontFamily',

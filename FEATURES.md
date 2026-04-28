@@ -143,12 +143,14 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 > Centralny system designerski — wszystkie kolory, gradienty i parametry estetyczne wyrażone tokenami.
 
-- **Theme tokens** `[v1·GLOBAL·M·built]` 🌟 — **23 tokeny** w bieżącej wersji: `background.color`,
-  `globe.surface/surfaceTexture`, `borders.color/width/opacity`, `countries.hover/activeColor/Width/Opacity`,
-  `tooltip.background/textColor/fontSize/fontFamily/padding/borderRadius`, `lights.ambient.color/intensity`,
-  `lights.directional.color/intensity`, `markers.defaultColor`, `atmosphere.color/intensity`. Każdy token
-  to string (kolor/URL/CSS) albo number; w przyszłości też gradient i function `(value, ctx)`.
-- **Theme tokens override** `[v1·GLOBAL·S·built]` — `theme: { tokens: { 'globe.surface': '#f00' } }`.
+- **Theme tokens** `[v1·GLOBAL·M·built]` 🌟 — **23 tokeny** z hierarchicznym, opisowym nazewnictwem:
+  `background.color`, `globe.surfaceColor/surfaceTextureUrl`, `countries.border.{color,width,opacity}`,
+  `countries.borderHover.{color,width,opacity}`, `countries.borderActive.{color,width,opacity}`,
+  `tooltip.{backgroundColor,textColor,fontSize,fontFamily,padding,borderRadius}`,
+  `lights.ambient.{color,intensity}`, `lights.directional.{color,intensity}`, `markers.defaultColor`,
+  `atmosphere.{color,intensity}`. Każdy token to string (kolor/URL/CSS) albo number;
+  w przyszłości też gradient i function `(value, ctx)`.
+- **Theme tokens override** `[v1·GLOBAL·S·built]` — `theme: { tokens: { 'globe.surfaceColor': '#f00' } }`.
 - **Built-in theme presets** `[v1·GLOBAL·S·built]` — v0.2.x ships 5 outline-style presets:
   `outline-dark`, `outline-light`, `outline-sunset`, `outline-cyber`, `outline-monochrome`. Presety dla
   pozostałych stylów (dotted, paper, hologram) dochodzą wraz z ich implementacją.

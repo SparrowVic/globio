@@ -6,18 +6,18 @@ import type { ThemePresetName } from './presets';
  */
 export type TokenKey =
   | 'background.color'
-  | 'globe.surface'
-  | 'globe.surfaceTexture'
-  | 'borders.color'
-  | 'borders.width'
-  | 'borders.opacity'
-  | 'countries.hoverColor'
-  | 'countries.hoverWidth'
-  | 'countries.hoverOpacity'
-  | 'countries.activeColor'
-  | 'countries.activeWidth'
-  | 'countries.activeOpacity'
-  | 'tooltip.background'
+  | 'globe.surfaceColor'
+  | 'globe.surfaceTextureUrl'
+  | 'countries.border.color'
+  | 'countries.border.width'
+  | 'countries.border.opacity'
+  | 'countries.borderHover.color'
+  | 'countries.borderHover.width'
+  | 'countries.borderHover.opacity'
+  | 'countries.borderActive.color'
+  | 'countries.borderActive.width'
+  | 'countries.borderActive.opacity'
+  | 'tooltip.backgroundColor'
   | 'tooltip.textColor'
   | 'tooltip.fontSize'
   | 'tooltip.fontFamily'
@@ -37,18 +37,18 @@ export type TokenKey =
  */
 export interface TokenSet {
   readonly 'background.color': string;
-  readonly 'globe.surface': string;
-  readonly 'globe.surfaceTexture': string;
-  readonly 'borders.color': string;
-  readonly 'borders.width': number;
-  readonly 'borders.opacity': number;
-  readonly 'countries.hoverColor': string;
-  readonly 'countries.hoverWidth': number;
-  readonly 'countries.hoverOpacity': number;
-  readonly 'countries.activeColor': string;
-  readonly 'countries.activeWidth': number;
-  readonly 'countries.activeOpacity': number;
-  readonly 'tooltip.background': string;
+  readonly 'globe.surfaceColor': string;
+  readonly 'globe.surfaceTextureUrl': string;
+  readonly 'countries.border.color': string;
+  readonly 'countries.border.width': number;
+  readonly 'countries.border.opacity': number;
+  readonly 'countries.borderHover.color': string;
+  readonly 'countries.borderHover.width': number;
+  readonly 'countries.borderHover.opacity': number;
+  readonly 'countries.borderActive.color': string;
+  readonly 'countries.borderActive.width': number;
+  readonly 'countries.borderActive.opacity': number;
+  readonly 'tooltip.backgroundColor': string;
   readonly 'tooltip.textColor': string;
   readonly 'tooltip.fontSize': number;
   readonly 'tooltip.fontFamily': string;
