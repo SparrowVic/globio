@@ -236,24 +236,27 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
   }),
 
   // Hologram kind — semi-transparent turquoise shell with scanlines + Fresnel
-  // rim, additive cyan country borders. Default-on glitch transients add
-  // CRT-style life. Hologram-specific tokens use defaults.
+  // rim, additive cyan country borders. The outer-glow shell + Fresnel rim
+  // already supply the silhouette halo, so we kill the shared atmosphere
+  // layer that would otherwise wash everything out. Default-on glitch
+  // transients add CRT-style life.
   'hologram-cyan': Object.freeze({
     'background.color': '#020a14',
     'globe.surfaceColor': '#000814',
     'countries.border.opacity': 0,
     'countries.fill.opacity': 0,
     'countries.dotted.opacity': 0,
-    'countries.borderHover.color': '#67e8f9',
+    'countries.borderHover.color': '#a5f3fc',
+    'countries.borderHover.width': 2,
     'countries.borderActive.color': '#ffffff',
-    'countries.label.color': '#67e8f9',
+    'countries.label.color': '#a5f3fc',
     'countries.label.fontFamily': 'JetBrains Mono, ui-monospace, monospace',
     'countries.label.textShadow': '0 0 6px rgba(103, 232, 249, 0.8)',
-    'tooltip.backgroundColor': 'rgba(2, 10, 20, 0.9)',
+    'tooltip.backgroundColor': 'rgba(2, 10, 20, 0.92)',
     'tooltip.textColor': '#67e8f9',
     'tooltip.fontFamily': 'JetBrains Mono, ui-monospace, monospace',
     'tooltip.borderRadius': '2px',
-    'legend.backgroundColor': 'rgba(2, 10, 20, 0.9)',
+    'legend.backgroundColor': 'rgba(2, 10, 20, 0.92)',
     'legend.textColor': '#67e8f9',
     'legend.titleColor': '#ffffff',
     'legend.fontFamily': 'JetBrains Mono, ui-monospace, monospace',
@@ -263,11 +266,15 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
     'lights.directional.intensity': 0.4,
     'markers.defaultColor': '#67e8f9',
     'atmosphere.color': '#4dd0e1',
-    'atmosphere.intensity': 1.6,
+    'atmosphere.intensity': 0,
     'starfield.color': '#67e8f9',
     'starfield.density': 1800,
     'starfield.size': 1.1,
     'arcs.color': '#67e8f9',
     'arcs.headColor': '#ffffff',
+    'hologram.shellOpacity': 0.10,
+    'hologram.rimGlow': 1.2,
+    'hologram.outerGlowOpacity': 0.08,
+    'hologram.borderIntensity': 2.0,
   }),
 });
