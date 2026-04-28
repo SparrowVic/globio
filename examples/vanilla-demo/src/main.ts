@@ -33,6 +33,10 @@ const $axisTilt = document.getElementById('axis-tilt') as HTMLInputElement;
 const $axisTiltValue = document.getElementById('axis-tilt-value') as HTMLSpanElement;
 const $arcs = document.getElementById('toggle-arcs') as HTMLInputElement;
 const $snapshot = document.getElementById('btn-snapshot') as HTMLButtonElement;
+const $storyPrev = document.getElementById('story-prev') as HTMLButtonElement;
+const $storyPlay = document.getElementById('story-play') as HTMLButtonElement;
+const $storyNext = document.getElementById('story-next') as HTMLButtonElement;
+const $storyStatus = document.getElementById('story-status') as HTMLSpanElement;
 const $studioBody = document.getElementById('studio-body') as HTMLDivElement;
 const $studioResetAll = document.getElementById('studio-reset-all') as HTMLButtonElement;
 const $studioExport = document.getElementById('studio-export') as HTMLButtonElement;
@@ -57,6 +61,70 @@ const settings = {
   htmlMarkersEnabled: true,
   arcsEnabled: true,
   axisTilt: 23.5,
+};
+
+const WORLD_TOUR = {
+  scenes: [
+    {
+      id: 'intro',
+      duration: 4000,
+      flyTo: { position: [20, 0] as const, distance: 3 },
+      popup: {
+        position: [20, 0] as const,
+        content:
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ffd700;color:#ffd700;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🌍 World Tour — sit back, scroll handed</div>',
+      },
+    },
+    {
+      id: 'europe',
+      duration: 4500,
+      focusOnCountry: '616',
+      activeCountry: '616',
+      popup: {
+        position: [52.2297, 21.0122] as const,
+        content:
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #4a9eff;color:#4a9eff;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🇵🇱 Warsaw, Poland</div>',
+        anchor: 'bottom' as const,
+      },
+    },
+    {
+      id: 'americas',
+      duration: 4500,
+      flyTo: { position: [40.7128, -74.006] as const, distance: 2.6 },
+      activeCountry: '840',
+      popup: {
+        position: [40.7128, -74.006] as const,
+        content:
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ff5577;color:#ff5577;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🗽 New York, USA</div>',
+        anchor: 'bottom' as const,
+      },
+    },
+    {
+      id: 'asia',
+      duration: 4500,
+      flyTo: { position: [35.6762, 139.6503] as const, distance: 2.6 },
+      activeCountry: '392',
+      popup: {
+        position: [35.6762, 139.6503] as const,
+        content:
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #22ddaa;color:#22ddaa;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🗼 Tokyo, Japan</div>',
+        anchor: 'bottom' as const,
+      },
+    },
+    {
+      id: 'oceania',
+      duration: 4500,
+      flyTo: { position: [-33.8688, 151.2093] as const, distance: 2.6 },
+      activeCountry: '036',
+      popup: {
+        position: [-33.8688, 151.2093] as const,
+        content:
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ffaa33;color:#ffaa33;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🦘 Sydney, Australia</div>',
+        anchor: 'bottom' as const,
+      },
+    },
+  ],
+  loop: true,
 };
 
 const ARCS = [
@@ -164,6 +232,12 @@ const buildGlobe = (themeName: ThemePresetName): void => {
   globe.on('countryHover', (event) => {
     if (!settings.hoverHudEnabled) return;
     setStatus(event ? `Hover: ${event.country.name}` : `Theme: ${settings.themeName}`);
+  });
+  globe.on('sceneEnter', () => renderStoryStatus());
+  globe.on('sceneExit', () => renderStoryStatus());
+  globe.on('storyComplete', () => {
+    $storyPlay.textContent = '▶ Play tour';
+    renderStoryStatus();
   });
   globe.on('countryClick', ({ country }) => {
     setStatus(`Klik: ${country.name} (${country.id})`);
@@ -443,6 +517,45 @@ $hoverOcclude.addEventListener('change', () => {
   // hoverOccludeBackSide is a constructor option for the highlight layer,
   // so we rebuild the globe instance to apply it cleanly.
   buildGlobe(settings.themeName);
+});
+
+// ---------- Story controls ----------
+
+const renderStoryStatus = (): void => {
+  if (!globe) {
+    $storyStatus.textContent = 'No story';
+    return;
+  }
+  const scene = globe.getCurrentScene();
+  if (!scene) {
+    $storyStatus.textContent = 'Story idle';
+    return;
+  }
+  const playing = globe.isStoryPlaying() ? '▶ playing' : '⏸ paused';
+  $storyStatus.textContent = `${playing} — scene ${scene.id}`;
+};
+
+$storyPlay.addEventListener('click', () => {
+  if (!globe) return;
+  if (globe.isStoryPlaying()) {
+    globe.pauseStory();
+    $storyPlay.textContent = '▶ Play tour';
+  } else {
+    globe.setStory(WORLD_TOUR);
+    globe.playStory();
+    $storyPlay.textContent = '⏸ Pause';
+  }
+  renderStoryStatus();
+});
+
+$storyPrev.addEventListener('click', () => {
+  globe?.prevScene();
+  renderStoryStatus();
+});
+
+$storyNext.addEventListener('click', () => {
+  globe?.nextScene();
+  renderStoryStatus();
 });
 
 updateSpeedDisplay();
