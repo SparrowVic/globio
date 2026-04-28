@@ -66,6 +66,10 @@ export class HtmlMarkersLayer {
       pointerEvents: config.clickThrough ? 'none' : 'auto',
       willChange: 'transform, opacity',
       transition: 'opacity 120ms ease-out',
+      // Force a GPU compositing layer so per-frame transform updates are smooth
+      // and subpixel-rendered consistently (avoids 1-pixel jitter during drag).
+      backfaceVisibility: 'hidden',
+      transformStyle: 'preserve-3d',
     } satisfies Partial<CSSStyleDeclaration>);
 
     const content =
@@ -89,6 +93,13 @@ export class HtmlMarkersLayer {
   /** Project world positions to screen space and update DOM transforms. */
   public update(): void {
     const camera = this.options.camera;
+    // Critical: Three.js updates matrixWorldInverse only in renderer.render(),
+    // which runs AFTER this method. Without forcing the update here, project()
+    // uses the previous frame's matrix → markers lag the canvas by one frame
+    // and visibly jitter during drag/auto-rotate.
+    camera.updateMatrixWorld();
+    camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+
     const rect = this.options.container.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
     const halfW = rect.width / 2;
@@ -108,18 +119,28 @@ export class HtmlMarkersLayer {
       const y = -this.tempScreen.y * halfH + halfH;
       const anchorOffset = anchorTranslate(entry.config.anchor ?? 'center');
       const customOffset = entry.config.offset;
-      const translateX = `translate(-50%, -50%) translate(${x}px, ${y}px)${anchorOffset}`;
+      // translate3d() promotes the marker to its own GPU compositing layer so
+      // per-frame x/y updates render smoothly without subpixel jitter during
+      // drag/auto-rotate. The percent-based translate(-50%, -50%) handles
+      // self-centering; the anchor and custom offsets layer on top.
+      const baseTransform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)${anchorOffset}`;
       const finalTransform = customOffset
-        ? `${translateX} translate(${customOffset[0]}px, ${customOffset[1]}px)`
-        : translateX;
+        ? `${baseTransform} translate(${customOffset[0]}px, ${customOffset[1]}px)`
+        : baseTransform;
       entry.element.style.transform = finalTransform;
 
-      // Fade out when on far side of globe (use already-transformed worldNormal)
+      // Smoothly fade out as the marker rotates to the far side of the globe.
+      // facing = dot(markerNormal, cameraDir) ∈ [-1, 1].
+      //   > FADE_END  → fully visible
+      //   < FADE_START → fully hidden
+      //   between     → smoothstep
       const hideWhenOccluded = entry.config.hideWhenOccluded ?? true;
       if (hideWhenOccluded) {
         const facing = worldNormal.dot(cameraDir);
-        // facing > 0 → marker on the camera-facing hemisphere
-        const opacity = facing > 0 ? 1 : 0;
+        const FADE_START = -0.05;
+        const FADE_END = 0.15;
+        const t = Math.max(0, Math.min(1, (facing - FADE_START) / (FADE_END - FADE_START)));
+        const opacity = t * t * (3 - 2 * t); // smoothstep
         entry.element.style.opacity = String(opacity);
       } else {
         entry.element.style.opacity = '1';
