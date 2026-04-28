@@ -96,4 +96,13 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
   'wireframe.streamSize': 0.012,
   'wireframe.streamSpeed': 0.6,
   'wireframe.streamOpacity': 0.85,
+  'paper.surfaceColor': '#f4ecd6',
+  'paper.surfaceNoiseAmount': 0.06,
+  'paper.borderColor': '#5b3a1f',
+  'paper.borderOpacity': 0.85,
+  'paper.borderRoughness': 0.25,
+  'paper.fillColor': '#e9dcae',
+  'paper.fillOpacity': 0.35,
+  'paper.gridColor': '#bfa974',
+  'paper.gridOpacity': 0.18,
 });

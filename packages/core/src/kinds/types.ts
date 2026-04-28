@@ -16,8 +16,9 @@ import type { CountryDataMap, GlobeConfig, LatLng } from '../types';
  * `KindModule`, then a registry entry in `kinds/registry.ts`.
  */
 export type GlobeKind =
-  | 'outline'
   | 'dotted'
+  | 'outline'
+  | 'paper'
   | 'wireframe';
 
 /**
