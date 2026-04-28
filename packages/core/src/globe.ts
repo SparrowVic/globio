@@ -98,6 +98,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     ...(config.autoRotate?.speed !== undefined && { autoRotateSpeed: config.autoRotate.speed }),
     ...(config.minZoom !== undefined && { minDistance: config.minZoom }),
     ...(config.maxZoom !== undefined && { maxDistance: config.maxZoom }),
+    ...(config.zoom !== undefined && { zoom: config.zoom }),
   });
   if (config.autoRotate?.enabled) controls.setAutoRotate(true, config.autoRotate.speed);
 
@@ -231,6 +232,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (partial.markers) markersLayer.setMarkers(partial.markers);
       if (partial.autoRotate) {
         controls.setAutoRotate(partial.autoRotate.enabled ?? false, partial.autoRotate.speed);
+      }
+      if (partial.zoom !== undefined) {
+        controls.setZoom(partial.zoom);
       }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),

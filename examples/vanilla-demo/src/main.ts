@@ -2,6 +2,7 @@ import {
   createGlobe,
   type GlobeInstance,
   type ThemePresetName,
+  type ZoomMode,
 } from '@your-globe/core';
 
 const container = document.getElementById('app');
@@ -12,12 +13,18 @@ const $autoRotate = document.getElementById('toggle-autorotate') as HTMLInputEle
 const $speed = document.getElementById('speed-autorotate') as HTMLInputElement;
 const $speedValue = document.getElementById('speed-value') as HTMLSpanElement;
 const $hoverEnabled = document.getElementById('toggle-hover-status') as HTMLInputElement;
+const $zoomModeRadios = document.querySelectorAll<HTMLInputElement>('input[name="zoom-mode"]');
+const $zoomStrength = document.getElementById('zoom-strength') as HTMLInputElement;
+const $zoomStrengthValue = document.getElementById('zoom-strength-value') as HTMLSpanElement;
+const $zoomStrengthRow = document.getElementById('zoom-strength-row') as HTMLDivElement;
 
 const settings = {
   themeName: 'outline-dark' as ThemePresetName,
   autoRotateEnabled: true,
   autoRotateSpeed: 0.4,
   hoverHudEnabled: true,
+  zoomMode: 'classic' as ZoomMode,
+  zoomStrength: 0.5,
 };
 
 let globe: GlobeInstance | undefined;
@@ -35,6 +42,7 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     countries: { resolution: 'low', style: 'borders', hoverEnabled: true },
     atmosphere: { enabled: true },
     autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
+    zoom: { mode: settings.zoomMode, strength: settings.zoomStrength },
     markers: [
       { id: 'waw', position: [52.2297, 21.0122] },
       { id: 'nyc', position: [40.7128, -74.006] },
@@ -88,7 +96,32 @@ $hoverEnabled.addEventListener('change', () => {
   if (!settings.hoverHudEnabled) setStatus(`Theme: ${settings.themeName}`);
 });
 
+const applyZoom = (): void => {
+  globe?.update({ zoom: { mode: settings.zoomMode, strength: settings.zoomStrength } });
+};
+
+const updateZoomDisplay = (): void => {
+  $zoomStrengthValue.textContent = settings.zoomStrength.toFixed(1);
+  $zoomStrengthRow.style.display = settings.zoomMode === 'classic' ? 'none' : 'flex';
+};
+
+$zoomModeRadios.forEach((radio) => {
+  radio.addEventListener('change', () => {
+    if (!radio.checked) return;
+    settings.zoomMode = radio.value as ZoomMode;
+    updateZoomDisplay();
+    applyZoom();
+  });
+});
+
+$zoomStrength.addEventListener('input', () => {
+  settings.zoomStrength = Number.parseFloat($zoomStrength.value);
+  updateZoomDisplay();
+  applyZoom();
+});
+
 updateSpeedDisplay();
+updateZoomDisplay();
 buildGlobe(settings.themeName);
 
 window.addEventListener('beforeunload', () => globe?.destroy());
