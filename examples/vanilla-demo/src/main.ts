@@ -242,10 +242,10 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     htmlMarkers: settings.htmlMarkersEnabled ? HTML_MARKERS : [],
     arcs: settings.arcsEnabled ? ARCS : [],
     markers: [
-      { id: 'waw', position: [52.2297, 21.0122] },
-      { id: 'nyc', position: [40.7128, -74.006] },
-      { id: 'tyo', position: [35.6762, 139.6503] },
-      { id: 'syd', position: [-33.8688, 151.2093] },
+      { id: 'waw', position: [52.2297, 21.0122], label: 'Warsaw', color: '#4a9eff' },
+      { id: 'nyc', position: [40.7128, -74.006], label: 'New York', color: '#ff6b6b', pulse: true },
+      { id: 'tyo', position: [35.6762, 139.6503], label: 'Tokyo', color: '#ffd166' },
+      { id: 'syd', position: [-33.8688, 151.2093], label: 'Sydney', color: '#22ee99', size: 1.5 },
     ],
   });
 

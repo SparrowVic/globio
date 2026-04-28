@@ -206,12 +206,12 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Custom 3D model marker** `[v1.x·LAYER·M]` — user supplies GLTF (np. samolot).
 - **Cluster markers** `[v1.x·LAYER·L]` — auto-cluster przy zoom-out, smooth uncluster przy zoom-in.
 - **Marker label / tooltip** `[v1·LAYER·S]` — wbudowany tooltip + auto-placement.
-- **Marker pulse / halo animacja** `[v1·LAYER·S]` — radial pulse z konfigurowalnym BPM.
+- **Marker pulse / halo animacja** `[v1·LAYER·S·built]` 🌟 — `marker.pulse: true | { speed?, amplitude? }`. Marker rytmicznie oscyluje rozmiarem (sin wave); `speed` w cyklach na sekundę (default 1.5), `amplitude` jako frakcja base size dodawana w peaku (default 0.4). Działa na InstancedMesh — brak narzutu rendering, animacja przez per-frame matrix update.
 - **Marker hit-zone radius** `[v1·LAYER·S]` — większy hit-zone niż visual size, dla mobile.
 - **Bulk add / streaming markers** `[v1·LAYER·M]` — batch updates per frame, real-time perf.
 - **Marker size by data** `[v1·LAYER·S]` — `size: (m) => m.data.population / 1e6`.
 - **Marker color by data** `[v1·LAYER·S]` — analogicznie.
-- **Marker hover state** `[v1·EVENT·S]` — scale-up, glow, callback.
+- **Marker hover state** `[v1·EVENT·S·built]` 🌟 — auto scale-up hovered markera (default 1.5×, konfigurowalne via layer option `hoverScale`), eased 150ms. Plus `MarkerTooltip` (DOM, follows cursor, fade 80ms) pokazujący `marker.label ?? marker.id`. Eventy `markerHover` / `markerClick` z payloadem `{ marker }`.
 
 ### 4.5 Connections (arcs, paths, routes)
 

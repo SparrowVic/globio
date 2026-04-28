@@ -7,6 +7,7 @@ import { CountriesPickingLayer } from './renderer/countries-picking-layer';
 import { CountriesFillLayer } from './renderer/countries-fill-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
+import { MarkerTooltip } from './renderer/marker-tooltip';
 import { HtmlMarkersLayer } from './renderer/html-markers-layer';
 import { StarfieldLayer } from './renderer/starfield-layer';
 import { ArcsLayer } from './renderer/arcs-layer';
@@ -113,6 +114,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.elapsedSeconds += delta;
       arcsLayer.update(state.elapsedSeconds);
       state.htmlMarkersLayer.update();
+      state.markersLayer.update(delta);
       state.countryHighlightLayer?.update(delta);
       state.countryActiveLayer?.update(delta);
       state.countriesFillLayer?.update(delta);
@@ -193,6 +195,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     borderRadius: tokens['tooltip.borderRadius'],
   });
 
+  const markerTooltip = new MarkerTooltip({
+    container: config.container,
+    background: tokens['tooltip.backgroundColor'],
+    textColor: tokens['tooltip.textColor'],
+    fontSize: tokens['tooltip.fontSize'],
+    fontFamily: tokens['tooltip.fontFamily'],
+    padding: tokens['tooltip.padding'],
+    borderRadius: tokens['tooltip.borderRadius'],
+  });
+
   const controls = new GlobeControls({
     camera: scene.camera,
     domElement: scene.renderer.domElement,
@@ -238,6 +250,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         emitter.emit('countryHover', null);
         state.countryHighlightLayer?.clear();
         state.countryTooltip?.clear();
+        markersLayer.setHovered(marker?.id ?? null);
+        if (marker) markerTooltip.showMarker(marker);
+        else markerTooltip.clear();
         return;
       }
       if (hit?.type === 'country') {
@@ -251,12 +266,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           state.countryHighlightLayer?.clear();
           state.countryTooltip?.clear();
         }
+        markersLayer.setHovered(null);
+        markerTooltip.clear();
         return;
       }
       emitter.emit('markerHover', null);
       emitter.emit('countryHover', null);
       state.countryHighlightLayer?.clear();
       state.countryTooltip?.clear();
+      markersLayer.setHovered(null);
+      markerTooltip.clear();
     },
   });
 
@@ -429,6 +448,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryHighlightLayer?.dispose();
       state.countryActiveLayer?.dispose();
       state.countryTooltip?.dispose();
+      markerTooltip.dispose();
       state.htmlMarkersLayer.dispose();
       state.arcsLayer.dispose();
       starfieldLayer?.dispose();

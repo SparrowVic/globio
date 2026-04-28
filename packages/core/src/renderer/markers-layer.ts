@@ -14,12 +14,35 @@ export interface MarkersLayerOptions {
   readonly maxMarkers?: number;
   readonly defaultColor: string;
   readonly defaultSize?: number;
+  /**
+   * Multiplier applied to a marker's size when hovered. Default 1.5.
+   * The change is animated via a 0.15s ease toward the target scale.
+   */
+  readonly hoverScale?: number;
 }
 
 interface MarkerSlot {
   readonly index: number;
   readonly marker: MarkerConfig;
+  /** Currently rendered scale (eased toward target). */
+  currentScale: number;
 }
+
+const DEFAULT_PULSE_SPEED = 1.5;
+const DEFAULT_PULSE_AMPLITUDE = 0.4;
+const HOVER_EASE_SECONDS = 0.15;
+
+/** Resolve a per-marker `pulse` config to concrete params, or null if disabled. */
+const pulseParams = (
+  pulse: MarkerConfig['pulse']
+): { speed: number; amplitude: number } | null => {
+  if (!pulse) return null;
+  if (pulse === true) return { speed: DEFAULT_PULSE_SPEED, amplitude: DEFAULT_PULSE_AMPLITUDE };
+  return {
+    speed: pulse.speed ?? DEFAULT_PULSE_SPEED,
+    amplitude: pulse.amplitude ?? DEFAULT_PULSE_AMPLITUDE,
+  };
+};
 
 export class MarkersLayer {
   public readonly mesh: InstancedMesh;
@@ -32,12 +55,16 @@ export class MarkersLayer {
   private readonly tempVector = new Vector3();
   private readonly defaultColor: string;
   private readonly defaultSize: number;
+  private readonly hoverScale: number;
   private readonly maxMarkers: number;
+  private hoveredId: string | null = null;
+  private elapsed = 0;
 
   public constructor(options: MarkersLayerOptions) {
     this.maxMarkers = options.maxMarkers ?? 10000;
     this.defaultColor = options.defaultColor;
     this.defaultSize = options.defaultSize ?? 0.012;
+    this.hoverScale = options.hoverScale ?? 1.5;
 
     this.geometry = new SphereGeometry(1, 8, 8);
     this.material = new MeshBasicMaterial({ color: 0xffffff });
@@ -64,8 +91,9 @@ export class MarkersLayer {
     if (index === undefined) {
       throw new Error(`MarkersLayer: max markers (${this.maxMarkers}) reached`);
     }
-    this.slots.set(marker.id, { index, marker });
-    this.applyToInstance(index, marker);
+    const baseScale = this.defaultSize * (marker.size ?? 1);
+    this.slots.set(marker.id, { index, marker, currentScale: baseScale });
+    this.applyToInstance(index, marker, baseScale);
     this.refreshCount();
   }
 
@@ -89,6 +117,37 @@ export class MarkersLayer {
     return null;
   }
 
+  /**
+   * Mark a single marker as hovered (or none with `null`). The hovered
+   * marker eases up to `hoverScale × baseSize`; previously hovered marker
+   * eases back down.
+   */
+  public setHovered(id: string | null): void {
+    if (this.hoveredId === id) return;
+    this.hoveredId = id;
+  }
+
+  /** Step pulse and hover-ease tweens. Should be called once per render frame. */
+  public update(delta: number): void {
+    this.elapsed += delta;
+    if (this.slots.size === 0) return;
+    const k = Math.min(1, delta / HOVER_EASE_SECONDS);
+    this.slots.forEach((slot, id) => {
+      const baseScale = this.defaultSize * (slot.marker.size ?? 1);
+      const pulse = pulseParams(slot.marker.pulse);
+      const pulsed = pulse
+        ? baseScale * (1 + pulse.amplitude * Math.sin(this.elapsed * pulse.speed * 2 * Math.PI))
+        : baseScale;
+      const target = id === this.hoveredId ? pulsed * this.hoverScale : pulsed;
+      const next = slot.currentScale + (target - slot.currentScale) * k;
+      const changed = Math.abs(next - slot.currentScale) > 1e-6 || pulse !== null;
+      slot.currentScale = next;
+      if (changed) {
+        this.applyToInstance(slot.index, slot.marker, slot.currentScale);
+      }
+    });
+  }
+
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
@@ -98,17 +157,16 @@ export class MarkersLayer {
   private updateMarker(marker: MarkerConfig): void {
     const slot = this.slots.get(marker.id);
     if (!slot) return;
-    this.slots.set(marker.id, { ...slot, marker });
-    this.applyToInstance(slot.index, marker);
+    const baseScale = this.defaultSize * (marker.size ?? 1);
+    this.slots.set(marker.id, { ...slot, marker, currentScale: baseScale });
+    this.applyToInstance(slot.index, marker, baseScale);
   }
 
-  private applyToInstance(index: number, marker: MarkerConfig): void {
-    const sizeMultiplier = marker.size ?? 1;
-    const finalScale = this.defaultSize * sizeMultiplier;
+  private applyToInstance(index: number, marker: MarkerConfig, scale: number): void {
     const surface = latLngToVector3(marker.position, GLOBE_RADIUS, this.tempVector);
 
     this.dummy.position.copy(surface);
-    this.dummy.scale.setScalar(finalScale);
+    this.dummy.scale.setScalar(scale);
     this.dummy.lookAt(0, 0, 0);
     this.dummy.updateMatrix();
 

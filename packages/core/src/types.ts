@@ -49,6 +49,16 @@ export interface MarkerConfig {
   readonly size?: number;
   readonly label?: string;
   readonly data?: Readonly<Record<string, unknown>>;
+  /**
+   * Pulse animation — the marker oscillates in size to draw attention.
+   * `true` uses defaults; object overrides individual params.
+   * - `speed` cycles per second (default 1.5)
+   * - `amplitude` fraction of base size added at peak (default 0.4)
+   */
+  readonly pulse?: boolean | {
+    readonly speed?: number;
+    readonly amplitude?: number;
+  };
 }
 
 export interface MarkerEvent {
