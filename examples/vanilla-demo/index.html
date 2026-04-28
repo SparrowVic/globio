@@ -23,17 +23,51 @@
         position: fixed;
         top: 12px;
         left: 12px;
-        padding: 10px 14px;
+        padding: 12px 14px;
         background: rgba(10, 14, 30, 0.6);
         border: 1px solid rgba(74, 158, 255, 0.4);
         border-radius: 6px;
         font-size: 13px;
-        line-height: 1.4;
+        line-height: 1.45;
         backdrop-filter: blur(6px);
         max-width: 320px;
       }
       #hud b {
         color: #ffd700;
+      }
+      .hud-section {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(120, 140, 180, 0.25);
+      }
+      .hud-section-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #8aa0c8;
+        margin-bottom: 6px;
+      }
+      .hud-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+      }
+      .hud-row label {
+        cursor: pointer;
+        flex: 1;
+      }
+      .hud-row input[type='range'] {
+        flex: 1;
+      }
+      .theme-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .theme-buttons button {
+        padding: 4px 8px;
+        cursor: pointer;
       }
     </style>
   </head>
@@ -43,12 +77,44 @@
       <b>Globe Core demo</b><br />
       Drag — obrót · Scroll — zoom<br />
       <span id="status">Ładowanie granic państw…</span>
-      <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
-        <button data-theme="outline-dark" style="padding: 4px 8px; cursor: pointer;">Dark</button>
-        <button data-theme="outline-light" style="padding: 4px 8px; cursor: pointer;">Light</button>
-        <button data-theme="outline-sunset" style="padding: 4px 8px; cursor: pointer;">Sunset</button>
-        <button data-theme="outline-cyber" style="padding: 4px 8px; cursor: pointer;">Cyber</button>
-        <button data-theme="outline-monochrome" style="padding: 4px 8px; cursor: pointer;">Mono</button>
+
+      <div class="hud-section">
+        <div class="hud-section-title">Theme</div>
+        <div class="theme-buttons">
+          <button data-theme="outline-dark">Dark</button>
+          <button data-theme="outline-light">Light</button>
+          <button data-theme="outline-sunset">Sunset</button>
+          <button data-theme="outline-cyber">Cyber</button>
+          <button data-theme="outline-monochrome">Mono</button>
+        </div>
+      </div>
+
+      <div class="hud-section">
+        <div class="hud-section-title">Rotation</div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-autorotate" checked />
+          <label for="toggle-autorotate">Auto-rotate</label>
+        </div>
+        <div class="hud-row">
+          <label for="speed-autorotate">Speed</label>
+          <input
+            type="range"
+            id="speed-autorotate"
+            min="0"
+            max="2"
+            step="0.05"
+            value="0.4"
+          />
+          <span id="speed-value" style="min-width: 2.5em; text-align: right;">0.40</span>
+        </div>
+      </div>
+
+      <div class="hud-section">
+        <div class="hud-section-title">Interactions</div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-hover-status" checked />
+          <label for="toggle-hover-status">Show hovered country in HUD</label>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

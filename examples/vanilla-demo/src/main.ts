@@ -8,20 +8,33 @@ const container = document.getElementById('app');
 const status = document.getElementById('status');
 if (!container) throw new Error('#app not found');
 
+const $autoRotate = document.getElementById('toggle-autorotate') as HTMLInputElement;
+const $speed = document.getElementById('speed-autorotate') as HTMLInputElement;
+const $speedValue = document.getElementById('speed-value') as HTMLSpanElement;
+const $hoverEnabled = document.getElementById('toggle-hover-status') as HTMLInputElement;
+
+const settings = {
+  themeName: 'outline-dark' as ThemePresetName,
+  autoRotateEnabled: true,
+  autoRotateSpeed: 0.4,
+  hoverHudEnabled: true,
+};
+
 let globe: GlobeInstance | undefined;
+
+const setStatus = (text: string): void => {
+  if (status) status.textContent = text;
+};
 
 const buildGlobe = (themeName: ThemePresetName): void => {
   globe?.destroy();
+  settings.themeName = themeName;
   globe = createGlobe({
     container,
     theme: themeName,
-    countries: {
-      resolution: 'low',
-      style: 'borders',
-      hoverEnabled: true,
-    },
+    countries: { resolution: 'low', style: 'borders', hoverEnabled: true },
     atmosphere: { enabled: true },
-    autoRotate: { enabled: true, speed: 0.4 },
+    autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
     markers: [
       { id: 'waw', position: [52.2297, 21.0122] },
       { id: 'nyc', position: [40.7128, -74.006] },
@@ -30,31 +43,19 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     ],
   });
 
-  globe.on('ready', () => {
-    if (status) status.textContent = `Theme: ${themeName}`;
-  });
-  globe.on('error', (err) => {
-    if (status) status.textContent = `Błąd: ${err.message}`;
-  });
-  globe.on('markerClick', ({ marker }) => {
-    if (status) status.textContent = `Kliknięto marker: ${marker.id}`;
-  });
+  globe.on('ready', () => setStatus(`Theme: ${themeName}`));
+  globe.on('error', (err) => setStatus(`Błąd: ${err.message}`));
+  globe.on('markerClick', ({ marker }) => setStatus(`Kliknięto marker: ${marker.id}`));
   globe.on('countryHover', (event) => {
-    if (!status) return;
-    if (event) {
-      status.textContent = `Hover: ${event.country.name}`;
-    } else {
-      status.textContent = `Theme: ${themeName}`;
-    }
+    if (!settings.hoverHudEnabled) return;
+    setStatus(event ? `Hover: ${event.country.name}` : `Theme: ${settings.themeName}`);
   });
   globe.on('countryClick', ({ country }) => {
-    if (status) status.textContent = `Klik: ${country.name} (${country.id})`;
+    setStatus(`Klik: ${country.name} (${country.id})`);
   });
 
   globe.mount();
 };
-
-buildGlobe('outline-dark');
 
 document.querySelectorAll<HTMLButtonElement>('button[data-theme]').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -62,5 +63,32 @@ document.querySelectorAll<HTMLButtonElement>('button[data-theme]').forEach((btn)
     buildGlobe(name);
   });
 });
+
+$autoRotate.addEventListener('change', () => {
+  settings.autoRotateEnabled = $autoRotate.checked;
+  globe?.update({
+    autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
+  });
+});
+
+const updateSpeedDisplay = (): void => {
+  $speedValue.textContent = settings.autoRotateSpeed.toFixed(2);
+};
+
+$speed.addEventListener('input', () => {
+  settings.autoRotateSpeed = Number.parseFloat($speed.value);
+  updateSpeedDisplay();
+  globe?.update({
+    autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
+  });
+});
+
+$hoverEnabled.addEventListener('change', () => {
+  settings.hoverHudEnabled = $hoverEnabled.checked;
+  if (!settings.hoverHudEnabled) setStatus(`Theme: ${settings.themeName}`);
+});
+
+updateSpeedDisplay();
+buildGlobe(settings.themeName);
 
 window.addEventListener('beforeunload', () => globe?.destroy());
