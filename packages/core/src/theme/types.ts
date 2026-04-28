@@ -11,6 +11,8 @@ export type TokenKey =
   | 'borders.color'
   | 'borders.width'
   | 'borders.opacity'
+  | 'countries.hoverColor'
+  | 'countries.hoverWidth'
   | 'markers.defaultColor'
   | 'atmosphere.color'
   | 'atmosphere.intensity';
@@ -26,6 +28,8 @@ export interface TokenSet {
   readonly 'borders.color': string;
   readonly 'borders.width': number;
   readonly 'borders.opacity': number;
+  readonly 'countries.hoverColor': string;
+  readonly 'countries.hoverWidth': number;
   readonly 'markers.defaultColor': string;
   readonly 'atmosphere.color': string;
   readonly 'atmosphere.intensity': number;

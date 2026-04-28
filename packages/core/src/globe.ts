@@ -4,6 +4,7 @@ import { GlobeMesh } from './renderer/globe-mesh';
 import { MarkersLayer } from './renderer/markers-layer';
 import { CountriesLayer, type CountryFeature } from './renderer/countries-layer';
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
+import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
@@ -44,6 +45,7 @@ interface InternalState {
   markersLayer: MarkersLayer;
   countriesLayer: CountriesLayer | null;
   countriesPickingLayer: CountriesPickingLayer | null;
+  countryHighlightLayer: CountryHighlightLayer | null;
   atmosphereLayer: AtmosphereLayer | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
@@ -132,16 +134,20 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         const marker = markersLayer.getMarkerByInstanceId(hit.instanceId);
         emitter.emit('markerHover', marker ? { marker } : null);
         emitter.emit('countryHover', null);
+        state.countryHighlightLayer?.clear();
         return;
       }
       if (hit?.type === 'country') {
         const event = handleCountryHit(hit.object, hit.point);
         emitter.emit('countryHover', event);
         emitter.emit('markerHover', null);
+        if (event) state.countryHighlightLayer?.showCountry(event.country.id);
+        else state.countryHighlightLayer?.clear();
         return;
       }
       emitter.emit('markerHover', null);
       emitter.emit('countryHover', null);
+      state.countryHighlightLayer?.clear();
     },
   });
 
@@ -152,6 +158,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     markersLayer,
     countriesLayer: null,
     countriesPickingLayer: null,
+    countryHighlightLayer: null,
     atmosphereLayer,
     controls,
     raycaster,
@@ -187,6 +194,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         { type: 'marker', object: markersLayer.mesh },
         { type: 'country', object: picking.group },
       ]);
+
+      const highlight = new CountryHighlightLayer({
+        hoverColor: tokens['countries.hoverColor'],
+        hoverWidth: tokens['countries.hoverWidth'],
+      });
+      highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
+      scene.scene.add(highlight.object);
+      state.countryHighlightLayer = highlight;
     } catch (error) {
       emitter.emit('error', error instanceof Error ? error : new Error(String(error)));
     }
@@ -206,6 +221,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       globeMesh.dispose();
       state.countriesLayer?.dispose();
       state.countriesPickingLayer?.dispose();
+      state.countryHighlightLayer?.dispose();
       atmosphereLayer?.dispose();
       scene.destroy();
       emitter.clear();
