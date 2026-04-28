@@ -17,6 +17,8 @@ export type TokenKey =
   | 'countries.borderActive.color'
   | 'countries.borderActive.width'
   | 'countries.borderActive.opacity'
+  | 'countries.fill.defaultColor'
+  | 'countries.fill.opacity'
   | 'tooltip.backgroundColor'
   | 'tooltip.textColor'
   | 'tooltip.fontSize'
@@ -56,6 +58,8 @@ export interface TokenSet {
   readonly 'countries.borderActive.color': string;
   readonly 'countries.borderActive.width': number;
   readonly 'countries.borderActive.opacity': number;
+  readonly 'countries.fill.defaultColor': string;
+  readonly 'countries.fill.opacity': number;
   readonly 'tooltip.backgroundColor': string;
   readonly 'tooltip.textColor': string;
   readonly 'tooltip.fontSize': number;

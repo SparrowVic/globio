@@ -17,6 +17,8 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
   'countries.borderActive.color': '#ffffff',
   'countries.borderActive.width': 3,
   'countries.borderActive.opacity': 1,
+  'countries.fill.defaultColor': '#1a3a6e',
+  'countries.fill.opacity': 0.4,
   'tooltip.backgroundColor': 'rgba(10, 14, 30, 0.85)',
   'tooltip.textColor': '#ffd700',
   'tooltip.fontSize': 12,

@@ -4,6 +4,8 @@ export type {
   AutoRotateConfig,
   CountriesConfig,
   CountryData,
+  CountryDataEntry,
+  CountryDataMap,
   CountryEvent,
   CountryStyle,
   GlobeConfig,

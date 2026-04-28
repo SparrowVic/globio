@@ -4,6 +4,7 @@ import { GlobeMesh } from './renderer/globe-mesh';
 import { MarkersLayer } from './renderer/markers-layer';
 import { CountriesLayer, type CountryFeature } from './renderer/countries-layer';
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
+import { CountriesFillLayer } from './renderer/countries-fill-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
 import { HtmlMarkersLayer } from './renderer/html-markers-layer';
@@ -22,6 +23,7 @@ import { angularExtent, boundsCenter, type LatLngBounds } from './utils/country-
 import type {
   CountriesConfig,
   CountryData,
+  CountryDataMap,
   GlobeConfig,
   GlobeEventName,
   GlobeEvents,
@@ -76,6 +78,7 @@ interface InternalState {
   markersLayer: MarkersLayer;
   countriesLayer: CountriesLayer | null;
   countriesPickingLayer: CountriesPickingLayer | null;
+  countriesFillLayer: CountriesFillLayer | null;
   countryHighlightLayer: CountryHighlightLayer | null;
   countryActiveLayer: CountryHighlightLayer | null;
   countryTooltip: CountryTooltip | null;
@@ -86,6 +89,7 @@ interface InternalState {
   raycaster: PointerRaycaster;
   emitter: GlobeEventEmitter;
   activeCountryId: string | null;
+  countryData: CountryDataMap | null;
   elapsedSeconds: number;
   destroyed: boolean;
 }
@@ -258,6 +262,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     markersLayer,
     countriesLayer: null,
     countriesPickingLayer: null,
+    countriesFillLayer: null,
     countryHighlightLayer: null,
     countryActiveLayer: null,
     countryTooltip: tooltip,
@@ -268,6 +273,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     raycaster,
     emitter,
     activeCountryId: null,
+    countryData: config.countryData ?? null,
     elapsedSeconds: 0,
     destroyed: false,
   };
@@ -281,6 +287,15 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     try {
       const features = await loadCountries({ resolution: countries.resolution });
       if (state.destroyed) return;
+
+      const fill = new CountriesFillLayer({
+        features: features as ReadonlyArray<CountryFeature>,
+        defaultColor: tokens['countries.fill.defaultColor'],
+        defaultOpacity: tokens['countries.fill.opacity'],
+      });
+      globeGroup.add(fill.group);
+      state.countriesFillLayer = fill;
+      if (state.countryData) fill.setData(state.countryData);
 
       const visible = new CountriesLayer({
         features: features as ReadonlyArray<CountryFeature>,
@@ -402,6 +417,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       markersLayer.dispose();
       globeMesh.dispose();
       state.countriesLayer?.dispose();
+      state.countriesFillLayer?.dispose();
       state.countriesPickingLayer?.dispose();
       state.countryHighlightLayer?.dispose();
       state.countryActiveLayer?.dispose();
@@ -422,6 +438,10 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (partial.zoom !== undefined) {
         controls.setZoom(partial.zoom);
       }
+      if (partial.countryData !== undefined) {
+        state.countryData = partial.countryData;
+        state.countriesFillLayer?.setData(partial.countryData);
+      }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
     off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.off(event, handler),
@@ -440,6 +460,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       }
     },
     getActiveCountry: () => state.activeCountryId,
+    setCountryData: (data) => {
+      state.countryData = data;
+      state.countriesFillLayer?.setData(data);
+    },
+    getCountryData: () => state.countryData,
     setStory: (story: StoryConfig | null) => storyController.setStory(story),
     playStory: () => storyController.play(),
     pauseStory: () => storyController.pause(),

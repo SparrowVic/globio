@@ -50,6 +50,8 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'arcs.opacity': 0.9,
     'arcs.headColor': '#ffffff',
     'arcs.headSize': 0.012,
+    'countries.fill.defaultColor': '#1a3a6e',
+    'countries.fill.opacity': 0.4,
   }),
   'outline-light': Object.freeze({
     'background.color': '#f0f4f8',
@@ -85,6 +87,8 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'arcs.opacity': 0.9,
     'arcs.headColor': '#d9534f',
     'arcs.headSize': 0.012,
+    'countries.fill.defaultColor': '#a8c4d8',
+    'countries.fill.opacity': 0.5,
   }),
   'outline-sunset': Object.freeze({
     'background.color': '#180a1a',
@@ -120,6 +124,8 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'arcs.opacity': 0.9,
     'arcs.headColor': '#ffd166',
     'arcs.headSize': 0.012,
+    'countries.fill.defaultColor': '#5a2a4f',
+    'countries.fill.opacity': 0.4,
   }),
   'outline-cyber': Object.freeze({
     'background.color': '#000814',
@@ -155,6 +161,8 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'arcs.opacity': 0.9,
     'arcs.headColor': '#ff2bd6',
     'arcs.headSize': 0.012,
+    'countries.fill.defaultColor': '#001a2a',
+    'countries.fill.opacity': 0.5,
   }),
   'outline-monochrome': Object.freeze({
     'background.color': '#0a0a0a',
@@ -190,5 +198,7 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'arcs.opacity': 0.9,
     'arcs.headColor': '#ffaa00',
     'arcs.headSize': 0.012,
+    'countries.fill.defaultColor': '#2a2a2a',
+    'countries.fill.opacity': 0.4,
   }),
 });
