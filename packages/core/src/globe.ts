@@ -111,6 +111,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.elapsedSeconds += delta;
       arcsLayer.update(state.elapsedSeconds);
       state.htmlMarkersLayer.update();
+      state.countryHighlightLayer?.update(delta);
+      state.countryActiveLayer?.update(delta);
+      state.countriesFillLayer?.update(delta);
     },
   });
 

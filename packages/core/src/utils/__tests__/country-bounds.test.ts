@@ -61,6 +61,36 @@ describe('angularExtent', () => {
     const b = computeBounds([point]);
     expect(angularExtent(b)).toBe(0);
   });
+
+  it('treats Antarctica-like bbox as a south polar cap, not a 360° band', () => {
+    // Antarctica: ring wraps the south pole, bbox spans the full lng range
+    // and reaches lat -90. Naive angularExtent would say "360° wide" — useless
+    // for camera framing. With the cap heuristic we return the cap's diameter
+    // (twice the polar offset).
+    const antarcticaBounds = { minLat: -90, maxLat: -65, minLng: -180, maxLng: 180 };
+    const ext = angularExtent(antarcticaBounds);
+    // 2 × (90 + -65) = 50 degrees of arc
+    expect(ext).toBeCloseTo((50 * Math.PI) / 180, 6);
+  });
+
+  it('treats a north polar cap analogously', () => {
+    const arcticBounds = { minLat: 70, maxLat: 90, minLng: -180, maxLng: 180 };
+    const ext = angularExtent(arcticBounds);
+    // 2 × (90 - 70) = 40 degrees of arc
+    expect(ext).toBeCloseTo((40 * Math.PI) / 180, 6);
+  });
+});
+
+describe('boundsCenter', () => {
+  it('snaps a south polar cap center to the south pole', () => {
+    const antarctic = { minLat: -90, maxLat: -65, minLng: -180, maxLng: 180 };
+    expect(boundsCenter(antarctic)).toEqual([-90, 0]);
+  });
+
+  it('snaps a north polar cap center to the north pole', () => {
+    const arctic = { minLat: 70, maxLat: 90, minLng: -180, maxLng: 180 };
+    expect(boundsCenter(arctic)).toEqual([90, 0]);
+  });
 });
 
 describe('computeMainRingBounds', () => {
