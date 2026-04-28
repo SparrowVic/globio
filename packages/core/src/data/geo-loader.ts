@@ -53,21 +53,28 @@ const normalizeFeature = (raw: {
     readonly coordinates: ReadonlyArray<unknown>;
   };
 }): CountryFeature => {
-  const rings: Array<ReadonlyArray<readonly [number, number]>> = [];
+  const polygons: Array<ReadonlyArray<ReadonlyArray<readonly [number, number]>>> = [];
 
   if (raw.geometry.type === 'Polygon') {
-    (raw.geometry.coordinates as ReadonlyArray<ReadonlyArray<readonly [number, number]>>).forEach(
-      (ring) => rings.push(ring)
+    polygons.push(
+      raw.geometry.coordinates as ReadonlyArray<ReadonlyArray<readonly [number, number]>>
     );
   } else if (raw.geometry.type === 'MultiPolygon') {
     (raw.geometry.coordinates as ReadonlyArray<ReadonlyArray<ReadonlyArray<readonly [number, number]>>>).forEach(
-      (polygon) => polygon.forEach((ring) => rings.push(ring))
+      (polygon) => polygons.push(polygon)
     );
+  }
+
+  // Flat ring list for layers that don't care about hole structure.
+  const rings: Array<ReadonlyArray<readonly [number, number]>> = [];
+  for (const polygon of polygons) {
+    for (const ring of polygon) rings.push(ring);
   }
 
   return {
     id: String(raw.id ?? ''),
     name: raw.properties?.name ?? 'Unknown',
     coordinates: rings,
+    polygons,
   };
 };

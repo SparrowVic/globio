@@ -9,6 +9,33 @@ export interface RingTriangulation {
 }
 
 /**
+ * If a ring crosses the antimeridian (e.g. Russia, Fiji, USA Aleutians), the
+ * lng values jump from +179 to -179 between consecutive points. Earcut works
+ * in flat 2D, so this jump produces giant degenerate triangles. We detect the
+ * crossing and shift the negative-side points by +360 to produce a continuous
+ * polygon in earcut space. The 3D back-projection via latLngToVector3 wraps
+ * naturally (sin/cos are periodic), so positions remain correct on the sphere.
+ *
+ * Returns the (possibly shifted) ring; original ring if no crossing detected.
+ */
+const unwrapAntimeridian = (
+  ring: ReadonlyArray<readonly [number, number]>
+): ReadonlyArray<readonly [number, number]> => {
+  let crosses = false;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    if (!a || !b) continue;
+    if (Math.abs(a[0] - b[0]) > 180) {
+      crosses = true;
+      break;
+    }
+  }
+  if (!crosses) return ring;
+  return ring.map(([lng, lat]) => [lng < 0 ? lng + 360 : lng, lat] as const);
+};
+
+/**
  * Signed area of a ring in lat/lng space using the shoelace formula.
  *
  * GeoJSON convention: outer rings are counterclockwise, holes are clockwise.
@@ -79,6 +106,88 @@ export const triangulateRing = (
     positions[i * 3] = v.x;
     positions[i * 3 + 1] = v.y;
     positions[i * 3 + 2] = v.z;
+  }
+
+  return {
+    positions,
+    indices: new Uint32Array(triIndices),
+  };
+};
+
+/**
+ * Triangulate a GeoJSON-style polygon (outer ring + zero or more holes) on
+ * a sphere of given radius. Unlike `triangulateRing`, this:
+ * - subtracts holes (so e.g. Lesotho doesn't get filled with South Africa's
+ *   color when SA is colored)
+ * - shifts antimeridian-crossing rings so earcut sees a continuous 2D polygon
+ *
+ * Returns null for degenerate input (no usable outer ring).
+ */
+export const triangulatePolygon = (
+  rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  radius: number
+): RingTriangulation | null => {
+  if (rings.length === 0) return null;
+  const outerRaw = rings[0];
+  if (!outerRaw || outerRaw.length < 4) return null;
+
+  // Decide whether this polygon crosses the antimeridian by looking at the
+  // outer ring. Apply the same shift to all holes so they stay aligned.
+  const outerShifted = unwrapAntimeridian(outerRaw);
+  const shifted = outerShifted !== outerRaw;
+  const holesRaw = rings.slice(1);
+  const holesShifted: Array<ReadonlyArray<readonly [number, number]>> = shifted
+    ? holesRaw.map((h) => h.map(([lng, lat]) => [lng < 0 ? lng + 360 : lng, lat] as const))
+    : [...holesRaw];
+
+  const outerArea = ringSignedArea(outerShifted);
+  if (Math.abs(outerArea) < AREA_EPSILON) return null;
+
+  // earcut wants outer CCW (positive area) — reverse if input is CW.
+  const reverseOuter = outerArea < 0;
+  const dropClose = (
+    ring: ReadonlyArray<readonly [number, number]>
+  ): ReadonlyArray<readonly [number, number]> => {
+    const f = ring[0];
+    const l = ring[ring.length - 1];
+    return f && l && f[0] === l[0] && f[1] === l[1] ? ring.slice(0, -1) : ring;
+  };
+
+  const outer = dropClose(reverseOuter ? [...outerShifted].reverse() : outerShifted);
+  if (outer.length < 3) return null;
+
+  // Holes must wind opposite to outer for earcut. We mirror the same direction
+  // policy: if we flipped outer, flip holes too (preserves relative orientation).
+  const preparedHoles = holesShifted
+    .map((h) => dropClose(reverseOuter ? [...h].reverse() : h))
+    .filter((h) => h.length >= 3);
+
+  // Build flat coordinate buffer + holeIndices (vertex offsets where each hole begins).
+  const flat: Array<number> = [];
+  for (const p of outer) flat.push(p[0], p[1]);
+  const holeIndices: Array<number> = [];
+  let cursor = outer.length;
+  for (const h of preparedHoles) {
+    holeIndices.push(cursor);
+    for (const p of h) flat.push(p[0], p[1]);
+    cursor += h.length;
+  }
+
+  const triIndices = earcut(flat, holeIndices.length > 0 ? holeIndices : undefined);
+  if (triIndices.length === 0) return null;
+
+  const totalVerts = cursor;
+  const positions = new Float32Array(totalVerts * 3);
+  const allRings = [outer, ...preparedHoles];
+  let i = 0;
+  for (const ring of allRings) {
+    for (const point of ring) {
+      const v = latLngToVector3([point[1], point[0]], radius);
+      positions[i * 3] = v.x;
+      positions[i * 3 + 1] = v.y;
+      positions[i * 3 + 2] = v.z;
+      i++;
+    }
   }
 
   return {

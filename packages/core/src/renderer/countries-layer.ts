@@ -1,10 +1,23 @@
 import { Group, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAttribute } from 'three';
 import { latLngToVector3, GLOBE_RADIUS } from '../utils/coordinates';
 
+/** Single GeoJSON-style polygon: first ring is outer, rest are holes. */
+export type CountryPolygon = ReadonlyArray<ReadonlyArray<readonly [number, number]>>;
+
 export interface CountryFeature {
   readonly id: string;
   readonly name: string;
+  /**
+   * Flat list of all rings (outer + holes from every polygon). Used by border,
+   * picking and highlight layers — they render every ring as a line/loop.
+   */
   readonly coordinates: ReadonlyArray<ReadonlyArray<readonly [number, number]>>;
+  /**
+   * Polygon-with-holes structure preserved from the source geometry. Used by
+   * the fill layer to triangulate with holes (Lesotho-in-SA, San-Marino-in-IT)
+   * and to handle antimeridian-crossing rings (Russia, Fiji) cleanly.
+   */
+  readonly polygons: ReadonlyArray<CountryPolygon>;
 }
 
 export interface CountriesLayerOptions {

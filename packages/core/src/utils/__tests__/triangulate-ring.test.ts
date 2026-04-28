@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Vector3 } from 'three';
-import { triangulateRing, ringSignedArea } from '../triangulate-ring';
+import { triangulateRing, triangulatePolygon, ringSignedArea } from '../triangulate-ring';
 import { GLOBE_RADIUS, vector3ToLatLng } from '../coordinates';
 
 const square: ReadonlyArray<readonly [number, number]> = [
@@ -102,5 +102,60 @@ describe('triangulateRing', () => {
     const [lat2, lng2] = vector3ToLatLng(v2);
     expect(lat2).toBeCloseTo(40, 4);
     expect(lng2).toBeCloseTo(30, 4);
+  });
+});
+
+describe('triangulatePolygon', () => {
+  it('returns null for empty input', () => {
+    expect(triangulatePolygon([], GLOBE_RADIUS)).toBeNull();
+  });
+
+  it('triangulates a simple polygon (no holes) like triangulateRing', () => {
+    const result = triangulatePolygon([square], GLOBE_RADIUS);
+    expect(result).not.toBeNull();
+    if (!result) return;
+    expect(result.indices.length).toBe(6);
+  });
+
+  it('subtracts a hole from the outer ring', () => {
+    // 20×20 outer with a 10×10 hole centered → triangulation has more triangles
+    // than a no-hole version, but excludes the inner area.
+    const outer: ReadonlyArray<readonly [number, number]> = [
+      [0, 0], [20, 0], [20, 20], [0, 20], [0, 0],
+    ];
+    const hole: ReadonlyArray<readonly [number, number]> = [
+      // wound opposite to outer (CW vs the outer's CCW)
+      [5, 5], [5, 15], [15, 15], [15, 5], [5, 5],
+    ];
+    const without = triangulatePolygon([outer], GLOBE_RADIUS);
+    const withHole = triangulatePolygon([outer, hole], GLOBE_RADIUS);
+    expect(without).not.toBeNull();
+    expect(withHole).not.toBeNull();
+    if (!without || !withHole) return;
+    // With a hole earcut emits more triangles (annulus has 8+ tris vs 2)
+    expect(withHole.indices.length).toBeGreaterThan(without.indices.length);
+    // And more vertices (outer 4 + hole 4)
+    expect(withHole.positions.length / 3).toBe(8);
+  });
+
+  it('handles antimeridian-crossing rings without producing degenerate triangles', () => {
+    // A "Russia-shaped" rectangle from lng=170 to lng=-170 (i.e. 20° wide spanning
+    // the antimeridian). Without the unwrap, earcut sees a 340°-wide flat polygon
+    // and produces a giant zero-area mess.
+    const ring: ReadonlyArray<readonly [number, number]> = [
+      [170, 60], [-170, 60], [-170, 70], [170, 70], [170, 60],
+    ];
+    const result = triangulatePolygon([ring], GLOBE_RADIUS);
+    expect(result).not.toBeNull();
+    if (!result) return;
+    // 4 unique vertices → 2 triangles → 6 indices
+    expect(result.indices.length).toBe(6);
+    // All 3D positions stay on the requested sphere radius
+    for (let i = 0; i < result.positions.length; i += 3) {
+      const x = result.positions[i] ?? 0;
+      const y = result.positions[i + 1] ?? 0;
+      const z = result.positions[i + 2] ?? 0;
+      expect(Math.sqrt(x * x + y * y + z * z)).toBeCloseTo(GLOBE_RADIUS, 3);
+    }
   });
 });
