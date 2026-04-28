@@ -22,6 +22,7 @@ const $autoRotate = document.getElementById('toggle-autorotate') as HTMLInputEle
 const $speed = document.getElementById('speed-autorotate') as HTMLInputElement;
 const $speedValue = document.getElementById('speed-value') as HTMLSpanElement;
 const $hoverEnabled = document.getElementById('toggle-hover-status') as HTMLInputElement;
+const $countryLabels = document.getElementById('toggle-country-labels') as HTMLInputElement;
 const $zoomModeRadios = document.querySelectorAll<HTMLInputElement>('input[name="zoom-mode"]');
 const $zoomStrength = document.getElementById('zoom-strength') as HTMLInputElement;
 const $zoomStrengthValue = document.getElementById('zoom-strength-value') as HTMLSpanElement;
@@ -455,6 +456,10 @@ $speed.addEventListener('input', () => {
 $hoverEnabled.addEventListener('change', () => {
   settings.hoverHudEnabled = $hoverEnabled.checked;
   if (!settings.hoverHudEnabled) setStatus(`Theme: ${settings.themeName}`);
+});
+
+$countryLabels.addEventListener('change', () => {
+  globe?.setCountryLabelsEnabled($countryLabels.checked);
 });
 
 const applyZoom = (): void => {

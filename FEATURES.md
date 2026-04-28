@@ -237,7 +237,7 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 ### 4.7 Labels & overlays
 
-- **Country name labels** `[v1·LAYER·M]` — auto-placement, fade-by-zoom, locale-aware.
+- **Country name labels** `[v1·LAYER·M·built]` 🌟 — `globe.setCountryLabelsEnabled(true)` + `globe.setCountryLabels({ '276': 'Niemcy' })` lub config `{ countryLabels: { enabled: true, labels?, minScreenSize? } }`. HTML overlays na centroid (przez `boundsCenter` z polar-cap heuristic), occlusion fade na drugiej stronie globusa, smoothstep fade-by-zoom (małe kraje znikają przy oddaleniu — próg `minScreenSize` w pikselach, default 60). Tokens: `countries.label.color / fontSize / fontFamily / fontWeight / textShadow`. `pointer-events: none` żeby nie blokować klików.
 - **Marker labels** `[v1·LAYER·S]` — tooltip lub permanent.
 - **HTML popup** `[v1·LAYER·M]` — anchored to lat/lng, portal w React/Angular/Vue.
 - **Leader-line overlays** `[v1.x·LAYER·M]` — annotation lines z label box.
