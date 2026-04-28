@@ -64,6 +64,8 @@ const $kindExtrasSections = document.querySelectorAll<HTMLDivElement>(
 const $wireframeClickPulse = document.getElementById('toggle-wireframe-clickpulse') as HTMLInputElement;
 const $wireframeEmphasis = document.getElementById('toggle-wireframe-emphasis') as HTMLInputElement;
 const $wireframeGlitch = document.getElementById('toggle-wireframe-glitch') as HTMLInputElement;
+const $wireframeActiveRing = document.getElementById('toggle-wireframe-activering') as HTMLInputElement;
+const $wireframeStreams = document.getElementById('toggle-wireframe-streams') as HTMLInputElement;
 
 let tokenOverrides: PartialTokenSet = {};
 
@@ -89,6 +91,8 @@ const settings = {
   wireframeClickPulse: true,
   wireframeEmphasis: true,
   wireframeGlitch: true,
+  wireframeActiveRing: true,
+  wireframeStreams: true,
 };
 
 const WORLD_TOUR = {
@@ -278,6 +282,8 @@ const buildGlobe = (themeName: ThemePresetName): void => {
       clickPulse: { enabled: settings.wireframeClickPulse },
       emphasis: { enabled: settings.wireframeEmphasis },
       glitch: { enabled: settings.wireframeGlitch },
+      activeRing: { enabled: settings.wireframeActiveRing },
+      poleStreams: { enabled: settings.wireframeStreams },
     },
     markers: [
       { id: 'waw', position: [52.2297, 21.0122], label: 'Warsaw', color: '#4a9eff' },
@@ -476,7 +482,7 @@ const themesForKind = (kind: GlobeKind): ReadonlyArray<HTMLButtonElement> =>
 const KIND_FX_BLURBS: Readonly<Record<GlobeKind, string>> = {
   outline: 'Halo around the hovered country and a sonar pulse on focus.',
   dotted: 'Brightening waves on click and a flash when country data updates.',
-  wireframe: 'Pulse along the grid on click, equator emphasis, occasional CRT glitch.',
+  wireframe: 'Click pulses, equator emphasis, CRT glitch, active-country ring, pole-to-pole streams.',
 };
 
 const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
@@ -869,6 +875,14 @@ $wireframeEmphasis.addEventListener('change', () => {
 });
 $wireframeGlitch.addEventListener('change', () => {
   settings.wireframeGlitch = $wireframeGlitch.checked;
+  buildGlobe(settings.themeName);
+});
+$wireframeActiveRing.addEventListener('change', () => {
+  settings.wireframeActiveRing = $wireframeActiveRing.checked;
+  buildGlobe(settings.themeName);
+});
+$wireframeStreams.addEventListener('change', () => {
+  settings.wireframeStreams = $wireframeStreams.checked;
   buildGlobe(settings.themeName);
 });
 

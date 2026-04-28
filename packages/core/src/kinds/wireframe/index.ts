@@ -1,10 +1,22 @@
 import { WIREFRAME_DEFAULT_RADIUS, WireframeGridLayer } from './wireframe-grid-layer';
 import { WireframeEmphasisLayer } from './wireframe-emphasis-layer';
+import { ActiveCountryRing } from './active-country-ring';
+import { PoleStreams } from './pole-streams';
 import type { Vector3 } from 'three';
+import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
 import type { LatLng } from '../../types';
 
 const EMPHASIS_RADIUS_FACTOR = 1.0008;
+
+/**
+ * Wireframe-kind handle widening — exposes `setActiveCountry` so globe.ts
+ * can drive the active-country ring from the same place it drives the
+ * outline kind's hover-glow.
+ */
+export interface WireframeKindHandle extends KindHandle {
+  setActiveCountry?(id: string | null): void;
+}
 
 /**
  * Wireframe kind — Tron-style lat/lng grid only, no country geometry. Hover
@@ -12,15 +24,15 @@ const EMPHASIS_RADIUS_FACTOR = 1.0008;
  * surface to interact with; markers + arcs still raycast normally.
  *
  * Reads tokens `wireframe.{color,opacity,density,pulse,...}`. Per-instance
- * overrides come from `config.wireframe`. Three optional sub-features —
- * click pulse, equator emphasis, glitch transients — each token-defaulted
- * on and individually toggleable via `config.wireframe.{clickPulse,
- * emphasis,glitch}.enabled`.
+ * overrides come from `config.wireframe`. Sub-features — click pulse,
+ * equator emphasis, glitch transients, active-country ring, pole-to-pole
+ * streams — each token-defaulted on and individually toggleable via
+ * `config.wireframe.{clickPulse,emphasis,glitch,activeRing,poleStreams}.enabled`.
  */
 export const wireframeKind: KindModule = {
   kind: 'wireframe',
   hasCountryInteraction: false,
-  build({ globeGroup, tokens, config }: KindBuildContext): KindHandle {
+  build({ globeGroup, features, tokens, config }: KindBuildContext): WireframeKindHandle {
     const wf = config.wireframe;
 
     const clickPulseEnabled =
@@ -29,6 +41,8 @@ export const wireframeKind: KindModule = {
       wf?.emphasis?.enabled ?? tokens['wireframe.emphasisEnabled'];
     const glitchEnabled =
       wf?.glitch?.enabled ?? tokens['wireframe.glitchEnabled'];
+    const activeRingEnabled = wf?.activeRing?.enabled ?? true;
+    const poleStreamsEnabled = wf?.poleStreams?.enabled ?? true;
 
     const layer = new WireframeGridLayer({
       color: tokens['wireframe.color'],
@@ -62,6 +76,32 @@ export const wireframeKind: KindModule = {
       : null;
     if (emphasis) globeGroup.add(emphasis.group);
 
+    const activeRing = activeRingEnabled
+      ? new ActiveCountryRing({
+          color: tokens['wireframe.activeRingColor'],
+          opacity: tokens['wireframe.activeRingOpacity'],
+          thickness: tokens['wireframe.activeRingThickness'],
+          padding: wf?.activeRing?.padding ?? tokens['wireframe.activeRingPadding'],
+          rotationSpeed:
+            wf?.activeRing?.rotationSpeed ?? tokens['wireframe.activeRingRotationSpeed'],
+        })
+      : null;
+    if (activeRing) {
+      activeRing.registerFeatures(features as ReadonlyArray<CountryFeature>);
+      globeGroup.add(activeRing.group);
+    }
+
+    const poleStreams = poleStreamsEnabled
+      ? new PoleStreams({
+          color: tokens['wireframe.streamColor'],
+          count: wf?.poleStreams?.count ?? tokens['wireframe.streamCount'],
+          size: tokens['wireframe.streamSize'],
+          speed: wf?.poleStreams?.speed ?? tokens['wireframe.streamSpeed'],
+          opacity: tokens['wireframe.streamOpacity'],
+        })
+      : null;
+    if (poleStreams) globeGroup.add(poleStreams.group);
+
     return {
       dispose() {
         layer.dispose();
@@ -70,16 +110,31 @@ export const wireframeKind: KindModule = {
           emphasis.dispose();
           globeGroup.remove(emphasis.group);
         }
+        if (activeRing) {
+          activeRing.dispose();
+          globeGroup.remove(activeRing.group);
+        }
+        if (poleStreams) {
+          poleStreams.dispose();
+          globeGroup.remove(poleStreams.group);
+        }
       },
       setVisible(visible: boolean) {
         layer.setVisible(visible);
         emphasis?.setVisible(visible);
+        if (activeRing) activeRing.group.visible = visible;
+        poleStreams?.setVisible(visible);
       },
       update(delta: number, elapsedSeconds: number) {
         layer.update(elapsedSeconds, delta);
+        activeRing?.update(delta);
+        poleStreams?.update(delta);
       },
       onPointerDown(point3D: Vector3, _latLng: LatLng) {
         layer.spawnClickPulse(point3D);
+      },
+      setActiveCountry(id: string | null) {
+        activeRing?.setCountry(id);
       },
     };
   },
@@ -87,3 +142,6 @@ export const wireframeKind: KindModule = {
 
 export { WireframeGridLayer, WIREFRAME_DEFAULT_RADIUS } from './wireframe-grid-layer';
 export { WireframeEmphasisLayer } from './wireframe-emphasis-layer';
+export { ActiveCountryRing } from './active-country-ring';
+export { PoleStreams } from './pole-streams';
+export { ringRadiusForExtent, stepParticleLat } from './active-ring-extras';

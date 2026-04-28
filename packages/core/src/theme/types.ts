@@ -78,7 +78,17 @@ export type TokenKey =
   | 'wireframe.emphasisEnabled'
   | 'wireframe.glitchEnabled'
   | 'wireframe.glitchIntervalMin'
-  | 'wireframe.glitchIntervalMax';
+  | 'wireframe.glitchIntervalMax'
+  | 'wireframe.activeRingColor'
+  | 'wireframe.activeRingOpacity'
+  | 'wireframe.activeRingThickness'
+  | 'wireframe.activeRingRotationSpeed'
+  | 'wireframe.activeRingPadding'
+  | 'wireframe.streamColor'
+  | 'wireframe.streamCount'
+  | 'wireframe.streamSize'
+  | 'wireframe.streamSpeed'
+  | 'wireframe.streamOpacity';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -159,6 +169,16 @@ export interface TokenSet {
   readonly 'wireframe.glitchEnabled': boolean;
   readonly 'wireframe.glitchIntervalMin': number;
   readonly 'wireframe.glitchIntervalMax': number;
+  readonly 'wireframe.activeRingColor': string;
+  readonly 'wireframe.activeRingOpacity': number;
+  readonly 'wireframe.activeRingThickness': number;
+  readonly 'wireframe.activeRingRotationSpeed': number;
+  readonly 'wireframe.activeRingPadding': number;
+  readonly 'wireframe.streamColor': string;
+  readonly 'wireframe.streamCount': number;
+  readonly 'wireframe.streamSize': number;
+  readonly 'wireframe.streamSpeed': number;
+  readonly 'wireframe.streamOpacity': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;
