@@ -9,7 +9,7 @@ import {
   Uint32BufferAttribute,
 } from 'three';
 import { GLOBE_RADIUS } from '../utils/coordinates';
-import { triangulateRing } from '../utils/triangulate-ring';
+import { triangulatePolygon } from '../utils/triangulate-ring';
 import type { CountryFeature } from './countries-layer';
 import type { CountryDataMap } from '../types';
 
@@ -89,8 +89,8 @@ export class CountriesFillLayer {
         side: DoubleSide,
         depthWrite: false,
       });
-      for (const ring of feature.coordinates) {
-        const tri = triangulateRing(ring, radius);
+      for (const polygon of feature.polygons) {
+        const tri = triangulatePolygon(polygon, radius);
         if (!tri) continue;
         const geometry = new BufferGeometry();
         geometry.setAttribute('position', new Float32BufferAttribute(tri.positions, 3));
