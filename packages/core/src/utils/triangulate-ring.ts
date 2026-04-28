@@ -9,33 +9,6 @@ export interface RingTriangulation {
 }
 
 /**
- * If a ring crosses the antimeridian (e.g. Russia, Fiji, USA Aleutians), the
- * lng values jump from +179 to -179 between consecutive points. Earcut works
- * in flat 2D, so this jump produces giant degenerate triangles. We detect the
- * crossing and shift the negative-side points by +360 to produce a continuous
- * polygon in earcut space. The 3D back-projection via latLngToVector3 wraps
- * naturally (sin/cos are periodic), so positions remain correct on the sphere.
- *
- * Returns the (possibly shifted) ring; original ring if no crossing detected.
- */
-const unwrapAntimeridian = (
-  ring: ReadonlyArray<readonly [number, number]>
-): ReadonlyArray<readonly [number, number]> => {
-  let crosses = false;
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i];
-    const b = ring[(i + 1) % ring.length];
-    if (!a || !b) continue;
-    if (Math.abs(a[0] - b[0]) > 180) {
-      crosses = true;
-      break;
-    }
-  }
-  if (!crosses) return ring;
-  return ring.map(([lng, lat]) => [lng < 0 ? lng + 360 : lng, lat] as const);
-};
-
-/**
  * Signed area of a ring in lat/lng space using the shoelace formula.
  *
  * GeoJSON convention: outer rings are counterclockwise, holes are clockwise.
@@ -56,6 +29,40 @@ export const ringSignedArea = (
 };
 
 const AREA_EPSILON = 1e-6;
+
+/**
+ * Walk the ring keeping a running longitude offset. Whenever consecutive
+ * vertices differ by more than 180° in lng, we treat that as an antimeridian
+ * crossing and shift subsequent vertices by ±360 so the ring stays continuous
+ * in the unwrapped 2D plane. Robust to rings that cross the antimeridian
+ * multiple times (e.g., Russia's Pacific coast wraps out and back). Returns
+ * the original ring when no crossing is detected.
+ */
+const unwrapAntimeridian = (
+  ring: ReadonlyArray<readonly [number, number]>
+): ReadonlyArray<readonly [number, number]> => {
+  if (ring.length === 0) return ring;
+  const first = ring[0];
+  if (!first) return ring;
+  let offset = 0;
+  let crosses = false;
+  const result: Array<readonly [number, number]> = [first];
+  for (let i = 1; i < ring.length; i++) {
+    const prev = ring[i - 1];
+    const curr = ring[i];
+    if (!prev || !curr) continue;
+    const delta = curr[0] - prev[0];
+    if (delta > 180) {
+      offset -= 360;
+      crosses = true;
+    } else if (delta < -180) {
+      offset += 360;
+      crosses = true;
+    }
+    result.push([curr[0] + offset, curr[1]] as const);
+  }
+  return crosses ? result : ring;
+};
 
 /**
  * Triangulate a single GeoJSON ring on a sphere of given radius.
@@ -115,76 +122,138 @@ export const triangulateRing = (
 };
 
 /**
- * Subdivide a triangulation so no edge spans more than `maxAngle` radians on
- * the sphere. Earcut works in flat lng-lat space; for large countries it can
- * produce triangles spanning 30-50° geographically. When projected to 3D, the
- * straight-line chord between such vertices dives deep below the sphere
- * surface (a 30° chord drops ~3.4% of radius) and the fill mesh ends up
- * intersecting / poking through the globe.
+ * Edge-aware subdivision of a triangulation that keeps the polygon outline in
+ * lng/lat space (so country borders stay piecewise-linear, not bowed by great
+ * circles) while ensuring every 3D edge stays below `maxAngle` on the sphere.
  *
- * Recursive 4-way midpoint subdivision: each oversize triangle is split into
- * four by inserting midpoint vertices on each edge, with each midpoint
- * normalized back onto the sphere surface. Cap recursion at `maxLevels` so
- * pathological inputs can't blow up.
+ * Why edge-aware (1/2/3-edge splits) and not always 4-way? With 4-way split
+ * we'd insert midpoints on all three edges of a triangle, including the ones
+ * that didn't actually need it. Adjacent triangles sharing those short edges
+ * wouldn't insert their own midpoints, and the resulting T-junctions show up
+ * as hairline cracks in the rendered fill. Splitting only the edges that are
+ * actually long, with a shared edge cache, guarantees neighbours agree on
+ * vertex positions — no T-junctions.
+ *
+ * Why subdivide in 2D instead of 3D? Midpoints in 3D (chord midpoint
+ * normalised to sphere = great-circle midpoint) follow geodesics. For a long
+ * east-west edge along a parallel that's not the equator, the geodesic bows
+ * polewards — pulling the rendered boundary off the country's actual outline.
+ * Subdividing in lng/lat space and projecting once at the end keeps the
+ * boundary exactly where the source data places it.
  */
-const subdivideOnSphere = (
-  positions: Array<number>,
+const subdivideTriangulation = (
+  verts2D: Array<[number, number]>,
   indices: Array<number>,
   radius: number,
   maxAngle: number,
   maxLevels: number
-): { positions: Array<number>; indices: Array<number> } => {
+): { verts2D: Array<[number, number]>; indices: Array<number> } => {
   const maxChord = 2 * radius * Math.sin(maxAngle / 2);
   const maxChordSq = maxChord * maxChord;
 
-  for (let level = 0; level < maxLevels; level++) {
-    const midCache = new Map<string, number>();
-    const midpoint = (i1: number, i2: number): number => {
-      const key = i1 < i2 ? `${i1}_${i2}` : `${i2}_${i1}`;
-      const cached = midCache.get(key);
-      if (cached !== undefined) return cached;
-      const ax = positions[i1 * 3] ?? 0;
-      const ay = positions[i1 * 3 + 1] ?? 0;
-      const az = positions[i1 * 3 + 2] ?? 0;
-      const bx = positions[i2 * 3] ?? 0;
-      const by = positions[i2 * 3 + 1] ?? 0;
-      const bz = positions[i2 * 3 + 2] ?? 0;
-      const mx = (ax + bx) / 2;
-      const my = (ay + by) / 2;
-      const mz = (az + bz) / 2;
-      const len = Math.sqrt(mx * mx + my * my + mz * mz) || 1;
-      const newIdx = positions.length / 3;
-      positions.push((mx / len) * radius, (my / len) * radius, (mz / len) * radius);
-      midCache.set(key, newIdx);
-      return newIdx;
-    };
-    const distSq = (i1: number, i2: number): number => {
-      const dx = (positions[i1 * 3] ?? 0) - (positions[i2 * 3] ?? 0);
-      const dy = (positions[i1 * 3 + 1] ?? 0) - (positions[i2 * 3 + 1] ?? 0);
-      const dz = (positions[i1 * 3 + 2] ?? 0) - (positions[i2 * 3 + 2] ?? 0);
-      return dx * dx + dy * dy + dz * dz;
-    };
+  const edgeKey = (a: number, b: number): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
 
-    const next: Array<number> = [];
-    let changed = false;
+  // Shared across all levels so split midpoints are stable through repeated
+  // refinement and adjacent triangles never disagree.
+  const midCache = new Map<string, number>();
+
+  const project = (lng: number, lat: number): { x: number; y: number; z: number } => {
+    const v = latLngToVector3([lat, lng], radius);
+    return { x: v.x, y: v.y, z: v.z };
+  };
+
+  const distSq3D = (i1: number, i2: number): number => {
+    const a = verts2D[i1];
+    const b = verts2D[i2];
+    if (!a || !b) return 0;
+    const p1 = project(a[0], a[1]);
+    const p2 = project(b[0], b[1]);
+    const dx = p1.x - p2.x;
+    const dy = p1.y - p2.y;
+    const dz = p1.z - p2.z;
+    return dx * dx + dy * dy + dz * dz;
+  };
+
+  const midpoint = (i1: number, i2: number): number => {
+    const key = edgeKey(i1, i2);
+    const cached = midCache.get(key);
+    if (cached !== undefined) return cached;
+    const a = verts2D[i1];
+    const b = verts2D[i2];
+    if (!a || !b) return i1;
+    verts2D.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+    const newIdx = verts2D.length - 1;
+    midCache.set(key, newIdx);
+    return newIdx;
+  };
+
+  for (let level = 0; level < maxLevels; level++) {
+    // First pass: identify every edge whose 3D chord exceeds threshold. By
+    // computing this from the edge endpoints (not from individual triangles),
+    // any two triangles sharing the same edge make the same decision — so
+    // splits propagate consistently and T-junctions can't form.
+    const splits = new Set<string>();
     for (let t = 0; t < indices.length; t += 3) {
       const a = indices[t]!;
       const b = indices[t + 1]!;
       const c = indices[t + 2]!;
-      if (distSq(a, b) <= maxChordSq && distSq(b, c) <= maxChordSq && distSq(c, a) <= maxChordSq) {
+      if (distSq3D(a, b) > maxChordSq) splits.add(edgeKey(a, b));
+      if (distSq3D(b, c) > maxChordSq) splits.add(edgeKey(b, c));
+      if (distSq3D(c, a) > maxChordSq) splits.add(edgeKey(c, a));
+    }
+    if (splits.size === 0) break;
+
+    // Second pass: rebuild the triangle list, splitting each triangle based
+    // on which of its edges were marked. Three split patterns: 1-edge → 2
+    // sub-tris (bisection); 2-edge → 3 sub-tris (fan from corner with both
+    // splits); 3-edge → 4 sub-tris (full midpoint refinement).
+    const next: Array<number> = [];
+    for (let t = 0; t < indices.length; t += 3) {
+      const a = indices[t]!;
+      const b = indices[t + 1]!;
+      const c = indices[t + 2]!;
+      const sAB = splits.has(edgeKey(a, b));
+      const sBC = splits.has(edgeKey(b, c));
+      const sCA = splits.has(edgeKey(c, a));
+      const count = (sAB ? 1 : 0) + (sBC ? 1 : 0) + (sCA ? 1 : 0);
+
+      if (count === 0) {
         next.push(a, b, c);
-        continue;
+      } else if (count === 3) {
+        const ab = midpoint(a, b);
+        const bc = midpoint(b, c);
+        const ca = midpoint(c, a);
+        next.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca);
+      } else if (count === 2) {
+        if (sAB && sBC) {
+          const ab = midpoint(a, b);
+          const bc = midpoint(b, c);
+          next.push(ab, b, bc, a, ab, bc, a, bc, c);
+        } else if (sBC && sCA) {
+          const bc = midpoint(b, c);
+          const ca = midpoint(c, a);
+          next.push(bc, c, ca, b, bc, ca, b, ca, a);
+        } else {
+          // sCA && sAB
+          const ca = midpoint(c, a);
+          const ab = midpoint(a, b);
+          next.push(ca, ab, a, b, c, ab, ab, c, ca);
+        }
+      } else if (sAB) {
+        const ab = midpoint(a, b);
+        next.push(a, ab, c, ab, b, c);
+      } else if (sBC) {
+        const bc = midpoint(b, c);
+        next.push(a, b, bc, a, bc, c);
+      } else {
+        const ca = midpoint(c, a);
+        next.push(a, b, ca, ca, b, c);
       }
-      const ab = midpoint(a, b);
-      const bc = midpoint(b, c);
-      const ca = midpoint(c, a);
-      next.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca);
-      changed = true;
     }
     indices = next;
-    if (!changed) break;
   }
-  return { positions, indices };
+
+  return { verts2D, indices };
 };
 
 /**
@@ -192,10 +261,11 @@ const subdivideOnSphere = (
  * a sphere of given radius. Unlike `triangulateRing`, this:
  * - subtracts holes (so e.g. Lesotho doesn't get filled with South Africa's
  *   color when SA is colored)
- * - shifts antimeridian-crossing rings so earcut sees a continuous 2D polygon
- * - subdivides oversized triangles so they hug the sphere instead of cutting
- *   chord-shortcuts through the globe interior (visible as fill bleeding to
- *   the far side for big countries)
+ * - unwraps antimeridian-crossing rings via running-offset (handles multi
+ *   crossings, e.g. Russia's Pacific coast that wraps out and back)
+ * - subdivides oversized triangles in lng/lat space, edge-aware, so the
+ *   country boundary stays piecewise-linear and there are no T-junction
+ *   cracks between adjacent sub-triangles
  *
  * Returns null for degenerate input (no usable outer ring).
  */
@@ -207,19 +277,20 @@ export const triangulatePolygon = (
   const outerRaw = rings[0];
   if (!outerRaw || outerRaw.length < 4) return null;
 
-  // Decide whether this polygon crosses the antimeridian by looking at the
-  // outer ring. Apply the same shift to all holes so they stay aligned.
   const outerShifted = unwrapAntimeridian(outerRaw);
   const shifted = outerShifted !== outerRaw;
   const holesRaw = rings.slice(1);
+  // For features that don't cross the antimeridian, holes pass through
+  // unchanged. For shifted outer rings, we run the same running-offset on
+  // each hole independently — holes inside a wrap-crossing country are rare
+  // (no real-world example in world-atlas), but this keeps the math honest.
   const holesShifted: Array<ReadonlyArray<readonly [number, number]>> = shifted
-    ? holesRaw.map((h) => h.map(([lng, lat]) => [lng < 0 ? lng + 360 : lng, lat] as const))
+    ? holesRaw.map((h) => unwrapAntimeridian(h))
     : [...holesRaw];
 
   const outerArea = ringSignedArea(outerShifted);
   if (Math.abs(outerArea) < AREA_EPSILON) return null;
 
-  // earcut wants outer CCW (positive area) — reverse if input is CW.
   const reverseOuter = outerArea < 0;
   const dropClose = (
     ring: ReadonlyArray<readonly [number, number]>
@@ -232,13 +303,11 @@ export const triangulatePolygon = (
   const outer = dropClose(reverseOuter ? [...outerShifted].reverse() : outerShifted);
   if (outer.length < 3) return null;
 
-  // Holes must wind opposite to outer for earcut. We mirror the same direction
-  // policy: if we flipped outer, flip holes too (preserves relative orientation).
   const preparedHoles = holesShifted
     .map((h) => dropClose(reverseOuter ? [...h].reverse() : h))
     .filter((h) => h.length >= 3);
 
-  // Build flat coordinate buffer + holeIndices (vertex offsets where each hole begins).
+  // Build flat coordinate buffer + holeIndices for earcut.
   const flat: Array<number> = [];
   for (const p of outer) flat.push(p[0], p[1]);
   const holeIndices: Array<number> = [];
@@ -252,27 +321,32 @@ export const triangulatePolygon = (
   const triIndices = earcut(flat, holeIndices.length > 0 ? holeIndices : undefined);
   if (triIndices.length === 0) return null;
 
-  const positionsList: Array<number> = [];
-  const allRings = [outer, ...preparedHoles];
-  for (const ring of allRings) {
-    for (const point of ring) {
-      const v = latLngToVector3([point[1], point[0]], radius);
-      positionsList.push(v.x, v.y, v.z);
-    }
+  // Subdivide in 2D lng/lat space (preserves boundary), measuring chord on the
+  // sphere. ~6° max edge keeps each triangle's chord well within the 0.0008R
+  // fill lift so the mesh stays above the globe surface even for big countries.
+  const verts2D: Array<[number, number]> = [];
+  for (let i = 0; i < flat.length; i += 2) {
+    verts2D.push([flat[i]!, flat[i + 1]!]);
   }
-
-  // ~6° max edge keeps each triangle's chord well within the 0.0008R fill
-  // lift, so the mesh stays above globe surface even for big countries.
-  const subdivided = subdivideOnSphere(
-    positionsList,
+  const subdivided = subdivideTriangulation(
+    verts2D,
     Array.from(triIndices),
     radius,
     (6 * Math.PI) / 180,
-    6
+    8
   );
 
+  const positions = new Float32Array(subdivided.verts2D.length * 3);
+  for (let i = 0; i < subdivided.verts2D.length; i++) {
+    const point = subdivided.verts2D[i]!;
+    const v = latLngToVector3([point[1], point[0]], radius);
+    positions[i * 3] = v.x;
+    positions[i * 3 + 1] = v.y;
+    positions[i * 3 + 2] = v.z;
+  }
+
   return {
-    positions: new Float32Array(subdivided.positions),
+    positions,
     indices: new Uint32Array(subdivided.indices),
   };
 };
