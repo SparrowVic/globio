@@ -30,7 +30,7 @@ export const loadCountries = async (
     throw new Error(`Failed to load countries data: ${response.status}`);
   }
   const topology = (await response.json()) as TopoJsonObject;
-  const geo = feature(topology as never, topology.objects.countries as never) as {
+  const geo = feature(topology as never, topology.objects.countries as never) as unknown as {
     readonly type: string;
     readonly features: ReadonlyArray<{
       readonly id?: string | number;

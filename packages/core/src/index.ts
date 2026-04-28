@@ -18,3 +18,12 @@ export type {
   PerformanceConfig,
   ResolutionLevel,
 } from './types';
+export {
+  DEFAULT_TOKENS,
+  resolveTheme,
+  type PartialTokenSet,
+  type ResolvedTokens,
+  type ThemeConfig,
+  type TokenKey,
+  type TokenSet,
+} from './theme';

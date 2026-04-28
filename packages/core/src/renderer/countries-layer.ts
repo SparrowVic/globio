@@ -1,6 +1,5 @@
 import { Group, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAttribute } from 'three';
 import { latLngToVector3, GLOBE_RADIUS } from '../utils/coordinates';
-import type { CountriesConfig } from '../types';
 
 export interface CountryFeature {
   readonly id: string;
@@ -9,8 +8,10 @@ export interface CountryFeature {
 }
 
 export interface CountriesLayerOptions {
-  readonly config: Required<CountriesConfig>;
   readonly features: ReadonlyArray<CountryFeature>;
+  readonly borderColor: string;
+  readonly borderWidth: number;
+  readonly borderOpacity: number;
 }
 
 export class CountriesLayer {
@@ -21,10 +22,10 @@ export class CountriesLayer {
   public constructor(options: CountriesLayerOptions) {
     this.group = new Group();
     this.material = new LineBasicMaterial({
-      color: options.config.borderColor,
-      linewidth: options.config.borderWidth,
+      color: options.borderColor,
+      linewidth: options.borderWidth,
       transparent: true,
-      opacity: 0.85,
+      opacity: options.borderOpacity,
     });
 
     this.buildBorders(options.features);

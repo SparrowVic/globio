@@ -8,6 +8,7 @@ import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
 import { loadCountries } from './data/geo-loader';
+import { resolveTheme } from './theme/resolver';
 import type {
   CountriesConfig,
   GlobeConfig,
@@ -29,10 +30,6 @@ const DEFAULT_PERFORMANCE: Required<PerformanceConfig> = {
 const DEFAULT_COUNTRIES: Required<CountriesConfig> = {
   resolution: 'medium',
   style: 'borders',
-  borderColor: '#4a9eff',
-  borderWidth: 1,
-  fillColor: '#1a3a6e',
-  hoverColor: '#ffd700',
   hoverEnabled: true,
 };
 
@@ -51,6 +48,7 @@ interface InternalState {
 
 export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   const emitter = new GlobeEventEmitter();
+  const tokens = resolveTheme(config.theme);
   const performance = { ...DEFAULT_PERFORMANCE, ...config.performance };
   const countries = config.countries
     ? { ...DEFAULT_COUNTRIES, ...config.countries }
@@ -58,7 +56,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   const scene = new SceneManager({
     container: config.container,
-    backgroundColor: config.backgroundColor ?? '#000010',
+    backgroundColor: tokens['background.color'],
     performance,
     onRender: (delta) => state.controls.update(delta),
   });
@@ -69,18 +67,20 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   scene.scene.add(dirLight);
 
   const globeMesh = new GlobeMesh({
-    color: config.globeColor ?? '#0b1d3a',
-    ...(config.textureUrl !== undefined && { textureUrl: config.textureUrl }),
+    color: tokens['globe.surface'],
+    ...(tokens['globe.surfaceTexture'] !== '' && {
+      textureUrl: tokens['globe.surfaceTexture'],
+    }),
   });
   scene.scene.add(globeMesh.mesh);
 
-  const markersLayer = new MarkersLayer();
+  const markersLayer = new MarkersLayer({ defaultColor: tokens['markers.defaultColor'] });
   scene.scene.add(markersLayer.mesh);
 
   const atmosphereLayer = config.atmosphere?.enabled
     ? new AtmosphereLayer({
-        color: config.atmosphere.color ?? '#4a9eff',
-        intensity: config.atmosphere.intensity ?? 1.2,
+        color: tokens['atmosphere.color'],
+        intensity: tokens['atmosphere.intensity'],
       })
     : null;
   if (atmosphereLayer) scene.scene.add(atmosphereLayer.mesh);
@@ -136,7 +136,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     try {
       const features = await loadCountries({ resolution: countries.resolution });
       if (state.destroyed) return;
-      const layer = new CountriesLayer({ config: countries, features: features as ReadonlyArray<CountryFeature> });
+      const layer = new CountriesLayer({
+        features: features as ReadonlyArray<CountryFeature>,
+        borderColor: tokens['borders.color'],
+        borderWidth: tokens['borders.width'],
+        borderOpacity: tokens['borders.opacity'],
+      });
       scene.scene.add(layer.group);
       state.countriesLayer = layer;
     } catch (error) {
@@ -164,13 +169,6 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     update: (partial) => {
       state.config = { ...state.config, ...partial };
       if (partial.markers) markersLayer.setMarkers(partial.markers);
-      if (partial.globeColor) globeMesh.setColor(partial.globeColor);
-      if (partial.atmosphere) {
-        if (partial.atmosphere.color) atmosphereLayer?.setColor(partial.atmosphere.color);
-        if (partial.atmosphere.intensity !== undefined) {
-          atmosphereLayer?.setIntensity(partial.atmosphere.intensity);
-        }
-      }
       if (partial.autoRotate) {
         controls.setAutoRotate(partial.autoRotate.enabled ?? false, partial.autoRotate.speed);
       }
