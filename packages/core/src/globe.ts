@@ -1,4 +1,4 @@
-import { AmbientLight, DirectionalLight, Group } from 'three';
+import { AmbientLight, DirectionalLight, Group, Vector2 } from 'three';
 import { SceneManager } from './renderer/scene-manager';
 import { GlobeMesh } from './renderer/globe-mesh';
 import { MarkersLayer } from './renderer/markers-layer';
@@ -8,13 +8,14 @@ import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
 import { HtmlMarkersLayer } from './renderer/html-markers-layer';
 import { StarfieldLayer } from './renderer/starfield-layer';
+import { ArcsLayer } from './renderer/arcs-layer';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
 import { loadCountries } from './data/geo-loader';
 import { resolveTheme } from './theme/resolver';
-import { GLOBE_RADIUS, vector3ToLatLng } from './utils/coordinates';
+import { GLOBE_RADIUS, latLngToVector3, vector3ToLatLng } from './utils/coordinates';
 import { angularExtent, boundsCenter, type LatLngBounds } from './utils/country-bounds';
 import type {
   CountriesConfig,
@@ -77,11 +78,13 @@ interface InternalState {
   countryActiveLayer: CountryHighlightLayer | null;
   countryTooltip: CountryTooltip | null;
   htmlMarkersLayer: HtmlMarkersLayer;
+  arcsLayer: ArcsLayer;
   atmosphereLayer: AtmosphereLayer | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
   emitter: GlobeEventEmitter;
   activeCountryId: string | null;
+  elapsedSeconds: number;
   destroyed: boolean;
 }
 
@@ -99,6 +102,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     performance,
     onRender: (delta) => {
       state.controls.update(delta);
+      state.elapsedSeconds += delta;
+      arcsLayer.update(state.elapsedSeconds);
       state.htmlMarkersLayer.update();
     },
   });
@@ -139,6 +144,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   const markersLayer = new MarkersLayer({ defaultColor: tokens['markers.defaultColor'] });
   globeGroup.add(markersLayer.mesh);
+
+  const arcsLayer = new ArcsLayer({
+    defaultColor: tokens['arcs.color'],
+    defaultWidth: tokens['arcs.width'],
+    defaultOpacity: tokens['arcs.opacity'],
+    headColor: tokens['arcs.headColor'],
+    headSize: tokens['arcs.headSize'],
+  });
+  globeGroup.add(arcsLayer.group);
+  if (config.arcs && config.arcs.length > 0) arcsLayer.setArcs(config.arcs);
 
   const atmosphereLayer = config.atmosphere?.enabled
     ? new AtmosphereLayer({
@@ -245,11 +260,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     countryActiveLayer: null,
     countryTooltip: tooltip,
     htmlMarkersLayer,
+    arcsLayer,
     atmosphereLayer,
     controls,
     raycaster,
     emitter,
     activeCountryId: null,
+    elapsedSeconds: 0,
     destroyed: false,
   };
 
@@ -309,6 +326,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     }
   };
 
+  // Helper: convert a lat/lng given in globe-local coordinates (the natural
+  // interpretation for users who just see the visible globe) into the WORLD
+  // lat/lng equivalent that the camera controls expect. This compensates for
+  // axisTilt and any future scene-level transforms applied to globeGroup.
+  const globeLocalToWorldLatLng = (position: LatLng): LatLng => {
+    globeGroup.updateMatrixWorld();
+    const localVec = latLngToVector3(position, GLOBE_RADIUS);
+    const worldVec = localVec.applyMatrix4(globeGroup.matrixWorld);
+    return vector3ToLatLng(worldVec);
+  };
+
   const instance: GlobeInstance = {
     mount: () => {
       scene.start();
@@ -327,6 +355,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryActiveLayer?.dispose();
       state.countryTooltip?.dispose();
       state.htmlMarkersLayer.dispose();
+      state.arcsLayer.dispose();
       starfieldLayer?.dispose();
       atmosphereLayer?.dispose();
       scene.destroy();
@@ -348,7 +377,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // implementacja do uzupełnienia - smooth rotation do danej pozycji
     },
     flyTo: (position, distance, options) => {
-      controls.flyTo(position, distance, options ?? {});
+      controls.flyTo(globeLocalToWorldLatLng(position), distance, options ?? {});
     },
     setActiveCountry: (id) => {
       state.activeCountryId = id;
@@ -375,7 +404,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       );
       const center = boundsCenter(bounds);
       if (pauseAutoRotate) controls.setAutoRotate(false);
-      controls.flyTo(center, distance, options ?? {});
+      controls.flyTo(globeLocalToWorldLatLng(center), distance, options ?? {});
     },
     setMarkers: (markers: ReadonlyArray<MarkerConfig>) => markersLayer.setMarkers(markers),
     addMarker: (marker: MarkerConfig) => markersLayer.addMarker(marker),
@@ -383,6 +412,33 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     setHtmlMarkers: (markers) => htmlMarkersLayer.setMarkers(markers),
     addHtmlMarker: (marker) => htmlMarkersLayer.addMarker(marker),
     removeHtmlMarker: (id) => htmlMarkersLayer.removeMarker(id),
+    setArcs: (arcs) => arcsLayer.setArcs(arcs),
+    addArc: (arc) => arcsLayer.addArc(arc),
+    removeArc: (id) => arcsLayer.removeArc(id),
+    toImage: (options) =>
+      new Promise((resolve, reject) => {
+        try {
+          // Force a fresh render so the canvas reflects the latest state.
+          scene.renderer.render(scene.scene, scene.camera);
+          const canvas = scene.renderer.domElement;
+          if (options?.width && options?.height) {
+            // Render at the requested resolution by temporarily resizing the
+            // renderer; the host canvas keeps its CSS size, so visuals don't
+            // flicker if user is watching.
+            const prevSize = scene.renderer.getSize(new Vector2());
+            scene.renderer.setSize(options.width, options.height, false);
+            scene.renderer.render(scene.scene, scene.camera);
+            const url = canvas.toDataURL('image/png');
+            scene.renderer.setSize(prevSize.x, prevSize.y, false);
+            scene.renderer.render(scene.scene, scene.camera);
+            resolve(url);
+          } else {
+            resolve(canvas.toDataURL('image/png'));
+          }
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error(String(err)));
+        }
+      }),
     resize: () => scene.resize(),
     getCanvas: () => scene.getCanvas(),
   };

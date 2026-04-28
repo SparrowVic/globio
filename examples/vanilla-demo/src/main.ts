@@ -31,6 +31,8 @@ const $starfield = document.getElementById('toggle-starfield') as HTMLInputEleme
 const $htmlMarkers = document.getElementById('toggle-html-markers') as HTMLInputElement;
 const $axisTilt = document.getElementById('axis-tilt') as HTMLInputElement;
 const $axisTiltValue = document.getElementById('axis-tilt-value') as HTMLSpanElement;
+const $arcs = document.getElementById('toggle-arcs') as HTMLInputElement;
+const $snapshot = document.getElementById('btn-snapshot') as HTMLButtonElement;
 const $studioBody = document.getElementById('studio-body') as HTMLDivElement;
 const $studioResetAll = document.getElementById('studio-reset-all') as HTMLButtonElement;
 const $studioExport = document.getElementById('studio-export') as HTMLButtonElement;
@@ -53,8 +55,54 @@ const settings = {
   hoverOccludeBackSide: true,
   starfieldEnabled: true,
   htmlMarkersEnabled: true,
+  arcsEnabled: true,
   axisTilt: 23.5,
 };
+
+const ARCS = [
+  // Solid arc, fixed height, classic constant-speed head
+  {
+    id: 'waw-nyc',
+    from: [52.2297, 21.0122] as const,
+    to: [40.7128, -74.006] as const,
+    animated: true,
+    headEasing: 'linear' as const,
+  },
+  // Auto-height: long route → tall arc, ease-in-out head feels "thrown"
+  {
+    id: 'nyc-tyo',
+    from: [40.7128, -74.006] as const,
+    to: [35.6762, 139.6503] as const,
+    height: 'auto' as const,
+    animated: true,
+    animationDuration: 3,
+    headEasing: 'easeInOut' as const,
+  },
+  // Dashed style with pulse head (fades in middle, gone at endpoints)
+  {
+    id: 'tyo-syd',
+    from: [35.6762, 139.6503] as const,
+    to: [-33.8688, 151.2093] as const,
+    style: 'dashed' as const,
+    dashSize: 0.04,
+    dashGap: 0.025,
+    animated: true,
+    animationDuration: 2.5,
+    headEasing: 'pulse' as const,
+  },
+  // Long return leg: auto-height max, slow cycle
+  {
+    id: 'syd-waw',
+    from: [-33.8688, 151.2093] as const,
+    to: [52.2297, 21.0122] as const,
+    height: 'auto' as const,
+    minHeight: 0.2,
+    maxHeight: 0.7,
+    animated: true,
+    animationDuration: 4,
+    headEasing: 'linear' as const,
+  },
+];
 
 const HTML_MARKERS = [
   {
@@ -101,6 +149,7 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     starfield: { enabled: settings.starfieldEnabled },
     axisTilt: settings.axisTilt,
     htmlMarkers: settings.htmlMarkersEnabled ? HTML_MARKERS : [],
+    arcs: settings.arcsEnabled ? ARCS : [],
     markers: [
       { id: 'waw', position: [52.2297, 21.0122] },
       { id: 'nyc', position: [40.7128, -74.006] },
@@ -369,6 +418,19 @@ $starfield.addEventListener('change', () => {
 $htmlMarkers.addEventListener('change', () => {
   settings.htmlMarkersEnabled = $htmlMarkers.checked;
   globe?.setHtmlMarkers(settings.htmlMarkersEnabled ? HTML_MARKERS : []);
+});
+$arcs.addEventListener('change', () => {
+  settings.arcsEnabled = $arcs.checked;
+  globe?.setArcs(settings.arcsEnabled ? ARCS : []);
+});
+$snapshot.addEventListener('click', async () => {
+  if (!globe) return;
+  const dataUrl = await globe.toImage({ width: 2048, height: 2048 });
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = `globio-${Date.now()}.png`;
+  link.click();
+  setStatus('Snapshot saved (PNG, 2048×2048)');
 });
 $axisTilt.addEventListener('input', () => {
   settings.axisTilt = Number.parseFloat($axisTilt.value);

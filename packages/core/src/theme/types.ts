@@ -32,7 +32,12 @@ export type TokenKey =
   | 'atmosphere.intensity'
   | 'starfield.color'
   | 'starfield.density'
-  | 'starfield.size';
+  | 'starfield.size'
+  | 'arcs.color'
+  | 'arcs.width'
+  | 'arcs.opacity'
+  | 'arcs.headColor'
+  | 'arcs.headSize';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -67,6 +72,11 @@ export interface TokenSet {
   readonly 'starfield.color': string;
   readonly 'starfield.density': number;
   readonly 'starfield.size': number;
+  readonly 'arcs.color': string;
+  readonly 'arcs.width': number;
+  readonly 'arcs.opacity': number;
+  readonly 'arcs.headColor': string;
+  readonly 'arcs.headSize': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;
