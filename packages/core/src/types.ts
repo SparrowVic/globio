@@ -185,7 +185,12 @@ export interface AtmosphereConfig {
  * Outline kind extras — visual polish layered on top of the base border mesh.
  * - `hoverGlow` — soft additive halo behind the hovered country's borders.
  * - `focusPulse` — sci-fi sonar ring that fires from a country's centroid
- *   when `focusOnCountry()` is called. Both default-on; disable per feature.
+ *   when `focusOnCountry()` is called.
+ * - `hoverCrosshair` — Tron-style targeting reticle + DOM lat/lng readout
+ *   that tracks the cursor whenever it sits over the globe surface.
+ * - `continentDim` — when hovering a country, fade borders of countries on
+ *   other continents to a dim level so the active region is foregrounded.
+ * All default-on; disable per feature.
  */
 export interface OutlineConfig {
   readonly hoverGlow?: { readonly enabled?: boolean };
@@ -194,6 +199,8 @@ export interface OutlineConfig {
     readonly durationMs?: number;
     readonly color?: string;
   };
+  readonly hoverCrosshair?: { readonly enabled?: boolean };
+  readonly continentDim?: { readonly enabled?: boolean; readonly amount?: number };
 }
 
 /**
