@@ -5,6 +5,7 @@ import { MarkersLayer } from './renderer/markers-layer';
 import { CountriesLayer, type CountryFeature } from './renderer/countries-layer';
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
 import { CountriesFillLayer } from './renderer/countries-fill-layer';
+import { CountryLabelsLayer } from './renderer/country-labels-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
 import { MarkerTooltip } from './renderer/marker-tooltip';
@@ -81,6 +82,7 @@ interface InternalState {
   countriesLayer: CountriesLayer | null;
   countriesPickingLayer: CountriesPickingLayer | null;
   countriesFillLayer: CountriesFillLayer | null;
+  countryLabelsLayer: CountryLabelsLayer | null;
   countryHighlightLayer: CountryHighlightLayer | null;
   countryActiveLayer: CountryHighlightLayer | null;
   countryTooltip: CountryTooltip | null;
@@ -118,6 +120,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryHighlightLayer?.update(delta);
       state.countryActiveLayer?.update(delta);
       state.countriesFillLayer?.update(delta);
+      state.countryLabelsLayer?.update();
     },
   });
 
@@ -287,6 +290,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     countriesLayer: null,
     countriesPickingLayer: null,
     countriesFillLayer: null,
+    countryLabelsLayer: null,
     countryHighlightLayer: null,
     countryActiveLayer: null,
     countryTooltip: tooltip,
@@ -363,6 +367,25 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryActiveLayer = activeLayer;
       // Re-apply pending active country if user called setActiveCountry before features loaded
       if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
+
+      const labelsConfig = config.countryLabels;
+      const labelsLayer = new CountryLabelsLayer({
+        container: config.container,
+        camera: scene.camera,
+        globeGroup,
+        features: features as ReadonlyArray<CountryFeature>,
+        color: tokens['countries.label.color'],
+        fontSize: tokens['countries.label.fontSize'],
+        fontFamily: tokens['countries.label.fontFamily'],
+        fontWeight: tokens['countries.label.fontWeight'],
+        textShadow: tokens['countries.label.textShadow'],
+        ...(labelsConfig?.minScreenSize !== undefined && {
+          minScreenSize: labelsConfig.minScreenSize,
+        }),
+        ...(labelsConfig?.labels !== undefined && { labels: labelsConfig.labels }),
+      });
+      if (labelsConfig?.enabled) labelsLayer.setEnabled(true);
+      state.countryLabelsLayer = labelsLayer;
     } catch (error) {
       emitter.emit('error', error instanceof Error ? error : new Error(String(error)));
     }
@@ -447,6 +470,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countriesPickingLayer?.dispose();
       state.countryHighlightLayer?.dispose();
       state.countryActiveLayer?.dispose();
+      state.countryLabelsLayer?.dispose();
       state.countryTooltip?.dispose();
       markerTooltip.dispose();
       state.htmlMarkersLayer.dispose();
@@ -492,6 +516,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countriesFillLayer?.setData(data, scale);
     },
     getCountryData: () => state.countryData,
+    setCountryLabelsEnabled: (enabled) => {
+      state.countryLabelsLayer?.setEnabled(enabled);
+    },
+    setCountryLabels: (labels) => {
+      state.countryLabelsLayer?.setLabels(labels);
+    },
     showLegend: (scale, options) => {
       const tooltipFontSize = tokens['legend.fontSize'];
       const themedStyle = {

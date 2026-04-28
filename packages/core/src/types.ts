@@ -158,6 +158,23 @@ export interface CountriesConfig {
   readonly hoverOccludeBackSide?: boolean;
 }
 
+/**
+ * Country name labels rendered as HTML overlays at each country's centroid.
+ * Hidden by default — enable explicitly. Small countries fade out when
+ * zoomed out (`minScreenSize`); labels on the far side of the globe fade
+ * via the same occlusion smoothstep as HTML markers.
+ */
+export interface CountryLabelsConfig {
+  readonly enabled?: boolean;
+  /** Per-id override map; missing ids fall back to the source `feature.name`. */
+  readonly labels?: Readonly<Record<string, string>>;
+  /**
+   * Minimum apparent screen-pixel size of a country before its label
+   * appears. Higher = stricter (fewer labels at any given zoom). Default 60.
+   */
+  readonly minScreenSize?: number;
+}
+
 export interface AtmosphereConfig {
   readonly enabled?: boolean;
 }
@@ -239,6 +256,7 @@ export interface GlobeConfig {
   readonly mode?: GlobeMode;
   readonly theme?: ThemeInput;
   readonly countries?: CountriesConfig;
+  readonly countryLabels?: CountryLabelsConfig;
   readonly countryData?: CountryDataMap;
   readonly markers?: ReadonlyArray<MarkerConfig>;
   readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
@@ -298,6 +316,14 @@ export interface GlobeInstance {
    */
   readonly setCountryData: (data: CountryDataMap | null, scale?: ScaleConfig) => void;
   readonly getCountryData: () => CountryDataMap | null;
+  /**
+   * Toggle on-globe country name labels. If labels weren't enabled in the
+   * initial config, this turns them on for the first time and reuses the
+   * defaults — pass `setCountryLabels()` afterwards to customise.
+   */
+  readonly setCountryLabelsEnabled: (enabled: boolean) => void;
+  /** Replace the per-id label override map. Missing ids fall back to source names. */
+  readonly setCountryLabels: (labels: Readonly<Record<string, string>>) => void;
   /**
    * Show a legend HUD inside the globe container, auto-rendered from a
    * scale (sequential / diverging gradient bar + ticks; threshold or

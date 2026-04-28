@@ -19,6 +19,11 @@ export type TokenKey =
   | 'countries.borderActive.opacity'
   | 'countries.fill.defaultColor'
   | 'countries.fill.opacity'
+  | 'countries.label.color'
+  | 'countries.label.fontSize'
+  | 'countries.label.fontFamily'
+  | 'countries.label.fontWeight'
+  | 'countries.label.textShadow'
   | 'tooltip.backgroundColor'
   | 'tooltip.textColor'
   | 'tooltip.fontSize'
@@ -67,6 +72,11 @@ export interface TokenSet {
   readonly 'countries.borderActive.opacity': number;
   readonly 'countries.fill.defaultColor': string;
   readonly 'countries.fill.opacity': number;
+  readonly 'countries.label.color': string;
+  readonly 'countries.label.fontSize': number;
+  readonly 'countries.label.fontFamily': string;
+  readonly 'countries.label.fontWeight': string;
+  readonly 'countries.label.textShadow': string;
   readonly 'tooltip.backgroundColor': string;
   readonly 'tooltip.textColor': string;
   readonly 'tooltip.fontSize': number;
