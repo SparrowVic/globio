@@ -17,6 +17,7 @@ export type {
   LatLng,
   MarkerConfig,
   MarkerEvent,
+  OutlineConfig,
   PerformanceConfig,
   ResolutionLevel,
   WireframeConfig,

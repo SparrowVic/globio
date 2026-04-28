@@ -14,6 +14,9 @@ export type TokenKey =
   | 'countries.borderHover.color'
   | 'countries.borderHover.width'
   | 'countries.borderHover.opacity'
+  | 'countries.borderHover.glowColor'
+  | 'countries.borderHover.glowWidth'
+  | 'countries.borderHover.glowOpacity'
   | 'countries.borderActive.color'
   | 'countries.borderActive.width'
   | 'countries.borderActive.opacity'
@@ -75,6 +78,9 @@ export interface TokenSet {
   readonly 'countries.borderHover.color': string;
   readonly 'countries.borderHover.width': number;
   readonly 'countries.borderHover.opacity': number;
+  readonly 'countries.borderHover.glowColor': string;
+  readonly 'countries.borderHover.glowWidth': number;
+  readonly 'countries.borderHover.glowOpacity': number;
   readonly 'countries.borderActive.color': string;
   readonly 'countries.borderActive.width': number;
   readonly 'countries.borderActive.opacity': number;

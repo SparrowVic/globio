@@ -18,6 +18,7 @@ import { AtmosphereLayer } from './renderer/atmosphere-layer';
 import { KIND_MODULES, PRESET_DEFAULT_KIND } from './kinds/registry';
 import type { KindHandle } from './kinds/types';
 import type { GlobeKind } from './kinds/types';
+import type { OutlineKindHandle } from './kinds/outline';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
@@ -258,6 +259,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   });
   if (config.autoRotate?.enabled) controls.setAutoRotate(true, config.autoRotate.speed);
 
+  // Outline kind exposes `setHoveredCountry` to drive the glow halo from the
+  // same hover signal as `CountryHighlightLayer`. Cast is fine — only the
+  // outline kind implements it; the optional call no-ops on others.
+  const setKindHover = (id: string | null): void => {
+    (state.kindHandle as OutlineKindHandle | null)?.setHoveredCountry?.(id);
+  };
+
   const handleCountryHit = (
     object: Object3D | null,
     point: Vector3 | undefined
@@ -292,6 +300,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         emitter.emit('markerHover', marker ? { marker } : null);
         emitter.emit('countryHover', null);
         state.countryHighlightLayer?.clear();
+        setKindHover(null);
         state.countryTooltip?.clear();
         markersLayer.setHovered(marker?.id ?? null);
         if (marker) markerTooltip.showMarker(marker);
@@ -304,9 +313,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         emitter.emit('markerHover', null);
         if (event) {
           state.countryHighlightLayer?.showCountry(event.country.id);
+          setKindHover(event.country.id);
           state.countryTooltip?.showCountry(event.country);
         } else {
           state.countryHighlightLayer?.clear();
+          setKindHover(null);
           state.countryTooltip?.clear();
         }
         markersLayer.setHovered(null);
@@ -316,6 +327,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       emitter.emit('markerHover', null);
       emitter.emit('countryHover', null);
       state.countryHighlightLayer?.clear();
+      setKindHover(null);
       state.countryTooltip?.clear();
       markersLayer.setHovered(null);
       markerTooltip.clear();
@@ -621,6 +633,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       const center = boundsCenter(bounds);
       if (pauseAutoRotate) controls.setAutoRotate(false);
       controls.flyTo(globeLocalToWorldLatLng(center), distance, options ?? {});
+      state.kindHandle?.onCountryFocus?.(center, id);
     },
     setMarkers: (markers: ReadonlyArray<MarkerConfig>) => markersLayer.setMarkers(markers),
     addMarker: (marker: MarkerConfig) => markersLayer.addMarker(marker),
