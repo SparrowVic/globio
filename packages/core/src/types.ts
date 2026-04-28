@@ -70,6 +70,9 @@ export interface ZoomConfig {
   readonly smooth?: boolean;
 }
 
+/** Easing function — receives normalized progress t∈[0,1], returns eased t∈[0,1]. */
+export type EasingFunction = (t: number) => number;
+
 export interface PerformanceConfig {
   readonly antialias?: boolean;
   readonly pixelRatio?: number | 'auto';
