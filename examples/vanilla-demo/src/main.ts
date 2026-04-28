@@ -17,14 +17,16 @@ const $zoomModeRadios = document.querySelectorAll<HTMLInputElement>('input[name=
 const $zoomStrength = document.getElementById('zoom-strength') as HTMLInputElement;
 const $zoomStrengthValue = document.getElementById('zoom-strength-value') as HTMLSpanElement;
 const $zoomStrengthRow = document.getElementById('zoom-strength-row') as HTMLDivElement;
+const $smoothZoom = document.getElementById('toggle-smooth-zoom') as HTMLInputElement;
 
 const settings = {
   themeName: 'outline-dark' as ThemePresetName,
   autoRotateEnabled: true,
   autoRotateSpeed: 0.4,
   hoverHudEnabled: true,
-  zoomMode: 'classic' as ZoomMode,
-  zoomStrength: 0.5,
+  zoomMode: 'attract' as ZoomMode,
+  zoomStrength: 1,
+  smoothZoom: true,
 };
 
 let globe: GlobeInstance | undefined;
@@ -42,7 +44,7 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     countries: { resolution: 'low', style: 'borders', hoverEnabled: true },
     atmosphere: { enabled: true },
     autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
-    zoom: { mode: settings.zoomMode, strength: settings.zoomStrength },
+    zoom: { mode: settings.zoomMode, strength: settings.zoomStrength, smooth: settings.smoothZoom },
     markers: [
       { id: 'waw', position: [52.2297, 21.0122] },
       { id: 'nyc', position: [40.7128, -74.006] },
@@ -97,7 +99,13 @@ $hoverEnabled.addEventListener('change', () => {
 });
 
 const applyZoom = (): void => {
-  globe?.update({ zoom: { mode: settings.zoomMode, strength: settings.zoomStrength } });
+  globe?.update({
+    zoom: {
+      mode: settings.zoomMode,
+      strength: settings.zoomStrength,
+      smooth: settings.smoothZoom,
+    },
+  });
 };
 
 const updateZoomDisplay = (): void => {
@@ -117,6 +125,11 @@ $zoomModeRadios.forEach((radio) => {
 $zoomStrength.addEventListener('input', () => {
   settings.zoomStrength = Number.parseFloat($zoomStrength.value);
   updateZoomDisplay();
+  applyZoom();
+});
+
+$smoothZoom.addEventListener('change', () => {
+  settings.smoothZoom = $smoothZoom.checked;
   applyZoom();
 });
 

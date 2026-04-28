@@ -63,6 +63,11 @@ export interface ZoomConfig {
   readonly mode?: ZoomMode;
   /** 0..1 — intensity of repel/attract correction. Ignored for `classic`. */
   readonly strength?: number;
+  /**
+   * When true (default), the camera interpolates smoothly toward its
+   * post-scroll target each frame instead of snapping. Applies to all modes.
+   */
+  readonly smooth?: boolean;
 }
 
 export interface PerformanceConfig {

@@ -112,7 +112,7 @@
       <div class="hud-section">
         <div class="hud-section-title">Zoom</div>
         <div class="hud-row">
-          <input type="radio" name="zoom-mode" id="zoom-classic" value="classic" checked />
+          <input type="radio" name="zoom-mode" id="zoom-classic" value="classic" />
           <label for="zoom-classic">Classic (radius only)</label>
         </div>
         <div class="hud-row">
@@ -120,10 +120,10 @@
           <label for="zoom-repel">Repel — cursor stays anchored</label>
         </div>
         <div class="hud-row">
-          <input type="radio" name="zoom-mode" id="zoom-attract" value="attract" />
+          <input type="radio" name="zoom-mode" id="zoom-attract" value="attract" checked />
           <label for="zoom-attract">Attract — pulls cursor's point to center</label>
         </div>
-        <div class="hud-row" id="zoom-strength-row" style="display: none;">
+        <div class="hud-row" id="zoom-strength-row">
           <label for="zoom-strength">Strength</label>
           <input
             type="range"
@@ -131,9 +131,13 @@
             min="0"
             max="1"
             step="0.1"
-            value="0.5"
+            value="1"
           />
-          <span id="zoom-strength-value" style="min-width: 2.5em; text-align: right;">0.5</span>
+          <span id="zoom-strength-value" style="min-width: 2.5em; text-align: right;">1.0</span>
+        </div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-smooth-zoom" checked />
+          <label for="toggle-smooth-zoom">Smooth zoom</label>
         </div>
       </div>
 
