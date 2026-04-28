@@ -35,6 +35,8 @@ const $clickToPin = document.getElementById('toggle-click-to-pin') as HTMLInputE
 const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
 const $clearActive = document.getElementById('btn-clear-active') as HTMLButtonElement;
 const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
+const $outlineGlow = document.getElementById('toggle-outline-glow') as HTMLInputElement;
+const $outlinePulse = document.getElementById('toggle-outline-pulse') as HTMLInputElement;
 const $starfield = document.getElementById('toggle-starfield') as HTMLInputElement;
 const $htmlMarkers = document.getElementById('toggle-html-markers') as HTMLInputElement;
 const $axisTilt = document.getElementById('axis-tilt') as HTMLInputElement;
@@ -65,6 +67,8 @@ const settings = {
   clickToFocus: true,
   clickToPin: true,
   hoverOccludeBackSide: true,
+  outlineGlowEnabled: true,
+  outlinePulseEnabled: true,
   starfieldEnabled: true,
   htmlMarkersEnabled: true,
   arcsEnabled: true,
@@ -240,6 +244,10 @@ const buildGlobe = (themeName: ThemePresetName): void => {
       hoverOccludeBackSide: settings.hoverOccludeBackSide,
     },
     atmosphere: { enabled: true },
+    outline: {
+      hoverGlow: { enabled: settings.outlineGlowEnabled },
+      focusPulse: { enabled: settings.outlinePulseEnabled },
+    },
     autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
     zoom: { mode: settings.zoomMode, strength: settings.zoomStrength, smooth: settings.smoothZoom },
     starfield: { enabled: settings.starfieldEnabled },
@@ -584,6 +592,16 @@ $hoverOcclude.addEventListener('change', () => {
   settings.hoverOccludeBackSide = $hoverOcclude.checked;
   // hoverOccludeBackSide is a constructor option for the highlight layer,
   // so we rebuild the globe instance to apply it cleanly.
+  buildGlobe(settings.themeName);
+});
+
+$outlineGlow.addEventListener('change', () => {
+  settings.outlineGlowEnabled = $outlineGlow.checked;
+  buildGlobe(settings.themeName);
+});
+
+$outlinePulse.addEventListener('change', () => {
+  settings.outlinePulseEnabled = $outlinePulse.checked;
   buildGlobe(settings.themeName);
 });
 

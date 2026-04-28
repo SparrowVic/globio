@@ -182,6 +182,21 @@ export interface AtmosphereConfig {
 }
 
 /**
+ * Outline kind extras — visual polish layered on top of the base border mesh.
+ * - `hoverGlow` — soft additive halo behind the hovered country's borders.
+ * - `focusPulse` — sci-fi sonar ring that fires from a country's centroid
+ *   when `focusOnCountry()` is called. Both default-on; disable per feature.
+ */
+export interface OutlineConfig {
+  readonly hoverGlow?: { readonly enabled?: boolean };
+  readonly focusPulse?: {
+    readonly enabled?: boolean;
+    readonly durationMs?: number;
+    readonly color?: string;
+  };
+}
+
+/**
  * Wireframe lat/lng grid layer — pure mathematical sphere grid, no country
  * geometry. Auto-enabled when the active theme's `wireframe.opacity` token
  * is > 0 (e.g. preset `wireframe-tron`); set `enabled: true` explicitly to
@@ -287,6 +302,7 @@ export interface GlobeConfig {
   readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
   readonly arcs?: ReadonlyArray<ArcConfig>;
   readonly atmosphere?: AtmosphereConfig;
+  readonly outline?: OutlineConfig;
   readonly wireframe?: WireframeConfig;
   readonly starfield?: StarfieldConfig;
   /**
