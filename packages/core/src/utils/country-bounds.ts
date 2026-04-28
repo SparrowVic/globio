@@ -36,11 +36,36 @@ export const computeBounds = (
   return { minLat, maxLat, minLng, maxLng };
 };
 
-/** Center of a bounding box as `[lat, lng]`. */
-export const boundsCenter = (b: LatLngBounds): readonly [number, number] => [
-  (b.minLat + b.maxLat) / 2,
-  (b.minLng + b.maxLng) / 2,
-];
+/** Center of a bounding box as `[lat, lng]`. Wraps lng back to [-180, 180]. */
+export const boundsCenter = (b: LatLngBounds): readonly [number, number] => {
+  let lng = (b.minLng + b.maxLng) / 2;
+  while (lng > 180) lng -= 360;
+  while (lng < -180) lng += 360;
+  return [(b.minLat + b.maxLat) / 2, lng];
+};
+
+const ringCrossesAntimeridian = (
+  ring: ReadonlyArray<readonly [number, number]>
+): boolean => {
+  for (let i = 1; i < ring.length; i++) {
+    const a = ring[i - 1];
+    const b = ring[i];
+    if (!a || !b) continue;
+    if (Math.abs(b[0] - a[0]) > 180) return true;
+  }
+  return false;
+};
+
+const computeBoundsForRing = (
+  ring: ReadonlyArray<readonly [number, number]>
+): LatLngBounds => {
+  if (!ringCrossesAntimeridian(ring)) return computeBounds([ring]);
+  const shifted: Array<readonly [number, number]> = [];
+  for (const point of ring) {
+    shifted.push([point[0] < 0 ? point[0] + 360 : point[0], point[1]]);
+  }
+  return computeBounds([shifted]);
+};
 
 /**
  * Maximum angular extent (in radians) — the larger of lat-extent and
@@ -67,7 +92,7 @@ export const computeMainRingBounds = (
   let bestArea = -1;
   let bestBounds: LatLngBounds = computeBounds([]);
   for (const ring of rings) {
-    const b = computeBounds([ring]);
+    const b = computeBoundsForRing(ring);
     const area = (b.maxLat - b.minLat) * (b.maxLng - b.minLng);
     if (area > bestArea) {
       bestArea = area;
