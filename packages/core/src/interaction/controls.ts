@@ -38,6 +38,7 @@ export class GlobeControls {
     elapsed: number;
     readonly duration: number;
     readonly easing: EasingFunction;
+    readonly elevation: number;
   } | null = null;
 
   public constructor(private readonly options: ControlsOptions) {
@@ -79,6 +80,7 @@ export class GlobeControls {
       endSpherical,
       elapsed: 0,
       duration: options.duration ?? 1500,
+      elevation: options.elevation ?? 0,
       easing: options.easing ?? easeInOutCubic,
     };
     this.targetSpherical.copy(endSpherical);
@@ -99,7 +101,9 @@ export class GlobeControls {
       const eased = this.activeTween.easing(t);
       const start = this.activeTween.startSpherical;
       const end = this.activeTween.endSpherical;
-      this.spherical.radius = lerp(start.radius, end.radius, eased);
+      // Base radius interpolation + arched elevation profile (sin(t·π) at midpoint).
+      const arched = Math.sin(t * Math.PI) * this.activeTween.elevation;
+      this.spherical.radius = lerp(start.radius, end.radius, eased) + arched;
       this.spherical.theta = lerpAngle(start.theta, end.theta, eased);
       this.spherical.phi = lerp(start.phi, end.phi, eased);
       if (t >= 1) this.activeTween = null;

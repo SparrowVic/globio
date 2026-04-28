@@ -65,61 +65,79 @@ const settings = {
 
 const WORLD_TOUR = {
   scenes: [
+    // Intro: gentle ease-out + auto-rotate during scene
     {
       id: 'intro',
-      duration: 4000,
+      duration: 5000,
+      easing: 'easeOut' as const,
+      autoRotate: true,
       flyTo: { position: [20, 0] as const, distance: 3 },
       popup: {
         position: [20, 0] as const,
         content:
-          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ffd700;color:#ffd700;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🌍 World Tour — sit back, scroll handed</div>',
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ffd700;color:#ffd700;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🌍 World Tour — sit back</div>',
       },
     },
+    // Tight focus on Poland with smaller padding (more zoomed in), stop rotation
     {
       id: 'europe',
-      duration: 4500,
-      focusOnCountry: '616',
+      duration: 5000,
+      transitionDelay: 400,
+      easing: 'easeInOut' as const,
+      autoRotate: false,
+      focusOnCountry: { id: '616', padding: 0.05 },
       activeCountry: '616',
       popup: {
         position: [52.2297, 21.0122] as const,
         content:
-          '<div style="background:rgba(10,14,30,0.9);border:1px solid #4a9eff;color:#4a9eff;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🇵🇱 Warsaw, Poland</div>',
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #4a9eff;color:#4a9eff;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🇵🇱 Warsaw — close-up</div>',
         anchor: 'bottom' as const,
       },
     },
+    // Long jump to NYC: fly-over arc (elevation +1.0), longer transition
     {
       id: 'americas',
-      duration: 4500,
+      duration: 5500,
+      transitionDuration: 3500,
+      transitionElevation: 1.0,
+      easing: 'easeInOut' as const,
       flyTo: { position: [40.7128, -74.006] as const, distance: 2.6 },
       activeCountry: '840',
       popup: {
         position: [40.7128, -74.006] as const,
         content:
-          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ff5577;color:#ff5577;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🗽 New York, USA</div>',
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ff5577;color:#ff5577;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🗽 New York — flew over the pole</div>',
         anchor: 'bottom' as const,
       },
     },
+    // Asia jump: linear easing (constant velocity feel), big elevation
     {
       id: 'asia',
-      duration: 4500,
+      duration: 5000,
+      transitionDuration: 3000,
+      transitionElevation: 1.2,
+      easing: 'linear' as const,
       flyTo: { position: [35.6762, 139.6503] as const, distance: 2.6 },
       activeCountry: '392',
       popup: {
         position: [35.6762, 139.6503] as const,
         content:
-          '<div style="background:rgba(10,14,30,0.9);border:1px solid #22ddaa;color:#22ddaa;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🗼 Tokyo, Japan</div>',
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #22ddaa;color:#22ddaa;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🗼 Tokyo</div>',
         anchor: 'bottom' as const,
       },
     },
+    // Oceania: very tight zoom on Australia bbox, short delay
     {
       id: 'oceania',
       duration: 4500,
-      flyTo: { position: [-33.8688, 151.2093] as const, distance: 2.6 },
+      transitionDelay: 200,
+      easing: 'easeIn' as const,
+      focusOnCountry: { id: '036', padding: 0.1 },
       activeCountry: '036',
       popup: {
         position: [-33.8688, 151.2093] as const,
         content:
-          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ffaa33;color:#ffaa33;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🦘 Sydney, Australia</div>',
+          '<div style="background:rgba(10,14,30,0.9);border:1px solid #ffaa33;color:#ffaa33;padding:8px 12px;border-radius:6px;font-family:system-ui;font-size:12px">🦘 Sydney</div>',
         anchor: 'bottom' as const,
       },
     },

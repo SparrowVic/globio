@@ -16,6 +16,7 @@ const makeMockAdapter = (): StoryGlobeAdapter & {
     flyTo: record('flyTo'),
     focusOnCountry: record('focusOnCountry'),
     setActiveCountry: record('setActiveCountry'),
+    setAutoRotate: record('setAutoRotate'),
     setStoryPopup: record('setStoryPopup'),
     emitSceneEnter: record('emitSceneEnter'),
     emitSceneExit: record('emitSceneExit'),

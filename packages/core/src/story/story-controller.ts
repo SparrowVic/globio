@@ -1,3 +1,5 @@
+import { resolveEasing } from '../utils/easing';
+import type { EasingFunction } from '../types';
 import type {
   SceneConfig,
   StoryConfig,
@@ -5,16 +7,24 @@ import type {
   StorySceneEvent,
 } from './types';
 
+interface TransitionOptions {
+  duration?: number;
+  easing?: EasingFunction;
+  elevation?: number;
+}
+
 export class StoryController {
   private story: StoryConfig | null = null;
   private currentIndex = -1;
   private playing = false;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+  private delayTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   public constructor(private readonly adapter: StoryGlobeAdapter) {}
 
   public setStory(story: StoryConfig | null): void {
     this.cancelTimer();
+    this.cancelDelayTimer();
     this.exitCurrentScene();
     this.story = story;
     this.currentIndex = -1;
@@ -85,6 +95,7 @@ export class StoryController {
 
   private goToIndex(idx: number): void {
     this.cancelTimer();
+    this.cancelDelayTimer();
     this.exitCurrentScene();
     this.currentIndex = idx;
     const scene = this.story?.scenes[idx];
@@ -94,19 +105,46 @@ export class StoryController {
   }
 
   private enterScene(scene: SceneConfig, index: number): void {
-    const transitionOptions: { duration?: number; easing?: NonNullable<SceneConfig['easing']> } = {
+    const transitionOptions: TransitionOptions = {
       duration: scene.transitionDuration ?? Math.min(1500, Math.floor(scene.duration * 0.6)),
-      ...(scene.easing && { easing: scene.easing }),
+    };
+    const easing = resolveEasing(scene.easing);
+    if (easing) transitionOptions.easing = easing;
+    if (scene.transitionElevation !== undefined) {
+      transitionOptions.elevation = scene.transitionElevation;
+    }
+
+    const moveCamera = (): void => {
+      if (scene.focusOnCountry) {
+        const focus = scene.focusOnCountry;
+        if (typeof focus === 'string') {
+          this.adapter.focusOnCountry(focus, transitionOptions);
+        } else {
+          this.adapter.focusOnCountry(focus.id, {
+            ...transitionOptions,
+            ...(focus.padding !== undefined && { padding: focus.padding }),
+          });
+        }
+      } else if (scene.flyTo) {
+        this.adapter.flyTo(scene.flyTo.position, scene.flyTo.distance, transitionOptions);
+      }
     };
 
-    if (scene.focusOnCountry) {
-      this.adapter.focusOnCountry(scene.focusOnCountry, transitionOptions);
-    } else if (scene.flyTo) {
-      this.adapter.flyTo(scene.flyTo.position, scene.flyTo.distance, transitionOptions);
+    const delay = scene.transitionDelay ?? 0;
+    if (delay > 0) {
+      this.delayTimeoutId = setTimeout(() => {
+        this.delayTimeoutId = null;
+        moveCamera();
+      }, delay);
+    } else {
+      moveCamera();
     }
 
     if (scene.activeCountry !== undefined) {
       this.adapter.setActiveCountry(scene.activeCountry);
+    }
+    if (scene.autoRotate !== undefined) {
+      this.adapter.setAutoRotate(scene.autoRotate);
     }
 
     this.adapter.setStoryPopup(scene.popup ?? null);
@@ -136,6 +174,13 @@ export class StoryController {
     if (this.timeoutId !== null) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
+    }
+  }
+
+  private cancelDelayTimer(): void {
+    if (this.delayTimeoutId !== null) {
+      clearTimeout(this.delayTimeoutId);
+      this.delayTimeoutId = null;
     }
   }
 }

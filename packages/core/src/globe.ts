@@ -352,21 +352,26 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (!layer) return;
       const bounds = layer.getCountryBounds(id);
       if (!bounds) return;
+      const padding = options.padding ?? 0.15;
       const distance = computeFocusDistance(
         bounds,
         scene.camera,
-        0.15,
+        padding,
         GLOBE_RADIUS,
         scene.camera.position.length()
       );
-      controls.setAutoRotate(false);
-      controls.flyTo(globeLocalToWorldLatLng(boundsCenter(bounds)), distance, options);
+      const flyOptions: { duration?: number; easing?: typeof options.easing; elevation?: number } = {};
+      if (options.duration !== undefined) flyOptions.duration = options.duration;
+      if (options.easing !== undefined) flyOptions.easing = options.easing;
+      if (options.elevation !== undefined) flyOptions.elevation = options.elevation;
+      controls.flyTo(globeLocalToWorldLatLng(boundsCenter(bounds)), distance, flyOptions);
     },
     setActiveCountry: (id) => {
       state.activeCountryId = id;
       if (id === null) state.countryActiveLayer?.clear();
       else state.countryActiveLayer?.showCountry(id);
     },
+    setAutoRotate: (enabled) => controls.setAutoRotate(enabled),
     setStoryPopup: (popup) => {
       htmlMarkersLayer.removeMarker(STORY_POPUP_ID);
       if (popup) {

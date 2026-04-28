@@ -170,11 +170,21 @@ export interface ZoomConfig {
 /** Easing function — receives normalized progress t∈[0,1], returns eased t∈[0,1]. */
 export type EasingFunction = (t: number) => number;
 
+/** CSS-like named easings. Resolved to functions by `resolveEasing`. */
+export type EasingName = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
+
 export interface FlyToOptions {
   /** Animation duration in milliseconds. Default 1500. */
   readonly duration?: number;
   /** Easing function. Default `easeInOutCubic`. */
   readonly easing?: EasingFunction;
+  /**
+   * Extra camera radius added during the flight, peaking at the midpoint
+   * (sin(t·π) profile). Creates a "fly-over" arc that pulls the camera up
+   * and back down — feels more cinematic than a straight slerp, especially
+   * for long jumps. Default 0.
+   */
+  readonly elevation?: number;
 }
 
 export interface FocusOptions extends FlyToOptions {

@@ -1,4 +1,4 @@
-import type { EasingFunction, LatLng } from '../types';
+import type { EasingFunction, EasingName, LatLng } from '../types';
 
 /**
  * One step in a story timeline. Each scene optionally moves the camera,
@@ -14,15 +14,41 @@ export interface SceneConfig {
    * leaves at least 40% of the scene as a settled "hold" after arrival.
    */
   readonly transitionDuration?: number;
-  /** Easing for the camera transition. Default `easeInOutCubic`. */
-  readonly easing?: EasingFunction;
+  /**
+   * Delay in ms between scene enter and the camera transition starting.
+   * Useful for letting a popup appear before the camera moves. Default 0.
+   */
+  readonly transitionDelay?: number;
+  /**
+   * Extra camera radius peaking at the midpoint of the transition. Creates
+   * a "fly-over arc" — pulls the camera up and back down for a cinematic
+   * feel on long jumps. Default 0 (straight slerp).
+   */
+  readonly transitionElevation?: number;
+  /**
+   * Easing for the camera transition. Accepts a function or a CSS-like name
+   * (`'linear'`, `'easeIn'`, `'easeOut'`, `'easeInOut'`). Default `'easeInOut'`.
+   */
+  readonly easing?: EasingFunction | EasingName;
+  /**
+   * If set, toggle auto-rotate while this scene is active. Restored on the
+   * next scene that specifies it (otherwise stays as last set). Useful for
+   * "intro spinning earth" scenes paired with stationary detail scenes.
+   */
+  readonly autoRotate?: boolean;
   /**
    * Fly the camera to a lat/lng. Mutually exclusive with `focusOnCountry` —
    * if both are provided, `focusOnCountry` wins.
    */
   readonly flyTo?: { readonly position: LatLng; readonly distance?: number };
-  /** Auto-frame a country (uses bbox-derived distance + padding). */
-  readonly focusOnCountry?: string;
+  /**
+   * Auto-frame a country (uses bbox-derived distance). Pass a string for
+   * default behaviour, or an object to override padding (smaller padding =
+   * more zoomed-in arrival).
+   */
+  readonly focusOnCountry?:
+    | string
+    | { readonly id: string; readonly padding?: number };
   /**
    * Active country to highlight throughout this scene. Pass `null` to
    * explicitly clear; omit to inherit from the previous scene.
@@ -64,13 +90,19 @@ export interface StoryGlobeAdapter {
   flyTo(
     position: LatLng,
     distance: number | undefined,
-    options: { duration?: number; easing?: EasingFunction }
+    options: { duration?: number; easing?: EasingFunction; elevation?: number }
   ): void;
   focusOnCountry(
     id: string,
-    options: { duration?: number; easing?: EasingFunction }
+    options: {
+      duration?: number;
+      easing?: EasingFunction;
+      elevation?: number;
+      padding?: number;
+    }
   ): void;
   setActiveCountry(id: string | null): void;
+  setAutoRotate(enabled: boolean): void;
   setStoryPopup(popup: SceneConfig['popup'] | null): void;
   emitSceneEnter(event: StorySceneEvent): void;
   emitSceneExit(event: StorySceneEvent): void;
