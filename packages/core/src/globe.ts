@@ -17,6 +17,7 @@ import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
 import { loadCountries } from './data/geo-loader';
+import { createLegend, type LegendInstance, type LegendOptions } from './data/legend';
 import { resolveTheme } from './theme/resolver';
 import { GLOBE_RADIUS, latLngToVector3, vector3ToLatLng } from './utils/coordinates';
 import { angularExtent, boundsCenter, type LatLngBounds } from './utils/country-bounds';
@@ -90,6 +91,7 @@ interface InternalState {
   emitter: GlobeEventEmitter;
   activeCountryId: string | null;
   countryData: CountryDataMap | null;
+  legend: LegendInstance | null;
   elapsedSeconds: number;
   destroyed: boolean;
 }
@@ -277,6 +279,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     emitter,
     activeCountryId: null,
     countryData: config.countryData ?? null,
+    legend: null,
     elapsedSeconds: 0,
     destroyed: false,
   };
@@ -421,6 +424,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       globeMesh.dispose();
       state.countriesLayer?.dispose();
       state.countriesFillLayer?.dispose();
+      state.legend?.dispose();
       state.countriesPickingLayer?.dispose();
       state.countryHighlightLayer?.dispose();
       state.countryActiveLayer?.dispose();
@@ -468,6 +472,31 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countriesFillLayer?.setData(data, scale);
     },
     getCountryData: () => state.countryData,
+    showLegend: (scale, options) => {
+      const tooltipFontSize = tokens['legend.fontSize'];
+      const themedStyle = {
+        background: tokens['legend.backgroundColor'],
+        textColor: tokens['legend.textColor'],
+        titleColor: tokens['legend.titleColor'],
+        fontSize: tooltipFontSize,
+        fontFamily: tokens['legend.fontFamily'],
+        padding: tokens['legend.padding'],
+        borderRadius: tokens['legend.borderRadius'],
+      };
+      const merged: LegendOptions = {
+        ...options,
+        style: { ...themedStyle, ...options?.style },
+      };
+      if (state.legend) {
+        state.legend.update(scale, merged);
+      } else {
+        state.legend = createLegend({ container: config.container, scale, ...merged });
+      }
+    },
+    hideLegend: () => {
+      state.legend?.dispose();
+      state.legend = null;
+    },
     setStory: (story: StoryConfig | null) => storyController.setStory(story),
     playStory: () => storyController.play(),
     pauseStory: () => storyController.pause(),

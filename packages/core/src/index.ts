@@ -37,6 +37,15 @@ export {
   type SequentialScale,
   type ThresholdScale,
 } from './data/scales';
+export {
+  createLegend,
+  computeLegendTicks,
+  type CreateLegendOptions,
+  type LegendInstance,
+  type LegendOptions,
+  type LegendPosition,
+  type LegendStyle,
+} from './data/legend';
 export type {
   SceneConfig,
   StoryConfig,

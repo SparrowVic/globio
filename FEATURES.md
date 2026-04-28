@@ -231,6 +231,7 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Hex-bin aggregation** `[v2+·LAYER·L]` — h3-binning, agregacja punktów do hex.
 - **Pulse / halo na markerach** `[v1·LAYER·S]` — emphasizing data points.
 - **Color scale builder** `[v1·LAYER·S·built]` 🌟 — `setCountryData(map, { type: 'sequential' \| 'diverging' \| 'threshold' \| 'categorical', palette, domain?, noDataColor? })`. Built-in palety: `blues / reds / greens / oranges / purples / viridis / magma / plasma / inferno / RdBu / BrBG / PiYG`, plus własna lista hex-stops. Linear-RGB interpolation między stopami; explicit `color` na entry zawsze wygrywa nad skalą; `domain` defaultuje do data extent.
+- **Legend HUD** `[v1·LAYER·S·built]` 🌟 — `globe.showLegend(scale, { title?, format?, tickCount?, position?, width?, style? })` / `globe.hideLegend()`. Auto-renders gradient bar + ticks dla sequential / diverging, swatch list dla threshold (z labelkami `< t0`, `t0 – t1`, `≥ tN`) i categorical. Tokens: `legend.backgroundColor / textColor / titleColor / fontSize / fontFamily / padding / borderRadius`. Przyklejony do containera globusa (4 pozycje), pointer-events disabled (nie blokuje interakcji). Standalone `createLegend({ container, scale, ... })` dla custom umieszczenia.
 - **Polygon overlay (custom area)** `[v1.x·LAYER·M]` — własne wielokąty (np. strefy ekonomiczne).
 - **Iso-lines / contours** `[v2+·LAYER·L]` — np. linie temperatury.
 

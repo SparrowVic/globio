@@ -670,38 +670,63 @@ const buildValueMap = (
 
 $dataNato.addEventListener('click', () => {
   globe?.setCountryData(buildSetMap(NATO_IDS, '#1e6fff'));
+  globe?.showLegend(
+    { type: 'categorical', colors: { 'NATO member': '#1e6fff' } },
+    { title: 'NATO membership' }
+  );
   setStatus('Country data: NATO members');
 });
 $dataEu.addEventListener('click', () => {
   globe?.setCountryData(buildSetMap(EU_IDS, '#ffd700'));
+  globe?.showLegend(
+    { type: 'categorical', colors: { 'EU member': '#ffd700' } },
+    { title: 'EU membership' }
+  );
   setStatus('Country data: EU members');
 });
 $dataPopReds.addEventListener('click', () => {
-  globe?.setCountryData(buildValueMap(POPULATION), {
+  const scale = {
     type: 'sequential',
     palette: 'reds',
     domain: [0, 1500],
+  } as const;
+  globe?.setCountryData(buildValueMap(POPULATION), scale);
+  globe?.showLegend(scale, {
+    title: 'Population (millions)',
+    format: (v) => Math.round(v).toString(),
   });
   setStatus('Country data: population · reds');
 });
 $dataPopViridis.addEventListener('click', () => {
-  globe?.setCountryData(buildValueMap(POPULATION), {
+  const scale = {
     type: 'sequential',
     palette: 'viridis',
     domain: [0, 1500],
+  } as const;
+  globe?.setCountryData(buildValueMap(POPULATION), scale);
+  globe?.showLegend(scale, {
+    title: 'Population (millions)',
+    format: (v) => Math.round(v).toString(),
   });
   setStatus('Country data: population · viridis');
 });
 $dataGrowth.addEventListener('click', () => {
-  globe?.setCountryData(buildValueMap(GDP_GROWTH), {
+  const scale = {
     type: 'diverging',
     palette: 'RdBu',
     domain: [-5, 0, 8],
+  } as const;
+  globe?.setCountryData(buildValueMap(GDP_GROWTH), scale);
+  globe?.showLegend(scale, {
+    title: 'GDP growth (% YoY)',
+    format: (v) => v.toFixed(1) + '%',
+    tickCount: 3,
   });
   setStatus('Country data: GDP growth (RdBu diverging)');
 });
 $dataClear.addEventListener('click', () => {
   globe?.setCountryData(null);
+  globe?.hideLegend();
   setStatus('Country data: cleared');
 });
 

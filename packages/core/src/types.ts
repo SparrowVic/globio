@@ -6,6 +6,7 @@ import type {
   StoryCompleteEvent,
 } from './story/types';
 import type { ScaleConfig } from './data/scales';
+import type { LegendOptions } from './data/legend';
 
 export type LatLng = readonly [latitude: number, longitude: number];
 
@@ -287,6 +288,13 @@ export interface GlobeInstance {
    */
   readonly setCountryData: (data: CountryDataMap | null, scale?: ScaleConfig) => void;
   readonly getCountryData: () => CountryDataMap | null;
+  /**
+   * Show a legend HUD inside the globe container, auto-rendered from a
+   * scale (sequential / diverging gradient bar + ticks; threshold or
+   * categorical → swatch list). Calling again replaces the active legend.
+   */
+  readonly showLegend: (scale: ScaleConfig, options?: LegendOptions) => void;
+  readonly hideLegend: () => void;
   readonly setStory: (story: StoryConfig | null) => void;
   readonly playStory: () => void;
   readonly pauseStory: () => void;
