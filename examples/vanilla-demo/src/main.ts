@@ -18,6 +18,8 @@ const $zoomStrength = document.getElementById('zoom-strength') as HTMLInputEleme
 const $zoomStrengthValue = document.getElementById('zoom-strength-value') as HTMLSpanElement;
 const $zoomStrengthRow = document.getElementById('zoom-strength-row') as HTMLDivElement;
 const $smoothZoom = document.getElementById('toggle-smooth-zoom') as HTMLInputElement;
+const $clickToFocus = document.getElementById('toggle-click-to-focus') as HTMLInputElement;
+const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
 
 const settings = {
   themeName: 'outline-dark' as ThemePresetName,
@@ -27,6 +29,7 @@ const settings = {
   zoomMode: 'attract' as ZoomMode,
   zoomStrength: 1,
   smoothZoom: true,
+  clickToFocus: true,
 };
 
 let globe: GlobeInstance | undefined;
@@ -62,6 +65,9 @@ const buildGlobe = (themeName: ThemePresetName): void => {
   });
   globe.on('countryClick', ({ country }) => {
     setStatus(`Klik: ${country.name} (${country.id})`);
+    if (settings.clickToFocus) {
+      globe?.focusOnCountry(country.id);
+    }
   });
 
   globe.mount();
@@ -131,6 +137,14 @@ $zoomStrength.addEventListener('input', () => {
 $smoothZoom.addEventListener('change', () => {
   settings.smoothZoom = $smoothZoom.checked;
   applyZoom();
+});
+
+$clickToFocus.addEventListener('change', () => {
+  settings.clickToFocus = $clickToFocus.checked;
+});
+
+$flyHome.addEventListener('click', () => {
+  globe?.flyTo([20, 0], 3, { duration: 1500 });
 });
 
 updateSpeedDisplay();
