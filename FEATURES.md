@@ -249,12 +249,13 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 > Killer feature. Większość bibliotek tego nie ma. Szczególnie wartościowe dla `C·edu` i `A·marketing`.
 
-- **Scene definition (declarative)** `[v1·GLOBAL·M]` 🌟 — `scenes: [{ id, cameraTo, highlights, popup, duration, transition }]`.
-- **Auto-playback** `[v1·GLOBAL·M]` — `autoPlay: true`, `loop: boolean`, `delay: number`.
-- **Manual controls** `[v1·GLOBAL·S]` — `play()`, `pause()`, `next()`, `prev()`, `goTo(sceneId)`.
-- **Scene events** `[v1·EVENT·S]` — `onSceneEnter`, `onSceneExit`, `onSceneTransition`.
-- **Easing per transition** `[v1·GLOBAL·S]` — `easing: 'easeInOutCubic' | 'linear' | function`.
-- **Highlight stack** `[v1·GLOBAL·S]` — kraje/markery pokolorowane per scena, smooth restore.
+- **Scene definition (declarative)** `[v1·GLOBAL·M·built]` 🌟 — `globe.setStory({ scenes: [{ id, duration, transitionDuration?, transitionDelay?, transitionElevation?, easing?, autoRotate?, flyTo?, focusOnCountry?, activeCountry?, popup? }] })`.
+- **Auto-playback** `[v1·GLOBAL·M·built]` — `autoPlay`, `loop`, `startAt: sceneId`.
+- **Manual controls** `[v1·GLOBAL·S·built]` — `playStory()`, `pauseStory()`, `nextScene()`, `prevScene()`, `goToScene(id)`, `getCurrentScene()`, `isStoryPlaying()`.
+- **Scene events** `[v1·EVENT·S·built]` — `sceneEnter`, `sceneExit`, `storyComplete` z payload `{ scene, index }`.
+- **Easing per transition** `[v1·GLOBAL·S·built]` — `scene.easing: EasingFunction | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut'` (CSS-like).
+- **Transition arc + delay + autoRotate per scene** `[v1·GLOBAL·S·built]` — `transitionElevation` (cinematic fly-over arc), `transitionDelay` (popup-first then move), per-scene `autoRotate` toggle, `focusOnCountry` z opcjonalnym `padding` override.
+- **Highlight stack** `[v1·GLOBAL·S]` — kraje/markery pokolorowane per scena, smooth restore (single active country wired; multi-highlight stack to do separately).
 - **Scrollytelling hook** `[v2+·GLOBAL·M]` — sceny powiązane z scroll position (intersection observer).
 - **Branching scenes** `[v2+·GLOBAL·L]` — `scene.branches: [{ if, goTo }]` — interaktywne narracje (great for `F·gry`).
 - **Audio narration sync** `[v2+·GLOBAL·M]` — sync popup texts z audio track.
