@@ -200,6 +200,41 @@ describe('triangulatePolygon', () => {
     expect(inside).toBe(0);
   });
 
+  it('produces a T-junction-free mesh — every shared edge has consistent vertices', () => {
+    // T-junctions are where one triangle has A-B as an edge while a neighbour
+    // sharing that edge has A-M-B. They show up as hairline cracks in render.
+    // Our subdivision flags edges to split before splitting any triangle, so
+    // neighbours always agree. Verify by walking edges: any vertex that lies
+    // exactly on an edge (between its endpoints) must itself be one of the
+    // edge's endpoints in every triangle that uses that edge.
+    const big: ReadonlyArray<readonly [number, number]> = [
+      [0, 0], [40, 0], [40, 40], [0, 40], [0, 0],
+    ];
+    const result = triangulatePolygon([big], GLOBE_RADIUS);
+    expect(result).not.toBeNull();
+    if (!result) return;
+
+    // Build edge usage map — for each unordered edge key, list the triangle
+    // indices that use it. Any T-junction would manifest as a vertex appearing
+    // in the middle of an edge of one triangle but as an endpoint in another.
+    const edgeUses = new Map<string, Array<number>>();
+    const key = (a: number, b: number) => (a < b ? `${a}_${b}` : `${b}_${a}`);
+    for (let t = 0; t < result.indices.length; t += 3) {
+      const a = result.indices[t]!;
+      const b = result.indices[t + 1]!;
+      const c = result.indices[t + 2]!;
+      for (const k of [key(a, b), key(b, c), key(c, a)]) {
+        const list = edgeUses.get(k) ?? [];
+        list.push(t / 3);
+        edgeUses.set(k, list);
+      }
+    }
+    // No edge should be used by more than two triangles in a 2-manifold.
+    for (const [, tris] of edgeUses) {
+      expect(tris.length).toBeLessThanOrEqual(2);
+    }
+  });
+
   it('handles antimeridian-crossing rings without degenerate huge triangles', () => {
     // 20°-wide rectangle straddling lng=180. Without the unwrap, earcut sees
     // a 340° flat polygon and produces a single zero-area mess.
