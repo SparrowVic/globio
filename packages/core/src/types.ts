@@ -197,6 +197,27 @@ export interface OutlineConfig {
 }
 
 /**
+ * Per-instance overrides for the dotted kind's interactive effects.
+ * `clickRipple` spawns a brightening sonar wave at every globe click;
+ * `dataFlash` momentarily boosts a country's dots whenever its value in
+ * `setCountryData()` changes.
+ */
+export interface DottedConfig {
+  readonly clickRipple?: {
+    readonly enabled?: boolean;
+    readonly boost?: number;
+    readonly speed?: number;
+    readonly width?: number;
+    readonly maxConcurrent?: number;
+  };
+  readonly dataFlash?: {
+    readonly enabled?: boolean;
+    readonly strength?: number;
+    readonly decay?: number;
+  };
+}
+
+/**
  * Wireframe lat/lng grid layer — pure mathematical sphere grid, no country
  * geometry. Auto-enabled when the active theme's `wireframe.opacity` token
  * is > 0 (e.g. preset `wireframe-tron`); set `enabled: true` explicitly to
@@ -303,6 +324,7 @@ export interface GlobeConfig {
   readonly arcs?: ReadonlyArray<ArcConfig>;
   readonly atmosphere?: AtmosphereConfig;
   readonly outline?: OutlineConfig;
+  readonly dotted?: DottedConfig;
   readonly wireframe?: WireframeConfig;
   readonly starfield?: StarfieldConfig;
   /**

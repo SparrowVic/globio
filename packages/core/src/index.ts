@@ -7,6 +7,7 @@ export type {
   CountryDataEntry,
   CountryDataMap,
   CountryEvent,
+  DottedConfig,
   GlobeConfig,
   GlobeKind,
   GlobeEventName,

@@ -52,8 +52,7 @@ export interface KindHandle {
   /**
    * Called when the user explicitly focuses a country via
    * `globe.focusOnCountry()`. Useful for spawning kind-specific feedback
-   * effects (sonar pulses, particle bursts, …). The payload is the
-   * country's centroid as `[lat, lng]` plus the country id.
+   * effects (sonar pulses, particle bursts, …).
    */
   onCountryFocus?(latLng: LatLng, countryId: string): void;
   /**

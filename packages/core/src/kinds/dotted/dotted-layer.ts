@@ -2,10 +2,13 @@ import {
   AdditiveBlending,
   BufferGeometry,
   CanvasTexture,
+  Color,
   Float32BufferAttribute,
   Group,
   Points,
-  PointsMaterial,
+  ShaderMaterial,
+  Vector3,
+  Vector4,
   type Texture,
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
@@ -17,13 +20,34 @@ export interface CountriesDottedLayerOptions {
   readonly size: number;
   readonly density: number;
   readonly opacity: number;
+  readonly rippleBoost: number;
+  readonly rippleSpeed: number;
+  readonly rippleWidth: number;
+  readonly rippleEnabled: boolean;
+  readonly rippleMaxConcurrent: number;
+  readonly flashColor: string;
+  readonly flashStrength: number;
+  readonly flashDecay: number;
+  readonly flashEnabled: boolean;
 }
 
-/**
- * Ray-casting point-in-polygon for a closed ring in lng/lat. The ring may or
- * may not be explicitly closed (last point == first); both work because we
- * iterate edge pairs `(prev, curr)` modulo length.
- */
+interface ActiveRipple {
+  readonly origin: Vector3;
+  age: number;
+  readonly duration: number;
+}
+
+interface ActiveFlash {
+  readonly countryIndex: number;
+  age: number;
+}
+
+const MAX_RIPPLES = 6;
+// One slot per country. WebGL2 / WebGL1 both guarantee >=256 vertex uniform
+// vectors; a flat float[256] uniform fits well within that budget.
+const MAX_FLASHES = 256;
+const MAX_GREAT_CIRCLE = Math.PI;
+
 export const pointInRing = (
   ring: ReadonlyArray<readonly [number, number]>,
   point: readonly [number, number]
@@ -60,14 +84,6 @@ const ringBBox = (
   return { minLng, maxLng, minLat, maxLat };
 };
 
-/**
- * Sample a regular lat/lng grid across the polygon's interior. Returns
- * [lng, lat] pairs that lie inside the outer ring and outside every hole.
- *
- * Antimeridian-crossing rings (Russia, Fiji) are handled by shifting any
- * negative longitudes by +360 so the iteration stays continuous; samples are
- * wrapped back into [-180, 180] before being returned to the caller.
- */
 export const samplePolygonInterior = (
   polygon: CountryPolygon,
   density: number
@@ -131,32 +147,122 @@ const createGlowTexture = (): CanvasTexture | null => {
   return new CanvasTexture(canvas);
 };
 
+const VERT_SHADER = /* glsl */ `
+  attribute float aCountryIndex;
+  uniform float uPointSize;
+  uniform float uPixelRatio;
+  uniform int uRippleCount;
+  uniform vec4 uRippleOrigin[${MAX_RIPPLES}];
+  uniform float uRippleBoost;
+  uniform float uRippleWidth;
+  uniform float uFlashStrength[${MAX_FLASHES}];
+
+  varying float vBrightness;
+  varying float vFlashStrength;
+
+  void main() {
+    vec3 dir = normalize(position);
+    float ripple = 0.0;
+    for (int i = 0; i < ${MAX_RIPPLES}; i++) {
+      if (i >= uRippleCount) break;
+      vec4 r = uRippleOrigin[i];
+      float d = acos(clamp(dot(dir, r.xyz), -1.0, 1.0));
+      float band = (d - r.w) / max(uRippleWidth, 1e-4);
+      ripple += exp(-band * band);
+    }
+    vBrightness = clamp(ripple, 0.0, 1.0) * uRippleBoost;
+
+    int idx = int(aCountryIndex + 0.5);
+    float fs = 0.0;
+    for (int i = 0; i < ${MAX_FLASHES}; i++) {
+      if (i == idx) { fs = uFlashStrength[i]; break; }
+    }
+    vFlashStrength = fs;
+
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = uPointSize * uPixelRatio * (1.0 / -mv.z);
+  }
+`;
+
+const FRAG_SHADER = /* glsl */ `
+  precision mediump float;
+  uniform vec3 uBaseColor;
+  uniform vec3 uFlashColor;
+  uniform float uOpacity;
+  uniform sampler2D uTexture;
+  uniform bool uUseTexture;
+
+  varying float vBrightness;
+  varying float vFlashStrength;
+
+  void main() {
+    vec2 c = gl_PointCoord - vec2(0.5);
+    float d = length(c);
+    float disc = uUseTexture
+      ? texture2D(uTexture, gl_PointCoord).a
+      : smoothstep(0.5, 0.0, d);
+    if (disc < 0.05) discard;
+
+    vec3 base = uBaseColor * (1.0 + vBrightness);
+    float fs = clamp(vFlashStrength, 0.0, 1.0);
+    vec3 mixed = mix(base, uFlashColor, fs);
+    vec3 col = mixed * (1.0 + vFlashStrength);
+    gl_FragColor = vec4(col, uOpacity * disc);
+  }
+`;
+
 /**
  * Renders each country as a Points cloud sampled on a regular lat/lng grid
- * inside its polygon. One Points object per feature, one merged geometry per
- * feature; ~250 draw calls total — fine for v1.
+ * inside its polygon. The custom shader computes per-vertex brightness from
+ * any active ripples plus a per-country flash term — all on the GPU, so no
+ * per-frame attribute uploads even with tens of thousands of dots.
  */
 export class CountriesDottedLayer {
   public readonly group: Group;
-  private readonly material: PointsMaterial;
+  private readonly material: ShaderMaterial;
   private readonly geometries: Array<BufferGeometry> = [];
   private readonly texture: Texture | null;
+  private readonly countryIndex = new Map<string, number>();
+  private readonly flashState: Float32Array;
+  private readonly rippleOrigin: Array<Vector4>;
+  private readonly activeRipples: Array<ActiveRipple> = [];
+  private readonly activeFlashes: Array<ActiveFlash> = [];
+  private readonly opts: CountriesDottedLayerOptions;
 
   public constructor(options: CountriesDottedLayerOptions) {
+    this.opts = options;
     this.group = new Group();
     this.group.name = 'CountriesDottedLayer';
     this.texture = createGlowTexture();
+    this.flashState = new Float32Array(MAX_FLASHES);
+    this.rippleOrigin = new Array(MAX_RIPPLES).fill(0).map(() => new Vector4());
 
-    this.material = new PointsMaterial({
-      color: options.color,
-      size: options.size,
-      sizeAttenuation: true,
+    const baseColor = new Color(options.color);
+    const flashColor = new Color(options.flashColor);
+
+    this.material = new ShaderMaterial({
+      uniforms: {
+        uBaseColor: { value: baseColor },
+        uFlashColor: { value: flashColor },
+        uOpacity: { value: options.opacity },
+        uPointSize: { value: options.size * 1000 },
+        uPixelRatio: {
+          value: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+        },
+        uRippleCount: { value: 0 },
+        uRippleOrigin: { value: this.rippleOrigin },
+        uRippleBoost: { value: options.rippleBoost },
+        uRippleWidth: { value: options.rippleWidth },
+        uFlashStrength: { value: this.flashState },
+        uTexture: { value: this.texture },
+        uUseTexture: { value: this.texture !== null },
+      },
+      vertexShader: VERT_SHADER,
+      fragmentShader: FRAG_SHADER,
       transparent: true,
-      opacity: options.opacity,
       depthWrite: false,
-      alphaTest: 0.1,
       blending: AdditiveBlending,
-      ...(this.texture !== null && { map: this.texture }),
     });
 
     this.buildPoints(options.features, options.density);
@@ -173,11 +279,76 @@ export class CountriesDottedLayer {
     this.group.clear();
   }
 
+  /** Spawn a ripple originating from a globe-local 3D point. */
+  public spawnRipple(point3D: Vector3): void {
+    if (!this.opts.rippleEnabled) return;
+    const origin = point3D.clone().normalize();
+    const speed = this.opts.rippleSpeed > 0 ? this.opts.rippleSpeed : 1;
+    const duration = Math.min(MAX_GREAT_CIRCLE / speed, 4);
+    this.activeRipples.push({ origin, age: 0, duration });
+    while (this.activeRipples.length > this.opts.rippleMaxConcurrent) {
+      this.activeRipples.shift();
+    }
+  }
+
+  /** Trigger / refresh a flash on a country (by id). */
+  public spawnFlash(countryId: string): void {
+    if (!this.opts.flashEnabled) return;
+    const idx = this.countryIndex.get(countryId);
+    if (idx === undefined || idx >= MAX_FLASHES) return;
+    const existing = this.activeFlashes.find((f) => f.countryIndex === idx);
+    if (existing) {
+      existing.age = 0;
+    } else {
+      this.activeFlashes.push({ countryIndex: idx, age: 0 });
+    }
+  }
+
+  /** Per-frame tick. Advances ripple/flash ages and writes uniforms. */
+  public update(delta: number): void {
+    const speed = this.opts.rippleSpeed > 0 ? this.opts.rippleSpeed : 1;
+    for (let i = this.activeRipples.length - 1; i >= 0; i--) {
+      const r = this.activeRipples[i];
+      if (!r) continue;
+      r.age += delta;
+      if (r.age >= r.duration) this.activeRipples.splice(i, 1);
+    }
+    const limit = Math.min(this.activeRipples.length, MAX_RIPPLES);
+    for (let i = 0; i < MAX_RIPPLES; i++) {
+      const slot = this.rippleOrigin[i];
+      if (!slot) continue;
+      if (i < limit) {
+        const r = this.activeRipples[i];
+        if (!r) continue;
+        slot.set(r.origin.x, r.origin.y, r.origin.z, r.age * speed);
+      } else {
+        slot.set(0, 0, 0, 0);
+      }
+    }
+    this.material.uniforms['uRippleCount']!.value = limit;
+
+    this.flashState.fill(0);
+    const decay = this.opts.flashDecay;
+    const peak = this.opts.flashStrength;
+    for (let i = this.activeFlashes.length - 1; i >= 0; i--) {
+      const f = this.activeFlashes[i];
+      if (!f) continue;
+      f.age += delta;
+      const v = decay > 0 ? peak * Math.exp(-f.age * decay) : peak;
+      if (v < 0.01) {
+        this.activeFlashes.splice(i, 1);
+        continue;
+      }
+      if (f.countryIndex < MAX_FLASHES) this.flashState[f.countryIndex] = v;
+    }
+  }
+
   private buildPoints(
     features: ReadonlyArray<CountryFeature>,
     density: number
   ): void {
     const radius = GLOBE_RADIUS * 1.001;
+    let countryIdx = 0;
 
     for (const feature of features) {
       const positions: Array<number> = [];
@@ -190,13 +361,24 @@ export class CountriesDottedLayer {
       }
       if (positions.length === 0) continue;
 
+      // Indices past the cap collapse to the last slot; flashes for those
+      // countries silently no-op rather than crash. ~250 countries; cap at 96
+      // covers the visually-interesting "data-driven" chunk.
+      const idxForShader = countryIdx < MAX_FLASHES ? countryIdx : MAX_FLASHES - 1;
+      this.countryIndex.set(feature.id, countryIdx);
+
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+      const vertCount = positions.length / 3;
+      const idxArr = new Float32Array(vertCount);
+      idxArr.fill(idxForShader);
+      geometry.setAttribute('aCountryIndex', new Float32BufferAttribute(idxArr, 1));
       this.geometries.push(geometry);
 
       const points = new Points(geometry, this.material);
       points.userData['countryId'] = feature.id;
       this.group.add(points);
+      countryIdx++;
     }
   }
 }

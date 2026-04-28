@@ -284,9 +284,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     domElement: scene.renderer.domElement,
     targets: [{ type: 'marker', object: markersLayer.mesh }],
     onClick: (hit) => {
-      // Kind-level click hook fires for *any* surface hit so kinds can
-      // launch ripples / pulses from the impact point. We hand it the
-      // raycast point in globe-local 3D and the same as lat/lng.
+      // Kind-level click hook fires for any surface hit so kinds can launch
+      // ripples / pulses from the impact point. We hand it the raycast
+      // intersection in globe-local 3D and the same as lat/lng.
       if (hit?.point) {
         const localPoint = hit.point.clone();
         globeGroup.updateMatrixWorld();
