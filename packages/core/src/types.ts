@@ -1,4 +1,4 @@
-import type { ThemeConfig } from './theme/types';
+import type { ThemeInput } from './theme/types';
 
 export type LatLng = readonly [latitude: number, longitude: number];
 
@@ -58,7 +58,7 @@ export interface PerformanceConfig {
 export interface GlobeConfig {
   readonly container: HTMLElement;
   readonly mode?: GlobeMode;
-  readonly theme?: ThemeConfig;
+  readonly theme?: ThemeInput;
   readonly countries?: CountriesConfig;
   readonly markers?: ReadonlyArray<MarkerConfig>;
   readonly atmosphere?: AtmosphereConfig;

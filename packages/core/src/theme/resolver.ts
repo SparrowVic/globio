@@ -1,18 +1,28 @@
 import { DEFAULT_TOKENS } from './tokens';
-import type { ResolvedTokens, ThemeConfig, TokenSet } from './types';
+import { THEME_PRESETS } from './presets';
+import type { ResolvedTokens, ThemeConfig, ThemeInput, TokenSet } from './types';
 
 /**
- * Resolve a theme config to a fully populated, frozen TokenSet.
+ * Resolve a theme input to a fully populated, frozen TokenSet.
  *
- * Merge order: DEFAULT_TOKENS  <  themeConfig.tokens
+ * Merge order: floor < user tokens
+ *   floor = THEME_PRESETS[extends]  if `extends` is set
+ *   floor = DEFAULT_TOKENS          otherwise
  *
- * `undefined` overrides are ignored (treated as "use default").
+ * String input is shorthand for `{ extends: name }`.
+ * `undefined` overrides are ignored (treated as "use floor value").
  */
-export const resolveTheme = (themeConfig?: ThemeConfig): ResolvedTokens => {
-  const overrides = themeConfig?.tokens;
-  if (!overrides) return DEFAULT_TOKENS;
+export const resolveTheme = (input?: ThemeInput): ResolvedTokens => {
+  if (input === undefined) return DEFAULT_TOKENS;
 
-  const next = { ...DEFAULT_TOKENS } as Record<string, TokenSet[keyof TokenSet]>;
+  const config: ThemeConfig = typeof input === 'string' ? { extends: input } : input;
+  const floor: TokenSet =
+    config.extends !== undefined ? THEME_PRESETS[config.extends] : DEFAULT_TOKENS;
+
+  const overrides = config.tokens;
+  if (!overrides) return floor;
+
+  const next = { ...floor } as Record<string, TokenSet[keyof TokenSet]>;
   for (const [key, value] of Object.entries(overrides)) {
     if (value !== undefined) next[key] = value;
   }

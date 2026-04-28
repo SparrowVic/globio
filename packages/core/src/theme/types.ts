@@ -1,3 +1,5 @@
+import type { ThemePresetName } from './presets';
+
 /**
  * Token keys are dot-namespaced for grouping. v0.2 ships the minimum set
  * needed to retrofit the existing outline renderer.
@@ -32,12 +34,19 @@ export interface TokenSet {
 export type PartialTokenSet = Partial<TokenSet>;
 
 /**
- * User-supplied theme. v0.2 supports only direct token overrides;
- * `extends` and named presets ship in a future plan.
+ * User-supplied theme config. `extends` selects a built-in preset as the
+ * merge floor; `tokens` overrides individual values on top of that floor.
  */
 export interface ThemeConfig {
+  readonly extends?: ThemePresetName;
   readonly tokens?: PartialTokenSet;
 }
 
 /** Output of `resolveTheme()` — every key present, deeply readonly. */
 export type ResolvedTokens = TokenSet;
+
+/**
+ * Public theme entry point. Accepts either a preset name (shorthand)
+ * or a full ThemeConfig object.
+ */
+export type ThemeInput = ThemePresetName | ThemeConfig;

@@ -20,10 +20,13 @@ export type {
 } from './types';
 export {
   DEFAULT_TOKENS,
+  THEME_PRESETS,
   resolveTheme,
   type PartialTokenSet,
   type ResolvedTokens,
   type ThemeConfig,
+  type ThemeInput,
+  type ThemePresetName,
   type TokenKey,
   type TokenSet,
 } from './theme';

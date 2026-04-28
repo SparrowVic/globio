@@ -148,9 +148,10 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
   `atmosphere.color/intensity`); rozszerzane wraz z kolejnymi stylami (arcs, labels, popup itd.).
   Każdy token to string (kolor/URL) albo number; w przyszłości też gradient i function `(value, ctx)`.
 - **Theme tokens override** `[v1·GLOBAL·S·built]` — `theme: { tokens: { 'globe.surface': '#f00' } }`.
-- **Built-in theme presets** `[v1·GLOBAL·S]` — 6 nazwanych zestawów (po 1-2 per styl):
-  `outline-dark`, `outline-light`, `dotted-blue`, `dotted-monochrome`, `paper-classic`, `hologram-teal`...
-- **Theme `extends` (inherit from named preset)** `[v1·GLOBAL·S]` — `theme: { extends: 'dotted-blue', tokens: { 'markers.defaultColor': '#f00' } }`. Wymaga presets registry.
+- **Built-in theme presets** `[v1·GLOBAL·S·built]` — v0.2.x ships 5 outline-style presets:
+  `outline-dark`, `outline-light`, `outline-sunset`, `outline-cyber`, `outline-monochrome`. Presety dla
+  pozostałych stylów (dotted, paper, hologram) dochodzą wraz z ich implementacją.
+- **Theme `extends` (inherit from named preset)** `[v1·GLOBAL·S·built]` — `theme: { extends: 'outline-cyber', tokens: { 'markers.defaultColor': '#f00' } }`. Skrót: `theme: 'outline-cyber'`.
 - **Light / dark variants per styl** `[v1.x·GLOBAL·S]` — `theme: { name: 'paper', mode: 'dark' }`.
 - **Live theme transition** `[v1.x·GLOBAL·M]` — animacja zmian tokenów (np. day→night switch).
 - **CSS variable bridge** `[v2+·GLOBAL·S]` — `theme: 'css-vars'` czyta `--globio-globe-surface` etc.

@@ -1,42 +1,20 @@
-import { createGlobe, type GlobeInstance, type ThemeConfig } from '@your-globe/core';
+import {
+  createGlobe,
+  type GlobeInstance,
+  type ThemePresetName,
+} from '@your-globe/core';
 
 const container = document.getElementById('app');
 const status = document.getElementById('status');
 if (!container) throw new Error('#app not found');
 
-const themes: Record<string, ThemeConfig> = {
-  default: {},
-  sunset: {
-    tokens: {
-      'background.color': '#180a1a',
-      'globe.surface': '#3a1f3f',
-      'borders.color': '#ffb070',
-      'atmosphere.color': '#ff7e5f',
-      'atmosphere.intensity': 1.6,
-      'markers.defaultColor': '#ffd166',
-    },
-  },
-  cyber: {
-    tokens: {
-      'background.color': '#000814',
-      'globe.surface': '#0a0a14',
-      'borders.color': '#00f0ff',
-      'borders.opacity': 1,
-      'atmosphere.color': '#ff2bd6',
-      'atmosphere.intensity': 1.4,
-      'markers.defaultColor': '#22ee99',
-    },
-  },
-};
-
 let globe: GlobeInstance | undefined;
 
-const buildGlobe = (themeName: keyof typeof themes): void => {
+const buildGlobe = (themeName: ThemePresetName): void => {
   globe?.destroy();
-  const theme = themes[themeName] ?? themes['default']!;
   globe = createGlobe({
     container,
-    theme,
+    theme: themeName,
     countries: {
       resolution: 'low',
       style: 'borders',
@@ -65,11 +43,11 @@ const buildGlobe = (themeName: keyof typeof themes): void => {
   globe.mount();
 };
 
-buildGlobe('default');
+buildGlobe('outline-dark');
 
 document.querySelectorAll<HTMLButtonElement>('button[data-theme]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const name = btn.dataset['theme'] as keyof typeof themes;
+    const name = btn.dataset['theme'] as ThemePresetName;
     buildGlobe(name);
   });
 });
