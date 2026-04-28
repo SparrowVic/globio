@@ -73,6 +73,21 @@ export interface ZoomConfig {
 /** Easing function — receives normalized progress t∈[0,1], returns eased t∈[0,1]. */
 export type EasingFunction = (t: number) => number;
 
+export interface FlyToOptions {
+  /** Animation duration in milliseconds. Default 1500. */
+  readonly duration?: number;
+  /** Easing function. Default `easeInOutCubic`. */
+  readonly easing?: EasingFunction;
+}
+
+export interface FocusOptions extends FlyToOptions {
+  /**
+   * Fraction of the viewport to leave as padding around the focused country, 0..0.5.
+   * 0.15 means ~15% of the viewport edge is empty space. Default 0.15.
+   */
+  readonly padding?: number;
+}
+
 export interface PerformanceConfig {
   readonly antialias?: boolean;
   readonly pixelRatio?: number | 'auto';
@@ -118,6 +133,8 @@ export interface GlobeInstance {
   ) => GlobeEventUnsubscribe;
   readonly off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => void;
   readonly setRotation: (position: LatLng, animate?: boolean) => void;
+  readonly flyTo: (position: LatLng, distance?: number, options?: FlyToOptions) => void;
+  readonly focusOnCountry: (id: string, options?: FocusOptions) => void;
   readonly setMarkers: (markers: ReadonlyArray<MarkerConfig>) => void;
   readonly addMarker: (marker: MarkerConfig) => void;
   readonly removeMarker: (id: string) => void;
