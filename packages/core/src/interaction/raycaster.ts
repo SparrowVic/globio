@@ -92,7 +92,7 @@ export class PointerRaycaster {
         return {
           type: target.type,
           object: first.object,
-          instanceId: first.instanceId ?? undefined,
+          ...(first.instanceId !== undefined && { instanceId: first.instanceId }),
         };
       }
     }
