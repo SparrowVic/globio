@@ -12,7 +12,7 @@ import type { MarkerConfig } from '../types';
 
 export interface MarkersLayerOptions {
   readonly maxMarkers?: number;
-  readonly defaultColor?: string;
+  readonly defaultColor: string;
   readonly defaultSize?: number;
 }
 
@@ -34,9 +34,9 @@ export class MarkersLayer {
   private readonly defaultSize: number;
   private readonly maxMarkers: number;
 
-  public constructor(options: MarkersLayerOptions = {}) {
+  public constructor(options: MarkersLayerOptions) {
     this.maxMarkers = options.maxMarkers ?? 10000;
-    this.defaultColor = options.defaultColor ?? '#ff4444';
+    this.defaultColor = options.defaultColor;
     this.defaultSize = options.defaultSize ?? 0.012;
 
     this.geometry = new SphereGeometry(1, 8, 8);

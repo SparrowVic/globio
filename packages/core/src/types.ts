@@ -1,3 +1,5 @@
+import type { ThemeConfig } from './theme/types';
+
 export type LatLng = readonly [latitude: number, longitude: number];
 
 export type ResolutionLevel = 'low' | 'medium' | 'high';
@@ -34,17 +36,11 @@ export interface MarkerEvent {
 export interface CountriesConfig {
   readonly resolution?: ResolutionLevel;
   readonly style?: CountryStyle;
-  readonly borderColor?: string;
-  readonly borderWidth?: number;
-  readonly fillColor?: string;
-  readonly hoverColor?: string;
   readonly hoverEnabled?: boolean;
 }
 
 export interface AtmosphereConfig {
   readonly enabled?: boolean;
-  readonly color?: string;
-  readonly intensity?: number;
 }
 
 export interface AutoRotateConfig {
@@ -62,9 +58,7 @@ export interface PerformanceConfig {
 export interface GlobeConfig {
   readonly container: HTMLElement;
   readonly mode?: GlobeMode;
-  readonly backgroundColor?: string;
-  readonly globeColor?: string;
-  readonly textureUrl?: string;
+  readonly theme?: ThemeConfig;
   readonly countries?: CountriesConfig;
   readonly markers?: ReadonlyArray<MarkerConfig>;
   readonly atmosphere?: AtmosphereConfig;
