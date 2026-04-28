@@ -11,6 +11,8 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
   'borders.color': '#4a9eff',
   'borders.width': 1,
   'borders.opacity': 0.85,
+  'countries.hoverColor': '#ffd700',
+  'countries.hoverWidth': 2,
   'markers.defaultColor': '#ff4444',
   'atmosphere.color': '#4a9eff',
   'atmosphere.intensity': 1.2,
