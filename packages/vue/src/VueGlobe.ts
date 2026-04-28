@@ -26,9 +26,6 @@ export const VueGlobe = defineComponent({
   name: 'VueGlobe',
   props: {
     mode: { type: String as PropType<GlobeMode>, default: undefined },
-    backgroundColor: { type: String, default: undefined },
-    globeColor: { type: String, default: undefined },
-    textureUrl: { type: String, default: undefined },
     countries: { type: Object as PropType<CountriesConfig>, default: undefined },
     markers: { type: Array as PropType<ReadonlyArray<MarkerConfig>>, default: () => [] },
     atmosphere: { type: Object as PropType<AtmosphereConfig>, default: undefined },
@@ -51,18 +48,15 @@ export const VueGlobe = defineComponent({
     let instance: GlobeInstance | null = null;
 
     const buildConfig = (): Omit<GlobeConfig, 'container'> => ({
-      mode: props.mode,
-      backgroundColor: props.backgroundColor,
-      globeColor: props.globeColor,
-      textureUrl: props.textureUrl,
-      countries: props.countries,
+      ...(props.mode !== undefined && { mode: props.mode }),
+      ...(props.countries !== undefined && { countries: props.countries }),
       markers: props.markers,
-      atmosphere: props.atmosphere,
-      autoRotate: props.autoRotate,
-      performance: props.performance,
-      initialPosition: props.initialPosition,
-      minZoom: props.minZoom,
-      maxZoom: props.maxZoom,
+      ...(props.atmosphere !== undefined && { atmosphere: props.atmosphere }),
+      ...(props.autoRotate !== undefined && { autoRotate: props.autoRotate }),
+      ...(props.performance !== undefined && { performance: props.performance }),
+      ...(props.initialPosition !== undefined && { initialPosition: props.initialPosition }),
+      ...(props.minZoom !== undefined && { minZoom: props.minZoom }),
+      ...(props.maxZoom !== undefined && { maxZoom: props.maxZoom }),
     });
 
     onMounted(() => {

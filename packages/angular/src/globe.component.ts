@@ -40,9 +40,6 @@ export class GlobeComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('host', { static: true }) private readonly host!: ElementRef<HTMLDivElement>;
 
   @Input() public mode: GlobeConfig['mode'];
-  @Input() public backgroundColor?: string;
-  @Input() public globeColor?: string;
-  @Input() public textureUrl?: string;
   @Input() public countries?: CountriesConfig;
   @Input() public markers: ReadonlyArray<MarkerConfig> = [];
   @Input() public atmosphere?: AtmosphereConfig;
@@ -115,18 +112,15 @@ export class GlobeComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private buildConfig(): Omit<GlobeConfig, 'container'> {
     return {
-      mode: this.mode,
-      backgroundColor: this.backgroundColor,
-      globeColor: this.globeColor,
-      textureUrl: this.textureUrl,
-      countries: this.countries,
+      ...(this.mode !== undefined && { mode: this.mode }),
+      ...(this.countries !== undefined && { countries: this.countries }),
       markers: this.markers,
-      atmosphere: this.atmosphere,
-      autoRotate: this.autoRotate,
-      performance: this.performance,
-      initialPosition: this.initialPosition,
-      minZoom: this.minZoom,
-      maxZoom: this.maxZoom,
+      ...(this.atmosphere !== undefined && { atmosphere: this.atmosphere }),
+      ...(this.autoRotate !== undefined && { autoRotate: this.autoRotate }),
+      ...(this.performance !== undefined && { performance: this.performance }),
+      ...(this.initialPosition !== undefined && { initialPosition: this.initialPosition }),
+      ...(this.minZoom !== undefined && { minZoom: this.minZoom }),
+      ...(this.maxZoom !== undefined && { maxZoom: this.maxZoom }),
     };
   }
 }
