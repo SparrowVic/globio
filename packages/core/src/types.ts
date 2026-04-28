@@ -12,7 +12,7 @@ export type LatLng = readonly [latitude: number, longitude: number];
 
 export type ResolutionLevel = 'low' | 'medium' | 'high';
 
-export type CountryStyle = 'borders' | 'dotted' | 'filled';
+export type CountryStyle = 'borders' | 'dotted' | 'filled' | 'none';
 
 export type GlobeMode = 'sphere' | 'flat';
 
@@ -179,6 +179,21 @@ export interface AtmosphereConfig {
   readonly enabled?: boolean;
 }
 
+/**
+ * Wireframe lat/lng grid layer — pure mathematical sphere grid, no country
+ * geometry. Auto-enabled when the active theme's `wireframe.opacity` token
+ * is > 0 (e.g. preset `wireframe-tron`); set `enabled: true` explicitly to
+ * force-on regardless of theme.
+ */
+export interface WireframeConfig {
+  readonly enabled?: boolean;
+  /** Override token-driven density (1 = default, lower = sparser). */
+  readonly density?: number;
+  /** Override token-driven pulse amplitude (0..1, 0 = disabled). */
+  readonly pulse?: number;
+  readonly pulseSpeed?: number;
+}
+
 export interface StarfieldConfig {
   readonly enabled?: boolean;
 }
@@ -262,6 +277,7 @@ export interface GlobeConfig {
   readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
   readonly arcs?: ReadonlyArray<ArcConfig>;
   readonly atmosphere?: AtmosphereConfig;
+  readonly wireframe?: WireframeConfig;
   readonly starfield?: StarfieldConfig;
   /**
    * Tilt the globe's axis around the Z axis (in degrees, like Earth's 23.5°).

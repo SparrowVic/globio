@@ -7,6 +7,7 @@ import {
   EU,
   BRICS,
   type CountryDataMap,
+  type CountryStyle,
   type GlobeInstance,
   type PartialTokenSet,
   type ThemePresetName,
@@ -226,7 +227,12 @@ const setStatus = (text: string): void => {
 const buildGlobe = (themeName: ThemePresetName): void => {
   globe?.destroy();
   settings.themeName = themeName;
-  const countryStyle = themeName === 'dotted-dark' ? 'dotted' : 'borders';
+  // Style-presets need a matching country render mode: dots-only for the
+  // dotted preset, no countries for the wireframe preset.
+  const countryStyle: CountryStyle =
+    themeName === 'dotted-dark' ? 'dotted'
+    : themeName === 'wireframe-tron' ? 'none'
+    : 'borders';
   globe = createGlobe({
     container,
     theme: { extends: themeName, tokens: tokenOverrides },
