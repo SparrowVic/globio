@@ -25,6 +25,13 @@ export type TokenKey =
   | 'tooltip.fontFamily'
   | 'tooltip.padding'
   | 'tooltip.borderRadius'
+  | 'legend.backgroundColor'
+  | 'legend.textColor'
+  | 'legend.titleColor'
+  | 'legend.fontSize'
+  | 'legend.fontFamily'
+  | 'legend.padding'
+  | 'legend.borderRadius'
   | 'lights.ambient.color'
   | 'lights.ambient.intensity'
   | 'lights.directional.color'
@@ -66,6 +73,13 @@ export interface TokenSet {
   readonly 'tooltip.fontFamily': string;
   readonly 'tooltip.padding': string;
   readonly 'tooltip.borderRadius': string;
+  readonly 'legend.backgroundColor': string;
+  readonly 'legend.textColor': string;
+  readonly 'legend.titleColor': string;
+  readonly 'legend.fontSize': number;
+  readonly 'legend.fontFamily': string;
+  readonly 'legend.padding': string;
+  readonly 'legend.borderRadius': string;
   readonly 'lights.ambient.color': string;
   readonly 'lights.ambient.intensity': number;
   readonly 'lights.directional.color': string;
