@@ -148,6 +148,8 @@ export interface GlobeInstance {
   readonly setRotation: (position: LatLng, animate?: boolean) => void;
   readonly flyTo: (position: LatLng, distance?: number, options?: FlyToOptions) => void;
   readonly focusOnCountry: (id: string, options?: FocusOptions) => void;
+  readonly setActiveCountry: (id: string | null) => void;
+  readonly getActiveCountry: () => string | null;
   readonly setMarkers: (markers: ReadonlyArray<MarkerConfig>) => void;
   readonly addMarker: (marker: MarkerConfig) => void;
   readonly removeMarker: (id: string) => void;

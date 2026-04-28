@@ -5,6 +5,7 @@ import { MarkersLayer } from './renderer/markers-layer';
 import { CountriesLayer, type CountryFeature } from './renderer/countries-layer';
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
+import { CountryTooltip } from './renderer/country-tooltip';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
@@ -71,10 +72,13 @@ interface InternalState {
   countriesLayer: CountriesLayer | null;
   countriesPickingLayer: CountriesPickingLayer | null;
   countryHighlightLayer: CountryHighlightLayer | null;
+  countryActiveLayer: CountryHighlightLayer | null;
+  countryTooltip: CountryTooltip | null;
   atmosphereLayer: AtmosphereLayer | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
   emitter: GlobeEventEmitter;
+  activeCountryId: string | null;
   destroyed: boolean;
 }
 
@@ -116,6 +120,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       })
     : null;
   if (atmosphereLayer) scene.scene.add(atmosphereLayer.mesh);
+
+  const tooltip = new CountryTooltip({
+    container: config.container,
+    background: tokens['tooltip.background'],
+    textColor: tokens['tooltip.textColor'],
+    fontSize: 12,
+  });
 
   const controls = new GlobeControls({
     camera: scene.camera,
@@ -161,19 +172,26 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         emitter.emit('markerHover', marker ? { marker } : null);
         emitter.emit('countryHover', null);
         state.countryHighlightLayer?.clear();
+        state.countryTooltip?.clear();
         return;
       }
       if (hit?.type === 'country') {
         const event = handleCountryHit(hit.object, hit.point);
         emitter.emit('countryHover', event);
         emitter.emit('markerHover', null);
-        if (event) state.countryHighlightLayer?.showCountry(event.country.id);
-        else state.countryHighlightLayer?.clear();
+        if (event) {
+          state.countryHighlightLayer?.showCountry(event.country.id);
+          state.countryTooltip?.showCountry(event.country);
+        } else {
+          state.countryHighlightLayer?.clear();
+          state.countryTooltip?.clear();
+        }
         return;
       }
       emitter.emit('markerHover', null);
       emitter.emit('countryHover', null);
       state.countryHighlightLayer?.clear();
+      state.countryTooltip?.clear();
     },
   });
 
@@ -185,10 +203,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     countriesLayer: null,
     countriesPickingLayer: null,
     countryHighlightLayer: null,
+    countryActiveLayer: null,
+    countryTooltip: tooltip,
     atmosphereLayer,
     controls,
     raycaster,
     emitter,
+    activeCountryId: null,
     destroyed: false,
   };
 
@@ -229,6 +250,18 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
       scene.scene.add(highlight.object);
       state.countryHighlightLayer = highlight;
+
+      const activeLayer = new CountryHighlightLayer({
+        hoverColor: tokens['countries.activeColor'],
+        hoverWidth: tokens['countries.activeWidth'],
+        occludeBackSide: countries.hoverOccludeBackSide,
+      });
+      activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
+      activeLayer.object.renderOrder = 11;
+      scene.scene.add(activeLayer.object);
+      state.countryActiveLayer = activeLayer;
+      // Re-apply pending active country if user called setActiveCountry before features loaded
+      if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
     } catch (error) {
       emitter.emit('error', error instanceof Error ? error : new Error(String(error)));
     }
@@ -249,6 +282,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countriesLayer?.dispose();
       state.countriesPickingLayer?.dispose();
       state.countryHighlightLayer?.dispose();
+      state.countryActiveLayer?.dispose();
+      state.countryTooltip?.dispose();
       atmosphereLayer?.dispose();
       scene.destroy();
       emitter.clear();
@@ -271,6 +306,15 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     flyTo: (position, distance, options) => {
       controls.flyTo(position, distance, options ?? {});
     },
+    setActiveCountry: (id) => {
+      state.activeCountryId = id;
+      if (id === null) {
+        state.countryActiveLayer?.clear();
+      } else {
+        state.countryActiveLayer?.showCountry(id);
+      }
+    },
+    getActiveCountry: () => state.activeCountryId,
     focusOnCountry: (id, options) => {
       const layer = state.countriesPickingLayer;
       if (!layer) return;

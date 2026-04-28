@@ -13,6 +13,10 @@ export type TokenKey =
   | 'borders.opacity'
   | 'countries.hoverColor'
   | 'countries.hoverWidth'
+  | 'countries.activeColor'
+  | 'countries.activeWidth'
+  | 'tooltip.background'
+  | 'tooltip.textColor'
   | 'markers.defaultColor'
   | 'atmosphere.color'
   | 'atmosphere.intensity';
@@ -30,6 +34,10 @@ export interface TokenSet {
   readonly 'borders.opacity': number;
   readonly 'countries.hoverColor': string;
   readonly 'countries.hoverWidth': number;
+  readonly 'countries.activeColor': string;
+  readonly 'countries.activeWidth': number;
+  readonly 'tooltip.background': string;
+  readonly 'tooltip.textColor': string;
   readonly 'markers.defaultColor': string;
   readonly 'atmosphere.color': string;
   readonly 'atmosphere.intensity': number;
