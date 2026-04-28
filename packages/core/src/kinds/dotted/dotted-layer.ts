@@ -8,8 +8,8 @@ import {
   PointsMaterial,
   type Texture,
 } from 'three';
-import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
-import type { CountryFeature, CountryPolygon } from './countries-layer';
+import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
+import type { CountryFeature, CountryPolygon } from '../../renderer/country-feature';
 
 export interface CountriesDottedLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;

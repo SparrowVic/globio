@@ -5,7 +5,7 @@ export type {
   CountriesConfig,
   CountryData,
   CountryEvent,
-  CountryStyle,
+  GlobeKind,
   GlobeConfig,
   GlobeMode,
   LatLng,

@@ -1,5 +1,5 @@
 import type { ResolutionLevel } from '../types';
-import type { CountryFeature } from '../renderer/countries-layer';
+import type { CountryFeature } from '../renderer/country-feature';
 
 const RESOLUTION_URLS: Record<ResolutionLevel, string> = {
   low: 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json',

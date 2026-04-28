@@ -76,11 +76,14 @@ describe('resolveTheme: extends + shorthand', () => {
     expect(shorthand).toEqual(direct);
   });
 
-  it('every preset has every token key', () => {
-    const expectedKeys = Object.keys(THEME_PRESETS['outline-dark']).sort();
+  it('every preset resolves to a complete token set', () => {
+    // Presets are now Partial<TokenSet>; the resolver merges them onto
+    // DEFAULT_TOKENS. The invariant we care about is at the resolved level,
+    // not at the preset level — every resolved theme exposes every key.
+    const expectedKeys = Object.keys(DEFAULT_TOKENS).sort();
     for (const name of Object.keys(THEME_PRESETS) as Array<keyof typeof THEME_PRESETS>) {
-      const keys = Object.keys(THEME_PRESETS[name]).sort();
-      expect(keys).toEqual(expectedKeys);
+      const resolved = resolveTheme({ extends: name });
+      expect(Object.keys(resolved).sort()).toEqual(expectedKeys);
     }
   });
 

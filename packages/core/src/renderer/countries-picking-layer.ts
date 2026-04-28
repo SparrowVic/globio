@@ -10,7 +10,7 @@ import {
 import { GLOBE_RADIUS } from '../utils/coordinates';
 import { triangulateRing } from '../utils/triangulate-ring';
 import { computeMainRingBounds, type LatLngBounds } from '../utils/country-bounds';
-import type { CountryFeature } from './countries-layer';
+import type { CountryFeature } from './country-feature';
 import type { CountryData } from '../types';
 
 export interface CountriesPickingLayerOptions {

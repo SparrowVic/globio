@@ -5,7 +5,7 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
+import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 
 export interface WireframeGridLayerOptions {
   readonly color: string;
