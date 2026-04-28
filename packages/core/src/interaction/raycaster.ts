@@ -18,6 +18,16 @@ export interface PointerRaycasterOptions {
   readonly targets: ReadonlyArray<RaycasterTarget>;
   readonly onClick: (hit: RaycasterHit | null, originalEvent: PointerEvent) => void;
   readonly onHover: (hit: RaycasterHit | null) => void;
+  /**
+   * Streamed on every pointermove (no key-dedup). Use for follow-cursor HUD
+   * elements that need fresh coords each frame. Receives the raw pixel
+   * position alongside the current hit so DOM tooltips can re-anchor without
+   * recomputing on their own listener.
+   */
+  readonly onMove?: (
+    hit: RaycasterHit | null,
+    pixel: { readonly x: number; readonly y: number }
+  ) => void;
   readonly clickThresholdPx?: number;
 }
 
@@ -76,6 +86,11 @@ export class PointerRaycaster {
   private onPointerMove = (event: PointerEvent): void => {
     this.updatePointer(event);
     const hit = this.computeHit();
+    const rect = this.options.domElement.getBoundingClientRect();
+    this.options.onMove?.(hit, {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    });
     const key = hit ? `${hit.type}:${hit.instanceId ?? hit.object.uuid}` : null;
     if (key !== this.lastHoverKey) {
       this.lastHoverKey = key;

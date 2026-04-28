@@ -63,6 +63,13 @@ export interface KindHandle {
    */
   onPointerDown?(point3D: Vector3, latLng: LatLng): void;
   /**
+   * Streamed on EVERY pointer move with the current surface intersection
+   * (country or globe surface). `null` means the pointer left the globe
+   * (off-edge or over a marker — markers own their own tooltip). Kinds can
+   * drive a follow-cursor reticle, lat/lng HUD, etc.
+   */
+  onPointerMove?(point3D: Vector3 | null, latLng: LatLng | null): void;
+  /**
    * Called when `setCountryData()` lands a new map. Both prev and next are
    * passed so kinds can diff and animate per-country changes (e.g. flash
    * dots whose value moved).

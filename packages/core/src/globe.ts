@@ -279,10 +279,37 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     return { country, point: ll };
   };
 
+  // Stream every pointer move to the active kind so it can drive
+  // follow-cursor extras (crosshair, lat/lng readout). The base `onHover`
+  // path is debounced by hit-key change and would miss intra-country moves.
+  const dispatchPointerMove = (
+    hit: { type: 'marker' | 'country' | 'surface'; point?: Vector3 } | null,
+    pixel: { x: number; y: number }
+  ): void => {
+    const handle = state.kindHandle as (KindHandle & {
+      setPointerPixel?(x: number, y: number): void;
+    }) | null;
+    handle?.setPointerPixel?.(pixel.x, pixel.y);
+    if (hit?.type === 'marker') {
+      handle?.onPointerMove?.(null, null);
+      return;
+    }
+    if (hit?.point) {
+      const localPoint = hit.point.clone();
+      globeGroup.updateMatrixWorld();
+      const inverse = globeGroup.matrixWorld.clone().invert();
+      localPoint.applyMatrix4(inverse);
+      handle?.onPointerMove?.(localPoint, vector3ToLatLng(localPoint));
+      return;
+    }
+    handle?.onPointerMove?.(null, null);
+  };
+
   const raycaster = new PointerRaycaster({
     camera: scene.camera,
     domElement: scene.renderer.domElement,
     targets: [{ type: 'marker', object: markersLayer.mesh }],
+    onMove: dispatchPointerMove,
     onClick: (hit) => {
       // Kind-level click hook fires for any surface hit so kinds can launch
       // ripples / pulses from the impact point. We hand it the raycast

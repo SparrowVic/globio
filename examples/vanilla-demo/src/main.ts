@@ -37,6 +37,8 @@ const $clearActive = document.getElementById('btn-clear-active') as HTMLButtonEl
 const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
 const $outlineGlow = document.getElementById('toggle-outline-glow') as HTMLInputElement;
 const $outlinePulse = document.getElementById('toggle-outline-pulse') as HTMLInputElement;
+const $outlineCrosshair = document.getElementById('toggle-outline-crosshair') as HTMLInputElement;
+const $outlineContinentDim = document.getElementById('toggle-outline-continent-dim') as HTMLInputElement;
 const $starfield = document.getElementById('toggle-starfield') as HTMLInputElement;
 const $htmlMarkers = document.getElementById('toggle-html-markers') as HTMLInputElement;
 const $axisTilt = document.getElementById('axis-tilt') as HTMLInputElement;
@@ -80,6 +82,8 @@ const settings = {
   hoverOccludeBackSide: true,
   outlineGlowEnabled: true,
   outlinePulseEnabled: true,
+  outlineCrosshairEnabled: true,
+  outlineContinentDimEnabled: true,
   starfieldEnabled: true,
   htmlMarkersEnabled: true,
   arcsEnabled: true,
@@ -263,6 +267,8 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     outline: {
       hoverGlow: { enabled: settings.outlineGlowEnabled },
       focusPulse: { enabled: settings.outlinePulseEnabled },
+      hoverCrosshair: { enabled: settings.outlineCrosshairEnabled },
+      continentDim: { enabled: settings.outlineContinentDimEnabled },
     },
     autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
     zoom: { mode: settings.zoomMode, strength: settings.zoomStrength, smooth: settings.smoothZoom },
@@ -657,6 +663,16 @@ $outlineGlow.addEventListener('change', () => {
 
 $outlinePulse.addEventListener('change', () => {
   settings.outlinePulseEnabled = $outlinePulse.checked;
+  buildGlobe(settings.themeName);
+});
+
+$outlineCrosshair.addEventListener('change', () => {
+  settings.outlineCrosshairEnabled = $outlineCrosshair.checked;
+  buildGlobe(settings.themeName);
+});
+
+$outlineContinentDim.addEventListener('change', () => {
+  settings.outlineContinentDimEnabled = $outlineContinentDim.checked;
   buildGlobe(settings.themeName);
 });
 
