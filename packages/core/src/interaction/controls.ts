@@ -1,4 +1,6 @@
-import { Spherical, Vector2, type PerspectiveCamera } from 'three';
+import { Spherical, Vector2, Vector3, type PerspectiveCamera } from 'three';
+import { GLOBE_RADIUS } from '../utils/coordinates';
+import type { ZoomConfig, ZoomMode } from '../types';
 
 export interface ControlsOptions {
   readonly camera: PerspectiveCamera;
@@ -8,19 +10,27 @@ export interface ControlsOptions {
   readonly rotateSpeed?: number;
   readonly zoomSpeed?: number;
   readonly autoRotateSpeed?: number;
+  readonly zoom?: ZoomConfig;
 }
+
+const SMOOTH_RATE = 12; // higher = snappier; lower = floatier
 
 export class GlobeControls {
   private readonly spherical = new Spherical();
-  private readonly target = new Vector2();
+  private readonly targetSpherical = new Spherical();
   private readonly previousPointer = new Vector2();
   private isPointerDown = false;
   private autoRotate = false;
   private autoRotateSpeed: number;
+  private zoomMode: ZoomMode;
+  private zoomStrength: number;
+  private smoothZoom: boolean;
   private readonly minDistance: number;
   private readonly maxDistance: number;
   private readonly rotateSpeed: number;
   private readonly zoomSpeed: number;
+  private readonly tempVec = new Vector3();
+  private readonly tempSpherical = new Spherical();
 
   public constructor(private readonly options: ControlsOptions) {
     this.minDistance = options.minDistance ?? 1.5;
@@ -28,8 +38,12 @@ export class GlobeControls {
     this.rotateSpeed = options.rotateSpeed ?? 1;
     this.zoomSpeed = options.zoomSpeed ?? 1;
     this.autoRotateSpeed = options.autoRotateSpeed ?? 0.5;
+    this.zoomMode = options.zoom?.mode ?? 'classic';
+    this.zoomStrength = clamp01(options.zoom?.strength ?? 0.5);
+    this.smoothZoom = options.zoom?.smooth ?? true;
 
     this.spherical.setFromVector3(options.camera.position);
+    this.targetSpherical.copy(this.spherical);
     this.attachListeners();
   }
 
@@ -38,12 +52,31 @@ export class GlobeControls {
     if (speed !== undefined) this.autoRotateSpeed = speed;
   }
 
+  public setZoom(config: ZoomConfig): void {
+    if (config.mode !== undefined) this.zoomMode = config.mode;
+    if (config.strength !== undefined) this.zoomStrength = clamp01(config.strength);
+    if (config.smooth !== undefined) this.smoothZoom = config.smooth;
+  }
+
   public update(deltaSeconds: number): void {
+    // Auto-rotate updates BOTH current and target so the smooth lerp doesn't fight it.
     if (this.autoRotate && !this.isPointerDown) {
-      this.spherical.theta -= this.autoRotateSpeed * deltaSeconds * 0.2;
+      const delta = this.autoRotateSpeed * deltaSeconds * 0.2;
+      this.spherical.theta -= delta;
+      this.targetSpherical.theta -= delta;
     }
-    this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
-    this.spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, this.spherical.phi));
+
+    if (this.smoothZoom) {
+      const t = 1 - Math.exp(-deltaSeconds * SMOOTH_RATE);
+      this.spherical.radius = lerp(this.spherical.radius, this.targetSpherical.radius, t);
+      this.spherical.theta = lerpAngle(this.spherical.theta, this.targetSpherical.theta, t);
+      this.spherical.phi = lerp(this.spherical.phi, this.targetSpherical.phi, t);
+    } else {
+      this.spherical.copy(this.targetSpherical);
+    }
+
+    this.spherical.radius = clamp(this.spherical.radius, this.minDistance, this.maxDistance);
+    this.spherical.phi = clamp(this.spherical.phi, 0.05, Math.PI - 0.05);
     this.options.camera.position.setFromSpherical(this.spherical);
     this.options.camera.lookAt(0, 0, 0);
   }
@@ -79,8 +112,13 @@ export class GlobeControls {
     this.previousPointer.set(event.clientX, event.clientY);
 
     const { clientWidth, clientHeight } = this.options.domElement;
-    this.spherical.theta -= (2 * Math.PI * dx * this.rotateSpeed) / clientWidth;
-    this.spherical.phi -= (Math.PI * dy * this.rotateSpeed) / clientHeight;
+    const deltaTheta = (2 * Math.PI * dx * this.rotateSpeed) / clientWidth;
+    const deltaPhi = (Math.PI * dy * this.rotateSpeed) / clientHeight;
+    // Drag updates BOTH current and target so smooth lerp doesn't undo the drag.
+    this.spherical.theta -= deltaTheta;
+    this.spherical.phi -= deltaPhi;
+    this.targetSpherical.theta -= deltaTheta;
+    this.targetSpherical.phi -= deltaPhi;
   };
 
   private onPointerUp = (event: PointerEvent): void => {
@@ -93,6 +131,106 @@ export class GlobeControls {
   private onWheel = (event: WheelEvent): void => {
     event.preventDefault();
     const factor = Math.exp((event.deltaY * this.zoomSpeed) / 500);
-    this.spherical.radius *= factor;
+
+    this.targetSpherical.radius = clamp(
+      this.targetSpherical.radius * factor,
+      this.minDistance,
+      this.maxDistance
+    );
+
+    if (this.zoomMode === 'classic' || this.zoomStrength <= 0) return;
+
+    const cursorNdc = this.eventToNdc(event);
+    const worldPoint = cursorNdc ? this.raycastSphere(cursorNdc) : null;
+    if (!worldPoint || !cursorNdc) return;
+
+    if (this.zoomMode === 'repel') {
+      this.applyRepelToTarget(worldPoint, cursorNdc);
+    } else {
+      this.applyAttractToTarget(worldPoint, factor);
+    }
   };
+
+  /**
+   * Repel mode (operates on targetSpherical): iteratively rotate target angles
+   * so that, at the target radius, worldPoint projects onto cursorNdc. Camera
+   * is temporarily moved into the target state for projection math, then
+   * restored — the actual rendered position is updated next frame in update().
+   */
+  private applyRepelToTarget(worldPoint: Vector3, cursorNdc: Vector2): void {
+    const camera = this.options.camera;
+    const fovHalfV = (camera.fov * Math.PI) / 360;
+    const fovHalfH = Math.atan(Math.tan(fovHalfV) * camera.aspect);
+    const savedPos = this.tempVec.copy(camera.position);
+
+    for (let i = 0; i < 4; i++) {
+      camera.position.setFromSpherical(this.targetSpherical);
+      camera.lookAt(0, 0, 0);
+      camera.updateMatrixWorld();
+
+      const projected = new Vector3().copy(worldPoint).project(camera);
+      const dx = cursorNdc.x - projected.x;
+      const dy = cursorNdc.y - projected.y;
+
+      if (Math.abs(dx) < 0.0005 && Math.abs(dy) < 0.0005) break;
+
+      this.targetSpherical.theta -= dx * fovHalfH * this.zoomStrength;
+      this.targetSpherical.phi -= dy * fovHalfV * this.zoomStrength;
+      this.targetSpherical.phi = clamp(this.targetSpherical.phi, 0.05, Math.PI - 0.05);
+    }
+
+    camera.position.copy(savedPos);
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld();
+  }
+
+  /**
+   * Attract mode (operates on targetSpherical): pull target angles toward the
+   * spherical of `worldPoint` so it migrates toward screen center.
+   */
+  private applyAttractToTarget(worldPoint: Vector3, factor: number): void {
+    if (factor >= 1) return; // only attract on zoom-in
+    this.tempSpherical.setFromVector3(worldPoint);
+    const alpha = clamp01((1 - factor) * this.zoomStrength * 2);
+    this.targetSpherical.theta = lerpAngle(this.targetSpherical.theta, this.tempSpherical.theta, alpha);
+    this.targetSpherical.phi = lerp(this.targetSpherical.phi, this.tempSpherical.phi, alpha);
+    this.targetSpherical.phi = clamp(this.targetSpherical.phi, 0.05, Math.PI - 0.05);
+  }
+
+  private eventToNdc(event: WheelEvent): Vector2 | null {
+    const rect = this.options.domElement.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    return new Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+  }
+
+  private raycastSphere(ndc: Vector2): Vector3 | null {
+    const cameraPos = this.options.camera.position;
+    const rayDir = new Vector3(ndc.x, ndc.y, 0.5).unproject(this.options.camera).sub(cameraPos).normalize();
+
+    const b = cameraPos.dot(rayDir);
+    const c = cameraPos.lengthSq() - GLOBE_RADIUS * GLOBE_RADIUS;
+    const disc = b * b - c;
+    if (disc < 0) return null;
+
+    const t = -b - Math.sqrt(disc);
+    if (t < 0) return null;
+
+    return cameraPos.clone().add(rayDir.multiplyScalar(t));
+  }
 }
+
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+const lerpAngle = (a: number, b: number, t: number): number => {
+  let diff = b - a;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  return a + diff * t;
+};

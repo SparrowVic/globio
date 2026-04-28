@@ -160,7 +160,10 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 ### 4.2 Camera, navigation & focus
 
 - **Free orbit / drag rotate** `[v1·GLOBAL·S·built]` — bazowe; już mamy.
-- **Wheel/pinch zoom** `[v1·GLOBAL·S·built]`.
+- **Wheel/pinch zoom** `[v1·GLOBAL·S·built]` — 3 tryby (`classic` / `repel` / `attract`) +
+  smooth interpolation. `repel` zachowuje punkt pod kursorem zakotwiczony do tego pixela
+  (Google-Maps-style); `attract` przyciąga punkt pod kursorem ku środkowi; `strength` 0..1
+  reguluje siłę. `smooth: true` (default) interpoluje radius+kąty po `targetSpherical`.
 - **Auto-rotate** `[v1·GLOBAL·S·built]` — z konfigurowalną osią, prędkością i easeOnInteract.
 - **Smooth `flyTo(lat, lng, zoom)`** `[v1·GLOBAL·M]` — easing, duration, callback, anulowanie.
 - **`focusOnCountry(iso)`** `[v1·GLOBAL·M]` 🌟 — auto-frame country bbox z paddingiem.

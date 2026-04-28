@@ -17,6 +17,8 @@ export type {
   MarkerEvent,
   PerformanceConfig,
   ResolutionLevel,
+  ZoomConfig,
+  ZoomMode,
 } from './types';
 export {
   DEFAULT_TOKENS,

@@ -48,6 +48,28 @@ export interface AutoRotateConfig {
   readonly speed?: number;
 }
 
+/**
+ * Zoom interaction mode.
+ *
+ * - `classic`: scroll changes camera distance only; angles unchanged.
+ * - `repel`: each scroll step rotates the camera so the world point under
+ *   the cursor stays under the cursor — the cursor "anchors" to that point.
+ * - `attract`: each scroll step rotates the camera to pull the world point
+ *   under the cursor toward the center of the screen.
+ */
+export type ZoomMode = 'classic' | 'repel' | 'attract';
+
+export interface ZoomConfig {
+  readonly mode?: ZoomMode;
+  /** 0..1 — intensity of repel/attract correction. Ignored for `classic`. */
+  readonly strength?: number;
+  /**
+   * When true (default), the camera interpolates smoothly toward its
+   * post-scroll target each frame instead of snapping. Applies to all modes.
+   */
+  readonly smooth?: boolean;
+}
+
 export interface PerformanceConfig {
   readonly antialias?: boolean;
   readonly pixelRatio?: number | 'auto';
@@ -67,6 +89,7 @@ export interface GlobeConfig {
   readonly initialPosition?: LatLng;
   readonly minZoom?: number;
   readonly maxZoom?: number;
+  readonly zoom?: ZoomConfig;
 }
 
 export interface GlobeEvents {
