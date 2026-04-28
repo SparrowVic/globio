@@ -2,6 +2,10 @@ import {
   createGlobe,
   resolveTheme,
   THEME_PRESETS,
+  G7,
+  NATO,
+  EU,
+  BRICS,
   type CountryDataMap,
   type GlobeInstance,
   type PartialTokenSet,
@@ -581,22 +585,13 @@ $storyNext.addEventListener('click', () => {
 
 const $dataNato = document.getElementById('data-nato') as HTMLButtonElement;
 const $dataEu = document.getElementById('data-eu') as HTMLButtonElement;
+const $dataG7 = document.getElementById('data-g7') as HTMLButtonElement;
+const $dataBrics = document.getElementById('data-brics') as HTMLButtonElement;
 const $dataPopReds = document.getElementById('data-pop-reds') as HTMLButtonElement;
 const $dataPopViridis = document.getElementById('data-pop-viridis') as HTMLButtonElement;
 const $dataGrowth = document.getElementById('data-growth') as HTMLButtonElement;
 const $dataClear = document.getElementById('data-clear') as HTMLButtonElement;
 
-const NATO_IDS = [
-  '8', '56', '100', '124', '191', '203', '208', '233', '246', '250', '276', '300',
-  '348', '352', '380', '428', '440', '442', '470', '499', '528', '578', '616',
-  '620', '642', '703', '705', '724', '752', '792', '807', '826', '840',
-];
-
-const EU_IDS = [
-  '40', '56', '100', '191', '196', '203', '208', '233', '246', '250', '276',
-  '300', '348', '372', '380', '428', '440', '442', '470', '528', '616', '620',
-  '642', '703', '705', '724', '752',
-];
 
 const POPULATION: ReadonlyArray<readonly [string, number]> = [
   ['156', 1411], // China
@@ -669,20 +664,36 @@ const buildValueMap = (
 };
 
 $dataNato.addEventListener('click', () => {
-  globe?.setCountryData(buildSetMap(NATO_IDS, '#1e6fff'));
+  globe?.setCountryData(buildSetMap(NATO, '#1e6fff'));
   globe?.showLegend(
     { type: 'categorical', colors: { 'NATO member': '#1e6fff' } },
     { title: 'NATO membership' }
   );
-  setStatus('Country data: NATO members');
+  setStatus(`Country data: NATO members (${NATO.length})`);
 });
 $dataEu.addEventListener('click', () => {
-  globe?.setCountryData(buildSetMap(EU_IDS, '#ffd700'));
+  globe?.setCountryData(buildSetMap(EU, '#ffd700'));
   globe?.showLegend(
     { type: 'categorical', colors: { 'EU member': '#ffd700' } },
     { title: 'EU membership' }
   );
-  setStatus('Country data: EU members');
+  setStatus(`Country data: EU members (${EU.length})`);
+});
+$dataG7.addEventListener('click', () => {
+  globe?.setCountryData(buildSetMap(G7, '#22c55e'));
+  globe?.showLegend(
+    { type: 'categorical', colors: { 'G7 member': '#22c55e' } },
+    { title: 'G7 membership' }
+  );
+  setStatus(`Country data: G7 (${G7.length})`);
+});
+$dataBrics.addEventListener('click', () => {
+  globe?.setCountryData(buildSetMap(BRICS, '#a855f7'));
+  globe?.showLegend(
+    { type: 'categorical', colors: { 'BRICS member': '#a855f7' } },
+    { title: 'BRICS+ membership' }
+  );
+  setStatus(`Country data: BRICS+ (${BRICS.length})`);
 });
 $dataPopReds.addEventListener('click', () => {
   const scale = {
