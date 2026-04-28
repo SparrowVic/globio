@@ -20,6 +20,7 @@ import type { KindHandle } from './kinds/types';
 import type { GlobeKind } from './kinds/types';
 import type { OutlineKindHandle } from './kinds/outline';
 import type { DottedKindHandle } from './kinds/dotted';
+import type { WireframeKindHandle } from './kinds/wireframe';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
 import { GlobeEventEmitter } from './interaction/events';
@@ -430,6 +431,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         tokens,
         config,
       });
+      // Re-apply pending active country to kind handle (e.g. wireframe ring)
+      // if user called setActiveCountry before features loaded.
+      if (state.activeCountryId) {
+        (state.kindHandle as WireframeKindHandle | null)?.setActiveCountry?.(
+          state.activeCountryId
+        );
+      }
 
       // Country interaction (picking + hover/active highlight) is gated by
       // the kind module — kinds without country surface (wireframe) skip
@@ -544,6 +552,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.activeCountryId = id;
       if (id === null) state.countryActiveLayer?.clear();
       else state.countryActiveLayer?.showCountry(id);
+      (state.kindHandle as WireframeKindHandle | null)?.setActiveCountry?.(id);
     },
     setAutoRotate: (enabled) => controls.setAutoRotate(enabled),
     setStoryPopup: (popup) => {
@@ -620,6 +629,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       } else {
         state.countryActiveLayer?.showCountry(id);
       }
+      (state.kindHandle as WireframeKindHandle | null)?.setActiveCountry?.(id);
     },
     getActiveCountry: () => state.activeCountryId,
     setCountryData: (data, scale) => {

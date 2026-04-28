@@ -295,6 +295,29 @@ export interface WireframeConfig {
     /** Upper bound of inter-glitch wait (seconds). Default 15. */
     readonly intervalMax?: number;
   };
+  /**
+   * Glowing ring around the centroid of the currently active (pinned) country.
+   * Sized to enclose the country's main ring with `padding` margin; rotates
+   * slowly around its outward axis. Fades in/out on activate/clear.
+   */
+  readonly activeRing?: {
+    readonly enabled?: boolean;
+    /** Rotation around the outward axis (rad/sec). Default 0.5. */
+    readonly rotationSpeed?: number;
+    /** Multiplier on the country's angular radius. Default 1.2. */
+    readonly padding?: number;
+  };
+  /**
+   * Distant data-flow streams — small luminous particles continuously falling
+   * from the north pole towards the south pole along random meridians.
+   */
+  readonly poleStreams?: {
+    readonly enabled?: boolean;
+    /** Number of simultaneously-active particles. Default 16. */
+    readonly count?: number;
+    /** Southward angular velocity in radians/sec. Default 0.6. */
+    readonly speed?: number;
+  };
 }
 
 export interface StarfieldConfig {
