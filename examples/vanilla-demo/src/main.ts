@@ -55,7 +55,12 @@ const $studioExport = document.getElementById('studio-export') as HTMLButtonElem
 const $studio = document.getElementById('studio') as HTMLDivElement;
 const $studioClose = document.getElementById('studio-close') as HTMLButtonElement;
 const $studioOpen = document.getElementById('studio-open') as HTMLButtonElement;
-const $wireframeExtras = document.getElementById('wireframe-extras') as HTMLDivElement;
+const $kindExtrasPanel = document.getElementById('kind-extras-panel') as HTMLDivElement;
+const $kindExtrasTag = document.getElementById('kind-extras-tag') as HTMLSpanElement;
+const $kindExtrasBlurb = document.getElementById('kind-extras-blurb') as HTMLParagraphElement;
+const $kindExtrasSections = document.querySelectorAll<HTMLDivElement>(
+  '#kind-extras-panel .kind-extras-section'
+);
 const $wireframeClickPulse = document.getElementById('toggle-wireframe-clickpulse') as HTMLInputElement;
 const $wireframeEmphasis = document.getElementById('toggle-wireframe-emphasis') as HTMLInputElement;
 const $wireframeGlitch = document.getElementById('toggle-wireframe-glitch') as HTMLInputElement;
@@ -465,7 +470,14 @@ const $themeButtons = document.querySelectorAll<HTMLButtonElement>('#theme-butto
 const themesForKind = (kind: GlobeKind): ReadonlyArray<HTMLButtonElement> =>
   Array.from($themeButtons).filter((btn) => btn.dataset['kind'] === kind);
 
-const $dottedExtras = document.getElementById('dotted-extras') as HTMLElement | null;
+// Short blurbs displayed under the Kind FX header — explain at a glance
+// what's specific about the active kind. Keeps the panel from feeling like
+// arbitrary checkboxes when you switch kinds.
+const KIND_FX_BLURBS: Readonly<Record<GlobeKind, string>> = {
+  outline: 'Halo around the hovered country and a sonar pulse on focus.',
+  dotted: 'Brightening waves on click and a flash when country data updates.',
+  wireframe: 'Pulse along the grid on click, equator emphasis, occasional CRT glitch.',
+};
 
 const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
   const activeKind = PRESET_DEFAULT_KIND[themeName] ?? 'outline';
@@ -477,8 +489,19 @@ const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
     btn.hidden = !matchesKind;
     btn.classList.toggle('active', btn.dataset['theme'] === themeName);
   });
-  if ($dottedExtras) $dottedExtras.style.display = activeKind === 'dotted' ? '' : 'none';
-  if ($wireframeExtras) $wireframeExtras.style.display = activeKind === 'wireframe' ? 'block' : 'none';
+
+  // Side panel: surface only the section for the active kind, swap the
+  // header tag + blurb to match. Hide the whole panel if the kind has no
+  // section registered (none today, but reserves the slot).
+  let anyVisible = false;
+  $kindExtrasSections.forEach((section) => {
+    const matches = section.dataset['kind'] === activeKind;
+    section.classList.toggle('active', matches);
+    if (matches) anyVisible = true;
+  });
+  $kindExtrasPanel.classList.toggle('hidden', !anyVisible);
+  $kindExtrasTag.textContent = activeKind;
+  $kindExtrasBlurb.textContent = KIND_FX_BLURBS[activeKind] ?? '';
 };
 
 const switchTheme = (themeName: ThemePresetName): void => {

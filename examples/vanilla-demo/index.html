@@ -35,6 +35,60 @@
       #hud b {
         color: #ffd700;
       }
+      #kind-extras-panel {
+        position: fixed;
+        top: 12px;
+        left: 344px;
+        width: 280px;
+        max-height: calc(100vh - 24px);
+        padding: 12px 14px;
+        background: rgba(10, 14, 30, 0.6);
+        border: 1px solid rgba(74, 158, 255, 0.4);
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.45;
+        backdrop-filter: blur(6px);
+        color: #cfd8ff;
+        overflow-y: auto;
+        z-index: 4;
+      }
+      #kind-extras-panel.hidden {
+        display: none;
+      }
+      #kind-extras-panel .kind-extras-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      #kind-extras-panel .kind-extras-title {
+        font-weight: 600;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 11px;
+      }
+      #kind-extras-panel .kind-extras-tag {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: rgba(74, 158, 255, 0.2);
+        border: 1px solid rgba(74, 158, 255, 0.5);
+        color: #cfd8e3;
+        letter-spacing: 0.04em;
+      }
+      #kind-extras-panel .kind-extras-blurb {
+        font-size: 11px;
+        color: #8aa0c8;
+        margin-bottom: 8px;
+        line-height: 1.4;
+      }
+      #kind-extras-panel .kind-extras-section {
+        display: none;
+      }
+      #kind-extras-panel .kind-extras-section.active {
+        display: block;
+      }
       #studio {
         position: fixed;
         top: 12px;
@@ -253,32 +307,6 @@
           <button data-theme="dotted-dark" data-kind="dotted">Dark</button>
           <button data-theme="wireframe-tron" data-kind="wireframe">Tron</button>
         </div>
-        <div id="wireframe-extras" style="display: none; margin-top: 8px;">
-          <div class="hud-row">
-            <input type="checkbox" id="toggle-wireframe-clickpulse" checked />
-            <label for="toggle-wireframe-clickpulse">Click pulse</label>
-          </div>
-          <div class="hud-row">
-            <input type="checkbox" id="toggle-wireframe-emphasis" checked />
-            <label for="toggle-wireframe-emphasis">Equator emphasis</label>
-          </div>
-          <div class="hud-row">
-            <input type="checkbox" id="toggle-wireframe-glitch" checked />
-            <label for="toggle-wireframe-glitch">Glitch transients</label>
-          </div>
-        </div>
-      </div>
-
-      <div class="hud-section" id="dotted-extras" style="display: none;">
-        <div class="hud-section-title">Dotted effects</div>
-        <div class="hud-row">
-          <input type="checkbox" id="toggle-dotted-ripple" checked />
-          <label for="toggle-dotted-ripple">Click ripple</label>
-        </div>
-        <div class="hud-row">
-          <input type="checkbox" id="toggle-dotted-flash" checked />
-          <label for="toggle-dotted-flash">Data-change flash</label>
-        </div>
       </div>
 
       <div class="hud-section">
@@ -371,14 +399,6 @@
           <input type="checkbox" id="toggle-hover-occlude" checked />
           <label for="toggle-hover-occlude">Hide hover behind globe (occlude back-side)</label>
         </div>
-        <div class="hud-row">
-          <input type="checkbox" id="toggle-outline-glow" checked />
-          <label for="toggle-outline-glow">Outline glow halo</label>
-        </div>
-        <div class="hud-row">
-          <input type="checkbox" id="toggle-outline-pulse" checked />
-          <label for="toggle-outline-pulse">Outline focus sonar pulse</label>
-        </div>
       </div>
 
       <div class="hud-section">
@@ -431,6 +451,59 @@
         </div>
       </div>
     </div>
+
+    <!--
+      Per-kind feature panel — side-by-side with the main HUD. Only the
+      section matching the active globe kind is visible at any time, so
+      kind-specific knobs don't clutter the global controls.
+    -->
+    <div id="kind-extras-panel">
+      <div class="kind-extras-header">
+        <span class="kind-extras-title">Kind FX</span>
+        <span class="kind-extras-tag" id="kind-extras-tag">outline</span>
+      </div>
+      <div class="kind-extras-blurb" id="kind-extras-blurb">
+        Visual extras specific to the active globe kind.
+      </div>
+
+      <div class="kind-extras-section" data-kind="outline">
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-outline-glow" checked />
+          <label for="toggle-outline-glow">Hover glow halo</label>
+        </div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-outline-pulse" checked />
+          <label for="toggle-outline-pulse">Focus sonar pulse</label>
+        </div>
+      </div>
+
+      <div class="kind-extras-section" data-kind="dotted">
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-dotted-ripple" checked />
+          <label for="toggle-dotted-ripple">Click ripple wave</label>
+        </div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-dotted-flash" checked />
+          <label for="toggle-dotted-flash">Data-change flash</label>
+        </div>
+      </div>
+
+      <div class="kind-extras-section" data-kind="wireframe">
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-wireframe-clickpulse" checked />
+          <label for="toggle-wireframe-clickpulse">Click pulse along grid</label>
+        </div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-wireframe-emphasis" checked />
+          <label for="toggle-wireframe-emphasis">Equator + tropics emphasis</label>
+        </div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-wireframe-glitch" checked />
+          <label for="toggle-wireframe-glitch">CRT glitch transients</label>
+        </div>
+      </div>
+    </div>
+
     <div id="studio" style="display: none;">
       <button id="studio-close" title="Close panel">×</button>
       <h3>Theme Studio</h3>
