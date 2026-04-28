@@ -12,6 +12,7 @@ import { GLOBE_RADIUS } from '../utils/coordinates';
 import { triangulatePolygon } from '../utils/triangulate-ring';
 import type { CountryFeature } from './countries-layer';
 import type { CountryDataMap } from '../types';
+import { colorForValue, dataExtentFor, type ScaleConfig } from '../data/scales';
 
 export interface CountriesFillLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;
@@ -50,20 +51,28 @@ export class CountriesFillLayer {
    * Apply a country-data map. Countries listed get their entry's color +
    * opacity; missing countries reset to the default. Pass null to hide the
    * whole layer. Calling with non-null data automatically reveals the layer.
+   *
+   * When a `scale` is provided, entries' `value` is mapped to a color via the
+   * scale; explicit `color` on an entry overrides the scale. Domain defaults
+   * to the data extent when not specified on the scale.
    */
-  public setData(data: CountryDataMap | null): void {
+  public setData(data: CountryDataMap | null, scale?: ScaleConfig): void {
     if (!data) {
       this.group.visible = false;
       return;
     }
     this.group.visible = true;
+    const extent = scale ? dataExtentFor(data) : ([0, 1] as const);
+    const noData = scale?.noDataColor ?? this.defaultColor;
     this.entries.forEach((entry, id) => {
       const datum = data[id];
-      const color = datum?.color ?? this.defaultColor;
+      const visible = datum !== undefined;
+      const explicit = datum?.color;
+      const scaled = scale && datum ? colorForValue(scale, datum.value, extent) : null;
+      const color = explicit ?? scaled ?? (datum ? noData : this.defaultColor);
       const opacity = datum?.opacity ?? this.defaultOpacity;
       entry.material.color.set(color);
       entry.material.opacity = opacity;
-      const visible = datum !== undefined;
       entry.meshes.forEach((m) => (m.visible = visible));
     });
   }

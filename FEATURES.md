@@ -230,7 +230,7 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Density heatmap (point cloud)** `[v1.x·LAYER·L]` — np. gęstość zaludnienia, zdarzeń.
 - **Hex-bin aggregation** `[v2+·LAYER·L]` — h3-binning, agregacja punktów do hex.
 - **Pulse / halo na markerach** `[v1·LAYER·S]` — emphasizing data points.
-- **Color scale builder** `[v1·LAYER·S]` — wbudowane sequential/diverging/categorical scales.
+- **Color scale builder** `[v1·LAYER·S·built]` 🌟 — `setCountryData(map, { type: 'sequential' \| 'diverging' \| 'threshold' \| 'categorical', palette, domain?, noDataColor? })`. Built-in palety: `blues / reds / greens / oranges / purples / viridis / magma / plasma / inferno / RdBu / BrBG / PiYG`, plus własna lista hex-stops. Linear-RGB interpolation między stopami; explicit `color` na entry zawsze wygrywa nad skalą; `domain` defaultuje do data extent.
 - **Polygon overlay (custom area)** `[v1.x·LAYER·M]` — własne wielokąty (np. strefy ekonomiczne).
 - **Iso-lines / contours** `[v2+·LAYER·L]` — np. linie temperatury.
 
