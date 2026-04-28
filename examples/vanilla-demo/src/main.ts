@@ -51,6 +51,10 @@ const $studioExport = document.getElementById('studio-export') as HTMLButtonElem
 const $studio = document.getElementById('studio') as HTMLDivElement;
 const $studioClose = document.getElementById('studio-close') as HTMLButtonElement;
 const $studioOpen = document.getElementById('studio-open') as HTMLButtonElement;
+const $wireframeExtras = document.getElementById('wireframe-extras') as HTMLDivElement;
+const $wireframeClickPulse = document.getElementById('toggle-wireframe-clickpulse') as HTMLInputElement;
+const $wireframeEmphasis = document.getElementById('toggle-wireframe-emphasis') as HTMLInputElement;
+const $wireframeGlitch = document.getElementById('toggle-wireframe-glitch') as HTMLInputElement;
 
 let tokenOverrides: PartialTokenSet = {};
 
@@ -69,6 +73,9 @@ const settings = {
   htmlMarkersEnabled: true,
   arcsEnabled: true,
   axisTilt: 23.5,
+  wireframeClickPulse: true,
+  wireframeEmphasis: true,
+  wireframeGlitch: true,
 };
 
 const WORLD_TOUR = {
@@ -246,6 +253,11 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     axisTilt: settings.axisTilt,
     htmlMarkers: settings.htmlMarkersEnabled ? HTML_MARKERS : [],
     arcs: settings.arcsEnabled ? ARCS : [],
+    wireframe: {
+      clickPulse: { enabled: settings.wireframeClickPulse },
+      emphasis: { enabled: settings.wireframeEmphasis },
+      glitch: { enabled: settings.wireframeGlitch },
+    },
     markers: [
       { id: 'waw', position: [52.2297, 21.0122], label: 'Warsaw', color: '#4a9eff' },
       { id: 'nyc', position: [40.7128, -74.006], label: 'New York', color: '#ff6b6b', pulse: true },
@@ -447,6 +459,7 @@ const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
     btn.hidden = !matchesKind;
     btn.classList.toggle('active', btn.dataset['theme'] === themeName);
   });
+  $wireframeExtras.style.display = activeKind === 'wireframe' ? 'block' : 'none';
 };
 
 const switchTheme = (themeName: ThemePresetName): void => {
@@ -784,6 +797,19 @@ $dataClear.addEventListener('click', () => {
   globe?.setCountryData(null);
   globe?.hideLegend();
   setStatus('Country data: cleared');
+});
+
+$wireframeClickPulse.addEventListener('change', () => {
+  settings.wireframeClickPulse = $wireframeClickPulse.checked;
+  buildGlobe(settings.themeName);
+});
+$wireframeEmphasis.addEventListener('change', () => {
+  settings.wireframeEmphasis = $wireframeEmphasis.checked;
+  buildGlobe(settings.themeName);
+});
+$wireframeGlitch.addEventListener('change', () => {
+  settings.wireframeGlitch = $wireframeGlitch.checked;
+  buildGlobe(settings.themeName);
 });
 
 updateSpeedDisplay();

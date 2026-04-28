@@ -1,7 +1,7 @@
-import type { Group } from 'three';
+import type { Group, Vector3 } from 'three';
 import type { CountryFeature } from '../renderer/country-feature';
 import type { ResolvedTokens } from '../theme/types';
-import type { GlobeConfig } from '../types';
+import type { GlobeConfig, LatLng } from '../types';
 
 /**
  * Globe kinds — the high-level visual identity of the rendered globe.
@@ -49,6 +49,13 @@ export interface KindHandle {
    */
   update?(delta: number, elapsedSeconds: number): void;
   setVisible?(visible: boolean): void;
+  /**
+   * Called on every globe surface click (right after the click is raycast).
+   * `point3D` is the surface intersection in globe-local space; `latLng`
+   * is the same in lat/lng. Kinds can use this to launch ripples / pulses
+   * radiating from the click point.
+   */
+  onPointerDown?(point3D: Vector3, latLng: LatLng): void;
 }
 
 /**

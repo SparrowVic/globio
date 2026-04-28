@@ -59,7 +59,17 @@ export type TokenKey =
   | 'wireframe.color'
   | 'wireframe.opacity'
   | 'wireframe.density'
-  | 'wireframe.pulse';
+  | 'wireframe.pulse'
+  | 'wireframe.pulseColor'
+  | 'wireframe.pulseSpeed'
+  | 'wireframe.pulseWidth'
+  | 'wireframe.pulseBoost'
+  | 'wireframe.equatorColor'
+  | 'wireframe.equatorOpacity'
+  | 'wireframe.emphasisEnabled'
+  | 'wireframe.glitchEnabled'
+  | 'wireframe.glitchIntervalMin'
+  | 'wireframe.glitchIntervalMax';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -121,6 +131,16 @@ export interface TokenSet {
   readonly 'wireframe.opacity': number;
   readonly 'wireframe.density': number;
   readonly 'wireframe.pulse': number;
+  readonly 'wireframe.pulseColor': string;
+  readonly 'wireframe.pulseSpeed': number;
+  readonly 'wireframe.pulseWidth': number;
+  readonly 'wireframe.pulseBoost': number;
+  readonly 'wireframe.equatorColor': string;
+  readonly 'wireframe.equatorOpacity': number;
+  readonly 'wireframe.emphasisEnabled': boolean;
+  readonly 'wireframe.glitchEnabled': boolean;
+  readonly 'wireframe.glitchIntervalMin': number;
+  readonly 'wireframe.glitchIntervalMax': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;

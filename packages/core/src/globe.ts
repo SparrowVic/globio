@@ -276,6 +276,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     domElement: scene.renderer.domElement,
     targets: [{ type: 'marker', object: markersLayer.mesh }],
     onClick: (hit) => {
+      // Kind-level click hook fires for *any* surface hit so kinds can
+      // launch ripples / pulses from the impact point. We hand it the
+      // raycast point in globe-local 3D and the same as lat/lng.
+      if (hit?.point) {
+        const localPoint = hit.point.clone();
+        globeGroup.updateMatrixWorld();
+        const inverse = globeGroup.matrixWorld.clone().invert();
+        localPoint.applyMatrix4(inverse);
+        state.kindHandle?.onPointerDown?.(localPoint, vector3ToLatLng(localPoint));
+      }
       if (hit?.type === 'marker' && hit.instanceId !== undefined) {
         const marker = markersLayer.getMarkerByInstanceId(hit.instanceId);
         if (marker) emitter.emit('markerClick', { marker });
@@ -391,6 +401,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         raycaster.setTargets([
           { type: 'marker', object: markersLayer.mesh },
           { type: 'country', object: picking.group },
+          { type: 'surface', object: globeMesh.mesh },
         ]);
 
         const highlight = new CountryHighlightLayer({
@@ -415,6 +426,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         state.countryActiveLayer = activeLayer;
         // Re-apply pending active country if user called setActiveCountry before features loaded
         if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
+      } else {
+        // No country surface (wireframe). Marker raycasting plus the globe
+        // sphere as a generic 'surface' target so kinds can still react to
+        // any-click pulses via onPointerDown.
+        raycaster.setTargets([
+          { type: 'marker', object: markersLayer.mesh },
+          { type: 'surface', object: globeMesh.mesh },
+        ]);
       }
 
       const labelsConfig = config.countryLabels;
