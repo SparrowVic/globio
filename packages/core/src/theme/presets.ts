@@ -42,6 +42,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'markers.defaultColor': '#ff4444',
     'atmosphere.color': '#4a9eff',
     'atmosphere.intensity': 1.2,
+    'starfield.color': '#ffffff',
+    'starfield.density': 1500,
+    'starfield.size': 1.4,
   }),
   'outline-light': Object.freeze({
     'background.color': '#f0f4f8',
@@ -69,6 +72,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'markers.defaultColor': '#d9534f',
     'atmosphere.color': '#a8c8e8',
     'atmosphere.intensity': 0.8,
+    'starfield.color': '#88a0c0',
+    'starfield.density': 600,
+    'starfield.size': 1.0,
   }),
   'outline-sunset': Object.freeze({
     'background.color': '#180a1a',
@@ -96,6 +102,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'markers.defaultColor': '#ffd166',
     'atmosphere.color': '#ff7e5f',
     'atmosphere.intensity': 1.6,
+    'starfield.color': '#fff0c8',
+    'starfield.density': 1800,
+    'starfield.size': 1.6,
   }),
   'outline-cyber': Object.freeze({
     'background.color': '#000814',
@@ -123,6 +132,9 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'markers.defaultColor': '#22ee99',
     'atmosphere.color': '#ff2bd6',
     'atmosphere.intensity': 1.4,
+    'starfield.color': '#88f0ff',
+    'starfield.density': 2200,
+    'starfield.size': 1.2,
   }),
   'outline-monochrome': Object.freeze({
     'background.color': '#0a0a0a',
@@ -150,5 +162,8 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
     'markers.defaultColor': '#ffffff',
     'atmosphere.color': '#888888',
     'atmosphere.intensity': 0.9,
+    'starfield.color': '#cccccc',
+    'starfield.density': 1500,
+    'starfield.size': 1.4,
   }),
 });

@@ -30,4 +30,7 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
   'markers.defaultColor': '#ff4444',
   'atmosphere.color': '#4a9eff',
   'atmosphere.intensity': 1.2,
+  'starfield.color': '#ffffff',
+  'starfield.density': 1500,
+  'starfield.size': 1.4,
 });
