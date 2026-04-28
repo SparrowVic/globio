@@ -2,6 +2,7 @@ import {
   createGlobe,
   resolveTheme,
   THEME_PRESETS,
+  type CountryDataMap,
   type GlobeInstance,
   type PartialTokenSet,
   type ThemePresetName,
@@ -574,6 +575,94 @@ $storyPrev.addEventListener('click', () => {
 $storyNext.addEventListener('click', () => {
   globe?.nextScene();
   renderStoryStatus();
+});
+
+// ---------- Country data demos ----------
+
+const $dataNato = document.getElementById('data-nato') as HTMLButtonElement;
+const $dataEu = document.getElementById('data-eu') as HTMLButtonElement;
+const $dataPop = document.getElementById('data-pop') as HTMLButtonElement;
+const $dataClear = document.getElementById('data-clear') as HTMLButtonElement;
+
+const NATO_IDS = [
+  '8', '56', '100', '124', '191', '203', '208', '233', '246', '250', '276', '300',
+  '348', '352', '380', '428', '440', '442', '470', '499', '528', '578', '616',
+  '620', '642', '703', '705', '724', '752', '792', '807', '826', '840',
+];
+
+const EU_IDS = [
+  '40', '56', '100', '191', '196', '203', '208', '233', '246', '250', '276',
+  '300', '348', '372', '380', '428', '440', '442', '470', '528', '616', '620',
+  '642', '703', '705', '724', '752',
+];
+
+const POPULATION: ReadonlyArray<readonly [string, number]> = [
+  ['156', 1411], // China
+  ['356', 1393], // India
+  ['840', 332],  // USA
+  ['360', 274],  // Indonesia
+  ['586', 220],  // Pakistan
+  ['76', 213],   // Brazil
+  ['566', 211],  // Nigeria
+  ['50', 165],   // Bangladesh
+  ['643', 144],  // Russia
+  ['484', 130],  // Mexico
+  ['392', 125],  // Japan
+  ['231', 118],  // Ethiopia
+  ['608', 109],  // Philippines
+  ['818', 104],  // Egypt
+  ['704', 98],   // Vietnam
+  ['180', 96],   // DR Congo
+  ['792', 85],   // Turkey
+  ['364', 84],   // Iran
+  ['276', 84],   // Germany
+  ['764', 70],   // Thailand
+  ['826', 67],   // UK
+  ['250', 65],   // France
+  ['710', 60],   // South Africa
+  ['380', 59],   // Italy
+  ['724', 47],   // Spain
+  ['616', 38],   // Poland
+];
+
+const choroplethColor = (millions: number): string => {
+  if (millions >= 500) return '#7f0000';
+  if (millions >= 200) return '#b30000';
+  if (millions >= 100) return '#d7301f';
+  if (millions >= 50) return '#ef6548';
+  if (millions >= 20) return '#fc8d59';
+  return '#fdbb84';
+};
+
+const buildSetMap = (ids: ReadonlyArray<string>, color: string): CountryDataMap => {
+  const map: Record<string, { color: string; opacity: number }> = {};
+  for (const id of ids) map[id] = { color, opacity: 0.85 };
+  return map;
+};
+
+const buildPopulationMap = (): CountryDataMap => {
+  const map: Record<string, { color: string; value: number; opacity: number }> = {};
+  for (const [id, m] of POPULATION) {
+    map[id] = { color: choroplethColor(m), value: m, opacity: 0.85 };
+  }
+  return map;
+};
+
+$dataNato.addEventListener('click', () => {
+  globe?.setCountryData(buildSetMap(NATO_IDS, '#1e6fff'));
+  setStatus('Country data: NATO members');
+});
+$dataEu.addEventListener('click', () => {
+  globe?.setCountryData(buildSetMap(EU_IDS, '#ffd700'));
+  setStatus('Country data: EU members');
+});
+$dataPop.addEventListener('click', () => {
+  globe?.setCountryData(buildPopulationMap());
+  setStatus('Country data: population (millions)');
+});
+$dataClear.addEventListener('click', () => {
+  globe?.setCountryData(null);
+  setStatus('Country data: cleared');
 });
 
 updateSpeedDisplay();

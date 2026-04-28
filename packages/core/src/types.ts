@@ -26,6 +26,20 @@ export interface CountryEvent {
   readonly point: LatLng;
 }
 
+/**
+ * Per-country data binding. Pass via `globe.setCountryData(map)` to color
+ * countries based on data — populations, GDP, region membership, anything.
+ * `value` is informational (available on countryClick events) and can drive
+ * color via a future scale system; for now the explicit `color` field wins.
+ */
+export interface CountryDataEntry {
+  readonly color?: string;
+  readonly value?: number;
+  readonly opacity?: number;
+}
+
+export type CountryDataMap = Readonly<Record<string, CountryDataEntry>>;
+
 export interface MarkerConfig {
   readonly id: string;
   readonly position: LatLng;
@@ -213,6 +227,7 @@ export interface GlobeConfig {
   readonly mode?: GlobeMode;
   readonly theme?: ThemeInput;
   readonly countries?: CountriesConfig;
+  readonly countryData?: CountryDataMap;
   readonly markers?: ReadonlyArray<MarkerConfig>;
   readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
   readonly arcs?: ReadonlyArray<ArcConfig>;
@@ -263,6 +278,8 @@ export interface GlobeInstance {
   readonly focusOnCountry: (id: string, options?: FocusOptions) => void;
   readonly setActiveCountry: (id: string | null) => void;
   readonly getActiveCountry: () => string | null;
+  readonly setCountryData: (data: CountryDataMap | null) => void;
+  readonly getCountryData: () => CountryDataMap | null;
   readonly setStory: (story: StoryConfig | null) => void;
   readonly playStory: () => void;
   readonly pauseStory: () => void;
