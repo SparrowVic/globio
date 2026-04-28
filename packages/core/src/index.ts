@@ -15,6 +15,7 @@ export type {
   GlobeEventUnsubscribe,
   GlobeInstance,
   GlobeMode,
+  HologramConfig,
   LatLng,
   MarkerConfig,
   MarkerEvent,

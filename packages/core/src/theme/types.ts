@@ -104,7 +104,18 @@ export type TokenKey =
   | 'paper.fillColor'
   | 'paper.fillOpacity'
   | 'paper.gridColor'
-  | 'paper.gridOpacity';
+  | 'paper.gridOpacity'
+  | 'hologram.color'
+  | 'hologram.shellOpacity'
+  | 'hologram.rimGlow'
+  | 'hologram.scanlineFreq'
+  | 'hologram.scanlineSpeed'
+  | 'hologram.borderColor'
+  | 'hologram.borderIntensity'
+  | 'hologram.glitchAmount'
+  | 'hologram.glitchIntervalMin'
+  | 'hologram.glitchIntervalMax'
+  | 'hologram.outerGlowOpacity';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -211,6 +222,17 @@ export interface TokenSet {
   readonly 'paper.fillOpacity': number;
   readonly 'paper.gridColor': string;
   readonly 'paper.gridOpacity': number;
+  readonly 'hologram.color': string;
+  readonly 'hologram.shellOpacity': number;
+  readonly 'hologram.rimGlow': number;
+  readonly 'hologram.scanlineFreq': number;
+  readonly 'hologram.scanlineSpeed': number;
+  readonly 'hologram.borderColor': string;
+  readonly 'hologram.borderIntensity': number;
+  readonly 'hologram.glitchAmount': number;
+  readonly 'hologram.glitchIntervalMin': number;
+  readonly 'hologram.glitchIntervalMax': number;
+  readonly 'hologram.outerGlowOpacity': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;

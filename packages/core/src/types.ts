@@ -332,6 +332,24 @@ export interface PaperConfig {
   readonly borderRoughness?: number;
 }
 
+/**
+ * Hologram kind extras — scanlines, Fresnel rim glow, glitch transients,
+ * and an optional outer-shell glow that amplifies the silhouette. All
+ * default-on; toggle individually for the look you want.
+ */
+export interface HologramConfig {
+  readonly scanlines?: { readonly enabled?: boolean };
+  readonly rimGlow?: { readonly enabled?: boolean };
+  readonly glitch?: {
+    readonly enabled?: boolean;
+    /** Lower bound of inter-glitch wait (seconds). Default 4. */
+    readonly intervalMin?: number;
+    /** Upper bound of inter-glitch wait (seconds). Default 9. */
+    readonly intervalMax?: number;
+  };
+  readonly outerGlow?: { readonly enabled?: boolean };
+}
+
 export interface StarfieldConfig {
   readonly enabled?: boolean;
 }
@@ -427,6 +445,7 @@ export interface GlobeConfig {
   readonly dotted?: DottedConfig;
   readonly wireframe?: WireframeConfig;
   readonly paper?: PaperConfig;
+  readonly hologram?: HologramConfig;
   readonly starfield?: StarfieldConfig;
   /**
    * Tilt the globe's axis around the Z axis (in degrees, like Earth's 23.5°).
