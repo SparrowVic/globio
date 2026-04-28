@@ -1,5 +1,6 @@
 import { DEFAULT_TOKENS } from './tokens';
 import { THEME_PRESETS } from './presets';
+import { getCustomPreset } from './registry';
 import type { ResolvedTokens, ThemeConfig, ThemeInput, TokenSet } from './types';
 
 /**
@@ -16,8 +17,16 @@ export const resolveTheme = (input?: ThemeInput): ResolvedTokens => {
   if (input === undefined) return DEFAULT_TOKENS;
 
   const config: ThemeConfig = typeof input === 'string' ? { extends: input } : input;
-  const floor: TokenSet =
-    config.extends !== undefined ? THEME_PRESETS[config.extends] : DEFAULT_TOKENS;
+  let floor: TokenSet = DEFAULT_TOKENS;
+  if (config.extends !== undefined) {
+    // Custom presets shadow built-ins so apps can rebrand 'outline-dark'
+    // without forking the library.
+    const fromCustom = getCustomPreset(config.extends);
+    const fromBuiltIn = (THEME_PRESETS as Readonly<Record<string, TokenSet | undefined>>)[
+      config.extends
+    ];
+    floor = fromCustom ?? fromBuiltIn ?? DEFAULT_TOKENS;
+  }
 
   const overrides = config.tokens;
   if (!overrides) return floor;

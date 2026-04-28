@@ -11,6 +11,7 @@ import type { CountryFeature } from './countries-layer';
 export interface CountryHighlightLayerOptions {
   readonly hoverColor: string;
   readonly hoverWidth: number;
+  readonly hoverOpacity: number;
   /**
    * When true, the highlight respects globe depth so back-side portions are
    * hidden behind the sphere. When false, the entire country outline draws
@@ -38,7 +39,7 @@ export class CountryHighlightLayer {
       color: new Color(options.hoverColor),
       linewidth: options.hoverWidth,
       transparent: true,
-      opacity: 1,
+      opacity: options.hoverOpacity,
       depthTest: options.occludeBackSide,
     });
     this.object = new LineSegments(new BufferGeometry(), this.material);

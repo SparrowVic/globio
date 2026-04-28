@@ -6,17 +6,27 @@ import type { ThemePresetName } from './presets';
  */
 export type TokenKey =
   | 'background.color'
-  | 'globe.surface'
-  | 'globe.surfaceTexture'
-  | 'borders.color'
-  | 'borders.width'
-  | 'borders.opacity'
-  | 'countries.hoverColor'
-  | 'countries.hoverWidth'
-  | 'countries.activeColor'
-  | 'countries.activeWidth'
-  | 'tooltip.background'
+  | 'globe.surfaceColor'
+  | 'globe.surfaceTextureUrl'
+  | 'countries.border.color'
+  | 'countries.border.width'
+  | 'countries.border.opacity'
+  | 'countries.borderHover.color'
+  | 'countries.borderHover.width'
+  | 'countries.borderHover.opacity'
+  | 'countries.borderActive.color'
+  | 'countries.borderActive.width'
+  | 'countries.borderActive.opacity'
+  | 'tooltip.backgroundColor'
   | 'tooltip.textColor'
+  | 'tooltip.fontSize'
+  | 'tooltip.fontFamily'
+  | 'tooltip.padding'
+  | 'tooltip.borderRadius'
+  | 'lights.ambient.color'
+  | 'lights.ambient.intensity'
+  | 'lights.directional.color'
+  | 'lights.directional.intensity'
   | 'markers.defaultColor'
   | 'atmosphere.color'
   | 'atmosphere.intensity';
@@ -27,17 +37,27 @@ export type TokenKey =
  */
 export interface TokenSet {
   readonly 'background.color': string;
-  readonly 'globe.surface': string;
-  readonly 'globe.surfaceTexture': string;
-  readonly 'borders.color': string;
-  readonly 'borders.width': number;
-  readonly 'borders.opacity': number;
-  readonly 'countries.hoverColor': string;
-  readonly 'countries.hoverWidth': number;
-  readonly 'countries.activeColor': string;
-  readonly 'countries.activeWidth': number;
-  readonly 'tooltip.background': string;
+  readonly 'globe.surfaceColor': string;
+  readonly 'globe.surfaceTextureUrl': string;
+  readonly 'countries.border.color': string;
+  readonly 'countries.border.width': number;
+  readonly 'countries.border.opacity': number;
+  readonly 'countries.borderHover.color': string;
+  readonly 'countries.borderHover.width': number;
+  readonly 'countries.borderHover.opacity': number;
+  readonly 'countries.borderActive.color': string;
+  readonly 'countries.borderActive.width': number;
+  readonly 'countries.borderActive.opacity': number;
+  readonly 'tooltip.backgroundColor': string;
   readonly 'tooltip.textColor': string;
+  readonly 'tooltip.fontSize': number;
+  readonly 'tooltip.fontFamily': string;
+  readonly 'tooltip.padding': string;
+  readonly 'tooltip.borderRadius': string;
+  readonly 'lights.ambient.color': string;
+  readonly 'lights.ambient.intensity': number;
+  readonly 'lights.directional.color': string;
+  readonly 'lights.directional.intensity': number;
   readonly 'markers.defaultColor': string;
   readonly 'atmosphere.color': string;
   readonly 'atmosphere.intensity': number;
@@ -46,11 +66,12 @@ export interface TokenSet {
 export type PartialTokenSet = Partial<TokenSet>;
 
 /**
- * User-supplied theme config. `extends` selects a built-in preset as the
- * merge floor; `tokens` overrides individual values on top of that floor.
+ * User-supplied theme config. `extends` selects a built-in preset (autocompletes)
+ * OR a custom preset registered via `registerThemePreset()`; `tokens` overrides
+ * individual values on top of that floor.
  */
 export interface ThemeConfig {
-  readonly extends?: ThemePresetName;
+  readonly extends?: ThemePresetName | (string & {});
   readonly tokens?: PartialTokenSet;
 }
 
@@ -58,7 +79,7 @@ export interface ThemeConfig {
 export type ResolvedTokens = TokenSet;
 
 /**
- * Public theme entry point. Accepts either a preset name (shorthand)
- * or a full ThemeConfig object.
+ * Public theme entry point. Accepts either a preset name (shorthand) — built-in
+ * or custom — or a full ThemeConfig object.
  */
-export type ThemeInput = ThemePresetName | ThemeConfig;
+export type ThemeInput = ThemePresetName | (string & {}) | ThemeConfig;

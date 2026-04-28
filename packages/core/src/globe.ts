@@ -97,15 +97,20 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     onRender: (delta) => state.controls.update(delta),
   });
 
-  scene.scene.add(new AmbientLight(0xffffff, 0.6));
-  const dirLight = new DirectionalLight(0xffffff, 0.8);
+  scene.scene.add(
+    new AmbientLight(tokens['lights.ambient.color'], tokens['lights.ambient.intensity'])
+  );
+  const dirLight = new DirectionalLight(
+    tokens['lights.directional.color'],
+    tokens['lights.directional.intensity']
+  );
   dirLight.position.set(5, 3, 5);
   scene.scene.add(dirLight);
 
   const globeMesh = new GlobeMesh({
-    color: tokens['globe.surface'],
-    ...(tokens['globe.surfaceTexture'] !== '' && {
-      textureUrl: tokens['globe.surfaceTexture'],
+    color: tokens['globe.surfaceColor'],
+    ...(tokens['globe.surfaceTextureUrl'] !== '' && {
+      textureUrl: tokens['globe.surfaceTextureUrl'],
     }),
   });
   scene.scene.add(globeMesh.mesh);
@@ -123,9 +128,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   const tooltip = new CountryTooltip({
     container: config.container,
-    background: tokens['tooltip.background'],
+    background: tokens['tooltip.backgroundColor'],
     textColor: tokens['tooltip.textColor'],
-    fontSize: 12,
+    fontSize: tokens['tooltip.fontSize'],
+    fontFamily: tokens['tooltip.fontFamily'],
+    padding: tokens['tooltip.padding'],
+    borderRadius: tokens['tooltip.borderRadius'],
   });
 
   const controls = new GlobeControls({
@@ -225,9 +233,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
       const visible = new CountriesLayer({
         features: features as ReadonlyArray<CountryFeature>,
-        borderColor: tokens['borders.color'],
-        borderWidth: tokens['borders.width'],
-        borderOpacity: tokens['borders.opacity'],
+        borderColor: tokens['countries.border.color'],
+        borderWidth: tokens['countries.border.width'],
+        borderOpacity: tokens['countries.border.opacity'],
       });
       scene.scene.add(visible.group);
       state.countriesLayer = visible;
@@ -243,8 +251,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       ]);
 
       const highlight = new CountryHighlightLayer({
-        hoverColor: tokens['countries.hoverColor'],
-        hoverWidth: tokens['countries.hoverWidth'],
+        hoverColor: tokens['countries.borderHover.color'],
+        hoverWidth: tokens['countries.borderHover.width'],
+        hoverOpacity: tokens['countries.borderHover.opacity'],
         occludeBackSide: countries.hoverOccludeBackSide,
       });
       highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
@@ -252,8 +261,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryHighlightLayer = highlight;
 
       const activeLayer = new CountryHighlightLayer({
-        hoverColor: tokens['countries.activeColor'],
-        hoverWidth: tokens['countries.activeWidth'],
+        hoverColor: tokens['countries.borderActive.color'],
+        hoverWidth: tokens['countries.borderActive.width'],
+        hoverOpacity: tokens['countries.borderActive.opacity'],
         occludeBackSide: countries.hoverOccludeBackSide,
       });
       activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
