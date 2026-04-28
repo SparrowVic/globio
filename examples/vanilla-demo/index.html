@@ -57,6 +57,42 @@
         font-size: 13px;
         color: #ffd700;
       }
+      #studio-close {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        background: transparent;
+        border: 1px solid rgba(120, 140, 180, 0.4);
+        color: #cfd8ff;
+        width: 22px;
+        height: 22px;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      #studio-close:hover {
+        color: #ffd700;
+        border-color: rgba(255, 215, 0, 0.6);
+      }
+      #studio-open {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        padding: 6px 12px;
+        background: rgba(10, 14, 30, 0.6);
+        border: 1px solid rgba(74, 158, 255, 0.4);
+        border-radius: 6px;
+        color: #ffd700;
+        font-size: 12px;
+        font-family: system-ui, sans-serif;
+        cursor: pointer;
+        backdrop-filter: blur(6px);
+        z-index: 5;
+      }
+      #studio-open:hover {
+        border-color: rgba(255, 215, 0, 0.6);
+      }
       #studio .studio-actions {
         display: flex;
         gap: 6px;
@@ -185,6 +221,23 @@
       </div>
 
       <div class="hud-section">
+        <div class="hud-section-title">Scene</div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-starfield" checked />
+          <label for="toggle-starfield">Starfield background</label>
+        </div>
+        <div class="hud-row">
+          <input type="checkbox" id="toggle-html-markers" checked />
+          <label for="toggle-html-markers">HTML overlay markers</label>
+        </div>
+        <div class="hud-row">
+          <label for="axis-tilt">Axis tilt</label>
+          <input type="range" id="axis-tilt" min="0" max="60" step="0.5" value="23.5" />
+          <span id="axis-tilt-value" style="min-width: 3em; text-align: right;">23.5°</span>
+        </div>
+      </div>
+
+      <div class="hud-section">
         <div class="hud-section-title">Rotation</div>
         <div class="hud-row">
           <input type="checkbox" id="toggle-autorotate" checked />
@@ -268,7 +321,8 @@
         </div>
       </div>
     </div>
-    <div id="studio">
+    <div id="studio" style="display: none;">
+      <button id="studio-close" title="Close panel">×</button>
       <h3>Theme Studio</h3>
       <div class="studio-actions">
         <button id="studio-reset-all">Reset all</button>
@@ -276,6 +330,7 @@
       </div>
       <div id="studio-body"></div>
     </div>
+    <button id="studio-open" title="Open Theme Studio">⚙ Theme Studio</button>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

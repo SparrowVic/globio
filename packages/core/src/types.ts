@@ -33,6 +33,38 @@ export interface MarkerEvent {
   readonly marker: MarkerConfig;
 }
 
+/**
+ * HTML overlay marker — a DOM element anchored to a lat/lng position on the
+ * globe. Renders above the canvas, follows camera transforms each frame, and
+ * automatically hides when on the far side of the globe (occluded by sphere).
+ */
+export interface HtmlMarkerConfig {
+  readonly id: string;
+  readonly position: LatLng;
+  /**
+   * Either a static HTML string (set as innerHTML once), or a factory that
+   * returns an HTMLElement. The factory form is preferred when you want
+   * native event handlers, framework components, or refs.
+   */
+  readonly content: string | (() => HTMLElement);
+  /**
+   * Anchor point on the marker element relative to the lat/lng. Default 'center'.
+   */
+  readonly anchor?: 'top' | 'bottom' | 'left' | 'right' | 'center';
+  /** Pixel offset applied AFTER anchor positioning. */
+  readonly offset?: readonly [number, number];
+  /**
+   * If true (default), the marker fades out smoothly when its lat/lng is on
+   * the far side of the globe. Set false to keep it always visible.
+   */
+  readonly hideWhenOccluded?: boolean;
+  /**
+   * If true (default false), pointer events on the marker pass through to the
+   * canvas (so you can still drag/zoom the globe through the marker).
+   */
+  readonly clickThrough?: boolean;
+}
+
 export interface CountriesConfig {
   readonly resolution?: ResolutionLevel;
   readonly style?: CountryStyle;
@@ -47,6 +79,10 @@ export interface CountriesConfig {
 }
 
 export interface AtmosphereConfig {
+  readonly enabled?: boolean;
+}
+
+export interface StarfieldConfig {
   readonly enabled?: boolean;
 }
 
@@ -114,7 +150,16 @@ export interface GlobeConfig {
   readonly theme?: ThemeInput;
   readonly countries?: CountriesConfig;
   readonly markers?: ReadonlyArray<MarkerConfig>;
+  readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
   readonly atmosphere?: AtmosphereConfig;
+  readonly starfield?: StarfieldConfig;
+  /**
+   * Tilt the globe's axis around the Z axis (in degrees, like Earth's 23.5°).
+   * Affects only visual appearance — auto-rotate, raycasting, and lat/lng
+   * conversions all keep working naturally because everything is rendered
+   * inside a tilted parent group. Default 0.
+   */
+  readonly axisTilt?: number;
   readonly autoRotate?: AutoRotateConfig;
   readonly performance?: PerformanceConfig;
   readonly initialPosition?: LatLng;
@@ -153,6 +198,9 @@ export interface GlobeInstance {
   readonly setMarkers: (markers: ReadonlyArray<MarkerConfig>) => void;
   readonly addMarker: (marker: MarkerConfig) => void;
   readonly removeMarker: (id: string) => void;
+  readonly setHtmlMarkers: (markers: ReadonlyArray<HtmlMarkerConfig>) => void;
+  readonly addHtmlMarker: (marker: HtmlMarkerConfig) => void;
+  readonly removeHtmlMarker: (id: string) => void;
   readonly resize: () => void;
   readonly getCanvas: () => HTMLCanvasElement;
 }

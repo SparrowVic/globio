@@ -1,0 +1,162 @@
+import { Vector3, type Object3D, type PerspectiveCamera } from 'three';
+import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
+import type { HtmlMarkerConfig } from '../types';
+
+export interface HtmlMarkersLayerOptions {
+  readonly container: HTMLElement;
+  readonly camera: PerspectiveCamera;
+  /**
+   * The Three.js Object3D whose world transform should be applied to each
+   * marker's local position before projection. Pass the parent group of the
+   * globe so axis-tilt and any future scene-level transforms carry through.
+   */
+  readonly globeGroup: Object3D;
+}
+
+interface HtmlMarkerEntry {
+  readonly config: HtmlMarkerConfig;
+  readonly element: HTMLElement;
+  readonly worldPosition: Vector3;
+}
+
+/**
+ * DOM markers anchored to lat/lng on the globe. Each marker is an absolutely-
+ * positioned element that follows the camera transform every frame. Markers
+ * on the far side of the globe fade out automatically (via dot product with
+ * camera direction) unless `hideWhenOccluded: false`.
+ */
+export class HtmlMarkersLayer {
+  private readonly host: HTMLDivElement;
+  private readonly entries = new Map<string, HtmlMarkerEntry>();
+  private readonly tempScreen = new Vector3();
+
+  public constructor(private readonly options: HtmlMarkersLayerOptions) {
+    this.host = document.createElement('div');
+    Object.assign(this.host.style, {
+      position: 'absolute',
+      inset: '0',
+      pointerEvents: 'none',
+      overflow: 'hidden',
+    } satisfies Partial<CSSStyleDeclaration>);
+    options.container.appendChild(this.host);
+  }
+
+  public setMarkers(markers: ReadonlyArray<HtmlMarkerConfig>): void {
+    const incomingIds = new Set(markers.map((m) => m.id));
+    for (const id of [...this.entries.keys()]) {
+      if (!incomingIds.has(id)) this.removeMarker(id);
+    }
+    for (const config of markers) {
+      const existing = this.entries.get(config.id);
+      if (existing && configEquivalent(existing.config, config)) continue;
+      this.removeMarker(config.id);
+      this.addMarker(config);
+    }
+  }
+
+  public addMarker(config: HtmlMarkerConfig): void {
+    if (this.entries.has(config.id)) {
+      this.removeMarker(config.id);
+    }
+    const element = document.createElement('div');
+    Object.assign(element.style, {
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      pointerEvents: config.clickThrough ? 'none' : 'auto',
+      willChange: 'transform, opacity',
+      transition: 'opacity 120ms ease-out',
+    } satisfies Partial<CSSStyleDeclaration>);
+
+    const content =
+      typeof config.content === 'string' ? null : config.content();
+    if (content) element.appendChild(content);
+    else element.innerHTML = config.content as string;
+
+    this.host.appendChild(element);
+
+    const worldPosition = latLngToVector3(config.position, GLOBE_RADIUS * 1.005);
+    this.entries.set(config.id, { config, element, worldPosition });
+  }
+
+  public removeMarker(id: string): void {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    entry.element.remove();
+    this.entries.delete(id);
+  }
+
+  /** Project world positions to screen space and update DOM transforms. */
+  public update(): void {
+    const camera = this.options.camera;
+    const rect = this.options.container.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const halfW = rect.width / 2;
+    const halfH = rect.height / 2;
+    const cameraDir = camera.position.clone().normalize();
+    this.options.globeGroup.updateMatrixWorld();
+
+    this.entries.forEach((entry) => {
+      // Marker.worldPosition is stored in globeGroup-local space; transform to
+      // actual world coords (handles axis tilt + any future group transforms).
+      this.tempScreen
+        .copy(entry.worldPosition)
+        .applyMatrix4(this.options.globeGroup.matrixWorld);
+      const worldNormal = this.tempScreen.clone().normalize();
+      this.tempScreen.project(camera);
+      const x = this.tempScreen.x * halfW + halfW;
+      const y = -this.tempScreen.y * halfH + halfH;
+      const anchorOffset = anchorTranslate(entry.config.anchor ?? 'center');
+      const customOffset = entry.config.offset;
+      const translateX = `translate(-50%, -50%) translate(${x}px, ${y}px)${anchorOffset}`;
+      const finalTransform = customOffset
+        ? `${translateX} translate(${customOffset[0]}px, ${customOffset[1]}px)`
+        : translateX;
+      entry.element.style.transform = finalTransform;
+
+      // Fade out when on far side of globe (use already-transformed worldNormal)
+      const hideWhenOccluded = entry.config.hideWhenOccluded ?? true;
+      if (hideWhenOccluded) {
+        const facing = worldNormal.dot(cameraDir);
+        // facing > 0 → marker on the camera-facing hemisphere
+        const opacity = facing > 0 ? 1 : 0;
+        entry.element.style.opacity = String(opacity);
+      } else {
+        entry.element.style.opacity = '1';
+      }
+    });
+  }
+
+  public dispose(): void {
+    this.entries.forEach((e) => e.element.remove());
+    this.entries.clear();
+    this.host.remove();
+  }
+}
+
+const anchorTranslate = (anchor: NonNullable<HtmlMarkerConfig['anchor']>): string => {
+  switch (anchor) {
+    case 'top':
+      return ' translate(0, 50%)';
+    case 'bottom':
+      return ' translate(0, -50%)';
+    case 'left':
+      return ' translate(50%, 0)';
+    case 'right':
+      return ' translate(-50%, 0)';
+    case 'center':
+    default:
+      return '';
+  }
+};
+
+const configEquivalent = (a: HtmlMarkerConfig, b: HtmlMarkerConfig): boolean =>
+  a.id === b.id &&
+  a.position[0] === b.position[0] &&
+  a.position[1] === b.position[1] &&
+  a.content === b.content &&
+  a.anchor === b.anchor &&
+  a.hideWhenOccluded === b.hideWhenOccluded &&
+  a.clickThrough === b.clickThrough &&
+  a.offset?.[0] === b.offset?.[0] &&
+  a.offset?.[1] === b.offset?.[1];

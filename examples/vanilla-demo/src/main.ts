@@ -27,9 +27,16 @@ const $clickToPin = document.getElementById('toggle-click-to-pin') as HTMLInputE
 const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
 const $clearActive = document.getElementById('btn-clear-active') as HTMLButtonElement;
 const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
+const $starfield = document.getElementById('toggle-starfield') as HTMLInputElement;
+const $htmlMarkers = document.getElementById('toggle-html-markers') as HTMLInputElement;
+const $axisTilt = document.getElementById('axis-tilt') as HTMLInputElement;
+const $axisTiltValue = document.getElementById('axis-tilt-value') as HTMLSpanElement;
 const $studioBody = document.getElementById('studio-body') as HTMLDivElement;
 const $studioResetAll = document.getElementById('studio-reset-all') as HTMLButtonElement;
 const $studioExport = document.getElementById('studio-export') as HTMLButtonElement;
+const $studio = document.getElementById('studio') as HTMLDivElement;
+const $studioClose = document.getElementById('studio-close') as HTMLButtonElement;
+const $studioOpen = document.getElementById('studio-open') as HTMLButtonElement;
 
 let tokenOverrides: PartialTokenSet = {};
 
@@ -44,7 +51,31 @@ const settings = {
   clickToFocus: true,
   clickToPin: true,
   hoverOccludeBackSide: true,
+  starfieldEnabled: true,
+  htmlMarkersEnabled: true,
+  axisTilt: 23.5,
 };
+
+const HTML_MARKERS = [
+  {
+    id: 'london',
+    position: [51.5074, -0.1278] as const,
+    content: '<div style="background:rgba(20,20,40,0.8);border:1px solid #4a9eff;color:#cfd8ff;padding:6px 10px;border-radius:4px;font-size:12px;white-space:nowrap;font-family:system-ui">🇬🇧 London</div>',
+    anchor: 'bottom' as const,
+  },
+  {
+    id: 'rio',
+    position: [-22.9068, -43.1729] as const,
+    content: '<div style="background:rgba(40,20,30,0.8);border:1px solid #ffd166;color:#ffe9a0;padding:6px 10px;border-radius:4px;font-size:12px;white-space:nowrap;font-family:system-ui">🇧🇷 Rio</div>',
+    anchor: 'bottom' as const,
+  },
+  {
+    id: 'singapore',
+    position: [1.3521, 103.8198] as const,
+    content: '<div style="background:rgba(0,30,30,0.8);border:1px solid #22ee99;color:#22ee99;padding:6px 10px;border-radius:4px;font-size:12px;white-space:nowrap;font-family:system-ui">🇸🇬 Singapore</div>',
+    anchor: 'bottom' as const,
+  },
+];
 
 let globe: GlobeInstance | undefined;
 
@@ -67,6 +98,9 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     atmosphere: { enabled: true },
     autoRotate: { enabled: settings.autoRotateEnabled, speed: settings.autoRotateSpeed },
     zoom: { mode: settings.zoomMode, strength: settings.zoomStrength, smooth: settings.smoothZoom },
+    starfield: { enabled: settings.starfieldEnabled },
+    axisTilt: settings.axisTilt,
+    htmlMarkers: settings.htmlMarkersEnabled ? HTML_MARKERS : [],
     markers: [
       { id: 'waw', position: [52.2297, 21.0122] },
       { id: 'nyc', position: [40.7128, -74.006] },
@@ -225,6 +259,13 @@ const resetAll = (): void => {
   renderStudio();
 };
 
+const setStudioVisible = (visible: boolean): void => {
+  $studio.style.display = visible ? 'block' : 'none';
+  $studioOpen.style.display = visible ? 'none' : 'block';
+};
+$studioClose.addEventListener('click', () => setStudioVisible(false));
+$studioOpen.addEventListener('click', () => setStudioVisible(true));
+
 $studioResetAll.addEventListener('click', resetAll);
 $studioExport.addEventListener('click', () => {
   const resolved = resolveTheme({ extends: settings.themeName, tokens: tokenOverrides });
@@ -319,6 +360,20 @@ $clickToPin.addEventListener('change', () => {
 
 $clearActive.addEventListener('click', () => {
   globe?.setActiveCountry(null);
+});
+
+$starfield.addEventListener('change', () => {
+  settings.starfieldEnabled = $starfield.checked;
+  buildGlobe(settings.themeName);
+});
+$htmlMarkers.addEventListener('change', () => {
+  settings.htmlMarkersEnabled = $htmlMarkers.checked;
+  globe?.setHtmlMarkers(settings.htmlMarkersEnabled ? HTML_MARKERS : []);
+});
+$axisTilt.addEventListener('input', () => {
+  settings.axisTilt = Number.parseFloat($axisTilt.value);
+  $axisTiltValue.textContent = `${settings.axisTilt.toFixed(1)}°`;
+  buildGlobe(settings.themeName);
 });
 
 $hoverOcclude.addEventListener('change', () => {

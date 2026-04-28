@@ -29,7 +29,10 @@ export type TokenKey =
   | 'lights.directional.intensity'
   | 'markers.defaultColor'
   | 'atmosphere.color'
-  | 'atmosphere.intensity';
+  | 'atmosphere.intensity'
+  | 'starfield.color'
+  | 'starfield.density'
+  | 'starfield.size';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -61,6 +64,9 @@ export interface TokenSet {
   readonly 'markers.defaultColor': string;
   readonly 'atmosphere.color': string;
   readonly 'atmosphere.intensity': number;
+  readonly 'starfield.color': string;
+  readonly 'starfield.density': number;
+  readonly 'starfield.size': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;

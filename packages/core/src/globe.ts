@@ -1,4 +1,4 @@
-import { AmbientLight, DirectionalLight } from 'three';
+import { AmbientLight, DirectionalLight, Group } from 'three';
 import { SceneManager } from './renderer/scene-manager';
 import { GlobeMesh } from './renderer/globe-mesh';
 import { MarkersLayer } from './renderer/markers-layer';
@@ -6,6 +6,8 @@ import { CountriesLayer, type CountryFeature } from './renderer/countries-layer'
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
+import { HtmlMarkersLayer } from './renderer/html-markers-layer';
+import { StarfieldLayer } from './renderer/starfield-layer';
 import { AtmosphereLayer } from './renderer/atmosphere-layer';
 import { GlobeControls } from './interaction/controls';
 import { PointerRaycaster } from './interaction/raycaster';
@@ -74,6 +76,7 @@ interface InternalState {
   countryHighlightLayer: CountryHighlightLayer | null;
   countryActiveLayer: CountryHighlightLayer | null;
   countryTooltip: CountryTooltip | null;
+  htmlMarkersLayer: HtmlMarkersLayer;
   atmosphereLayer: AtmosphereLayer | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
@@ -94,7 +97,10 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     container: config.container,
     backgroundColor: tokens['background.color'],
     performance,
-    onRender: (delta) => state.controls.update(delta),
+    onRender: (delta) => {
+      state.controls.update(delta);
+      state.htmlMarkersLayer.update();
+    },
   });
 
   scene.scene.add(
@@ -107,16 +113,32 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   dirLight.position.set(5, 3, 5);
   scene.scene.add(dirLight);
 
+  // Tilted parent group for the globe assembly. Tilt is applied around Z so
+  // the auto-rotate (which spins the camera around world Y) makes the globe
+  // appear to spin on a tilted axis — the natural Earth feel at 23.5°.
+  const globeGroup = new Group();
+  globeGroup.rotation.z = (-(config.axisTilt ?? 0) * Math.PI) / 180;
+  scene.scene.add(globeGroup);
+
+  const starfieldLayer = config.starfield?.enabled
+    ? new StarfieldLayer({
+        count: tokens['starfield.density'],
+        color: tokens['starfield.color'],
+        size: tokens['starfield.size'],
+      })
+    : null;
+  if (starfieldLayer) scene.scene.add(starfieldLayer.object);
+
   const globeMesh = new GlobeMesh({
     color: tokens['globe.surfaceColor'],
     ...(tokens['globe.surfaceTextureUrl'] !== '' && {
       textureUrl: tokens['globe.surfaceTextureUrl'],
     }),
   });
-  scene.scene.add(globeMesh.mesh);
+  globeGroup.add(globeMesh.mesh);
 
   const markersLayer = new MarkersLayer({ defaultColor: tokens['markers.defaultColor'] });
-  scene.scene.add(markersLayer.mesh);
+  globeGroup.add(markersLayer.mesh);
 
   const atmosphereLayer = config.atmosphere?.enabled
     ? new AtmosphereLayer({
@@ -124,7 +146,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         intensity: tokens['atmosphere.intensity'],
       })
     : null;
-  if (atmosphereLayer) scene.scene.add(atmosphereLayer.mesh);
+  if (atmosphereLayer) globeGroup.add(atmosphereLayer.mesh);
+
+  const htmlMarkersLayer = new HtmlMarkersLayer({
+    container: config.container,
+    camera: scene.camera,
+    globeGroup,
+  });
+  if (config.htmlMarkers && config.htmlMarkers.length > 0) {
+    htmlMarkersLayer.setMarkers(config.htmlMarkers);
+  }
 
   const tooltip = new CountryTooltip({
     container: config.container,
@@ -213,6 +244,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     countryHighlightLayer: null,
     countryActiveLayer: null,
     countryTooltip: tooltip,
+    htmlMarkersLayer,
     atmosphereLayer,
     controls,
     raycaster,
@@ -237,13 +269,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         borderWidth: tokens['countries.border.width'],
         borderOpacity: tokens['countries.border.opacity'],
       });
-      scene.scene.add(visible.group);
+      globeGroup.add(visible.group);
       state.countriesLayer = visible;
 
       const picking = new CountriesPickingLayer({
         features: features as ReadonlyArray<CountryFeature>,
       });
-      scene.scene.add(picking.group);
+      globeGroup.add(picking.group);
       state.countriesPickingLayer = picking;
       raycaster.setTargets([
         { type: 'marker', object: markersLayer.mesh },
@@ -257,7 +289,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         occludeBackSide: countries.hoverOccludeBackSide,
       });
       highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
-      scene.scene.add(highlight.object);
+      globeGroup.add(highlight.object);
       state.countryHighlightLayer = highlight;
 
       const activeLayer = new CountryHighlightLayer({
@@ -268,7 +300,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       });
       activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
       activeLayer.object.renderOrder = 11;
-      scene.scene.add(activeLayer.object);
+      globeGroup.add(activeLayer.object);
       state.countryActiveLayer = activeLayer;
       // Re-apply pending active country if user called setActiveCountry before features loaded
       if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
@@ -294,6 +326,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryHighlightLayer?.dispose();
       state.countryActiveLayer?.dispose();
       state.countryTooltip?.dispose();
+      state.htmlMarkersLayer.dispose();
+      starfieldLayer?.dispose();
       atmosphereLayer?.dispose();
       scene.destroy();
       emitter.clear();
@@ -346,6 +380,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     setMarkers: (markers: ReadonlyArray<MarkerConfig>) => markersLayer.setMarkers(markers),
     addMarker: (marker: MarkerConfig) => markersLayer.addMarker(marker),
     removeMarker: (id: string) => markersLayer.removeMarker(id),
+    setHtmlMarkers: (markers) => htmlMarkersLayer.setMarkers(markers),
+    addHtmlMarker: (marker) => htmlMarkersLayer.addMarker(marker),
+    removeHtmlMarker: (id) => htmlMarkersLayer.removeMarker(id),
     resize: () => scene.resize(),
     getCanvas: () => scene.getCanvas(),
   };
