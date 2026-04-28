@@ -226,12 +226,13 @@ const setStatus = (text: string): void => {
 const buildGlobe = (themeName: ThemePresetName): void => {
   globe?.destroy();
   settings.themeName = themeName;
+  const countryStyle = themeName === 'dotted-dark' ? 'dotted' : 'borders';
   globe = createGlobe({
     container,
     theme: { extends: themeName, tokens: tokenOverrides },
     countries: {
       resolution: 'low',
-      style: 'borders',
+      style: countryStyle,
       hoverEnabled: true,
       hoverOccludeBackSide: settings.hoverOccludeBackSide,
     },

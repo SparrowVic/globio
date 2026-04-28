@@ -5,6 +5,7 @@ import { MarkersLayer } from './renderer/markers-layer';
 import { CountriesLayer, type CountryFeature } from './renderer/countries-layer';
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
 import { CountriesFillLayer } from './renderer/countries-fill-layer';
+import { CountriesDottedLayer } from './renderer/countries-dotted-layer';
 import { CountryLabelsLayer } from './renderer/country-labels-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
@@ -80,6 +81,7 @@ interface InternalState {
   globeMesh: GlobeMesh;
   markersLayer: MarkersLayer;
   countriesLayer: CountriesLayer | null;
+  countriesDottedLayer: CountriesDottedLayer | null;
   countriesPickingLayer: CountriesPickingLayer | null;
   countriesFillLayer: CountriesFillLayer | null;
   countryLabelsLayer: CountryLabelsLayer | null;
@@ -288,6 +290,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     globeMesh,
     markersLayer,
     countriesLayer: null,
+    countriesDottedLayer: null,
     countriesPickingLayer: null,
     countriesFillLayer: null,
     countryLabelsLayer: null,
@@ -326,14 +329,26 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countriesFillLayer = fill;
       if (state.countryData) fill.setData(state.countryData);
 
-      const visible = new CountriesLayer({
-        features: features as ReadonlyArray<CountryFeature>,
-        borderColor: tokens['countries.border.color'],
-        borderWidth: tokens['countries.border.width'],
-        borderOpacity: tokens['countries.border.opacity'],
-      });
-      globeGroup.add(visible.group);
-      state.countriesLayer = visible;
+      if (countries.style === 'dotted') {
+        const dotted = new CountriesDottedLayer({
+          features: features as ReadonlyArray<CountryFeature>,
+          color: tokens['countries.dotted.color'],
+          size: tokens['countries.dotted.size'],
+          density: tokens['countries.dotted.density'],
+          opacity: tokens['countries.dotted.opacity'],
+        });
+        globeGroup.add(dotted.group);
+        state.countriesDottedLayer = dotted;
+      } else {
+        const visible = new CountriesLayer({
+          features: features as ReadonlyArray<CountryFeature>,
+          borderColor: tokens['countries.border.color'],
+          borderWidth: tokens['countries.border.width'],
+          borderOpacity: tokens['countries.border.opacity'],
+        });
+        globeGroup.add(visible.group);
+        state.countriesLayer = visible;
+      }
 
       const picking = new CountriesPickingLayer({
         features: features as ReadonlyArray<CountryFeature>,
@@ -465,6 +480,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       markersLayer.dispose();
       globeMesh.dispose();
       state.countriesLayer?.dispose();
+      state.countriesDottedLayer?.dispose();
       state.countriesFillLayer?.dispose();
       state.legend?.dispose();
       state.countriesPickingLayer?.dispose();

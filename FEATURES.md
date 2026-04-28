@@ -72,16 +72,29 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Status:** ✅ częściowo zaimplementowany (potrzebuje refinement: hover/click na krajach,
   lepsza typografia atmosphere, dotted/filled subwarianty).
 
-### 3.2 Dotted (Apple/Stripe-style) `[v1·M]` 🎨 `A·B`
+### 3.2 Dotted (Apple/Stripe-style) `[v1·M·built]` 🌟 🎨 `A·B`
 
-- **Vibe:** świetlne kropki układające granice państw na czarnej kuli.
-- **Anatomia:** czarna sfera + Points cloud sampling kraju (regular grid albo
-  Poisson-disc sampling) + atmosphere.
-- **Tokens:** `dotted.color`, `dotted.density`, `dotted.size`, `dotted.glow`, `background`.
+- **Vibe:** świetlne kropki wypełniające kraje na czarnej kuli (Stripe / Apple
+  privacy / OpenAI DALL-E hero).
+- **Anatomia:** `CountriesDottedLayer` — `THREE.Points` per kraj, vertices
+  sampled na regularnej siatce lat/lng wewnątrz polygon-with-holes (ray-casting
+  point-in-polygon, holes subtracted). Antymerydian obsłużony przez running
+  +360 shift dla rings z bbox δlng > 180. Dots renderowane z `PointsMaterial`
+  (`sizeAttenuation: true`, additive blending) i runtime-generated radial-gradient
+  alpha texture — okrągłe, miękkie krawędzie zamiast domyślnych kwadratów.
+- **API:** ustawiasz `countries: { style: 'dotted' }` w `GlobeConfig`; layer
+  zastępuje borders. Picking layer zostaje, więc hover/click działa normalnie.
+- **Tokens:** `countries.dotted.color`, `countries.dotted.size` (world units),
+  `countries.dotted.density` (degree step na siatce), `countries.dotted.opacity`.
+  Zarejestrowane w `TokenSet` i obecne we wszystkich pre-presetach + nowym
+  `dotted-dark`.
+- **Preset:** `'dotted-dark'` — czarna sfera (`globe.surfaceColor: #000`),
+  cyan dots (`#7fdfff`), borders ukryte (`opacity: 0`), atmosphere `#4a9eff`.
+  Przełącznik "Dotted" w demo's theme buttons row.
 - **Best for:** premium SaaS hero, B2B marketing, "globalna obecność".
 - **References:** stripe.com hero, apple privacy globe, openai DALL-E hero.
-- **Sub-warianty (`v1.x`):** dotted-grid (regularna siatka), dotted-organic (Poisson),
-  dotted-data (gęstość zależna od metryki).
+- **Sub-warianty (`v1.x`):** dotted-organic (Poisson), dotted-data (gęstość
+  zależna od metryki).
 
 ### 3.3 Wireframe / Retro Tron `[v1·S]` 🎨 `A·F`
 
