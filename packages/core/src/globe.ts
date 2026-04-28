@@ -430,6 +430,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         features: features as ReadonlyArray<CountryFeature>,
         tokens,
         config,
+        globeSurfaceMesh: globeMesh.mesh,
       });
       // Re-apply pending active country to kind handle (e.g. wireframe ring)
       // if user called setActiveCountry before features loaded.

@@ -1,4 +1,4 @@
-import type { Group, Vector3 } from 'three';
+import type { Group, Mesh, Vector3 } from 'three';
 import type { CountryFeature } from '../renderer/country-feature';
 import type { ResolvedTokens } from '../theme/types';
 import type { CountryDataMap, GlobeConfig, LatLng } from '../types';
@@ -10,15 +10,17 @@ import type { CountryDataMap, GlobeConfig, LatLng } from '../types';
  * - `outline` — vector country borders on a solid sphere (default)
  * - `dotted` — Apple/Stripe-style: glowing dots fill each country, no borders
  * - `wireframe` — Tron-style: pure lat/lng grid, no country geometry
+ * - `hologram` — sci-fi command-deck: transparent shell, scanlines, Fresnel rim
  *
- * Future kinds: `paper`, `hologram`, `choropleth`. New kinds get a
+ * Future kinds: `paper`, `choropleth`. New kinds get a
  * `kinds/<name>/` folder with their own layer + index.ts exporting a
  * `KindModule`, then a registry entry in `kinds/registry.ts`.
  */
 export type GlobeKind =
   | 'outline'
   | 'dotted'
-  | 'wireframe';
+  | 'wireframe'
+  | 'hologram';
 
 /**
  * Inputs handed to a kind module's `build()`. Kinds get the loaded country
@@ -32,6 +34,14 @@ export interface KindBuildContext {
   readonly features: ReadonlyArray<CountryFeature>;
   readonly tokens: ResolvedTokens;
   readonly config: GlobeConfig;
+  /**
+   * The default opaque sphere mesh that backs `globeMesh.surfaceColor`. Most
+   * kinds add their visible geometry on top of it. Kinds that want a fully
+   * custom shell (e.g. `hologram`) can hide this on `build()` and restore
+   * on `dispose()` — the underlying mesh still serves as the picking target
+   * for surface raycasts even when invisible.
+   */
+  readonly globeSurfaceMesh: Mesh;
 }
 
 /**

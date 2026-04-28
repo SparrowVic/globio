@@ -1,5 +1,6 @@
 import type { ThemePresetName } from '../theme/presets';
 import { dottedKind } from './dotted';
+import { hologramKind } from './hologram';
 import { outlineKind } from './outline';
 import { wireframeKind } from './wireframe';
 import type { GlobeKind, KindModule } from './types';
@@ -12,6 +13,7 @@ export const KIND_MODULES: Readonly<Record<GlobeKind, KindModule>> = Object.free
   outline: outlineKind,
   dotted: dottedKind,
   wireframe: wireframeKind,
+  hologram: hologramKind,
 });
 
 /**
@@ -27,4 +29,5 @@ export const PRESET_DEFAULT_KIND: Readonly<Record<ThemePresetName, GlobeKind>> =
   'outline-monochrome': 'outline',
   'dotted-dark': 'dotted',
   'wireframe-tron': 'wireframe',
+  'hologram-cyan': 'hologram',
 });

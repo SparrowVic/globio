@@ -14,7 +14,8 @@ export type ThemePresetName =
   | 'outline-cyber'
   | 'outline-monochrome'
   | 'dotted-dark'
-  | 'wireframe-tron';
+  | 'wireframe-tron'
+  | 'hologram-cyan';
 
 /**
  * Built-in theme presets — each is a `Partial<TokenSet>` that only declares
@@ -196,5 +197,41 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
     'wireframe.opacity': 0.7,
     'wireframe.density': 1.2,
     'wireframe.pulse': 0.15,
+  }),
+
+  // Hologram kind — semi-transparent turquoise shell with scanlines + Fresnel
+  // rim, additive cyan country borders. Default-on glitch transients add
+  // CRT-style life. Hologram-specific tokens use defaults.
+  'hologram-cyan': Object.freeze({
+    'background.color': '#020a14',
+    'globe.surfaceColor': '#000814',
+    'countries.border.opacity': 0,
+    'countries.fill.opacity': 0,
+    'countries.dotted.opacity': 0,
+    'countries.borderHover.color': '#67e8f9',
+    'countries.borderActive.color': '#ffffff',
+    'countries.label.color': '#67e8f9',
+    'countries.label.fontFamily': 'JetBrains Mono, ui-monospace, monospace',
+    'countries.label.textShadow': '0 0 6px rgba(103, 232, 249, 0.8)',
+    'tooltip.backgroundColor': 'rgba(2, 10, 20, 0.9)',
+    'tooltip.textColor': '#67e8f9',
+    'tooltip.fontFamily': 'JetBrains Mono, ui-monospace, monospace',
+    'tooltip.borderRadius': '2px',
+    'legend.backgroundColor': 'rgba(2, 10, 20, 0.9)',
+    'legend.textColor': '#67e8f9',
+    'legend.titleColor': '#ffffff',
+    'legend.fontFamily': 'JetBrains Mono, ui-monospace, monospace',
+    'legend.borderRadius': '2px',
+    'lights.ambient.color': '#4dd0e1',
+    'lights.ambient.intensity': 0.5,
+    'lights.directional.intensity': 0.4,
+    'markers.defaultColor': '#67e8f9',
+    'atmosphere.color': '#4dd0e1',
+    'atmosphere.intensity': 1.6,
+    'starfield.color': '#67e8f9',
+    'starfield.density': 1800,
+    'starfield.size': 1.1,
+    'arcs.color': '#67e8f9',
+    'arcs.headColor': '#ffffff',
   }),
 });

@@ -70,6 +70,10 @@ const $wireframeEmphasis = document.getElementById('toggle-wireframe-emphasis') 
 const $wireframeGlitch = document.getElementById('toggle-wireframe-glitch') as HTMLInputElement;
 const $wireframeActiveRing = document.getElementById('toggle-wireframe-activering') as HTMLInputElement;
 const $wireframeStreams = document.getElementById('toggle-wireframe-streams') as HTMLInputElement;
+const $hologramScanlines = document.getElementById('toggle-hologram-scanlines') as HTMLInputElement;
+const $hologramRim = document.getElementById('toggle-hologram-rim') as HTMLInputElement;
+const $hologramGlitch = document.getElementById('toggle-hologram-glitch') as HTMLInputElement;
+const $hologramOuterGlow = document.getElementById('toggle-hologram-outerglow') as HTMLInputElement;
 
 let tokenOverrides: PartialTokenSet = {};
 
@@ -101,6 +105,10 @@ const settings = {
   wireframeGlitch: true,
   wireframeActiveRing: true,
   wireframeStreams: true,
+  hologramScanlines: true,
+  hologramRim: true,
+  hologramGlitch: true,
+  hologramOuterGlow: true,
 };
 
 const WORLD_TOUR = {
@@ -296,6 +304,12 @@ const buildGlobe = (themeName: ThemePresetName): void => {
       glitch: { enabled: settings.wireframeGlitch },
       activeRing: { enabled: settings.wireframeActiveRing },
       poleStreams: { enabled: settings.wireframeStreams },
+    },
+    hologram: {
+      scanlines: { enabled: settings.hologramScanlines },
+      rimGlow: { enabled: settings.hologramRim },
+      glitch: { enabled: settings.hologramGlitch },
+      outerGlow: { enabled: settings.hologramOuterGlow },
     },
     markers: [
       { id: 'waw', position: [52.2297, 21.0122], label: 'Warsaw', color: '#4a9eff' },
@@ -498,6 +512,8 @@ const KIND_FX_BLURBS: Readonly<Record<GlobeKind, string>> = {
     'Click ripples, data flashes, ambient drift, and hover dot expansion.',
   wireframe:
     'Click pulses, equator emphasis, CRT glitch, active-country ring, pole-to-pole streams.',
+  hologram:
+    'Transparent shell, scanlines, Fresnel rim, occasional CRT glitch.',
 };
 
 const refreshKindAndThemeUI = (themeName: ThemePresetName): void => {
@@ -916,6 +932,23 @@ $wireframeActiveRing.addEventListener('change', () => {
 });
 $wireframeStreams.addEventListener('change', () => {
   settings.wireframeStreams = $wireframeStreams.checked;
+  buildGlobe(settings.themeName);
+});
+
+$hologramScanlines.addEventListener('change', () => {
+  settings.hologramScanlines = $hologramScanlines.checked;
+  buildGlobe(settings.themeName);
+});
+$hologramRim.addEventListener('change', () => {
+  settings.hologramRim = $hologramRim.checked;
+  buildGlobe(settings.themeName);
+});
+$hologramGlitch.addEventListener('change', () => {
+  settings.hologramGlitch = $hologramGlitch.checked;
+  buildGlobe(settings.themeName);
+});
+$hologramOuterGlow.addEventListener('change', () => {
+  settings.hologramOuterGlow = $hologramOuterGlow.checked;
   buildGlobe(settings.themeName);
 });
 
