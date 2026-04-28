@@ -1,7 +1,7 @@
 import {
   BufferGeometry,
-  DoubleSide,
   Float32BufferAttribute,
+  FrontSide,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -31,14 +31,22 @@ export class CountriesPickingLayer {
     this.group = new Group();
     this.group.name = 'CountriesPickingLayer';
 
-    // Transparent + zero opacity + colorWrite off renders nothing on screen
-    // but Three.js still raycasts it (Mesh.raycast does pure geometry intersection).
+    // FrontSide is critical: it ensures the raycaster only intersects mesh
+    // triangles whose outward normal faces the camera. Without it (DoubleSide),
+    // a ray cast over a front-side ocean gap would continue through the globe
+    // and pick up back-facing triangles of countries on the far side, causing
+    // ghost-hover events for countries the cursor isn't actually over.
+    //
+    // After our CW-reversal in triangulateRing, all input rings reach earcut
+    // as CCW; resulting triangles wind CCW from outside the sphere, which
+    // Three.js treats as front-facing. So FrontSide picks up front-side
+    // countries correctly and ignores back-side ones.
     this.material = new MeshBasicMaterial({
       transparent: true,
       opacity: 0,
       depthWrite: false,
       colorWrite: false,
-      side: DoubleSide,
+      side: FrontSide,
     });
 
     // Lift just slightly above visible borders (which sit at GLOBE_RADIUS * 1.001)
