@@ -413,6 +413,13 @@ export interface FocusOptions extends FlyToOptions {
    * Set to false to keep rotating after focus completes.
    */
   readonly pauseAutoRotateOnFocus?: boolean;
+  /**
+   * Override the camera target lat/lng. Defaults to the country's centroid
+   * (computed from its main-ring bounds). Useful for "direct-focus" — click
+   * on Russia, fly toward the exact spot you clicked while still framing
+   * the whole country at the right zoom.
+   */
+  readonly center?: LatLng;
 }
 
 export interface PerformanceConfig {
@@ -456,6 +463,8 @@ export interface GlobeConfig {
    *   ocean / wireframe void). Default false.
    */
   readonly focusPulse?: {
+    /** Master enable. When false, no kind spawns its pulse decorator. Default true. */
+    readonly enabled?: boolean;
     readonly origin?: 'centroid' | 'click';
     readonly pulseOnSurfaceClick?: boolean;
   };
@@ -480,11 +489,23 @@ export interface GlobeConfig {
   readonly zoom?: ZoomConfig;
 }
 
+export interface SurfaceClickEvent {
+  /** Lat/lng of the click on the globe surface, in globe-local coords. */
+  readonly point: LatLng;
+}
+
 export interface GlobeEvents {
   readonly countryClick: (event: CountryEvent) => void;
   readonly countryHover: (event: CountryEvent | null) => void;
   readonly markerClick: (event: MarkerEvent) => void;
   readonly markerHover: (event: MarkerEvent | null) => void;
+  /**
+   * Fires for any globe-surface click that did NOT land on a country
+   * (oceans / void areas). Lets the demo or app choose what to do — fly
+   * to the click point, ignore, etc. Country clicks emit `countryClick`
+   * separately, never both.
+   */
+  readonly surfaceClick: (event: SurfaceClickEvent) => void;
   readonly ready: () => void;
   readonly error: (error: Error) => void;
   readonly sceneEnter: (event: StorySceneEvent) => void;
