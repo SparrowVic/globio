@@ -75,6 +75,9 @@ export class HoverCrosshairLayer {
     this.object.add(buildReticle(size, this.material));
 
     this.tooltip = document.createElement('div');
+    // Offset the readout vertically below the shared `CountryTooltip`
+    // (which sits at translate(12px, 12px)) so the two cursor-anchored
+    // tooltips stack rather than overlap when both are active.
     this.tooltip.style.cssText = [
       'position:absolute',
       'pointer-events:none',
@@ -85,7 +88,7 @@ export class HoverCrosshairLayer {
       'font-size:11px',
       'letter-spacing:0.04em',
       'white-space:nowrap',
-      'transform:translate(14px, 12px)',
+      'transform:translate(14px, 32px)',
       'opacity:0',
       'transition:opacity 80ms linear',
       'text-shadow:0 0 4px rgba(0,0,0,0.6)',
@@ -148,8 +151,11 @@ export class HoverCrosshairLayer {
       this.current.add(this.tmp);
       if (this.current.lengthSq() < POSITION_EPSILON) this.current.copy(this.target);
       this.object.position.copy(this.current);
-      // Orient so the reticle plane is tangent to the sphere — face outward.
-      this.object.lookAt(this.current.clone().multiplyScalar(2));
+      // Orient so the reticle plane is tangent to the sphere. `lookAt`
+      // uses world-space coords; `(0, 0, 0)` is the globe centre regardless
+      // of any rotation applied to `globeGroup` (axisTilt). The reticle's
+      // local -Z then points inward and its XY plane sits tangent.
+      this.object.lookAt(0, 0, 0);
       this.object.visible = true;
     } else if (this.fadeT === 0) {
       this.object.visible = false;
