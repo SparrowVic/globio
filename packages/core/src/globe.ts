@@ -283,7 +283,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     if (typeof id !== 'string') return null;
     const country = state.countriesPickingLayer.getCountry(id);
     if (!country) return null;
-    const ll: LatLng = point ? vector3ToLatLng(point) : [0, 0];
+    // Raycaster gives us world-space hit points. Convert to globe-LOCAL
+    // before lat/lng so consumers (notably `focusOnCountry({ center })`,
+    // which re-applies globeLocalToWorldLatLng internally) don't double-
+    // transform when an axisTilt is set on the globeGroup.
+    let ll: LatLng = [0, 0];
+    if (point) {
+      const local = point.clone();
+      globeGroup.updateMatrixWorld();
+      local.applyMatrix4(globeGroup.matrixWorld.clone().invert());
+      ll = vector3ToLatLng(local);
+    }
     return { country, point: ll };
   };
 
