@@ -1,4 +1,5 @@
 import { CountriesDottedLayer } from './dotted-layer';
+import { buildDottedFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryDataMap } from '../../types';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
 
@@ -60,10 +61,20 @@ export const dottedKind: KindModule = {
       hoverDuration: hoverDots?.duration ?? tokens['countries.dotted.hoverDuration'],
     });
     globeGroup.add(layer.group);
+
+    const focusPulse = buildDottedFocusPulse({
+      globeGroup,
+      enabled: true,
+      color: tokens['countries.dotted.color'],
+      durationSeconds: 1.1,
+    });
+
     return {
+      decorations: { focusPulse },
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);
+        focusPulse.dispose();
       },
       setVisible(visible: boolean) {
         layer.setVisible(visible);

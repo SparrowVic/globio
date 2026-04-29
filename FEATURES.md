@@ -419,6 +419,32 @@ raz na cały globus → `GLOBAL`. Wrappery frameworkowe = `INSTANCE`.
 
 ---
 
+## 5b. Decoration pattern roadmap 🌟
+
+Niektóre featury są **shared semantically** (każdy rodzaj globu je MA), ale ich **wygląd / animacja / styl** powinny żyć **per rodzaj globu** — outline'owy arc świeci złotem, hologramowy migocze cyanem ze scanlinem, paperowy jest ledwo widocznym tuszem na pergaminie. Rozwiązaniem jest **decoration pattern**: kind module deklaruje opcjonalne `decorations: { focusPulse?, arcs?, markers?, … }`, które nadpisują domyślne shared rendery konkretnym stylem dla aktywnego kindu. Presety nadal sterują tokenami; decorations sterują strukturą rendering pipeline.
+
+**Kandydaci do migracji** (od najpilniejszych do najmniej):
+
+| Feature | Status dziś | Wariacje per kind (pomysły) |
+|---|---|---|
+| **Focus pulse** | shipped via decorations (5 kindów) | outline: spherical band gold; dotted: cyan band + dot brightness wave; wireframe: cyan band + grid pulse propagation; paper: warm-ink band fading slowly; hologram: cyan band + scanline rim sync |
+| **Animated arcs** | shared `ArcsLayer`, tylko tokeny | wireframe: arc as glitching scanline; hologram: dashed cyan with glitch transient on segments; paper: hand-drawn dashed ink trail; dotted: arc-as-flowing-particles; outline: existing |
+| **Country borders on hover** | shared `CountryHighlightLayer` + tokens | paper: ink-bleed thicker edge; hologram: cyan edge glow + scanline overlay; dotted: edge-ring of brighter dots; wireframe: pulse along grid towards country |
+| **Country active/click state** | shared `CountryActiveLayer` (separate) | wireframe: spinning geodesic ring (already shipped as kind-extra); paper: stamped ink seal; hologram: rotating bracket targeting reticle; dotted: persistent dot brightness |
+| **Markers (instanced dots)** | shared `MarkersLayer` | paper: stamped ink dots with slight rotation; hologram: cyan diamond with halo; wireframe: small intersection cross; dotted: integrated with existing dot grid |
+| **HTML overlay markers** | shared `HtmlMarkersLayer` | paper: serif label box on cream background; hologram: bracketed terminal label "[ Tokyo ]"; wireframe: monospace coords + bracket frame; dotted: rounded soft pill |
+| **Country labels on globe** | shared `CountryLabelsLayer` | paper: serif italic, atlas-style; hologram: monospace cyan with bracket prefix; wireframe: monospace cyan; dotted: clean sans; outline: existing |
+| **Starfield background** | shared `StarfieldLayer` | hologram: scanline dim across stars; paper: faint pencil-dot constellation lines; wireframe: brighter cyan stars; dotted: more density; outline: existing |
+| **Tooltip / legend** | shared DOM, theme-driven | paper: parchment-style border + serif; hologram: terminal-style frame; wireframe: ASCII-bracket frame + monospace |
+| **Atmosphere outer glow** | shared `AtmosphereLayer` | per-kind already partially — but could become a decorator with custom shaders (paper: vignette; hologram: scanline-cut halo) |
+| **Click feedback on water** | not shipped yet | tied to focus-pulse `pulseOnSurfaceClick` option; per-kind variant naturally inherits style from above |
+
+**Mechanika:** każdy decorator to mała klasa z `dispose / update? / spawn?` (depending on the feature). Kind module wystawia je przez `KindHandle.decorations`. Globe.ts dispatcher kieruje wywołania (`onCountryFocus → decorations.focusPulse.spawn`, etc.) do aktywnego kindu. Kindy które nie mają decoratora dla danego feature'a fall-backują do shared default lub po prostu nie reagują.
+
+**Order of work:** focus-pulse jako pierwszy ✅ (shipped). Następne: arcs (high-impact wizualnie + już często widoczne w demach), potem country hover/active borders, potem markers, html overlay, country labels, starfield, tooltip/legend.
+
+---
+
 ## 6. Roadmap
 
 | Wersja | Cel główny | Highlights |

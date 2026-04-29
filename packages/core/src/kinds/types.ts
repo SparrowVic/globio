@@ -86,6 +86,36 @@ export interface KindHandle {
    * dots whose value moved).
    */
   onCountryDataChange?(next: CountryDataMap | null, prev: CountryDataMap | null): void;
+  /**
+   * Optional registry of feature decorators. Globe.ts looks here when
+   * routing lifecycle events that have a kind-specific visual variant
+   * (e.g. focus pulse) — when the kind owns a decorator, it gets the
+   * call; otherwise the event is a no-op for that feature.
+   */
+  readonly decorations?: KindDecorations;
+}
+
+/**
+ * Decorator for a shared semantic feature whose VISUAL implementation differs
+ * per kind. The kind module exposes decorators on its `KindHandle` and
+ * globe.ts routes lifecycle events into them, so e.g. a focus pulse looks
+ * cyan-tron in wireframe, ink-stain in paper, etc.
+ */
+export interface FocusPulseDecorator {
+  /**
+   * Spawn a pulse at `latLng`. `source` distinguishes pulses triggered by
+   * `globe.focusOnCountry()` (lat/lng = country centroid) from raw surface
+   * clicks (lat/lng = exact click point).
+   */
+  spawn(latLng: LatLng, source: 'focus' | 'click'): void;
+  update?(delta: number): void;
+  dispose(): void;
+}
+
+export interface KindDecorations {
+  readonly focusPulse?: FocusPulseDecorator;
+  // Future: arcs, markers, hoverBorders, htmlMarkers, labels, starfield…
+  // See FEATURES.md "Decoration pattern roadmap".
 }
 
 /**

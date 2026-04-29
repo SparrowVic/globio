@@ -2,6 +2,7 @@ import { WIREFRAME_DEFAULT_RADIUS, WireframeGridLayer } from './wireframe-grid-l
 import { WireframeEmphasisLayer } from './wireframe-emphasis-layer';
 import { ActiveCountryRing } from './active-country-ring';
 import { PoleStreams } from './pole-streams';
+import { buildWireframeFocusPulse } from '../shared/focus-pulse-decorators';
 import type { Vector3 } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
@@ -102,7 +103,15 @@ export const wireframeKind: KindModule = {
       : null;
     if (poleStreams) globeGroup.add(poleStreams.group);
 
+    const focusPulse = buildWireframeFocusPulse({
+      globeGroup,
+      enabled: true,
+      color: tokens['wireframe.color'],
+      durationSeconds: 0.95,
+    });
+
     return {
+      decorations: { focusPulse },
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);
@@ -118,6 +127,7 @@ export const wireframeKind: KindModule = {
           poleStreams.dispose();
           globeGroup.remove(poleStreams.group);
         }
+        focusPulse.dispose();
       },
       setVisible(visible: boolean) {
         layer.setVisible(visible);

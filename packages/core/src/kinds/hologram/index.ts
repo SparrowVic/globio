@@ -1,5 +1,6 @@
 import { HologramBordersLayer } from './hologram-borders-layer';
 import { HologramShellLayer } from './hologram-shell-layer';
+import { buildHologramFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
 
@@ -64,13 +65,22 @@ export const hologramKind: KindModule = {
     });
     globeGroup.add(borders.group);
 
+    const focusPulse = buildHologramFocusPulse({
+      globeGroup,
+      enabled: true,
+      color: tokens['hologram.borderColor'],
+      durationSeconds: 1.0,
+    });
+
     return {
+      decorations: { focusPulse },
       dispose() {
         globeSurfaceMesh.visible = previouslyVisible;
         shell.dispose();
         globeGroup.remove(shell.group);
         borders.dispose();
         globeGroup.remove(borders.group);
+        focusPulse.dispose();
       },
       setVisible(visible: boolean) {
         shell.setVisible(visible);

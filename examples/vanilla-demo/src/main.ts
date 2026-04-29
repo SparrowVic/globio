@@ -39,6 +39,8 @@ const $outlineGlow = document.getElementById('toggle-outline-glow') as HTMLInput
 const $outlinePulse = document.getElementById('toggle-outline-pulse') as HTMLInputElement;
 const $outlineCrosshair = document.getElementById('toggle-outline-crosshair') as HTMLInputElement;
 const $outlineContinentDim = document.getElementById('toggle-outline-continent-dim') as HTMLInputElement;
+const $focusPulseClickOrigin = document.getElementById('toggle-focus-pulse-click-origin') as HTMLInputElement;
+const $focusPulseOnSurface = document.getElementById('toggle-focus-pulse-on-surface') as HTMLInputElement;
 const $starfield = document.getElementById('toggle-starfield') as HTMLInputElement;
 const $htmlMarkers = document.getElementById('toggle-html-markers') as HTMLInputElement;
 const $axisTilt = document.getElementById('axis-tilt') as HTMLInputElement;
@@ -94,6 +96,8 @@ const settings = {
   outlinePulseEnabled: true,
   outlineCrosshairEnabled: true,
   outlineContinentDimEnabled: true,
+  focusPulseClickOrigin: false,
+  focusPulseOnSurface: false,
   starfieldEnabled: true,
   htmlMarkersEnabled: true,
   arcsEnabled: true,
@@ -284,6 +288,10 @@ const buildGlobe = (themeName: ThemePresetName): void => {
       hoverOccludeBackSide: settings.hoverOccludeBackSide,
     },
     atmosphere: { enabled: true },
+    focusPulse: {
+      origin: settings.focusPulseClickOrigin ? 'click' : 'centroid',
+      pulseOnSurfaceClick: settings.focusPulseOnSurface,
+    },
     outline: {
       hoverGlow: { enabled: settings.outlineGlowEnabled },
       focusPulse: { enabled: settings.outlinePulseEnabled },
@@ -721,6 +729,16 @@ $outlineCrosshair.addEventListener('change', () => {
 
 $outlineContinentDim.addEventListener('change', () => {
   settings.outlineContinentDimEnabled = $outlineContinentDim.checked;
+  buildGlobe(settings.themeName);
+});
+
+$focusPulseClickOrigin.addEventListener('change', () => {
+  settings.focusPulseClickOrigin = $focusPulseClickOrigin.checked;
+  buildGlobe(settings.themeName);
+});
+
+$focusPulseOnSurface.addEventListener('change', () => {
+  settings.focusPulseOnSurface = $focusPulseOnSurface.checked;
   buildGlobe(settings.themeName);
 });
 

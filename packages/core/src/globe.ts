@@ -130,6 +130,8 @@ interface InternalState {
   activeCountryId: string | null;
   countryData: CountryDataMap | null;
   legend: LegendInstance | null;
+  /** Last surface click in lat/lng. Used for the focus-pulse `origin: 'click'` mode. */
+  lastClickLatLng: LatLng | null;
   elapsedSeconds: number;
   destroyed: boolean;
 }
@@ -151,6 +153,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.elapsedSeconds += delta;
       arcsLayer.update(state.elapsedSeconds);
       state.kindHandle?.update?.(delta, state.elapsedSeconds);
+      state.kindHandle?.decorations?.focusPulse?.update?.(delta);
       state.htmlMarkersLayer.update();
       state.markersLayer.update(delta);
       state.countryHighlightLayer?.update(delta);
@@ -319,12 +322,15 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // Kind-level click hook fires for any surface hit so kinds can launch
       // ripples / pulses from the impact point. We hand it the raycast
       // intersection in globe-local 3D and the same as lat/lng.
+      let clickLatLng: LatLng | null = null;
       if (hit?.point) {
         const localPoint = hit.point.clone();
         globeGroup.updateMatrixWorld();
         const inverse = globeGroup.matrixWorld.clone().invert();
         localPoint.applyMatrix4(inverse);
-        state.kindHandle?.onPointerDown?.(localPoint, vector3ToLatLng(localPoint));
+        clickLatLng = vector3ToLatLng(localPoint);
+        state.lastClickLatLng = clickLatLng;
+        state.kindHandle?.onPointerDown?.(localPoint, clickLatLng);
       }
       if (hit?.type === 'marker' && hit.instanceId !== undefined) {
         const marker = markersLayer.getMarkerByInstanceId(hit.instanceId);
@@ -334,6 +340,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (hit?.type === 'country') {
         const event = handleCountryHit(hit.object, hit.point);
         if (event) emitter.emit('countryClick', event);
+        return;
+      }
+      // Surface click that didn't land on a country (water / void) —
+      // optionally fire a focus pulse from the click point.
+      if (
+        clickLatLng &&
+        state.config.focusPulse?.pulseOnSurfaceClick &&
+        state.kindHandle?.decorations?.focusPulse
+      ) {
+        state.kindHandle.decorations.focusPulse.spawn(clickLatLng, 'click');
       }
     },
     onHover: (hit) => {
@@ -398,6 +414,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     activeCountryId: null,
     countryData: config.countryData ?? null,
     legend: null,
+    lastClickLatLng: null,
     elapsedSeconds: 0,
     destroyed: false,
   };
@@ -697,6 +714,15 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (pauseAutoRotate) controls.setAutoRotate(false);
       controls.flyTo(globeLocalToWorldLatLng(center), distance, options ?? {});
       state.kindHandle?.onCountryFocus?.(center, id);
+      // Focus pulse via decoration. Origin defaults to the country centroid;
+      // 'click' uses the most recent surface-click lat/lng so the pulse
+      // lands exactly where the user pointed (falling back to centroid).
+      const origin = state.config.focusPulse?.origin ?? 'centroid';
+      const pulseLatLng =
+        origin === 'click' && state.lastClickLatLng
+          ? state.lastClickLatLng
+          : center;
+      state.kindHandle?.decorations?.focusPulse?.spawn(pulseLatLng, 'focus');
     },
     setMarkers: (markers: ReadonlyArray<MarkerConfig>) => markersLayer.setMarkers(markers),
     addMarker: (marker: MarkerConfig) => markersLayer.addMarker(marker),
