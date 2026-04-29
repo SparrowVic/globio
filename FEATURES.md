@@ -436,6 +436,7 @@ Niektóre featury są **shared semantically** (każdy rodzaj globu je MA), ale i
 | **Country labels on globe** | shared `CountryLabelsLayer` | paper: serif italic, atlas-style; hologram: monospace cyan with bracket prefix; wireframe: monospace cyan; dotted: clean sans; outline: existing |
 | **Starfield background** | shared `StarfieldLayer` | hologram: scanline dim across stars; paper: faint pencil-dot constellation lines; wireframe: brighter cyan stars; dotted: more density; outline: existing |
 | **Tooltip / legend** | shared DOM, theme-driven | paper: parchment-style border + serif; hologram: terminal-style frame; wireframe: ASCII-bracket frame + monospace |
+| **Hover crosshair + cursor readout** | outline-only today (`HoverCrosshairLayer` — 3D reticle on surface + DOM label with lat/lng + country name following cursor) | outline: existing minimal cyan reticle; wireframe: monospace `[ 47.50°N, 12.34°E ]` + bracketed crosshair; hologram: bracketed terminal label `[ TARGET → POL ]` + scanline-tinted reticle; paper: pencil-tick on parchment + cursive serif coords (`47.5°N · 12.3°E`); dotted: ring of brighter dots around cursor + soft rounded pill label |
 | **Atmosphere outer glow** | shared `AtmosphereLayer` | per-kind already partially — but could become a decorator with custom shaders (paper: vignette; hologram: scanline-cut halo) |
 | **Click feedback on water** | not shipped yet | tied to focus-pulse `pulseOnSurfaceClick` option; per-kind variant naturally inherits style from above |
 
