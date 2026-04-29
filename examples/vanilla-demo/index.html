@@ -31,6 +31,24 @@
         line-height: 1.45;
         backdrop-filter: blur(6px);
         max-width: 320px;
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+        /* Subtle themed scrollbar — Firefox + WebKit. Defaults are too bright on dark HUD. */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(74, 158, 255, 0.4) transparent;
+      }
+      #hud::-webkit-scrollbar {
+        width: 8px;
+      }
+      #hud::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #hud::-webkit-scrollbar-thumb {
+        background: rgba(74, 158, 255, 0.4);
+        border-radius: 4px;
+      }
+      #hud::-webkit-scrollbar-thumb:hover {
+        background: rgba(74, 158, 255, 0.65);
       }
       #hud b {
         color: #ffd700;
