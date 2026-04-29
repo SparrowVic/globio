@@ -12,6 +12,7 @@ export class GlobeEventEmitter {
     countryHover: new Set(),
     markerClick: new Set(),
     markerHover: new Set(),
+    surfaceClick: new Set(),
     ready: new Set(),
     error: new Set(),
     sceneEnter: new Set(),

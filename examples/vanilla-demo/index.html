@@ -254,6 +254,33 @@
         padding: 4px 8px;
         cursor: pointer;
       }
+      .radio-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .radio-group label {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 6px;
+        font-size: 11px;
+        cursor: pointer;
+        background: rgba(30, 38, 56, 0.5);
+        border: 1px solid rgba(120, 140, 180, 0.25);
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      .radio-group label:has(input:checked) {
+        background: rgba(74, 158, 255, 0.22);
+        border-color: rgba(74, 158, 255, 0.7);
+        color: #ffffff;
+      }
+      .radio-group input[type='radio'] {
+        margin: 0;
+      }
       .kind-buttons {
         display: flex;
         gap: 6px;
@@ -438,6 +465,10 @@
       <div class="hud-section">
         <div class="hud-section-title">Focus pulse</div>
         <div class="hud-row">
+          <input type="checkbox" id="toggle-focus-pulse-enabled" checked />
+          <label for="toggle-focus-pulse-enabled">Enable focus pulse</label>
+        </div>
+        <div class="hud-row">
           <input type="checkbox" id="toggle-focus-pulse-click-origin" />
           <label for="toggle-focus-pulse-click-origin">Pulse from click position (off = country center)</label>
         </div>
@@ -448,14 +479,29 @@
       </div>
 
       <div class="hud-section">
+        <div class="hud-section-title">Click behavior</div>
+        <div class="hud-row" style="display: block;">
+          <div style="font-size: 11px; color: #8aa0c8; margin-bottom: 3px;">On country click</div>
+          <div class="radio-group" id="country-click-mode">
+            <label><input type="radio" name="country-click-mode" value="disabled" /> Disabled</label>
+            <label><input type="radio" name="country-click-mode" value="center-focus" checked /> Center-focus</label>
+            <label><input type="radio" name="country-click-mode" value="direct-focus" /> Direct-focus</label>
+          </div>
+        </div>
+        <div class="hud-row" style="display: block; margin-top: 6px;">
+          <div style="font-size: 11px; color: #8aa0c8; margin-bottom: 3px;">On water / void click</div>
+          <div class="radio-group" id="water-click-mode">
+            <label><input type="radio" name="water-click-mode" value="disabled" checked /> Disabled</label>
+            <label><input type="radio" name="water-click-mode" value="direct-focus" /> Direct-focus</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-section">
         <div class="hud-section-title">Navigation</div>
         <div class="hud-row">
-          <input type="checkbox" id="toggle-click-to-focus" checked />
-          <label for="toggle-click-to-focus">Click country to focus</label>
-        </div>
-        <div class="hud-row">
           <input type="checkbox" id="toggle-click-to-pin" checked />
-          <label for="toggle-click-to-pin">Click also pins as active</label>
+          <label for="toggle-click-to-pin">Click country also pins as active</label>
         </div>
         <div class="hud-row">
           <button id="btn-fly-home" style="padding: 4px 8px; cursor: pointer;">

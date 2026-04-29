@@ -30,8 +30,14 @@ const $zoomStrength = document.getElementById('zoom-strength') as HTMLInputEleme
 const $zoomStrengthValue = document.getElementById('zoom-strength-value') as HTMLSpanElement;
 const $zoomStrengthRow = document.getElementById('zoom-strength-row') as HTMLDivElement;
 const $smoothZoom = document.getElementById('toggle-smooth-zoom') as HTMLInputElement;
-const $clickToFocus = document.getElementById('toggle-click-to-focus') as HTMLInputElement;
 const $clickToPin = document.getElementById('toggle-click-to-pin') as HTMLInputElement;
+const $countryClickRadios = document.querySelectorAll<HTMLInputElement>(
+  'input[name="country-click-mode"]'
+);
+const $waterClickRadios = document.querySelectorAll<HTMLInputElement>(
+  'input[name="water-click-mode"]'
+);
+const $focusPulseEnabled = document.getElementById('toggle-focus-pulse-enabled') as HTMLInputElement;
 const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
 const $clearActive = document.getElementById('btn-clear-active') as HTMLButtonElement;
 const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
@@ -89,13 +95,15 @@ const settings = {
   zoomMode: 'attract' as ZoomMode,
   zoomStrength: 1,
   smoothZoom: true,
-  clickToFocus: true,
+  countryClickMode: 'center-focus' as 'disabled' | 'center-focus' | 'direct-focus',
+  waterClickMode: 'disabled' as 'disabled' | 'direct-focus',
   clickToPin: true,
   hoverOccludeBackSide: true,
   outlineGlowEnabled: true,
   outlinePulseEnabled: true,
   outlineCrosshairEnabled: true,
   outlineContinentDimEnabled: true,
+  focusPulseEnabled: true,
   focusPulseClickOrigin: false,
   focusPulseOnSurface: false,
   starfieldEnabled: true,
@@ -289,6 +297,7 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     },
     atmosphere: { enabled: true },
     focusPulse: {
+      enabled: settings.focusPulseEnabled,
       origin: settings.focusPulseClickOrigin ? 'click' : 'centroid',
       pulseOnSurfaceClick: settings.focusPulseOnSurface,
     },
@@ -348,11 +357,22 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     $storyPlay.textContent = '▶ Play tour';
     renderStoryStatus();
   });
-  globe.on('countryClick', ({ country }) => {
+  globe.on('countryClick', ({ country, point }) => {
     setStatus(`Klik: ${country.name} (${country.id})`);
-    if (settings.clickToFocus) {
+    // Country click mode:
+    //  - disabled    → no focus
+    //  - center-focus → fly to the country's centroid (default)
+    //  - direct-focus → fly to the click point but keep the country's
+    //                   bounds-derived camera distance, so framing is the
+    //                   same as center-focus only the camera target shifts.
+    if (settings.countryClickMode === 'center-focus') {
       globe?.focusOnCountry(country.id);
-      // focusOnCountry pauses auto-rotate by default — sync the UI checkbox.
+      if (settings.autoRotateEnabled) {
+        settings.autoRotateEnabled = false;
+        $autoRotate.checked = false;
+      }
+    } else if (settings.countryClickMode === 'direct-focus') {
+      globe?.focusOnCountry(country.id, { center: point });
       if (settings.autoRotateEnabled) {
         settings.autoRotateEnabled = false;
         $autoRotate.checked = false;
@@ -360,6 +380,19 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     }
     if (settings.clickToPin) {
       globe?.setActiveCountry(country.id);
+    }
+  });
+
+  // Water / void clicks (no country hit). Direct-focus flies the camera
+  // to the exact click point with a moderate distance — useful for "fly
+  // to a spot in the Pacific" story-telling moments.
+  globe.on('surfaceClick', ({ point }) => {
+    if (settings.waterClickMode === 'direct-focus') {
+      globe?.flyTo(point, 2.4);
+      if (settings.autoRotateEnabled) {
+        settings.autoRotateEnabled = false;
+        $autoRotate.checked = false;
+      }
     }
   });
 
@@ -646,8 +679,25 @@ $smoothZoom.addEventListener('change', () => {
   applyZoom();
 });
 
-$clickToFocus.addEventListener('change', () => {
-  settings.clickToFocus = $clickToFocus.checked;
+$countryClickRadios.forEach((radio) => {
+  radio.addEventListener('change', () => {
+    if (radio.checked) {
+      settings.countryClickMode = radio.value as typeof settings.countryClickMode;
+    }
+  });
+});
+
+$waterClickRadios.forEach((radio) => {
+  radio.addEventListener('change', () => {
+    if (radio.checked) {
+      settings.waterClickMode = radio.value as typeof settings.waterClickMode;
+    }
+  });
+});
+
+$focusPulseEnabled.addEventListener('change', () => {
+  settings.focusPulseEnabled = $focusPulseEnabled.checked;
+  buildGlobe(settings.themeName);
 });
 
 $flyHome.addEventListener('click', () => {

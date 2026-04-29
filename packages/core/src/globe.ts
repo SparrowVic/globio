@@ -343,14 +343,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         return;
       }
       // Surface click that didn't land on a country (water / void) —
-      // optionally fire a focus pulse from the click point.
+      // optionally fire a focus pulse from the click point. Gated by both
+      // the master `focusPulse.enabled` and the per-event opt-in.
       if (
         clickLatLng &&
+        state.config.focusPulse?.enabled !== false &&
         state.config.focusPulse?.pulseOnSurfaceClick &&
         state.kindHandle?.decorations?.focusPulse
       ) {
         state.kindHandle.decorations.focusPulse.spawn(clickLatLng, 'click');
       }
+      if (clickLatLng) emitter.emit('surfaceClick', { point: clickLatLng });
     },
     onHover: (hit) => {
       if (hit?.type === 'marker' && hit.instanceId !== undefined) {
@@ -710,13 +713,18 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         GLOBE_RADIUS,
         scene.camera.position.length()
       );
-      const center = boundsCenter(bounds);
+      // `options.center` lets callers override the camera target — keeps the
+      // country's bounds-derived distance (so Russia still frames as Russia)
+      // but centers on whatever lat/lng the caller passed (e.g. the exact
+      // click point for "direct-focus" mode in the demo).
+      const center = options?.center ?? boundsCenter(bounds);
       if (pauseAutoRotate) controls.setAutoRotate(false);
       controls.flyTo(globeLocalToWorldLatLng(center), distance, options ?? {});
       state.kindHandle?.onCountryFocus?.(center, id);
       // Focus pulse via decoration. Origin defaults to the country centroid;
       // 'click' uses the most recent surface-click lat/lng so the pulse
       // lands exactly where the user pointed (falling back to centroid).
+      if (state.config.focusPulse?.enabled === false) return;
       const origin = state.config.focusPulse?.origin ?? 'centroid';
       const pulseLatLng =
         origin === 'click' && state.lastClickLatLng
