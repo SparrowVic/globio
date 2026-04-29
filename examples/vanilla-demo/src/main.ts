@@ -42,7 +42,6 @@ const $flyHome = document.getElementById('btn-fly-home') as HTMLButtonElement;
 const $clearActive = document.getElementById('btn-clear-active') as HTMLButtonElement;
 const $hoverOcclude = document.getElementById('toggle-hover-occlude') as HTMLInputElement;
 const $outlineGlow = document.getElementById('toggle-outline-glow') as HTMLInputElement;
-const $outlinePulse = document.getElementById('toggle-outline-pulse') as HTMLInputElement;
 const $outlineCrosshair = document.getElementById('toggle-outline-crosshair') as HTMLInputElement;
 const $outlineContinentDim = document.getElementById('toggle-outline-continent-dim') as HTMLInputElement;
 const $focusPulseClickOrigin = document.getElementById('toggle-focus-pulse-click-origin') as HTMLInputElement;
@@ -100,7 +99,6 @@ const settings = {
   clickToPin: true,
   hoverOccludeBackSide: true,
   outlineGlowEnabled: true,
-  outlinePulseEnabled: true,
   outlineCrosshairEnabled: true,
   outlineContinentDimEnabled: true,
   focusPulseEnabled: true,
@@ -303,7 +301,6 @@ const buildGlobe = (themeName: ThemePresetName): void => {
     },
     outline: {
       hoverGlow: { enabled: settings.outlineGlowEnabled },
-      focusPulse: { enabled: settings.outlinePulseEnabled },
       hoverCrosshair: { enabled: settings.outlineCrosshairEnabled },
       continentDim: { enabled: settings.outlineContinentDimEnabled },
     },
@@ -764,11 +761,6 @@ $hoverOcclude.addEventListener('change', () => {
 
 $outlineGlow.addEventListener('change', () => {
   settings.outlineGlowEnabled = $outlineGlow.checked;
-  buildGlobe(settings.themeName);
-});
-
-$outlinePulse.addEventListener('change', () => {
-  settings.outlinePulseEnabled = $outlinePulse.checked;
   buildGlobe(settings.themeName);
 });
 
