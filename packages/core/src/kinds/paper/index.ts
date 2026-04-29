@@ -3,6 +3,7 @@ import { PaperBordersLayer } from './paper-borders-layer';
 import { PaperFillLayer } from './paper-fill-layer';
 import { PaperGridLayer } from './paper-grid-layer';
 import { PaperSurfaceLayer } from './paper-surface-layer';
+import { buildPaperFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
 
@@ -77,7 +78,15 @@ export const paperKind: KindModule = {
     });
     globeGroup.add(borders.group);
 
+    const focusPulse = buildPaperFocusPulse({
+      globeGroup,
+      enabled: true,
+      color: tokens['paper.borderColor'],
+      durationSeconds: 1.6,
+    });
+
     return {
+      decorations: { focusPulse },
       dispose() {
         borders.dispose();
         globeGroup.remove(borders.group);
@@ -92,6 +101,7 @@ export const paperKind: KindModule = {
         surface.dispose();
         globeGroup.remove(surface.mesh);
         for (const m of defaultMeshes) m.visible = true;
+        focusPulse.dispose();
       },
       setVisible(visible: boolean) {
         surface.setVisible(visible);

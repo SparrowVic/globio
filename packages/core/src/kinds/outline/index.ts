@@ -1,10 +1,10 @@
 import { CountriesLayer } from './borders-layer';
 import { continentOf, type Continent } from './continent-of';
-import { FocusPulseLayer } from './focus-pulse-layer';
 import { HoverCrosshairLayer } from './hover-crosshair';
 import { HoverGlowLayer } from './hover-glow-layer';
+import { buildOutlineFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
-import type { KindBuildContext, KindHandle, KindModule } from '../types';
+import type { FocusPulseDecorator, KindBuildContext, KindHandle, KindModule } from '../types';
 import type { LatLng } from '../../types';
 import type { Vector3 } from 'three';
 
@@ -70,13 +70,12 @@ export const outlineKind: KindModule = {
 
     const pulseDurationMs = outlineConfig?.focusPulse?.durationMs ?? DEFAULT_PULSE_DURATION_MS;
     const pulseColor = outlineConfig?.focusPulse?.color ?? tokens['countries.borderActive.color'];
-    const pulse: FocusPulseLayer | null = pulseEnabled
-      ? new FocusPulseLayer({
-          color: pulseColor,
-          durationSeconds: pulseDurationMs / 1000,
-        })
-      : null;
-    if (pulse) globeGroup.add(pulse.group);
+    const focusPulse: FocusPulseDecorator = buildOutlineFocusPulse({
+      globeGroup,
+      enabled: pulseEnabled,
+      color: pulseColor,
+      durationSeconds: pulseDurationMs / 1000,
+    });
 
     const crosshair: HoverCrosshairLayer | null = crosshairEnabled
       ? new HoverCrosshairLayer({
@@ -99,6 +98,7 @@ export const outlineKind: KindModule = {
     let lastPixelY = 0;
 
     return {
+      decorations: { focusPulse },
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);
@@ -106,10 +106,7 @@ export const outlineKind: KindModule = {
           glow.dispose();
           globeGroup.remove(glow.object);
         }
-        if (pulse) {
-          pulse.dispose();
-          globeGroup.remove(pulse.group);
-        }
+        focusPulse.dispose();
         if (crosshair) {
           crosshair.dispose();
           globeGroup.remove(crosshair.object);
@@ -118,20 +115,15 @@ export const outlineKind: KindModule = {
       setVisible(visible: boolean) {
         layer.setVisible(visible);
         if (glow) glow.object.visible = visible && glow.object.visible;
-        if (pulse) pulse.group.visible = visible;
         if (crosshair) crosshair.setEnabled(visible);
       },
       update(delta: number) {
         glow?.update(delta);
-        pulse?.update(delta);
         crosshair?.update(delta);
         if (dimEnabled || dimDirty) {
           const moved = layer.tickOpacity(delta, DEFAULT_DIM_TAU);
           if (!moved) dimDirty = false;
         }
-      },
-      onCountryFocus(latLng: LatLng) {
-        pulse?.spawn(latLng);
       },
       onPointerMove(point3D: Vector3 | null, latLng: LatLng | null) {
         if (!crosshair) return;

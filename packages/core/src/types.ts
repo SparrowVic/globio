@@ -441,6 +441,24 @@ export interface GlobeConfig {
   readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
   readonly arcs?: ReadonlyArray<ArcConfig>;
   readonly atmosphere?: AtmosphereConfig;
+  /**
+   * Cross-kind behaviour for the focus-pulse decoration. Visual style still
+   * comes from each kind's `focusPulse` decorator (see `kinds/shared/focus-
+   * pulse-decorators.ts`); this section governs *when* and *where* the
+   * pulse fires regardless of kind.
+   *
+   * - `origin` — `'centroid'` (default) fires from the focused country's
+   *   centroid via `globe.focusOnCountry()`. `'click'` instead uses the
+   *   exact lat/lng the user just clicked, falling back to the centroid if
+   *   no recent click was recorded.
+   * - `pulseOnSurfaceClick` — when true, additionally fire a pulse on
+   *   *any* surface click that doesn't land on a country (e.g. clicks on
+   *   ocean / wireframe void). Default false.
+   */
+  readonly focusPulse?: {
+    readonly origin?: 'centroid' | 'click';
+    readonly pulseOnSurfaceClick?: boolean;
+  };
   readonly outline?: OutlineConfig;
   readonly dotted?: DottedConfig;
   readonly wireframe?: WireframeConfig;
