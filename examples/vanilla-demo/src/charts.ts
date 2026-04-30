@@ -167,10 +167,19 @@ bindRowToggle('type-row', 'type', (value) => {
   settings.chartType = value as ChartType;
   // Auto-swap to a sensible dataset when picking a single-value chart
   // (gauge needs ~one number per country, not a multi-series array).
+  // Extruded works best with population-by-age (height = total population
+  // = sum of brackets, single colour per country via scale).
   if (settings.chartType === 'gauge' && settings.dataset !== 'kpi') {
     settings.dataset = 'kpi';
     setActiveButton('data-row', 'set', 'kpi');
-  } else if (settings.chartType !== 'gauge' && settings.dataset === 'kpi') {
+  } else if (settings.chartType === 'extruded' && settings.dataset === 'kpi') {
+    settings.dataset = 'population';
+    setActiveButton('data-row', 'set', 'population');
+  } else if (
+    settings.chartType !== 'gauge' &&
+    settings.chartType !== 'extruded' &&
+    settings.dataset === 'kpi'
+  ) {
     settings.dataset = 'energy';
     setActiveButton('data-row', 'set', 'energy');
   }

@@ -27,6 +27,7 @@ import {
   type PieSegmentHandle,
 } from './pie-builder';
 import { ChartsLabelsOverlay, resolveLabelsConfig } from './labels-overlay';
+import { buildExtrudedChart, type ExtrudedChartHandle } from './extruded-builder';
 
 /**
  * Per-entry runtime state — one per chart instance. The orchestrator
@@ -95,6 +96,15 @@ export class ChartsLayer {
   private readonly pointer: Vector2;
   private pointerAttached = false;
   private labelsOverlay: ChartsLabelsOverlay | null = null;
+  /**
+   * `'extruded'` chart-type breaks the per-anchor instance model — we
+   * build ONE ExtrudedCountriesLayer covering every entry's country
+   * polygon at once, and drive its progress with a single layer-wide t.
+   * Stays null for all other chart types.
+   */
+  private extrudedHandle: ExtrudedChartHandle | null = null;
+  /** Country features kept around for the extruded path (entries → polygons). */
+  private readonly countryFeatures: ReadonlyArray<CountryFeature>;
   /** Maps a chart's mesh.uuid → instance index for fast raycast lookups. */
   private readonly meshIndex = new Map<string, { instance: ChartInstance; segmentIndex: number }>();
 
@@ -105,6 +115,7 @@ export class ChartsLayer {
     this.camera = options.camera ?? null;
     this.domElement = options.domElement ?? null;
     this.featuresByKey = buildFeatureIndex(options.countryFeatures ?? []);
+    this.countryFeatures = options.countryFeatures ?? [];
     this.layer = options.layer;
     this.raycaster = new Raycaster();
     this.pointer = new Vector2();
@@ -240,6 +251,14 @@ export class ChartsLayer {
   private applyData(layer: ChartsDataLayer): void {
     this.animConfig = resolveAnimationConfig(layer.animation);
     this.easingFn = easingFunctionFor(this.animConfig.easing);
+
+    // 'extruded' breaks the per-anchor instance model — one
+    // ExtrudedCountriesLayer covers every entry's polygon at once.
+    if (layer.chartType === 'extruded') {
+      this.applyExtrudedData(layer);
+      return;
+    }
+
     const anchorList = buildAnchorList(layer.data, this.featuresByKey);
     if (anchorList.length === 0) return;
 
@@ -268,6 +287,26 @@ export class ChartsLayer {
     if (this.animConfig.enabled) this.applyAnimation();
     this.rebuildMeshIndex();
     this.applyLabels();
+  }
+
+  /**
+   * Build (or rebuild) the single extruded-countries handle. Skips the
+   * per-anchor mesh-index — extruded raycast hit-tests on the whole
+   * country prism, which makes a country-level event payload more
+   * useful than a chart-segment one (no series segments to index into).
+   */
+  private applyExtrudedData(layer: ChartsDataLayer): void {
+    const handle = buildExtrudedChart(
+      layer.data,
+      this.countryFeatures,
+      layer,
+      this.fallbackColor
+    );
+    if (!handle) return;
+    this.extrudedHandle = handle;
+    this.group.add(handle.group);
+    this.animElapsedSec = 0;
+    if (this.animConfig.enabled) this.applyAnimation();
   }
 
   private applyLabels(): void {
@@ -349,6 +388,20 @@ export class ChartsLayer {
   private applyAnimation(): void {
     const cfg = this.animConfig;
     const baseOpacity = this.layer.opacity ?? 1;
+    if (this.extrudedHandle) {
+      // Single layer-wide t for the extruded path; per-entry stagger
+      // doesn't make sense here because the extrusion already happens
+      // per country and we'd need to push each entry's polygon
+      // independently — future enhancement.
+      const local = clampCpu(
+        (this.animElapsedSec - cfg.delay) / cfg.duration,
+        0,
+        1
+      );
+      const t = this.easingFn(local);
+      this.extrudedHandle.applyT(cfg.style === 'fade' ? 1 : t);
+      return;
+    }
     for (const inst of this.instances) {
       const tForSeg = (i: number): number => {
         const local = clampCpu(
@@ -428,6 +481,11 @@ export class ChartsLayer {
       if (inst.segments) disposePieSegments(inst.segments);
     }
     this.instances.length = 0;
+    if (this.extrudedHandle) {
+      this.group.remove(this.extrudedHandle.group);
+      this.extrudedHandle.dispose();
+      this.extrudedHandle = null;
+    }
   }
 }
 
@@ -481,6 +539,12 @@ const buildChartGeometry = (
       const { group, segments } = buildSunburstChart(entry, layer.series, layer, fallbackColor);
       return segments.length === 0 ? null : { group, segments };
     }
+    case 'extruded':
+      // Handled out-of-band by ChartsLayer.applyExtrudedData() — one
+      // ExtrudedCountriesLayer covers every entry at once. This per-
+      // entry path returns null so the orchestrator's loop skips it
+      // (the actual rendering happens in `extrudedHandle`).
+      return null;
   }
 };
 

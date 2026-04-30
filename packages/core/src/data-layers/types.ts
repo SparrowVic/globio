@@ -687,6 +687,12 @@ export interface HexBinDataEntry {
  *  - `'sunburst'` — two concentric rings: outer = series segments by share,
  *                   inner = single ring at half the radius coloured by the
  *                   sum total mapped through `scale`. Cheap nested overview.
+ *  - `'extruded'` — each country's polygon (resolved via entry.id) is
+ *                   raised outward from the globe surface as a 3D prism
+ *                   with walls. Height = sum of series values, colour
+ *                   from the layer scale. The "3D choropleth with charts
+ *                   animation system" — bridges the existing extruded
+ *                   data layer into the charts API + animation library.
  */
 export type ChartType =
   | 'bars-grouped'
@@ -695,7 +701,8 @@ export type ChartType =
   | 'donut'
   | 'radial'
   | 'gauge'
-  | 'sunburst';
+  | 'sunburst'
+  | 'extruded';
 
 /**
  * One series of a multi-series chart. `key` indexes into each entry's

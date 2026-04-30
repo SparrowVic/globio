@@ -98,6 +98,17 @@ export class ExtrudedCountriesLayer {
     this.group.visible = visible;
   }
 
+  /**
+   * Drive the rise progress externally — used by the charts data layer's
+   * `'extruded'` chart-type, which delegates to this layer for the
+   * polygon/triangulation/walls work but wants its own animation timeline
+   * (per-entry stagger, easing curve, layer-wide replay).
+   */
+  public setProgress(progress: number): void {
+    this.mountElapsed = this.mountDuration; // freeze internal animator
+    this.applyProgress(Math.max(0, Math.min(1, progress)));
+  }
+
   public dispose(): void {
     this.entries.forEach((entry) => {
       entry.geometry.dispose();
