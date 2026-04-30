@@ -724,6 +724,15 @@ export interface ChartsDataEntry {
   readonly values: Readonly<Record<string, number>>;
   /** Optional display label, used by future labelling overlay. */
   readonly label?: string;
+  /**
+   * Per-entry animation override. Same shape as the layer-level
+   * `animation` config; today only `delay` (relative shift in ms,
+   * combined with the layer's `stagger × index` formula) and
+   * `enabled: false` (skip this entry) are honoured. Use to highlight
+   * a specific country's chart by giving it a delay of 0 while the
+   * rest stagger in.
+   */
+  readonly animation?: boolean | HeatmapAnimationConfig;
   /** Free-form payload available in events. */
   readonly data?: Readonly<Record<string, unknown>>;
 }

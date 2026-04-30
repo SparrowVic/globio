@@ -4,6 +4,7 @@ import type { ChartsDataEntry, ChartsDataLayer, ChartsHoverPayload } from '../ty
 import {
   DISABLED_ANIMATION,
   easingFunctionFor,
+  entryAnimationDelaySec,
   resolveAnimationConfig,
   type ResolvedHeatmapAnimationConfig,
 } from '../heatmap/animation';
@@ -302,8 +303,17 @@ export class ChartsLayer {
     const { group, bars, segments } = built;
     group.position.copy(anchor.surface);
     group.quaternion.copy(anchor.quaternion);
-    const startSec =
-      this.animConfig.delay + index * this.animConfig.stagger;
+    // Per-entry override composes with the layer-level stagger (matches
+    // the heatmap pattern). `enabled: false` on an entry effectively
+    // pushes its start time past the animation window so it never plays.
+    const entryDelay = entryAnimationDelaySec(
+      entry.animation,
+      this.animConfig.stagger,
+      index
+    );
+    const startSec = entryDelay.enabled
+      ? this.animConfig.delay + entryDelay.delay
+      : this.animConfig.delay + this.animConfig.duration + 1e6;
     const segmentStaggerSec = Math.max(0, layer.segmentStagger ?? 0) / 1000;
     const segmentCount = bars ? bars.length : segments?.length ?? 0;
     const perSegmentOffset: Array<number> = new Array(segmentCount);

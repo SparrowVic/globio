@@ -272,6 +272,10 @@ export class HexBinLayer {
       this.faceStartSec = new Float32Array(faceCount);
       this.faceAnimScale = new Float32Array(faceCount);
     }
+    // For radial ordering, default the origin to the data's spherical
+    // centroid when the user didn't pin one explicitly — this makes
+    // 'radial' meaningful even with no extra config.
+    const radialOrigin = this.resolveRadialOrigin(layer);
     buildFaceStartTimes(
       faceCount,
       bins.values,
@@ -279,7 +283,7 @@ export class HexBinLayer {
       this.animConfig.delay,
       this.animConfig.stagger,
       this.animConfig.order,
-      this.animConfig.origin,
+      radialOrigin,
       this.faceStartSec
     );
     for (let f = 0; f < faceCount; f++) {
@@ -303,6 +307,37 @@ export class HexBinLayer {
       if (v > max) max = v;
     }
     return max;
+  }
+
+  /**
+   * Decide where the radial-bloom anchor sits. If the user passed
+   * `animation.origin` explicitly we honour it; otherwise we average the
+   * sample positions on the unit sphere and read back lat/lng. Empty
+   * datasets fall back to [0, 0].
+   */
+  private resolveRadialOrigin(layer: HexBinDataLayer): import('../../types').LatLng {
+    const cfg = layer.animation;
+    const explicit =
+      cfg && typeof cfg === 'object' && 'origin' in cfg ? cfg.origin : undefined;
+    if (explicit) return explicit;
+    if (this.animConfig.order !== 'radial' || layer.data.length === 0) {
+      return this.animConfig.origin;
+    }
+    let cx = 0, cy = 0, cz = 0;
+    for (const d of layer.data) {
+      const lat = (d.position[0] * Math.PI) / 180;
+      const lng = (d.position[1] * Math.PI) / 180;
+      cx += Math.cos(lat) * Math.cos(lng);
+      cy += Math.sin(lat);
+      cz += Math.cos(lat) * Math.sin(lng);
+    }
+    const len = Math.sqrt(cx * cx + cy * cy + cz * cz) || 1;
+    cx /= len;
+    cy /= len;
+    cz /= len;
+    const lat = (Math.asin(Math.max(-1, Math.min(1, cy))) * 180) / Math.PI;
+    const lng = (Math.atan2(cz, cx) * 180) / Math.PI;
+    return [lat, lng];
   }
 
   private disposeMesh(): void {
