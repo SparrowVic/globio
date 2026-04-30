@@ -232,6 +232,32 @@ export interface HeatmapCountryDomeConfig {
   readonly edgeSteepness?: number;
   /** Per-sample value pre-scale — see {@link HeatmapValuePreScale}. Default `'log'`. */
   readonly valuePreScale?: HeatmapValuePreScale;
+  /**
+   * 0..1 — how spherical/bubble-like the dome is vs how polygon-shaped.
+   *  - 0: pure polygon shape. Contours follow the country outline closely
+   *    (sharp corners visible, rays reaching toward each polygon vertex).
+   *  - 1 (default): pure distance-to-edge field. Contours are smoothly
+   *    rounded inside the country shape — looks like an irregular bubble.
+   *  - middle: linear blend of both. 0.6 keeps the polygon character but
+   *    files the corners off; 0.9 looks bubble-like with a faint hint of
+   *    the country's silhouette.
+   */
+  readonly rounding?: number;
+  /**
+   * When true (default), each country's dome stamp is normalised so its
+   * peak hits 1.0 in the density texture, regardless of `entry.value` or
+   * `valuePreScale`. Every country then shows the SAME colour gradient
+   * and contour pattern — large countries (China, Russia, USA) display
+   * the full gradient from edge → centre instead of saturating into a
+   * single flat-top palette colour.
+   *
+   * When false, dome stamps are multiplied by the value pre-scale (the
+   * pre-3bb265a behaviour). Cross-country magnitude is then visible in
+   * the texture but big-population countries tend to saturate the palette
+   * top under typical intensity settings — small countries look like
+   * proper domes while big ones look like solid plates.
+   */
+  readonly perCountryNormalize?: boolean;
 }
 
 /**

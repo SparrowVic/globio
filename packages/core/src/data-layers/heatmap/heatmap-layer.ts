@@ -104,6 +104,8 @@ interface ResolvedHeatmapCountryDomeConfig {
   readonly shoulderHeight: number;
   readonly edgeSteepness: number;
   readonly valuePreScale: 'linear' | 'log' | 'sqrt';
+  readonly rounding: number;
+  readonly perCountryNormalize: boolean;
 }
 
 const DISABLED_ZOOM_SCALING: ResolvedHeatmapZoomScalingConfig = {
@@ -125,6 +127,8 @@ const DISABLED_COUNTRY_DOMES: ResolvedHeatmapCountryDomeConfig = {
   shoulderHeight: 0.36,
   edgeSteepness: 2.6,
   valuePreScale: 'log',
+  rounding: 1,
+  perCountryNormalize: true,
 };
 
 export interface HeatmapLayerOptions {
@@ -448,12 +452,20 @@ export class HeatmapLayer {
             countryDomes
           )
         : EMPTY_SAMPLE_SET;
-
+    // When per-country normalize is on, clamp every fallback radial stamp
+    // to 1.0 so micro-states whose polygons aren't in the low-res country
+    // dataset (Singapore, Bahrain, Malta, Vatican …) hit the same texture
+    // peak as the dome-painted countries. Without this their raw `value`
+    // (e.g. Singapore=5.9 for population in millions) blows past the
+    // dome peak of 1.0 and drags every country into the dim end of the
+    // palette via the global normalize step.
+    const radialPerCountry = countryDomes.enabled && countryDomes.perCountryNormalize;
     for (let i = 0; i < samples.length; i++) {
       if (countryPainted.has(i)) continue;
       const entry = samples[i]!;
       const radius = Math.max(1e-4, entry.radius ?? defaultRadius);
       const weight = entry.weight ?? 1;
+      const stampValue = radialPerCountry ? 1 : entry.value * weight;
       paintSample(
         data,
         this.textureWidth,
@@ -461,9 +473,20 @@ export class HeatmapLayer {
         entry.position[0],
         entry.position[1],
         radius,
-        entry.value * weight,
+        stampValue,
         kernel
       );
+    }
+
+    // Per-country normalize hard cap — radial paintSample uses `+=`, so
+    // overlapping kernels from neighbouring micro-states could in theory
+    // poke a pixel above the dome peak of 1.0. Clamp once across the
+    // whole buffer before blur so the texture stays in [0, 1] and the
+    // global normalize step doesn't dim every country.
+    if (radialPerCountry) {
+      for (let i = 0; i < data.length; i++) {
+        if (data[i]! > 1) data[i] = 1;
+      }
     }
 
     // Post-bake blur — smooths any pixel-level discontinuities that the
@@ -611,6 +634,8 @@ const resolveCountryDomeConfig = (
     shoulderHeight: clampCpu(cfg.shoulderHeight ?? 0.36, 0.05, 0.98),
     edgeSteepness: clampCpu(cfg.edgeSteepness ?? 2.6, 0.5, 8),
     valuePreScale: cfg.valuePreScale ?? 'log',
+    rounding: clampCpu(cfg.rounding ?? 1, 0, 1),
+    perCountryNormalize: cfg.perCountryNormalize ?? true,
   };
 };
 
@@ -623,6 +648,8 @@ const countryDomeKey = (input: HeatmapDataLayer['countryDomes']): string => {
     input.shoulderHeight ?? '',
     input.edgeSteepness ?? '',
     input.valuePreScale ?? '',
+    input.rounding ?? '',
+    input.perCountryNormalize === false ? 'mag' : 'norm',
   ].join(',');
 };
 
@@ -798,8 +825,32 @@ const paintCountryDome = (
   // Without this, a global `log` normalize compresses values >> 1 into
   // a flat-top plateau across most of the country, which makes large
   // countries look like rectangular slabs instead of domes.
-  const stampValue = applyDomeValuePreScale(value, config.valuePreScale);
-  if (stampValue <= 0) return false;
+  if (value <= 0) return false;
+  // Per-country normalize — every country's dome stamps to the same peak
+  // (1.0) regardless of population, so big and small countries share the
+  // exact same colour gradient and contour pattern. Cross-country
+  // magnitude is dropped from the texture; the caller can convey it via
+  // separate channels (height, opacity, palette tint) if needed.
+  const stampPeak = config.perCountryNormalize
+    ? 1
+    : applyDomeValuePreScale(value, config.valuePreScale);
+  if (stampPeak <= 0) return false;
+  // When per-country normalize is on, multiple countries whose polygons
+  // overlap (border imprecision, enclaves like Vatican / San Marino,
+  // disputed regions) would otherwise SUM their dome stamps at shared
+  // pixels — a single dome peaks at 1.0, so 3 overlapping domes would
+  // produce a pixel value of 3.0. The global normalize step then divides
+  // every pixel by that overlap peak, dimming every country including
+  // the non-overlapping ones into invisibility. Using `max` per pixel
+  // instead of `+=` keeps the texture range bounded to [0, 1] regardless
+  // of overlap density.
+  const accumulate: (idx: number, contribution: number) => void = config.perCountryNormalize
+    ? (idx, c) => {
+        if (c > data[idx]!) data[idx] = c;
+      }
+    : (idx, c) => {
+        data[idx]! += c;
+      };
 
   const rawBounds = ringBounds(outer);
   const crossesAnti = rawBounds.maxLng - rawBounds.minLng > 180;
@@ -813,7 +864,6 @@ const paintCountryDome = (
 
   const requestedCenter = shiftCountryPoint(centerLatLng, bounds, crossesAnti);
   const center = chooseInteriorDomeCenter(outerShifted, holesShifted, bounds, requestedCenter);
-  const centerLng = center[0];
   const centerLat = center[1];
 
   const v0 = Math.max(0, Math.floor(((90 - bounds.maxLat) / 180) * height));
@@ -823,18 +873,35 @@ const paintCountryDome = (
   const uRanges = countryLngPixelRanges(bounds, width, crossesAnti);
   if (uRanges.length === 0) return false;
 
+  // Spherical scaling — lng deltas at this latitude shrink by cos(lat).
+  // Using one cosLat per polygon (centred on the dome anchor) is a fine
+  // approximation for everything except hemisphere-spanning polygons; the
+  // distance-to-edge field is already smooth so a small lat-dependent
+  // skew is invisible.
   const cosCenterLat = Math.max(0.08, Math.cos(centerLat * DEG_TO_RAD));
-  const rx = Math.max(
-    0.18,
-    Math.max(Math.abs(bounds.maxLng - centerLng), Math.abs(centerLng - bounds.minLng)) *
-      cosCenterLat
-  );
-  const ry = Math.max(
-    0.18,
-    Math.max(Math.abs(bounds.maxLat - centerLat), Math.abs(centerLat - bounds.minLat))
-  );
 
-  let wrote = false;
+  // Two t-fields are computed per interior pixel and linearly blended by
+  // `config.rounding`:
+  //   - t_edge = 1 − d_edge / d_max     (rounded bubble; default rounding=1)
+  //   - t_ray  = pixel_dist_from_anchor / boundary_along_ray
+  //              (polygon-shape with sharp corners; rounding=0)
+  // The shared anchor is the polygon's pole-of-inaccessibility — the
+  // pixel where d_edge is maximal — so both fields agree on where the
+  // dome's peak sits. When `rounding === 1` the ray-cast cost is skipped
+  // entirely (the default fast path for new heat maps).
+  const grid = buildEdgeGrid(outerShifted, holesShifted, bounds, cosCenterLat);
+  const useRayBlend = config.rounding < 1 - 1e-4;
+
+  // Pass 1: walk pixels in the bbox, retain only those inside the polygon
+  // and record their distance to the nearest edge. Tracks the polygon's
+  // inradius (= deepest interior point's distance) for normalisation, and
+  // the lat/lng of that deepest point so Pass 2 can ray-cast from it when
+  // a partial-rounding blend is requested.
+  const interiorIdx: Array<number> = [];
+  const interiorDist: Array<number> = [];
+  let maxD = 0;
+  let deepestLng = bounds.minLng;
+  let deepestLat = bounds.minLat;
   for (let v = v0; v <= v1; v++) {
     const pixelLat = 90 - ((v + 0.5) / height) * 180;
     const row = v * width;
@@ -844,28 +911,252 @@ const paintCountryDome = (
         const pixelLng = crossesAnti && pixelLngRaw < 0 ? pixelLngRaw + 360 : pixelLngRaw;
         if (pixelLng < bounds.minLng || pixelLng > bounds.maxLng) continue;
         if (!pointInShiftedPolygon(outerShifted, holesShifted, [pixelLng, pixelLat])) continue;
-
-        const dx = (pixelLng - centerLng) * cosCenterLat;
-        const dy = pixelLat - centerLat;
-        const boundaryDistance = rayBoundaryDistance(
-          dx,
-          dy,
-          outerShifted,
-          holesShifted,
-          center,
-          cosCenterLat,
-          rx,
-          ry
-        );
-        const t = Math.sqrt(dx * dx + dy * dy) / Math.max(1e-6, boundaryDistance);
-        const w = domeWeight(t, config);
-        if (w <= 0) continue;
-        data[row + u]! += stampValue * w;
-        wrote = true;
+        const d = edgeGridDistance(grid, pixelLng, pixelLat);
+        interiorIdx.push(row + u);
+        interiorDist.push(d);
+        if (d > maxD) {
+          maxD = d;
+          deepestLng = pixelLng;
+          deepestLat = pixelLat;
+        }
       }
     }
   }
+
+  if (interiorIdx.length === 0 || maxD <= 0) return false;
+
+  // Pass 2: paint the dome using the recorded distance field, mixing in
+  // the ray-cast t when the user requested less-than-full rounding.
+  const invMaxD = 1 / maxD;
+  const rounding = config.rounding;
+  const oneMinusRounding = 1 - rounding;
+  let wrote = false;
+  for (let i = 0; i < interiorIdx.length; i++) {
+    const idx = interiorIdx[i]!;
+    const d = interiorDist[i]!;
+    const tEdge = Math.min(1, Math.max(0, 1 - d * invMaxD));
+    let t = tEdge;
+    if (useRayBlend) {
+      // Recover the pixel's lat/lng from idx — cheaper than holding a
+      // 4-array per pixel.
+      const v = Math.floor(idx / width);
+      const u = idx - v * width;
+      const pixelLat = 90 - ((v + 0.5) / height) * 180;
+      const pixelLngRaw = ((u + 0.5) / width) * 360 - 180;
+      const pixelLng = crossesAnti && pixelLngRaw < 0 ? pixelLngRaw + 360 : pixelLngRaw;
+      const dxRay = (pixelLng - deepestLng) * cosCenterLat;
+      const dyRay = pixelLat - deepestLat;
+      const pixelDist = Math.hypot(dxRay, dyRay);
+      let tRay = 0;
+      if (pixelDist > 1e-6) {
+        const dirX = dxRay / pixelDist;
+        const dirY = dyRay / pixelDist;
+        const boundary = rayPolygonBoundary(
+          outerShifted,
+          holesShifted,
+          deepestLng,
+          deepestLat,
+          dirX,
+          dirY,
+          cosCenterLat
+        );
+        if (boundary > 1e-6) {
+          tRay = Math.min(1, pixelDist / boundary);
+        } else {
+          tRay = tEdge;
+        }
+      }
+      t = oneMinusRounding * tRay + rounding * tEdge;
+    }
+    const w = domeWeight(t, config);
+    if (w <= 0) continue;
+    accumulate(idx, stampPeak * w);
+    wrote = true;
+  }
   return wrote;
+};
+
+/**
+ * First-hit distance from a 2D ray (origin in lng/lat, direction in
+ * cos-lat-scaled space) to the polygon boundary. Used by the dome painter
+ * when `rounding < 1` to compute the polygon-shape t-field.
+ */
+const rayPolygonBoundary = (
+  outer: ReadonlyArray<readonly [number, number]>,
+  holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  ox: number,
+  oy: number,
+  dirX: number,
+  dirY: number,
+  cosLat: number
+): number => {
+  let best = Infinity;
+  const checkRing = (ring: ReadonlyArray<readonly [number, number]>): void => {
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i];
+      const b = ring[(i + 1) % ring.length];
+      if (!a || !b) continue;
+      const ax = (a[0] - ox) * cosLat;
+      const ay = a[1] - oy;
+      const bx = (b[0] - ox) * cosLat;
+      const by = b[1] - oy;
+      const sx = bx - ax;
+      const sy = by - ay;
+      const denom = dirX * sy - dirY * sx;
+      if (Math.abs(denom) < 1e-9) continue;
+      const s = (ax * sy - ay * sx) / denom;
+      const u = (ax * dirY - ay * dirX) / denom;
+      if (s > 1e-5 && u >= -1e-5 && u <= 1 + 1e-5 && s < best) {
+        best = s;
+      }
+    }
+  };
+  checkRing(outer);
+  for (const hole of holes) checkRing(hole);
+  return Number.isFinite(best) ? best : Infinity;
+};
+
+interface EdgeGrid {
+  readonly cellSize: number;
+  readonly minLng: number;
+  readonly minLat: number;
+  readonly cols: number;
+  readonly rows: number;
+  /** Per-cell list of edge indices (4 floats per edge in `edges`). */
+  readonly cells: ReadonlyArray<Int32Array>;
+  /** Flat edge buffer: [a.lng, a.lat, b.lng, b.lat, ...]. */
+  readonly edges: Float32Array;
+  /** cos(centreLat) — used to scale lng differences to spherical-equivalent. */
+  readonly cosLat: number;
+}
+
+/**
+ * Build a spatial hash over the polygon's outer + hole rings. Each cell
+ * holds the indices of edges whose bounding box overlaps the cell.
+ * `edgeGridDistance` searches outward from the cell containing the query
+ * point, terminating once the current min distance is shorter than any
+ * unscanned cell could produce. Typical cost per query is O(constant).
+ */
+const buildEdgeGrid = (
+  outer: ReadonlyArray<readonly [number, number]>,
+  holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  bounds: RingBounds,
+  cosLat: number
+): EdgeGrid => {
+  const lngSpan = Math.max(bounds.maxLng - bounds.minLng, 1e-3);
+  const latSpan = Math.max(bounds.maxLat - bounds.minLat, 1e-3);
+  // Aim for ~16 cells along the longer axis. 16 keeps each cell holding
+  // a handful of edges for typical countries; very small polygons get
+  // a coarser grid (one cell) which is also fine.
+  const cellSize = Math.max(lngSpan / 16, latSpan / 16, 0.1);
+  const cols = Math.max(1, Math.ceil(lngSpan / cellSize));
+  const rows = Math.max(1, Math.ceil(latSpan / cellSize));
+  const cellSize2 = cellSize; // for clarity
+  const cellLists: Array<Array<number>> = Array.from({ length: cols * rows }, () => []);
+  const edgesFlat: Array<number> = [];
+
+  const addRing = (ring: ReadonlyArray<readonly [number, number]>) => {
+    if (ring.length < 2) return;
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i];
+      const b = ring[(i + 1) % ring.length];
+      if (!a || !b) continue;
+      if (a[0] === b[0] && a[1] === b[1]) continue; // skip degenerate
+      const idx = edgesFlat.length / 4;
+      edgesFlat.push(a[0], a[1], b[0], b[1]);
+      const minX = Math.min(a[0], b[0]);
+      const maxX = Math.max(a[0], b[0]);
+      const minY = Math.min(a[1], b[1]);
+      const maxY = Math.max(a[1], b[1]);
+      const cx0 = Math.max(0, Math.min(cols - 1, Math.floor((minX - bounds.minLng) / cellSize2)));
+      const cx1 = Math.max(0, Math.min(cols - 1, Math.floor((maxX - bounds.minLng) / cellSize2)));
+      const cy0 = Math.max(0, Math.min(rows - 1, Math.floor((minY - bounds.minLat) / cellSize2)));
+      const cy1 = Math.max(0, Math.min(rows - 1, Math.floor((maxY - bounds.minLat) / cellSize2)));
+      for (let cy = cy0; cy <= cy1; cy++) {
+        for (let cx = cx0; cx <= cx1; cx++) {
+          cellLists[cy * cols + cx]!.push(idx);
+        }
+      }
+    }
+  };
+
+  addRing(outer);
+  for (const hole of holes) addRing(hole);
+
+  const cells: Array<Int32Array> = cellLists.map((list) => Int32Array.from(list));
+  return {
+    cellSize,
+    minLng: bounds.minLng,
+    minLat: bounds.minLat,
+    cols,
+    rows,
+    cells,
+    edges: Float32Array.from(edgesFlat),
+    cosLat,
+  };
+};
+
+/**
+ * Distance from `(lng, lat)` to the nearest edge in the grid, using
+ * spherical-scaled lng deltas. Spirals outward by cell ring until the
+ * current min is provably smaller than anything in unscanned cells.
+ */
+const edgeGridDistance = (grid: EdgeGrid, lng: number, lat: number): number => {
+  const cosLat = grid.cosLat;
+  const cx0 = Math.max(0, Math.min(grid.cols - 1, Math.floor((lng - grid.minLng) / grid.cellSize)));
+  const cy0 = Math.max(0, Math.min(grid.rows - 1, Math.floor((lat - grid.minLat) / grid.cellSize)));
+  const maxRadius = Math.max(grid.cols, grid.rows);
+  const edges = grid.edges;
+  let minD = Infinity;
+
+  for (let radius = 0; radius <= maxRadius; radius++) {
+    const x0 = Math.max(0, cx0 - radius);
+    const x1 = Math.min(grid.cols - 1, cx0 + radius);
+    const y0 = Math.max(0, cy0 - radius);
+    const y1 = Math.min(grid.rows - 1, cy0 + radius);
+    for (let cy = y0; cy <= y1; cy++) {
+      for (let cx = x0; cx <= x1; cx++) {
+        // Only scan the ring at this radius; interior cells were scanned
+        // in earlier iterations.
+        if (
+          radius > 0 &&
+          Math.max(Math.abs(cx - cx0), Math.abs(cy - cy0)) < radius
+        ) {
+          continue;
+        }
+        const cell = grid.cells[cy * grid.cols + cx]!;
+        for (let i = 0; i < cell.length; i++) {
+          const ei = cell[i]! * 4;
+          const ax = edges[ei]!;
+          const ay = edges[ei + 1]!;
+          const bx = edges[ei + 2]!;
+          const by = edges[ei + 3]!;
+          const exSc = (bx - ax) * cosLat;
+          const ey = by - ay;
+          const len2 = exSc * exSc + ey * ey;
+          const pxSc = (lng - ax) * cosLat;
+          const py = lat - ay;
+          let d: number;
+          if (len2 < 1e-12) {
+            d = Math.hypot(pxSc, py);
+          } else {
+            let s = (pxSc * exSc + py * ey) / len2;
+            if (s < 0) s = 0;
+            else if (s > 1) s = 1;
+            const dxSc = pxSc - s * exSc;
+            const dy = py - s * ey;
+            d = Math.hypot(dxSc, dy);
+          }
+          if (d < minD) minD = d;
+        }
+      }
+    }
+    // After scanning the ring at `radius`, anything in unscanned rings is
+    // at least `radius * cellSize` away in the spherical-scaled metric we
+    // measure with. Once minD is below that, we're done.
+    if (radius > 0 && minD <= radius * grid.cellSize) break;
+  }
+  return Number.isFinite(minD) ? minD : 0;
 };
 
 const countryLngPixelRanges = (
@@ -970,67 +1261,6 @@ const chooseInteriorDomeCenter = (
     }
   }
   return best ?? bboxCenter;
-};
-
-const rayBoundaryDistance = (
-  dx: number,
-  dy: number,
-  outer: ReadonlyArray<readonly [number, number]>,
-  holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
-  center: readonly [number, number],
-  cosCenterLat: number,
-  fallbackRx: number,
-  fallbackRy: number
-): number => {
-  const d = Math.sqrt(dx * dx + dy * dy);
-  if (d <= 1e-6) return Math.min(fallbackRx, fallbackRy);
-
-  const dirX = dx / d;
-  const dirY = dy / d;
-  let best = Infinity;
-  best = Math.min(best, rayRingBoundaryDistance(outer, center, cosCenterLat, dirX, dirY, d));
-  for (const hole of holes) {
-    best = Math.min(best, rayRingBoundaryDistance(hole, center, cosCenterLat, dirX, dirY, d));
-  }
-  if (Number.isFinite(best)) return best;
-
-  const denom = Math.sqrt(
-    (dirX / Math.max(1e-6, fallbackRx)) ** 2 +
-      (dirY / Math.max(1e-6, fallbackRy)) ** 2
-  );
-  return denom > 0 ? 1 / denom : d;
-};
-
-const rayRingBoundaryDistance = (
-  ring: ReadonlyArray<readonly [number, number]>,
-  center: readonly [number, number],
-  cosCenterLat: number,
-  dirX: number,
-  dirY: number,
-  minDistance: number
-): number => {
-  let best = Infinity;
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i];
-    const b = ring[(i + 1) % ring.length];
-    if (!a || !b) continue;
-
-    const ax = (a[0] - center[0]) * cosCenterLat;
-    const ay = a[1] - center[1];
-    const bx = (b[0] - center[0]) * cosCenterLat;
-    const by = b[1] - center[1];
-    const sx = bx - ax;
-    const sy = by - ay;
-    const denom = dirX * sy - dirY * sx;
-    if (Math.abs(denom) < 1e-8) continue;
-
-    const s = (ax * sy - ay * sx) / denom;
-    const u = (ax * dirY - ay * dirX) / denom;
-    if (s >= minDistance - 1e-5 && u >= -1e-5 && u <= 1 + 1e-5 && s < best) {
-      best = s;
-    }
-  }
-  return best;
 };
 
 const ringBoundsForPolygon = (ring: ReadonlyArray<readonly [number, number]>): RingBounds => {
@@ -1406,9 +1636,22 @@ vec2 dirToUv(vec3 dir) {
   return vec2(theta / 360.0, (90.0 - lat) / 180.0);
 }
 
+// Intensity is applied as a gamma-style curve t = pow(d, 1/intensity)
+// instead of a linear multiply. With per-country normalisation, every
+// country's dome stamps already span [0, 1], so a linear d * intensity
+// would clamp the entire crown to 1.0 (sharp flat plateau colour) for
+// every country whenever intensity > 1. Gamma boosts mid-tones while
+// keeping the peak at exactly 1.0 — visible gradient even for big
+// populated countries.
+float applyIntensity(float d, float intensity) {
+  if (intensity <= 0.0) return 0.0;
+  if (abs(intensity - 1.0) < 1e-4) return clamp(d, 0.0, 1.0);
+  return clamp(pow(clamp(d, 0.0, 1.0), 1.0 / intensity), 0.0, 1.0);
+}
+
 float displacementAtUv(vec2 uv) {
   float d = texture2D(uDensity, uv).r;
-  float t = clamp(d * uIntensity, 0.0, 1.0);
+  float t = applyIntensity(d, uIntensity);
   float threshold = clamp(uThreshold + uZoomThresholdBoost, 0.0, 0.95);
   float gated = max(0.0, (t - threshold) / max(1e-4, 1.0 - threshold));
   return curveFn(gated, uDispCurve);
@@ -1564,7 +1807,16 @@ void main() {
   vec2 uv = dirToUv(dir);
 
   float d = texture2D(uDensity, uv).r;
-  float t = clamp(d * uIntensity, 0.0, 1.0);
+  // Gamma-style intensity (matches the vertex shader). Linear * intensity
+  // would clip the entire dome crown to 1.0 under per-country normalize.
+  float t;
+  if (uIntensity <= 0.0) {
+    t = 0.0;
+  } else if (abs(uIntensity - 1.0) < 1e-4) {
+    t = clamp(d, 0.0, 1.0);
+  } else {
+    t = clamp(pow(clamp(d, 0.0, 1.0), 1.0 / uIntensity), 0.0, 1.0);
+  }
   float threshold = clamp(uThreshold + uZoomThresholdBoost, 0.0, 0.95);
   float gated = max(0.0, (t - threshold) / max(1e-4, 1.0 - threshold));
   float shaped = curveFn(clamp(gated, 0.0, 1.0), uCurve);

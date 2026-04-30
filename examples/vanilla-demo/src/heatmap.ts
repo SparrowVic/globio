@@ -81,6 +81,8 @@ interface Settings {
   domeShoulderHeight: number;
   domeEdgeSteepness: number;
   domePreScale: DomePreScale;
+  domeRounding: number;
+  domePerCountryNormalize: boolean;
 }
 
 const SURFACE_PRESETS: Record<SurfaceMode, Partial<Settings>> = {
@@ -174,6 +176,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     domeShoulderHeight: 0.83,
     domeEdgeSteepness: 1.4,
     domePreScale: 'log',
+    domeRounding: 1,
+    domePerCountryNormalize: false,
   },
   // Flat 2D heat overlay — the classical Mapbox / deck.gl look. Vivid
   // colour ramp; no displacement (so no facets at the limb).
@@ -329,6 +333,8 @@ const settings: Settings = {
   domeShoulderHeight: 0.83,
   domeEdgeSteepness: 1.4,
   domePreScale: 'log',
+  domeRounding: 1,
+  domePerCountryNormalize: false,
 };
 
 // Slightly darker variant of outline-dark so the heatmap colours have more
@@ -486,10 +492,21 @@ bindSlider('dome-steep', 'dome-steep-value', 1, (v) => {
   settings.domeEdgeSteepness = v;
   applyLayerDebounced();
 });
+bindSlider('dome-rounding', 'dome-rounding-value', 2, (v) => {
+  settings.domeRounding = v;
+  applyLayerDebounced();
+});
 bindRowToggle('dome-prescale-row', 'prescale', (value) => {
   settings.domePreScale = value as DomePreScale;
   const el = document.getElementById('dome-prescale-value');
   if (el) el.textContent = settings.domePreScale === 'sqrt' ? '√' : settings.domePreScale;
+  applyLayerDebounced();
+});
+
+bindRowToggle('dome-norm-row', 'norm', (value) => {
+  settings.domePerCountryNormalize = value === 'on';
+  const el = document.getElementById('dome-norm-value');
+  if (el) el.textContent = settings.domePerCountryNormalize ? 'on' : 'off';
   applyLayerDebounced();
 });
 
@@ -546,6 +563,7 @@ function syncControls(): void {
   set('dome-center', settings.domeCenterArea, 2);
   set('dome-shoulder', settings.domeShoulderHeight, 2);
   set('dome-steep', settings.domeEdgeSteepness, 1);
+  set('dome-rounding', settings.domeRounding, 2);
   const preScaleEl = document.getElementById('dome-prescale-value');
   if (preScaleEl)
     preScaleEl.textContent = settings.domePreScale === 'sqrt' ? '√' : settings.domePreScale;
@@ -566,6 +584,9 @@ function syncControls(): void {
   setActive('surface-row', 'surface', settings.surfaceMode);
   setActive('detail-row', 'detail', settings.detailMode);
   setActive('dome-prescale-row', 'prescale', settings.domePreScale);
+  setActive('dome-norm-row', 'norm', settings.domePerCountryNormalize ? 'on' : 'off');
+  const normLabel = document.getElementById('dome-norm-value');
+  if (normLabel) normLabel.textContent = settings.domePerCountryNormalize ? 'on' : 'off';
 
   // Hide dome-shape controls unless we're actually rendering country domes.
   const domeShape = document.getElementById('dome-shape');
@@ -707,6 +728,8 @@ async function applyLayer(): Promise<void> {
             shoulderHeight: settings.domeShoulderHeight,
             edgeSteepness: settings.domeEdgeSteepness,
             valuePreScale: settings.domePreScale,
+            rounding: settings.domeRounding,
+            perCountryNormalize: settings.domePerCountryNormalize,
           }
         : false,
     ...detailOptions,

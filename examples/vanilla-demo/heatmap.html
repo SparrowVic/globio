@@ -266,13 +266,26 @@
           <p class="hint">Wall steepness near the polygon border. 1 = linear ramp, 4+ = cliff just inside the boundary.</p>
         </div>
         <div class="slider-row">
+          <label>Rounding strength: <span id="dome-rounding-value">1.00</span></label>
+          <input type="range" id="dome-rounding" min="0" max="1" step="0.05" value="1" />
+          <p class="hint">0 = polygon-shape (sharp corners visible like a tablecloth pulled up by its corners), 1 = fully rounded bubble inside the country shape. Middle blends both.</p>
+        </div>
+        <div class="slider-row">
           <label>Cross-country compression: <span id="dome-prescale-value">log</span></label>
           <div class="row" id="dome-prescale-row">
             <button data-prescale="log" class="active">log</button>
             <button data-prescale="sqrt">√</button>
             <button data-prescale="linear">linear</button>
           </div>
-          <p class="hint">Pre-scales each country's value before painting. <code>log</code> keeps Vatican and India both readable; <code>linear</code> shows raw ratios.</p>
+          <p class="hint">Pre-scales each country's value before painting. <code>log</code> keeps Vatican and India both readable; <code>linear</code> shows raw ratios. Only used when per-country normalize is OFF.</p>
+        </div>
+        <div class="slider-row">
+          <label>Per-country normalize: <span id="dome-norm-value">off</span></label>
+          <div class="row" id="dome-norm-row">
+            <button data-norm="on">On</button>
+            <button data-norm="off" class="active">Off</button>
+          </div>
+          <p class="hint">On: every country's dome stamps to the same peak so big and small countries share the same colour gradient and contour pattern (China, Russia, USA stop saturating into a flat top). Off: dome height scales with population — looks dramatic on small datasets, blows out on populous ones.</p>
         </div>
       </div>
 
