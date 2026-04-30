@@ -52,7 +52,10 @@ export class CountryLabelsLayer {
   private readonly tempScreen = new Vector3();
   private readonly minScreenSize: number;
   private labels: Readonly<Record<string, string>>;
-  private enabled = true;
+  // Field must match the host's `display` state we set below — otherwise the
+  // first `setEnabled(true)` no-ops via the equality guard and the labels
+  // never appear (you'd have to toggle off→on again to "unstick" them).
+  private enabled = false;
 
   public constructor(private readonly options: CountryLabelsLayerOptions) {
     this.minScreenSize = options.minScreenSize ?? 60;
@@ -63,10 +66,10 @@ export class CountryLabelsLayer {
       inset: '0',
       pointerEvents: 'none',
       overflow: 'hidden',
+      display: 'none',
     } satisfies Partial<CSSStyleDeclaration>);
     options.container.appendChild(this.host);
     this.buildLabels(options.features);
-    this.host.style.display = 'none';
   }
 
   public setEnabled(enabled: boolean): void {
