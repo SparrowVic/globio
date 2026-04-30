@@ -19,8 +19,8 @@ const state: {
 } = {
   kind: 'outline',
   data: 'cities',
-  radius: 0.06,
-  maxHeight: 0.25,
+  radius: 0.08,
+  maxHeight: 0.35,
   subdivisions: 5,
 };
 

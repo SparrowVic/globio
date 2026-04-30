@@ -11,8 +11,8 @@ import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import { colorForValue, type ScaleConfig } from '../../data/scales';
 import type { HeatmapDataEntry, HeatmapDataLayer } from '../types';
 
-const DEFAULT_RADIUS_RAD = 0.06; // ~3.4°
-const DEFAULT_MAX_HEIGHT = 0.25;
+const DEFAULT_RADIUS_RAD = 0.08; // ~4.6° — broader influence so peaks merge into mounds
+const DEFAULT_MAX_HEIGHT = 0.35; // big enough to be obvious without dominating the globe
 const DEFAULT_SUBDIVISIONS = 5;
 
 export interface HeatmapLayerOptions {
@@ -57,7 +57,10 @@ export class HeatmapLayer {
     this.fallbackColor = options.fallbackColor ?? '#ffaa44';
     this.scale = options.layer.scale;
 
-    this.geometry = new IcosahedronGeometry(GLOBE_RADIUS, subdivisions);
+    // Lift the icosphere a hair off the globe surface so it doesn't z-fight
+    // with the underlying mesh at zero-density vertices. Borders sit at
+    // R * 1.0008; we go just under that so we still render below the borders.
+    this.geometry = new IcosahedronGeometry(GLOBE_RADIUS * 1.0006, subdivisions);
     const positionAttr = this.geometry.getAttribute('position') as BufferAttribute;
     const verts = positionAttr.array as Float32Array;
     this.basePositions = new Float32Array(verts);
@@ -173,9 +176,16 @@ export class HeatmapLayer {
         const scaledValue = extent[0] + t * (extent[1] - extent[0]);
         const c = colorForValue(this.scale, scaledValue, extent);
         color = c ? new Color(c) : fallback;
+        // For additive blending, scale brightness by density so low-density
+        // areas don't add ambient tint over the entire globe. Sequential
+        // palettes already start dark at low t, but threshold/categorical
+        // can bin to bright colors at t≈0; the multiplier keeps those quiet.
+        color.multiplyScalar(t);
       } else {
-        // Tint from dim → fallback as density rises.
-        color = fallback.clone().multiplyScalar(0.2 + 0.8 * t);
+        // Brightness ∝ density (0 at base → fallback at peak). With additive
+        // blending this means low-density areas don't tint the underlying
+        // globe at all and peaks glow vividly.
+        color = fallback.clone().multiplyScalar(t);
       }
       liveColors[vi] = color.r;
       liveColors[vi + 1] = color.g;
