@@ -19,7 +19,9 @@ import {
 } from './bars-builder';
 import {
   buildDonutChart,
+  buildGaugeChart,
   buildPieChart,
+  buildSunburstChart,
   disposePieSegments,
   type PieSegmentHandle,
 } from './pie-builder';
@@ -244,7 +246,13 @@ export class ChartsLayer {
       layer.chartType === 'bars-stacked'
         ? computeStackedGlobalPeak(layer.data, layer.series)
         : 0;
-    const faceCameraDefault = layer.chartType === 'pie' || layer.chartType === 'donut';
+    // Flat charts (pie/donut/gauge/sunburst) read best when billboarded
+    // toward the camera so they don't squash into ellipses at high latitudes.
+    const faceCameraDefault =
+      layer.chartType === 'pie' ||
+      layer.chartType === 'donut' ||
+      layer.chartType === 'gauge' ||
+      layer.chartType === 'sunburst';
     const faceCamera = layer.faceCamera ?? faceCameraDefault;
 
     for (const { entry, anchor, index } of anchorList) {
@@ -453,6 +461,14 @@ const buildChartGeometry = (
     }
     case 'donut': {
       const { group, segments } = buildDonutChart(entry, layer.series, layer, fallbackColor);
+      return segments.length === 0 ? null : { group, segments };
+    }
+    case 'gauge': {
+      const { group, segments } = buildGaugeChart(entry, layer.series, layer, fallbackColor);
+      return segments.length === 0 ? null : { group, segments };
+    }
+    case 'sunburst': {
+      const { group, segments } = buildSunburstChart(entry, layer.series, layer, fallbackColor);
       return segments.length === 0 ? null : { group, segments };
     }
   }

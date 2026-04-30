@@ -675,7 +675,27 @@ export interface HexBinDataEntry {
  *  - `'radial'` — N bars arranged around a circle, height = value. Best
  *    when series are categorical AND ordered (months, weekdays, …).
  */
-export type ChartType = 'bars-grouped' | 'bars-stacked' | 'pie' | 'donut' | 'radial';
+/**
+ * Chart sub-type rendered at each anchor.
+ *  - `'bars-grouped'` — N parallel bars side-by-side
+ *  - `'bars-stacked'` — single column with composition segments
+ *  - `'pie'` — flat disc segmented by series share
+ *  - `'donut'` — pie with hollow centre (`innerRadius`)
+ *  - `'radial'` — N bars arranged around a circle, height = value
+ *  - `'gauge'` — 180° arc filling proportional to `series[0]` / `gaugeMax`,
+ *               with a background arc behind. Single-value chart.
+ *  - `'sunburst'` — two concentric rings: outer = series segments by share,
+ *                   inner = single ring at half the radius coloured by the
+ *                   sum total mapped through `scale`. Cheap nested overview.
+ */
+export type ChartType =
+  | 'bars-grouped'
+  | 'bars-stacked'
+  | 'pie'
+  | 'donut'
+  | 'radial'
+  | 'gauge'
+  | 'sunburst';
 
 /**
  * One series of a multi-series chart. `key` indexes into each entry's
@@ -780,6 +800,10 @@ export interface ChartsDataLayer {
   readonly size?: number;
   readonly height?: number;
   readonly innerRadius?: number;
+  /** For `chartType: 'gauge'` — the value that fills the full 180° arc. Default 100. */
+  readonly gaugeMax?: number;
+  /** For `chartType: 'gauge'` — colour of the empty arc behind the fill. Default 'rgba(255,255,255,0.15)'. */
+  readonly gaugeBackgroundColor?: string;
   readonly padAngle?: number;
   readonly rotation?: number;
   readonly faceCamera?: boolean;

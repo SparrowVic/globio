@@ -10,7 +10,7 @@ import {
 const container = document.getElementById('app');
 if (!container) throw new Error('#app not found');
 
-type DataSet = 'energy' | 'population' | 'quarterly';
+type DataSet = 'energy' | 'population' | 'quarterly' | 'kpi';
 
 type LabelsMode = 'off' | 'hover' | 'always' | 'occlusion';
 
@@ -105,16 +105,38 @@ const QUARTERLY_DATA: ReadonlyArray<ChartsDataEntry> = [
   { id: '076', label: 'Brazil', values: { q1: 22, q2: 26, q3: 30, q4: 34 } },
 ];
 
+// "KPI" — single-value-per-country dataset for the gauge chart. Renewable
+// energy share (% of total) reads cleanly on a 180° arc.
+const KPI_SERIES: ReadonlyArray<ChartSeries> = [
+  { key: 'kpi', label: 'Renewables share %', color: '#65d18a' },
+];
+const KPI_DATA: ReadonlyArray<ChartsDataEntry> = [
+  { id: '578', label: 'Norway', values: { kpi: 98 } },
+  { id: '752', label: 'Sweden', values: { kpi: 60 } },
+  { id: '208', label: 'Denmark', values: { kpi: 67 } },
+  { id: '276', label: 'Germany', values: { kpi: 47 } },
+  { id: '826', label: 'UK', values: { kpi: 46 } },
+  { id: '250', label: 'France', values: { kpi: 27 } },
+  { id: '724', label: 'Spain', values: { kpi: 50 } },
+  { id: '380', label: 'Italy', values: { kpi: 41 } },
+  { id: '840', label: 'USA', values: { kpi: 22 } },
+  { id: '156', label: 'China', values: { kpi: 31 } },
+  { id: '356', label: 'India', values: { kpi: 22 } },
+  { id: '076', label: 'Brazil', values: { kpi: 89 } },
+];
+
 const datasetSeries: Record<DataSet, ReadonlyArray<ChartSeries>> = {
   energy: ENERGY_SERIES,
   population: POPULATION_SERIES,
   quarterly: QUARTERLY_SERIES,
+  kpi: KPI_SERIES,
 };
 
 const datasetData: Record<DataSet, ReadonlyArray<ChartsDataEntry>> = {
   energy: ENERGY_DATA,
   population: POPULATION_DATA,
   quarterly: QUARTERLY_DATA,
+  kpi: KPI_DATA,
 };
 
 // ---------------------------------------------------------------------------
@@ -143,8 +165,26 @@ applyLayer();
 
 bindRowToggle('type-row', 'type', (value) => {
   settings.chartType = value as ChartType;
+  // Auto-swap to a sensible dataset when picking a single-value chart
+  // (gauge needs ~one number per country, not a multi-series array).
+  if (settings.chartType === 'gauge' && settings.dataset !== 'kpi') {
+    settings.dataset = 'kpi';
+    setActiveButton('data-row', 'set', 'kpi');
+  } else if (settings.chartType !== 'gauge' && settings.dataset === 'kpi') {
+    settings.dataset = 'energy';
+    setActiveButton('data-row', 'set', 'energy');
+  }
   applyLayer();
 });
+
+function setActiveButton(rowId: string, attr: string, value: string): void {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  row.querySelectorAll('button').forEach((b) => {
+    const btn = b as HTMLButtonElement;
+    btn.classList.toggle('active', btn.dataset[attr] === value);
+  });
+}
 
 bindRowToggle('data-row', 'set', (value) => {
   settings.dataset = value as DataSet;
@@ -216,6 +256,7 @@ function applyLayer(): void {
     height: settings.height,
     innerRadius: settings.innerRadius,
     padAngle: settings.padAngle,
+    ...(settings.chartType === 'gauge' ? { gaugeMax: 100 } : {}),
     animation: {
       duration: settings.durationMs,
       stagger: settings.staggerMs,

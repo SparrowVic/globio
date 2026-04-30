@@ -221,6 +221,170 @@ const pickSeriesColor = (
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
+/**
+ * Gauge chart — semi-circle (180°) progress arc. Reads `series[0]` from
+ * the entry and normalises against `layer.gaugeMax` (default 100) into a
+ * fill ratio. Two donut segments are emitted:
+ *  - segment 0: background arc (full 180°, neutral colour)
+ *  - segment 1: foreground arc (180° × ratio, series colour)
+ * Animator can drive each segment's `t` independently — by default the
+ * background pops in instantly and the foreground sweeps from 0% over the
+ * `animation.duration`.
+ */
+export const buildGaugeChart = (
+  entry: ChartsDataEntry,
+  series: ReadonlyArray<ChartSeries>,
+  layer: ChartsDataLayer,
+  fallbackColor: string
+): { readonly group: Group; readonly segments: ReadonlyArray<PieSegmentHandle> } => {
+  const size = layer.size ?? 0.05;
+  const opacity = layer.opacity ?? 1;
+  const innerRatio = clamp(layer.innerRadius ?? 0.6, MIN_INNER_RATIO, MAX_INNER_RATIO);
+  const max = Math.max(1e-6, layer.gaugeMax ?? 100);
+  const outerR = size / 2;
+  const innerR = outerR * innerRatio;
+  const bgColor = layer.gaugeBackgroundColor ?? 'rgba(255,255,255,0.15)';
+
+  const group = new Group();
+  group.name = 'ChartsGauge';
+  const segments: Array<PieSegmentHandle> = [];
+  if (series.length === 0) return { group, segments };
+
+  const s = series[0]!;
+  const raw = entry.values[s.key];
+  const value = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
+  const ratio = Math.min(1, value / max);
+
+  // Gauge sits across the upper hemisphere — start at π (left), sweep to 2π (right).
+  const start = Math.PI;
+  const fullSweep = Math.PI;
+
+  // Background arc (drawn first so it's behind the fill on overlap).
+  const bgGeometry = buildDonutSegmentGeometry(innerR, outerR, start, start + fullSweep);
+  const bgMaterial = new MeshBasicMaterial({
+    color: parseRGBA(bgColor),
+    transparent: true,
+    opacity: parseAlphaFromBackground(bgColor) * opacity,
+    side: DoubleSide,
+  });
+  const bgMesh = new Mesh(bgGeometry, bgMaterial);
+  group.add(bgMesh);
+  segments.push({ mesh: bgMesh, material: bgMaterial, geometry: bgGeometry });
+
+  if (ratio > 0) {
+    const fillSweep = fullSweep * ratio;
+    const fillGeometry = buildDonutSegmentGeometry(innerR, outerR, start, start + fillSweep);
+    const color = pickSeriesColor(s, value, max, layer, fallbackColor);
+    const fillMaterial = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      side: DoubleSide,
+    });
+    const fillMesh = new Mesh(fillGeometry, fillMaterial);
+    fillMesh.renderOrder = 1; // ensure on top of background
+    group.add(fillMesh);
+    segments.push({ mesh: fillMesh, material: fillMaterial, geometry: fillGeometry });
+  }
+
+  return { group, segments };
+};
+
+/**
+ * Sunburst chart — two concentric rings. Outer ring = series segments
+ * (same proportion math as pie/donut). Inner ring = a single full circle
+ * coloured by the sum total mapped through `layer.scale`, providing a
+ * cross-entry total readout that the outer ring can't show.
+ *
+ * v1: two-level, fixed split at half radius. Future: arbitrary nesting
+ * via `series[i].parent` would unlock real hierarchical sunbursts.
+ */
+export const buildSunburstChart = (
+  entry: ChartsDataEntry,
+  series: ReadonlyArray<ChartSeries>,
+  layer: ChartsDataLayer,
+  fallbackColor: string
+): { readonly group: Group; readonly segments: ReadonlyArray<PieSegmentHandle> } => {
+  const size = layer.size ?? 0.05;
+  const opacity = layer.opacity ?? 1;
+  const padAngle = Math.max(0, layer.padAngle ?? 0);
+  const rotation = layer.rotation ?? 0;
+  const outerR = size / 2;
+  // Outer ring spans 50%..100% of radius; inner ring 0..50% (filled disc).
+  const outerInnerR = outerR * 0.55;
+  const innerR = outerR * 0.5;
+
+  const total = sumPositive(entry, series);
+  const group = new Group();
+  group.name = 'ChartsSunburst';
+  const segments: Array<PieSegmentHandle> = [];
+  if (total <= 0) return { group, segments };
+
+  // Inner core — full disc, coloured by the sum mapped through `scale`.
+  // Falls back to the first series' colour when no scale is present.
+  const coreColor =
+    layer.scale && (layer.scale.type === 'sequential' || layer.scale.type === 'diverging')
+      ? pickSeriesColor(series[0] ?? { key: '_total' }, total, total, layer, fallbackColor)
+      : series[0]?.color ?? fallbackColor;
+  const coreGeometry = buildPieSegmentGeometry(innerR, 0, Math.PI * 2);
+  const coreMaterial = new MeshBasicMaterial({
+    color: coreColor,
+    transparent: true,
+    opacity,
+    side: DoubleSide,
+  });
+  const coreMesh = new Mesh(coreGeometry, coreMaterial);
+  group.add(coreMesh);
+  segments.push({ mesh: coreMesh, material: coreMaterial, geometry: coreGeometry });
+
+  // Outer ring — series segments at outerInnerR..outerR.
+  const totalPad = Math.min(padAngle * series.length, Math.PI * 1.9);
+  const usableSweep = Math.PI * 2 - totalPad;
+  const padPerGap = totalPad / Math.max(1, series.length);
+  let cursor = rotation;
+  for (const s of series) {
+    const raw = entry.values[s.key];
+    const value = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
+    if (value <= 0) {
+      cursor += padPerGap;
+      continue;
+    }
+    const sweep = (value / total) * usableSweep;
+    const startAngle = cursor;
+    const endAngle = cursor + sweep;
+    cursor = endAngle + padPerGap;
+    const geometry = buildDonutSegmentGeometry(outerInnerR, outerR, startAngle, endAngle);
+    const color = pickSeriesColor(s, value, total, layer, fallbackColor);
+    const material = new MeshBasicMaterial({ color, transparent: true, opacity, side: DoubleSide });
+    const mesh = new Mesh(geometry, material);
+    group.add(mesh);
+    segments.push({ mesh, material, geometry });
+  }
+  return { group, segments };
+};
+
+/**
+ * Best-effort `rgba(...)`/`#hex`/named-colour parser into the hex form
+ * that MeshBasicMaterial wants. Returns the raw input when not an rgba()
+ * — Three.js's color parser handles all the other cases natively.
+ */
+const parseRGBA = (input: string): string => {
+  const m = input.match(/rgba?\(([^)]+)\)/i);
+  if (!m) return input;
+  const parts = m[1]!.split(',').map((p) => parseFloat(p.trim()));
+  const r = Math.round(parts[0] ?? 0);
+  const g = Math.round(parts[1] ?? 0);
+  const b = Math.round(parts[2] ?? 0);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const parseAlphaFromBackground = (input: string): number => {
+  const m = input.match(/rgba?\(([^)]+)\)/i);
+  if (!m) return 1;
+  const parts = m[1]!.split(',').map((p) => parseFloat(p.trim()));
+  return parts[3] ?? 1;
+};
+
 /** Free per-segment GPU resources. */
 export const disposePieSegments = (segments: ReadonlyArray<PieSegmentHandle>): void => {
   for (const seg of segments) {
