@@ -80,6 +80,28 @@ const resolveActiveKind = (config: GlobeConfig): GlobeKind => {
 };
 
 /**
+ * Whether two same-type data-layer configs differ only in fields that the
+ * existing handle can swap via `setData()` (samples, kernel, scale, …).
+ * Structural fields — texture / mesh resolution — own GPU buffers allocated
+ * at construction time, so changes there force a full dispose + rebuild.
+ */
+const canUpdateInPlace = (
+  prev: import('./data-layers/types').DataLayer,
+  next: import('./data-layers/types').DataLayer
+): boolean => {
+  if (prev.type !== 'heatmap' || next.type !== 'heatmap') return true;
+  const a = prev.textureResolution;
+  const b = next.textureResolution;
+  if ((a?.width ?? -1) !== (b?.width ?? -1)) return false;
+  if ((a?.height ?? -1) !== (b?.height ?? -1)) return false;
+  const m = prev.meshResolution;
+  const n = next.meshResolution;
+  if ((m?.width ?? -1) !== (n?.width ?? -1)) return false;
+  if ((m?.height ?? -1) !== (n?.height ?? -1)) return false;
+  return true;
+};
+
+/**
  * Compute camera radius such that the angular extent fits inside the
  * limiting field-of-view dimension with the given padding. Exact geometry:
  * tan(theta_screen) = R_g * sin(g/2) / (R - R_g * cos(g/2)).
@@ -702,19 +724,42 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
     getCountryData: () => state.countryData,
     setDataLayer: (layer) => {
-      // Always tear down the previous layer first.
-      state.dataLayer?.handle.dispose();
-      state.dataLayer = null;
       if (!layer) {
+        state.dataLayer?.handle.dispose();
+        state.dataLayer = null;
         pendingDataLayer = null;
         return;
       }
       // No kindHandle yet (features still loading) → queue, drain in
       // initCountries once decorators are ready.
       if (!state.kindHandle) {
+        state.dataLayer?.handle.dispose();
+        state.dataLayer = null;
         pendingDataLayer = layer;
         return;
       }
+      // In-place update fast path: same type + handle exposes setData →
+      // re-use the existing shader / texture / mesh and let the handle
+      // diff the layer config. Critical for slider performance — without
+      // this every tick re-allocates the entire heatmap pipeline.
+      //
+      // Structural fields (texture / mesh resolution) live in fixed-size
+      // GPU buffers allocated at construction, so a change there forces a
+      // full rebuild — the in-place path can't grow them.
+      if (
+        state.dataLayer &&
+        state.dataLayer.config.type === layer.type &&
+        state.dataLayer.handle.setData &&
+        canUpdateInPlace(state.dataLayer.config, layer)
+      ) {
+        state.dataLayer.handle.setData(layer);
+        state.dataLayer = { config: layer, handle: state.dataLayer.handle };
+        return;
+      }
+      // Different type (or no current layer / handle without setData) →
+      // tear down + build fresh.
+      state.dataLayer?.handle.dispose();
+      state.dataLayer = null;
       const builder = state.kindHandle.decorations?.dataLayers?.[layer.type];
       if (!builder) {
         // eslint-disable-next-line no-console

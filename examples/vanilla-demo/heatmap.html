@@ -170,7 +170,8 @@
 
       <h2>Preset</h2>
       <div class="row preset-row" id="preset-row">
-        <button data-preset="urban" class="active">Urban density</button>
+        <button data-preset="countries" class="active">Countries 🌍</button>
+        <button data-preset="urban">Urban density</button>
         <button data-preset="seismic">Seismic</button>
         <button data-preset="hotspots">Hotspots</button>
         <button data-preset="continental">Continental</button>
@@ -179,11 +180,19 @@
 
       <h2>Dataset</h2>
       <div class="row" id="data-row">
-        <button data-set="megacities" class="active">Mega-cities (60)</button>
+        <button data-set="countries" class="active">All countries (~195)</button>
+        <button data-set="megacities">Mega-cities (60)</button>
         <button data-set="worldcities">World cities (250)</button>
-        <button data-set="earthquakes">Earthquakes (180)</button>
+        <button data-set="earthquakes">Synthetic quakes (180)</button>
         <button data-set="random">Random clusters</button>
       </div>
+      <h2>Live data (USGS)</h2>
+      <div class="row" id="live-row">
+        <button data-set="quakes-week">⚡ Past week (~3k)</button>
+        <button data-set="quakes-month">⚡ Past month (~12k)</button>
+        <button data-set="quakes-year">⚡ Past year M2.5+ (~30k)</button>
+      </div>
+      <p class="hint" id="live-status">Click any ⚡ to fetch real seismic activity from the USGS feed and bake it into the heatmap.</p>
 
       <h2>Kind</h2>
       <div class="row" id="kind-row">

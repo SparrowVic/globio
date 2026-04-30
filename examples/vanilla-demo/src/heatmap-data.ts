@@ -92,6 +92,22 @@ export const WORLD_CITIES: ReadonlyArray<HeatmapDataEntry> = Object.freeze(build
  */
 export const EARTHQUAKES: ReadonlyArray<HeatmapDataEntry> = Object.freeze(buildEarthquakes());
 
+/**
+ * One sample per UN member state (+ a few territories) at the country's
+ * approximate centroid. `value` = population in millions. Uniform global
+ * coverage — every country contributes a kernel, so the heatmap reads as
+ * "where humans live" without any blank quadrants. Default kernel radius
+ * ~5° gives generous overlap so neighbouring countries blend smoothly.
+ *
+ * Population estimates rounded to one decimal where useful, sourced from
+ * UN / World Bank circa 2024. Centroids are visual centres rather than
+ * geometric — picked so the kernel sits over the populated heartland
+ * (e.g. Russia anchored on European Russia, not Siberia).
+ */
+export const WORLD_COUNTRIES_POPULATION: ReadonlyArray<HeatmapDataEntry> = Object.freeze(
+  buildWorldCountriesPopulation()
+);
+
 /** Deterministic synthetic clusters — useful for tweaking knobs. */
 export const RANDOM_CLUSTERS: ReadonlyArray<HeatmapDataEntry> = Object.freeze(buildRandomClusters());
 
@@ -257,6 +273,220 @@ function buildEarthquakes(): Array<HeatmapDataEntry> {
   return out;
 }
 
+function buildWorldCountriesPopulation(): Array<HeatmapDataEntry> {
+  // Each row: [lat, lng, populationMillions, name]. Name is informational
+  // (kept as a comment for readability), populations are circa 2024 UN /
+  // World Bank estimates rounded to one decimal.
+  const rows: ReadonlyArray<readonly [number, number, number, string]> = [
+    // ===== Africa =====
+    [28.0, 3.0, 45, 'Algeria'],
+    [-12.5, 17.5, 36, 'Angola'],
+    [9.5, 2.3, 13.7, 'Benin'],
+    [-22.3, 24.6, 2.6, 'Botswana'],
+    [12.2, -1.6, 22.5, 'Burkina Faso'],
+    [-3.4, 29.9, 13.2, 'Burundi'],
+    [16.0, -24.0, 0.6, 'Cabo Verde'],
+    [6.5, 12.5, 28.6, 'Cameroon'],
+    [6.6, 20.9, 5.5, 'Central African Republic'],
+    [15.5, 18.7, 17.7, 'Chad'],
+    [-12.2, 44.4, 0.85, 'Comoros'],
+    [-2.9, 23.6, 102, 'DR Congo'],
+    [-0.7, 14.6, 5.8, 'Republic of the Congo'],
+    [7.5, -5.5, 28.9, "Côte d'Ivoire"],
+    [11.8, 42.6, 1.1, 'Djibouti'],
+    [26.8, 30.8, 110, 'Egypt'],
+    [1.6, 10.3, 1.7, 'Equatorial Guinea'],
+    [15.2, 39.8, 3.6, 'Eritrea'],
+    [-26.5, 31.5, 1.2, 'Eswatini'],
+    [9.1, 40.5, 120, 'Ethiopia'],
+    [-0.8, 11.6, 2.4, 'Gabon'],
+    [13.4, -15.5, 2.6, 'Gambia'],
+    [7.9, -1.0, 33.5, 'Ghana'],
+    [10.6, -10.9, 13.5, 'Guinea'],
+    [12.0, -15.2, 2.1, 'Guinea-Bissau'],
+    [0.0, 37.9, 53, 'Kenya'],
+    [-29.6, 28.2, 2.1, 'Lesotho'],
+    [6.4, -9.4, 5.3, 'Liberia'],
+    [25.0, 17.2, 6.7, 'Libya'],
+    [-19.0, 46.9, 30, 'Madagascar'],
+    [-13.3, 34.3, 20.4, 'Malawi'],
+    [17.6, -4.0, 22.6, 'Mali'],
+    [20.3, -10.9, 4.7, 'Mauritania'],
+    [-20.2, 57.6, 1.3, 'Mauritius'],
+    [31.8, -7.0, 37.5, 'Morocco'],
+    [-18.7, 35.5, 33.9, 'Mozambique'],
+    [-22.6, 17.1, 2.6, 'Namibia'],
+    [17.6, 8.1, 26.2, 'Niger'],
+    [9.1, 8.7, 224, 'Nigeria'],
+    [-1.9, 29.9, 13.5, 'Rwanda'],
+    [0.2, 6.6, 0.23, 'São Tomé and Príncipe'],
+    [14.5, -14.5, 17.8, 'Senegal'],
+    [-4.7, 55.5, 0.1, 'Seychelles'],
+    [8.5, -11.8, 8.7, 'Sierra Leone'],
+    [5.2, 46.2, 17.6, 'Somalia'],
+    [-29.0, 24.7, 60, 'South Africa'],
+    [7.9, 30.0, 11.5, 'South Sudan'],
+    [13.0, 30.2, 47.6, 'Sudan'],
+    [-6.4, 34.9, 65, 'Tanzania'],
+    [8.6, 0.8, 8.9, 'Togo'],
+    [33.8, 9.5, 12.1, 'Tunisia'],
+    [1.4, 32.3, 47.2, 'Uganda'],
+    [-13.1, 27.8, 19.5, 'Zambia'],
+    [-19.0, 29.9, 16.3, 'Zimbabwe'],
+    // ===== Americas =====
+    [17.1, -61.8, 0.1, 'Antigua and Barbuda'],
+    [-34.0, -64.0, 45.5, 'Argentina'],
+    [24.7, -76.6, 0.4, 'Bahamas'],
+    [13.2, -59.5, 0.28, 'Barbados'],
+    [17.2, -88.5, 0.41, 'Belize'],
+    [-16.3, -63.6, 12.2, 'Bolivia'],
+    [-10.0, -55.0, 215, 'Brazil'],
+    [60.0, -100.0, 39.5, 'Canada'],
+    [-30.0, -71.5, 19.6, 'Chile'],
+    [4.0, -73.0, 51.9, 'Colombia'],
+    [9.7, -84.0, 5.2, 'Costa Rica'],
+    [21.5, -78.0, 11.0, 'Cuba'],
+    [15.4, -61.4, 0.07, 'Dominica'],
+    [18.7, -70.2, 11.1, 'Dominican Republic'],
+    [-1.5, -78.5, 18.0, 'Ecuador'],
+    [13.7, -88.9, 6.3, 'El Salvador'],
+    [12.1, -61.7, 0.12, 'Grenada'],
+    [15.5, -90.2, 17.6, 'Guatemala'],
+    [4.9, -58.9, 0.81, 'Guyana'],
+    [18.9, -72.3, 11.4, 'Haiti'],
+    [15.0, -86.5, 10.4, 'Honduras'],
+    [18.1, -77.3, 2.8, 'Jamaica'],
+    [23.6, -102.5, 130, 'Mexico'],
+    [12.9, -85.2, 6.8, 'Nicaragua'],
+    [8.5, -80.8, 4.4, 'Panama'],
+    [-23.4, -58.4, 7.5, 'Paraguay'],
+    [-10.0, -76.0, 34.4, 'Peru'],
+    [17.4, -62.7, 0.05, 'Saint Kitts and Nevis'],
+    [13.9, -60.9, 0.18, 'Saint Lucia'],
+    [13.2, -61.2, 0.1, 'Saint Vincent'],
+    [4.0, -56.0, 0.62, 'Suriname'],
+    [10.7, -61.3, 1.5, 'Trinidad and Tobago'],
+    [38.0, -97.0, 333, 'United States'],
+    [-32.5, -55.8, 3.4, 'Uruguay'],
+    [7.0, -66.0, 28.3, 'Venezuela'],
+    // ===== Asia =====
+    [33.9, 67.7, 41.1, 'Afghanistan'],
+    [40.1, 45.0, 3.0, 'Armenia'],
+    [40.4, 47.6, 10.1, 'Azerbaijan'],
+    [26.0, 50.6, 1.5, 'Bahrain'],
+    [23.7, 90.4, 170, 'Bangladesh'],
+    [27.5, 90.4, 0.79, 'Bhutan'],
+    [4.5, 114.7, 0.45, 'Brunei'],
+    [12.6, 104.9, 17.0, 'Cambodia'],
+    [35.0, 105.0, 1410, 'China'],
+    [35.1, 33.4, 1.2, 'Cyprus'],
+    [42.3, 43.4, 3.7, 'Georgia'],
+    [21.0, 78.9, 1410, 'India'],
+    [-2.5, 118.0, 275, 'Indonesia'],
+    [32.4, 53.7, 89.2, 'Iran'],
+    [33.2, 43.7, 44.5, 'Iraq'],
+    [31.0, 35.0, 9.7, 'Israel'],
+    [36.2, 138.3, 125, 'Japan'],
+    [30.6, 36.2, 11.3, 'Jordan'],
+    [48.0, 66.9, 19.6, 'Kazakhstan'],
+    [29.3, 47.5, 4.5, 'Kuwait'],
+    [41.2, 74.8, 6.8, 'Kyrgyzstan'],
+    [19.9, 102.5, 7.5, 'Laos'],
+    [33.9, 35.9, 5.5, 'Lebanon'],
+    [4.2, 102.0, 33.6, 'Malaysia'],
+    [3.2, 73.2, 0.52, 'Maldives'],
+    [46.9, 103.8, 3.4, 'Mongolia'],
+    [21.9, 95.9, 54.2, 'Myanmar'],
+    [28.4, 84.1, 30.3, 'Nepal'],
+    [40.0, 127.5, 26.1, 'North Korea'],
+    [21.5, 55.9, 4.6, 'Oman'],
+    [30.4, 69.3, 240, 'Pakistan'],
+    [31.9, 35.2, 5.4, 'Palestine'],
+    [12.9, 121.8, 115, 'Philippines'],
+    [25.4, 51.2, 2.7, 'Qatar'],
+    [23.9, 45.1, 36.4, 'Saudi Arabia'],
+    [1.35, 103.8, 5.9, 'Singapore'],
+    [35.9, 127.8, 51.7, 'South Korea'],
+    [7.9, 80.8, 22.0, 'Sri Lanka'],
+    [34.8, 38.9, 22.1, 'Syria'],
+    [23.7, 121.0, 23.5, 'Taiwan'],
+    [38.9, 71.3, 9.7, 'Tajikistan'],
+    [15.9, 100.9, 71.6, 'Thailand'],
+    [-8.9, 125.7, 1.3, 'Timor-Leste'],
+    [38.9, 35.2, 86, 'Turkey'],
+    [38.9, 59.6, 6.4, 'Turkmenistan'],
+    [23.4, 53.8, 9.5, 'United Arab Emirates'],
+    [41.4, 64.6, 35.0, 'Uzbekistan'],
+    [16.0, 108.0, 100, 'Vietnam'],
+    [15.6, 48.5, 33.7, 'Yemen'],
+    // ===== Europe =====
+    [41.2, 20.2, 2.8, 'Albania'],
+    [42.5, 1.5, 0.08, 'Andorra'],
+    [47.5, 14.6, 9.0, 'Austria'],
+    [53.7, 27.9, 9.4, 'Belarus'],
+    [50.5, 4.5, 11.7, 'Belgium'],
+    [43.9, 17.7, 3.2, 'Bosnia and Herzegovina'],
+    [42.7, 25.5, 6.8, 'Bulgaria'],
+    [45.1, 15.2, 3.9, 'Croatia'],
+    [49.8, 15.5, 10.5, 'Czech Republic'],
+    [56.0, 9.5, 5.9, 'Denmark'],
+    [58.6, 25.0, 1.4, 'Estonia'],
+    [64.0, 26.0, 5.6, 'Finland'],
+    [46.6, 2.2, 65, 'France'],
+    [51.2, 10.4, 84, 'Germany'],
+    [39.1, 21.8, 10.4, 'Greece'],
+    [47.2, 19.5, 9.7, 'Hungary'],
+    [64.9, -19.0, 0.37, 'Iceland'],
+    [53.4, -8.2, 5.0, 'Ireland'],
+    [42.5, 12.6, 59, 'Italy'],
+    [42.6, 20.9, 1.9, 'Kosovo'],
+    [56.9, 24.6, 1.9, 'Latvia'],
+    [47.2, 9.5, 0.04, 'Liechtenstein'],
+    [55.2, 23.9, 2.8, 'Lithuania'],
+    [49.8, 6.1, 0.65, 'Luxembourg'],
+    [35.9, 14.4, 0.55, 'Malta'],
+    [47.4, 28.4, 2.6, 'Moldova'],
+    [43.7, 7.4, 0.04, 'Monaco'],
+    [42.7, 19.4, 0.6, 'Montenegro'],
+    [52.1, 5.3, 17.6, 'Netherlands'],
+    [41.6, 21.7, 2.0, 'North Macedonia'],
+    [60.5, 8.5, 5.5, 'Norway'],
+    [51.9, 19.1, 38, 'Poland'],
+    [39.4, -8.2, 10.3, 'Portugal'],
+    [45.9, 24.9, 19.0, 'Romania'],
+    // Russia anchored on European Russia (where the bulk of the population
+    // lives) — geographic centroid would land in empty Siberia.
+    [55.0, 50.0, 144, 'Russia'],
+    [43.9, 12.5, 0.03, 'San Marino'],
+    [44.0, 21.0, 6.6, 'Serbia'],
+    [48.7, 19.7, 5.5, 'Slovakia'],
+    [46.1, 14.8, 2.1, 'Slovenia'],
+    [40.5, -3.7, 47.5, 'Spain'],
+    [60.1, 18.6, 10.6, 'Sweden'],
+    [46.8, 8.2, 8.7, 'Switzerland'],
+    [48.4, 31.2, 41, 'Ukraine'],
+    [54.0, -2.0, 67.7, 'United Kingdom'],
+    [41.9, 12.45, 0.001, 'Vatican City'],
+    // ===== Oceania =====
+    // Australia anchored on the south-east where most people live
+    [-32.0, 145.0, 26.4, 'Australia'],
+    [-17.7, 178.1, 0.93, 'Fiji'],
+    [-3.4, 168.7, 0.13, 'Kiribati'],
+    [7.1, 171.2, 0.04, 'Marshall Islands'],
+    [6.9, 158.2, 0.11, 'Micronesia'],
+    [-0.5, 166.9, 0.013, 'Nauru'],
+    [-41.0, 174.0, 5.2, 'New Zealand'],
+    [7.5, 134.6, 0.018, 'Palau'],
+    [-6.3, 143.9, 10.3, 'Papua New Guinea'],
+    [-13.8, -172.1, 0.22, 'Samoa'],
+    [-9.6, 160.2, 0.7, 'Solomon Islands'],
+    [-21.2, -175.2, 0.1, 'Tonga'],
+    [-7.1, 178.1, 0.011, 'Tuvalu'],
+    [-15.4, 166.9, 0.32, 'Vanuatu'],
+  ];
+  return rows.map(([lat, lng, pop]) => sample([lat, lng] as LatLng, pop));
+}
+
 function buildRandomClusters(): Array<HeatmapDataEntry> {
   const out: Array<HeatmapDataEntry> = [];
   const seed = (n: number) => {
@@ -283,3 +513,108 @@ function buildRandomClusters(): Array<HeatmapDataEntry> {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Live API fetchers
+// ---------------------------------------------------------------------------
+
+interface UsgsFeature {
+  readonly geometry: { readonly coordinates: ReadonlyArray<number> };
+  readonly properties: { readonly mag: number | null };
+}
+interface UsgsFeed {
+  readonly features: ReadonlyArray<UsgsFeature>;
+}
+
+/**
+ * Convert a USGS GeoJSON feed into HeatmapDataEntry[]. Earthquakes with
+ * null/zero magnitude are skipped — they'd contribute nothing visible
+ * and there are a fair few of them in the raw feeds. USGS sometimes
+ * reports lng outside [-180, 180] for circumpacific events; we wrap them
+ * defensively so the heatmap baker (which assumes the canonical range)
+ * doesn't write past the texture's row.
+ */
+const usgsToEntries = (feed: UsgsFeed): Array<HeatmapDataEntry> => {
+  const out: Array<HeatmapDataEntry> = [];
+  for (const f of feed.features) {
+    const c = f.geometry.coordinates;
+    if (!c || c.length < 2) continue;
+    let lng = c[0];
+    const lat = c[1];
+    if (typeof lng !== 'number' || typeof lat !== 'number') continue;
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    if (lat < -90 || lat > 90) continue;
+    while (lng > 180) lng -= 360;
+    while (lng < -180) lng += 360;
+    const mag = f.properties.mag;
+    if (typeof mag !== 'number' || !Number.isFinite(mag) || mag <= 0) continue;
+    // We feed the raw magnitude as `value`. Combined with the `live-seismic`
+    // preset's `log` normalize this gives a visually balanced spread —
+    // background swarms and headline M7+ events both stay readable.
+    out.push({ position: [lat, lng] as LatLng, value: mag });
+  }
+  return out;
+};
+
+const cache = new Map<string, Promise<ReadonlyArray<HeatmapDataEntry>>>();
+
+const fetchUsgsFeed = async (
+  url: string,
+  cacheKey: string
+): Promise<ReadonlyArray<HeatmapDataEntry>> => {
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  const promise = (async () => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`USGS fetch failed: ${response.status}`);
+    }
+    const json = (await response.json()) as UsgsFeed;
+    const entries = usgsToEntries(json);
+    return entries;
+  })();
+  cache.set(cacheKey, promise);
+  return promise;
+};
+
+/** Last 7 days of earthquakes, all magnitudes (~3-5k entries). */
+export const fetchEarthquakesWeek = (): Promise<ReadonlyArray<HeatmapDataEntry>> =>
+  fetchUsgsFeed(
+    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson',
+    'usgs-week'
+  );
+
+/** Last 30 days of earthquakes, all magnitudes (~10-15k entries). */
+export const fetchEarthquakesMonth = (): Promise<ReadonlyArray<HeatmapDataEntry>> =>
+  fetchUsgsFeed(
+    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson',
+    'usgs-month'
+  );
+
+/**
+ * Past 12 months of M2.5+ earthquakes via the FDSN query API (~30-50k
+ * entries depending on seismic activity). This is the dataset that "covers
+ * the whole globe" — every tectonic boundary glows, mid-Atlantic ridge,
+ * Aleutians, Indonesia, Iran, Mediterranean.
+ */
+export const fetchEarthquakesYear = async (): Promise<ReadonlyArray<HeatmapDataEntry>> => {
+  const cacheKey = 'usgs-year';
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  const now = new Date();
+  const start = new Date(now.getTime() - 365 * 86400 * 1000);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  // FDSN caps results at 20000 per query; we use M2.5+ to stay under the
+  // limit while still getting a rich global picture.
+  const url =
+    `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson` +
+    `&starttime=${fmt(start)}&endtime=${fmt(now)}&minmagnitude=2.5&limit=20000&orderby=time-asc`;
+  const promise = (async () => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`USGS FDSN fetch failed: ${response.status}`);
+    const json = (await response.json()) as UsgsFeed;
+    return usgsToEntries(json);
+  })();
+  cache.set(cacheKey, promise);
+  return promise;
+};

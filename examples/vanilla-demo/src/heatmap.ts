@@ -13,6 +13,10 @@ import {
   WORLD_CITIES,
   EARTHQUAKES,
   RANDOM_CLUSTERS,
+  WORLD_COUNTRIES_POPULATION,
+  fetchEarthquakesWeek,
+  fetchEarthquakesMonth,
+  fetchEarthquakesYear,
 } from './heatmap-data';
 
 const container = document.getElementById('app');
@@ -22,11 +26,26 @@ if (!container) throw new Error('#app not found');
 // arbitrary multi-stop hex arrays as a `ScalePalette`.
 const AURORA: ScalePalette = ['#001b3d', '#0e3b5c', '#36b49f', '#a3ff8b', '#fff7a8', '#ffe4f1'];
 
-type DataSet = 'megacities' | 'worldcities' | 'earthquakes' | 'random';
+type DataSet =
+  | 'countries'
+  | 'megacities'
+  | 'worldcities'
+  | 'earthquakes'
+  | 'random'
+  | 'quakes-week'
+  | 'quakes-month'
+  | 'quakes-year';
+
+const LIVE_DATASETS: ReadonlySet<DataSet> = new Set([
+  'quakes-week',
+  'quakes-month',
+  'quakes-year',
+]);
 type Kernel = NonNullable<HeatmapDataLayer['kernel']>;
 type Normalize = NonNullable<HeatmapDataLayer['normalize']>;
 type Curve = NonNullable<HeatmapDataLayer['curve']>;
 type BlendMode = NonNullable<HeatmapDataLayer['blendMode']>;
+type DispCurve = NonNullable<HeatmapDataLayer['displacementCurve']>;
 type PaletteName =
   | 'magma'
   | 'inferno'
@@ -41,6 +60,7 @@ interface Settings {
   kernel: Kernel;
   normalize: Normalize;
   curve: Curve;
+  displacementCurve: DispCurve;
   palette: PaletteName;
   blendMode: BlendMode;
   radius: number;
@@ -48,6 +68,8 @@ interface Settings {
   intensity: number;
   threshold: number;
   blurPasses: number;
+  shading: number;
+  meshLevel: number; // 0..2 → 256x128 / 1024x512 / 2048x1024
   textureLevel: number; // 0..3
 }
 
@@ -59,12 +81,31 @@ const TEXTURE_RESOLUTIONS: ReadonlyArray<{ readonly width: number; readonly heig
 ];
 
 const PRESETS: Record<string, Partial<Settings>> = {
+  // Population heatmap covering every country. Log normalise so Vatican
+  // (1k people) and India (1.4B) both stay visible. 3D peaks rise over
+  // the most populous regions but don't dominate small countries.
+  countries: {
+    kernel: 'gaussian',
+    normalize: 'log',
+    curve: 'smoothstep',
+    displacementCurve: 'smoothstep',
+    palette: 'inferno',
+    blendMode: 'normal',
+    radius: 0.09,
+    maxHeight: 0.18,
+    intensity: 1.0,
+    threshold: 0.02,
+    blurPasses: 2,
+    meshLevel: 1,
+    shading: 0.7,
+  },
   // Flat 2D heat overlay — the classical Mapbox / deck.gl look. Vivid
   // colour ramp; no displacement (so no facets at the limb).
   urban: {
     kernel: 'gaussian',
     normalize: 'peak',
     curve: 'smoothstep',
+    displacementCurve: 'smoothstep',
     palette: 'inferno',
     blendMode: 'normal',
     radius: 0.09,
@@ -72,6 +113,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     intensity: 1.2,
     threshold: 0.05,
     blurPasses: 2,
+    meshLevel: 0,
+    shading: 0,
   },
   // Sharp glowing bursts on the Pacific Ring of Fire. Quartic kernel keeps
   // each quake local; additive blending lets peaks bloom against the dark
@@ -80,6 +123,7 @@ const PRESETS: Record<string, Partial<Settings>> = {
     kernel: 'quartic',
     normalize: 'peak',
     curve: 'cubic',
+    displacementCurve: 'cubic',
     palette: 'inferno',
     blendMode: 'additive',
     radius: 0.06,
@@ -87,6 +131,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     intensity: 1.6,
     threshold: 0.08,
     blurPasses: 1,
+    meshLevel: 0,
+    shading: 0,
   },
   // Discrete hotspot disks — uniform kernel + high threshold strips out
   // anything that isn't a true cluster.
@@ -94,6 +140,7 @@ const PRESETS: Record<string, Partial<Settings>> = {
     kernel: 'uniform',
     normalize: 'peak',
     curve: 'linear',
+    displacementCurve: 'linear',
     palette: 'plasma',
     blendMode: 'normal',
     radius: 0.05,
@@ -101,6 +148,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     intensity: 1.0,
     threshold: 0.40,
     blurPasses: 0,
+    meshLevel: 0,
+    shading: 0,
   },
   // Smooth continental gradients. Log normalise compresses the wide
   // dynamic range so even small towns contribute. Aurora palette gives
@@ -109,6 +158,7 @@ const PRESETS: Record<string, Partial<Settings>> = {
     kernel: 'gaussian',
     normalize: 'log',
     curve: 'sqrt',
+    displacementCurve: 'sqrt',
     palette: 'aurora',
     blendMode: 'normal',
     radius: 0.18,
@@ -116,37 +166,70 @@ const PRESETS: Record<string, Partial<Settings>> = {
     intensity: 1.1,
     threshold: 0.02,
     blurPasses: 3,
+    meshLevel: 0,
+    shading: 0,
   },
-  // 3D peaks rising over the globe — opt-in displacement showcase. Uses
-  // the high-res sphere mesh (auto-bumped when maxHeight > 0) so the
-  // surface stays smooth at the limb.
+  // 3D peaks rising over the globe — flagship preset. Smooth-step
+  // displacement curve keeps the dome shape rather than plateauing;
+  // hero-shot mesh resolution + Lambert shading gives real volume.
   topo: {
     kernel: 'gaussian',
-    normalize: 'log',
-    curve: 'cubic',
-    palette: 'viridis',
+    normalize: 'peak',
+    curve: 'smoothstep',
+    displacementCurve: 'smoothstep',
+    palette: 'inferno',
     blendMode: 'normal',
-    radius: 0.12,
-    maxHeight: 0.22,
-    intensity: 1.3,
-    threshold: 0.05,
-    blurPasses: 2,
+    radius: 0.09,
+    maxHeight: 0.18,
+    intensity: 1.0,
+    threshold: 0.04,
+    blurPasses: 3,
+    meshLevel: 2,
+    shading: 0.7,
+  },
+  // Designed for live USGS earthquake data: tens of thousands of points
+  // with magnitudes in [2.5, 8]. `log` normalisation keeps small swarms
+  // visible alongside headline M7+ events; small radius + lower-res
+  // texture keeps the bake under 100ms even at 30k samples.
+  'live-seismic': {
+    kernel: 'quartic',
+    normalize: 'log',
+    curve: 'smoothstep',
+    displacementCurve: 'smoothstep',
+    palette: 'inferno',
+    blendMode: 'additive',
+    radius: 0.04,
+    maxHeight: 0.0,
+    intensity: 1.4,
+    threshold: 0.06,
+    blurPasses: 1,
+    meshLevel: 0, // flat-mesh; displacement adds nothing here
+    shading: 0,
   },
 };
 
+const MESH_RESOLUTIONS: ReadonlyArray<{ readonly width: number; readonly height: number }> = [
+  { width: 256, height: 128 },   // flat-only, lightest
+  { width: 1024, height: 512 },  // standard 3D
+  { width: 2048, height: 1024 }, // hero 3D
+];
+
 const settings: Settings = {
   kind: 'outline',
-  dataset: 'megacities',
+  dataset: 'countries',
   kernel: 'gaussian',
-  normalize: 'peak',
-  curve: 'cubic',
+  normalize: 'log',
+  curve: 'smoothstep',
+  displacementCurve: 'smoothstep',
   palette: 'inferno',
   blendMode: 'normal',
-  radius: 0.10,
-  maxHeight: 0,
-  intensity: 1.2,
-  threshold: 0.05,
+  radius: 0.09,
+  maxHeight: 0.16,
+  intensity: 1.0,
+  threshold: 0.02,
   blurPasses: 2,
+  shading: 0.7,
+  meshLevel: 1,
   textureLevel: 1,
 };
 
@@ -173,7 +256,31 @@ bindRowToggle('preset-row', 'preset', (value) => {
 
 bindRowToggle('data-row', 'set', (value) => {
   settings.dataset = value as DataSet;
-  applyLayer();
+  // Visually clear any active live-row button — same logical row.
+  document
+    .querySelectorAll('#live-row button.active')
+    .forEach((b) => b.classList.remove('active'));
+  void applyLayer();
+});
+
+bindRowToggle('live-row', 'set', (value) => {
+  settings.dataset = value as DataSet;
+  document
+    .querySelectorAll('#data-row button.active')
+    .forEach((b) => b.classList.remove('active'));
+  // Live earthquake data has a magnitude range very different from the
+  // city / synthetic datasets — auto-switch to a preset designed for it.
+  // Without this, the topo / urban defaults wash out the magnitude data
+  // and the globe looks empty.
+  applyPreset('live-seismic');
+  // Force a smaller texture for fast bake — overrides whatever the user
+  // had set since 4096² with 30k samples can take 5+ seconds.
+  settings.textureLevel = 0; // 1024×512
+  syncControls();
+  // Defer the bake by one tick so the "Fetching…" status renders first
+  // — the bake is synchronous and would otherwise freeze the page until
+  // it completes, hiding any progress UI.
+  setTimeout(() => void applyLayer(), 0);
 });
 
 bindRowToggle('kind-row', 'kind', (value) => {
@@ -201,19 +308,35 @@ bindRowToggle('palette-row', 'palette', (value) => {
   applyLayer();
 });
 
+// Debounce sliders that trigger an actual texture rebake (radius, blur,
+// kernel) — without this, dragging the radius slider re-bakes 60+ times
+// per second on a 30k-sample dataset and freezes the page. Shader-side
+// sliders (intensity, threshold, height) update instantly because the
+// HeatmapLayer detects the bake-key match and skips the bake.
+const debounce = <T extends (...args: never[]) => unknown>(fn: T, wait: number): T => {
+  let handle: ReturnType<typeof setTimeout> | undefined;
+  return ((...args: Parameters<T>) => {
+    if (handle) clearTimeout(handle);
+    handle = setTimeout(() => fn(...args), wait);
+  }) as T;
+};
+const applyLayerDebounced = debounce(() => {
+  void applyLayer();
+}, 150);
+
 bindSlider('radius', 'radius-value', 3, (v) => {
   settings.radius = v;
-  applyLayer();
+  applyLayerDebounced();
 });
 
 bindSlider('height', 'height-value', 2, (v) => {
   settings.maxHeight = v;
-  applyLayer();
+  applyLayer(); // shader-only, no rebake
 });
 
 bindSlider('intensity', 'intensity-value', 2, (v) => {
   settings.intensity = v;
-  applyLayer();
+  applyLayer(); // shader-only
 });
 
 bindSlider('threshold', 'threshold-value', 2, (v) => {
@@ -223,7 +346,7 @@ bindSlider('threshold', 'threshold-value', 2, (v) => {
 
 bindSlider('blur', 'blur-value', 0, (v) => {
   settings.blurPasses = Math.round(v);
-  applyLayer();
+  applyLayerDebounced(); // triggers re-bake → debounce
 });
 
 bindRowToggle('blend-row', 'blend', (value) => {
@@ -315,7 +438,9 @@ function mountGlobe(kind: GlobeKind) {
     countries: { resolution: 'low' },
     autoRotate: { enabled: true, speed: 0.06 },
     starfield: { enabled: true },
-    atmosphere: { enabled: kind === 'outline' },
+    // Atmosphere off — its outer halo washes out the heatmap's colour
+    // contrast and competes with peak bloom in 3D mode.
+    atmosphere: { enabled: false },
     axisTilt: 23.5,
   });
   instance.mount();
@@ -328,10 +453,19 @@ function remount(): void {
   applyLayer();
 }
 
-function applyLayer(): void {
-  const data = pickDataset(settings.dataset);
+// Tracks which live dataset request is in-flight so out-of-order resolves
+// from quick switching don't render a stale fetch result.
+let activeRequestToken = 0;
+
+async function applyLayer(): Promise<void> {
+  const requestToken = ++activeRequestToken;
+  const data = await loadDataset(settings.dataset);
+  if (requestToken !== activeRequestToken) return; // user picked another set mid-flight
+  if (!data) return; // fetch failed; status already reported
+
   const palette: ScalePalette = settings.palette === 'aurora' ? AURORA : settings.palette;
   const resolution = TEXTURE_RESOLUTIONS[settings.textureLevel] ?? TEXTURE_RESOLUTIONS[1]!;
+  const meshRes = MESH_RESOLUTIONS[settings.meshLevel] ?? MESH_RESOLUTIONS[1]!;
   const t0 = performance.now();
   globe.setDataLayer({
     type: 'heatmap',
@@ -340,24 +474,37 @@ function applyLayer(): void {
     kernel: settings.kernel,
     normalize: settings.normalize,
     curve: settings.curve,
+    displacementCurve: settings.displacementCurve,
     blendMode: settings.blendMode,
     radius: settings.radius,
     maxHeight: settings.maxHeight,
     intensity: settings.intensity,
     threshold: settings.threshold,
     blurPasses: settings.blurPasses,
+    shading: settings.shading,
     textureResolution: resolution,
+    meshResolution: meshRes,
     paletteSteps: 256,
   });
   const dt = performance.now() - t0;
   const stats = document.getElementById('stats');
   if (stats) {
-    stats.innerHTML = `Bake: <b>${dt.toFixed(1)} ms</b> · Samples: <b>${data.length}</b> · Texture: <b>${resolution.width}×${resolution.height}</b>`;
+    stats.innerHTML =
+      `Bake: <b>${dt.toFixed(1)} ms</b> · Samples: <b>${data.length}</b> · ` +
+      `Texture: <b>${resolution.width}×${resolution.height}</b> · ` +
+      `Mesh: <b>${meshRes.width}×${meshRes.height}</b>`;
+  }
+  if (LIVE_DATASETS.has(settings.dataset)) {
+    setLiveStatus(`Live USGS · ${data.length.toLocaleString()} earthquakes loaded.`);
   }
 }
 
-function pickDataset(name: DataSet): ReadonlyArray<HeatmapDataEntry> {
+const liveCache = new Map<DataSet, ReadonlyArray<HeatmapDataEntry>>();
+
+async function loadDataset(name: DataSet): Promise<ReadonlyArray<HeatmapDataEntry> | null> {
   switch (name) {
+    case 'countries':
+      return WORLD_COUNTRIES_POPULATION;
     case 'megacities':
       return MEGA_CITIES;
     case 'worldcities':
@@ -366,13 +513,82 @@ function pickDataset(name: DataSet): ReadonlyArray<HeatmapDataEntry> {
       return EARTHQUAKES;
     case 'random':
       return RANDOM_CLUSTERS;
+    case 'quakes-week':
+    case 'quakes-month':
+    case 'quakes-year': {
+      const cached = liveCache.get(name);
+      if (cached) {
+        // eslint-disable-next-line no-console
+        console.log(`[heatmap] using cached USGS ${name}: ${cached.length} entries`);
+        return cached;
+      }
+      const fetcher = LIVE_FETCHERS[name];
+      setLiveStatus(`Fetching ${LIVE_LABELS[name]} from USGS…`);
+      const t0 = performance.now();
+      try {
+        const entries = await fetcher();
+        const dt = performance.now() - t0;
+        // Quick magnitude / coord sanity report so it's obvious in the
+        // console whether the fetch + parse worked.
+        let minMag = Infinity;
+        let maxMag = -Infinity;
+        let minLat = Infinity;
+        let maxLat = -Infinity;
+        for (const e of entries) {
+          if (e.value < minMag) minMag = e.value;
+          if (e.value > maxMag) maxMag = e.value;
+          if (e.position[0] < minLat) minLat = e.position[0];
+          if (e.position[0] > maxLat) maxLat = e.position[0];
+        }
+        // eslint-disable-next-line no-console
+        console.log(
+          `[heatmap] USGS ${name}: ${entries.length} entries in ${dt.toFixed(0)}ms · ` +
+            `mag range [${minMag.toFixed(1)} – ${maxMag.toFixed(1)}] · ` +
+            `lat range [${minLat.toFixed(1)} – ${maxLat.toFixed(1)}]`
+        );
+        liveCache.set(name, entries);
+        return entries;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // eslint-disable-next-line no-console
+        console.error(`[heatmap] USGS fetch failed:`, err);
+        setLiveStatus(`Failed to fetch live data: ${msg}`);
+        return null;
+      }
+    }
   }
+}
+
+const LIVE_FETCHERS: Record<
+  'quakes-week' | 'quakes-month' | 'quakes-year',
+  () => Promise<ReadonlyArray<HeatmapDataEntry>>
+> = {
+  'quakes-week': fetchEarthquakesWeek,
+  'quakes-month': fetchEarthquakesMonth,
+  'quakes-year': fetchEarthquakesYear,
+};
+const LIVE_LABELS: Record<'quakes-week' | 'quakes-month' | 'quakes-year', string> = {
+  'quakes-week': 'past week (~3k)',
+  'quakes-month': 'past month (~12k)',
+  'quakes-year': 'past year M2.5+ (~30k)',
+};
+
+function setLiveStatus(text: string): void {
+  const el = document.getElementById('live-status');
+  if (el) el.textContent = text;
 }
 
 // Re-export LatLng so the (intentionally large) data file can stay terse.
 export type { LatLng };
 
-// Apply default preset on first paint.
-applyPreset('urban');
+// Apply default preset on first paint. `countries` covers every UN member
+// state with a population-weighted kernel — best at-a-glance demo of what
+// the heatmap can do without any API call or curated city list.
+applyPreset('countries');
+const presetRow = document.getElementById('preset-row');
+presetRow?.querySelectorAll('button').forEach((b) => {
+  const btn = b as HTMLButtonElement;
+  btn.classList.toggle('active', btn.dataset['preset'] === 'countries');
+});
 syncControls();
-applyLayer();
+void applyLayer();

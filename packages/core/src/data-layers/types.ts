@@ -201,8 +201,39 @@ export interface HeatmapDataLayer {
    */
   readonly intensity?: number;
 
-  /** Response curve — see {@link HeatmapCurve}. Default `'smoothstep'`. */
+  /** Response curve for COLOUR — see {@link HeatmapCurve}. Default `'smoothstep'`. */
   readonly curve?: HeatmapCurve;
+
+  /**
+   * Response curve for DISPLACEMENT only. Decoupled from `curve` so the
+   * 3D shape can read smoothly (bell-like) even when colour uses a sharp
+   * curve (cubic) for crisp hotspots. Defaults to whatever `curve` is set
+   * to. For pro-grade 3D peaks set this to `'smoothstep'` or `'sqrt'` to
+   * avoid plateaus where many density values saturate to 1.
+   */
+  readonly displacementCurve?: HeatmapCurve;
+
+  /**
+   * Override the displacement mesh subdivision (longitudinal × latitudinal
+   * segments). Higher = smoother peaks at zoom-in, costs vertex shader
+   * work. Auto-promoted from 256×128 → 1024×512 when `maxHeight > 0`
+   * unless explicitly set here. For hero 3D shots try 2048×1024.
+   */
+  readonly meshResolution?: { readonly width: number; readonly height: number };
+
+  /**
+   * Light source direction in world space (normalised, doesn't have to
+   * sum to 1). Drives the analytical Lambert shading on the displaced
+   * surface. Default `[1, 0.6, 0.7]`. Only matters when `maxHeight > 0`.
+   */
+  readonly lightDirection?: readonly [number, number, number];
+
+  /**
+   * Strength of Lambert shading on the displaced surface. 0 = unlit
+   * (flat colour), 1 = full directional shading. Default 0.6 — keeps
+   * colour vivid while giving peaks visible volume.
+   */
+  readonly shading?: number;
 
   /**
    * Palette texture resolution — controls colour banding. Default 256.

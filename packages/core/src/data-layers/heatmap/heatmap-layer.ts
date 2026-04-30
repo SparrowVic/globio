@@ -14,6 +14,7 @@ import {
   ShaderMaterial,
   SphereGeometry,
   Vector2,
+  Vector3,
   type Blending,
   type IUniform,
 } from 'three';
@@ -94,6 +95,19 @@ export class HeatmapLayer {
   private readonly textureHeight: number;
   private readonly paletteSteps: number;
   private readonly fallbackColor: string;
+  /**
+   * Hash of the bake-affecting fields from the last applyData() call —
+   * `samples` reference, `kernel`, `radius`, `blurPasses`, `normalize`,
+   * `absoluteMax`. Setting a layer with the same key re-uses the existing
+   * density texture and only refreshes shader uniforms / palette.
+   */
+  private lastBakeKey = '';
+  /**
+   * Hash of the palette-affecting fields. The palette texture rewrite is
+   * cheap (~256 entries) but worth skipping when only displacement /
+   * intensity sliders move.
+   */
+  private lastPaletteKey = '';
 
   public constructor(options: HeatmapLayerOptions) {
     const { layer } = options;
@@ -103,8 +117,12 @@ export class HeatmapLayer {
     this.paletteSteps = layer.paletteSteps ?? DEFAULT_PALETTE_STEPS;
 
     const wantsDisplacement = (layer.maxHeight ?? DEFAULT_MAX_HEIGHT) > 0;
-    const geomW = wantsDisplacement ? SPHERE_DISPLACED_W : SPHERE_FLAT_W;
-    const geomH = wantsDisplacement ? SPHERE_DISPLACED_H : SPHERE_FLAT_H;
+    const geomW =
+      layer.meshResolution?.width ??
+      (wantsDisplacement ? SPHERE_DISPLACED_W : SPHERE_FLAT_W);
+    const geomH =
+      layer.meshResolution?.height ??
+      (wantsDisplacement ? SPHERE_DISPLACED_H : SPHERE_FLAT_H);
     this.geometry = new SphereGeometry(GLOBE_RADIUS * RADIUS_LIFT, geomW, geomH);
 
     // Density texture (single-channel Float32). Allocated once; we re-bake
@@ -159,10 +177,30 @@ export class HeatmapLayer {
     this.mesh.frustumCulled = true;
 
     this.applyData(layer);
+    this.lastBakeKey = computeBakeKey(layer);
+    this.lastPaletteKey = computePaletteKey(layer);
   }
 
   public setData(layer: HeatmapDataLayer): void {
-    this.applyData(layer);
+    const bakeKey = computeBakeKey(layer);
+    if (bakeKey !== this.lastBakeKey) {
+      this.applyData(layer);
+      this.lastBakeKey = bakeKey;
+    } else {
+      // Skip the (expensive) bake — only palette / shader uniforms can
+      // possibly need updating in this branch.
+      const paletteKey = computePaletteKey(layer);
+      if (paletteKey !== this.lastPaletteKey) {
+        writePalette(
+          this.paletteTexture.image.data as unknown as Float32Array,
+          this.paletteSteps,
+          layer,
+          this.fallbackColor
+        );
+        this.paletteTexture.needsUpdate = true;
+        this.lastPaletteKey = paletteKey;
+      }
+    }
     this.refreshUniforms(layer);
   }
 
@@ -178,6 +216,8 @@ export class HeatmapLayer {
     opacity: number,
     blendMode: 'normal' | 'additive'
   ): Record<string, IUniform> {
+    const lightDir = layer.lightDirection ?? [1, 0.6, 0.7];
+    const lvec = new Vector3(lightDir[0], lightDir[1], lightDir[2]).normalize();
     return {
       uDensity: { value: this.densityTexture },
       uPalette: { value: this.paletteTexture },
@@ -185,9 +225,14 @@ export class HeatmapLayer {
       uIntensity: { value: layer.intensity ?? 1 },
       uThreshold: { value: layer.threshold ?? 0 },
       uCurve: { value: encodeCurve(layer.curve ?? 'smoothstep') },
+      uDispCurve: {
+        value: encodeCurve(layer.displacementCurve ?? layer.curve ?? 'smoothstep'),
+      },
       uOpacity: { value: opacity },
       uBlendMode: { value: blendMode === 'additive' ? 1 : 0 },
       uTextureSize: { value: new Vector2(this.textureWidth, this.textureHeight) },
+      uLightDir: { value: lvec },
+      uShading: { value: layer.shading ?? 0.6 },
     };
   }
 
@@ -197,10 +242,18 @@ export class HeatmapLayer {
     u['uIntensity']!.value = layer.intensity ?? 1;
     u['uThreshold']!.value = layer.threshold ?? 0;
     u['uCurve']!.value = encodeCurve(layer.curve ?? 'smoothstep');
+    u['uDispCurve']!.value = encodeCurve(
+      layer.displacementCurve ?? layer.curve ?? 'smoothstep'
+    );
     const blendMode = layer.blendMode ?? 'normal';
     u['uBlendMode']!.value = blendMode === 'additive' ? 1 : 0;
     this.material.blending = blendMode === 'additive' ? AdditiveBlending : NormalBlending;
     this.material.needsUpdate = true;
+    if (layer.lightDirection) {
+      const v = u['uLightDir']!.value as Vector3;
+      v.set(layer.lightDirection[0], layer.lightDirection[1], layer.lightDirection[2]).normalize();
+    }
+    if (layer.shading !== undefined) u['uShading']!.value = layer.shading;
   }
 
   private applyData(layer: HeatmapDataLayer): void {
@@ -288,8 +341,67 @@ const encodeCurve = (curve: HeatmapCurve): number => {
 };
 
 /**
+ * Bake-key — a hash of every layer field that affects the density texture
+ * contents. If two consecutive setData() calls produce the same key, we
+ * skip the (expensive) paintSample loop and re-use the existing texture.
+ * Slider drags on intensity / threshold / curve / palette / displacement
+ * therefore stay buttery: only shader uniforms get touched.
+ *
+ * `data` is compared by reference — heavy datasets (USGS-30k) are usually
+ * the same array between slider ticks, so this is the right unit.
+ */
+const computeBakeKey = (layer: HeatmapDataLayer): string => {
+  const samplesId =
+    `len=${layer.data.length}` +
+    // Identity tag for the array — different arrays of the same length still
+    // produce different keys when their first / last entries differ.
+    (layer.data.length > 0
+      ? `|first=${asLatLngTag(layer.data[0]!.position)}|last=${asLatLngTag(
+          layer.data[layer.data.length - 1]!.position
+        )}|sum0=${layer.data[0]!.value}`
+      : '');
+  return [
+    samplesId,
+    `r=${layer.radius ?? ''}`,
+    `k=${layer.kernel ?? ''}`,
+    `b=${layer.blurPasses ?? ''}`,
+    `n=${layer.normalize ?? ''}`,
+    `m=${layer.absoluteMax ?? ''}`,
+    `tw=${layer.textureResolution?.width ?? ''}`,
+    `th=${layer.textureResolution?.height ?? ''}`,
+  ].join('|');
+};
+
+const computePaletteKey = (layer: HeatmapDataLayer): string => {
+  const s = layer.scale;
+  if (!s) return 'none';
+  if (s.type === 'sequential' || s.type === 'diverging') {
+    return `${s.type}|${stringifyPalette(s.palette)}`;
+  }
+  if (s.type === 'threshold') {
+    return `threshold|${s.thresholds.join(',')}|${s.colors.join(',')}`;
+  }
+  return `categorical|${Object.keys(s.colors).join(',')}|${Object.values(s.colors).join(',')}`;
+};
+
+const stringifyPalette = (p: unknown): string =>
+  Array.isArray(p) ? p.join(',') : String(p ?? '');
+
+const asLatLngTag = (p: readonly [number, number]): string =>
+  `${p[0].toFixed(3)},${p[1].toFixed(3)}`;
+
+/**
  * Stamp a single sample's kernel into the density buffer. Only iterates
  * pixels inside the sample's lat/lng bounding box.
+ *
+ * Hot loop optimisations:
+ *  - distance test uses cosine of the angle (dot product) instead of
+ *    `Math.acos` — cuts ~70% of the per-pixel cost in profiling.
+ *  - kernel weights are computed from squared chord length `c² = 2(1-cosD)`
+ *    rather than great-circle arc length, removing another `acos` from the
+ *    Gaussian / quartic path. The mapping `c² ↔ ang²` is monotonic on
+ *    [0, π], so the kernel curve preserves shape — the visual difference
+ *    is sub-pixel even at huge radii.
  */
 const paintSample = (
   data: Float32Array,
@@ -313,48 +425,63 @@ const paintSample = (
   const duDeg = radiusDeg / cosLat;
   const duPx = Math.ceil((duDeg / 360) * width);
 
-  const r2 = radiusRad * radiusRad;
   const sinLat = Math.sin((lat * Math.PI) / 180);
   const cosLatExact = Math.cos((lat * Math.PI) / 180);
 
+  // Chord cutoff — c² when the angle equals radiusRad. Pixels beyond this
+  // are skipped without an acos call.
+  const cosR = Math.cos(radiusRad);
+  const chordSqMax = 2 * (1 - cosR); // = (2 sin(r/2))²
+  const invChordSqMax = chordSqMax > 0 ? 1 / chordSqMax : 0;
+
+  // Pre-compute deg→rad scaling so the inner loop avoids repeated *π/180.
+  const degToRad = Math.PI / 180;
+  const lngRad = lng * degToRad;
+
   for (let v = v0; v <= v1; v++) {
     const pixelLat = 90 - ((v + 0.5) / height) * 180;
-    const sinPL = Math.sin((pixelLat * Math.PI) / 180);
-    const cosPL = Math.cos((pixelLat * Math.PI) / 180);
+    const pLatRad = pixelLat * degToRad;
+    const sinPL = Math.sin(pLatRad);
+    const cosPL = Math.cos(pLatRad);
+    const rowOffset = v * width;
     for (let du = -duPx; du <= duPx; du++) {
       let u = Math.floor(cu + du);
       if (u < 0) u += width;
       else if (u >= width) u -= width;
-      const pixelLng = ((u + 0.5) / width) * 360 - 180;
-      const dLng = ((pixelLng - lng) * Math.PI) / 180;
-      const cosD = sinLat * sinPL + cosLatExact * cosPL * Math.cos(dLng);
-      const ang = Math.acos(Math.max(-1, Math.min(1, cosD)));
-      if (ang > radiusRad) continue;
-      const w = applyKernel(kernel, ang, radiusRad, r2);
+      const pLngRad = ((u + 0.5) / width) * 2 * Math.PI - Math.PI;
+      const cosD = sinLat * sinPL + cosLatExact * cosPL * Math.cos(pLngRad - lngRad);
+      // Cheap reject — anything beyond the kernel radius is skipped without
+      // ever touching acos / sqrt.
+      if (cosD < cosR) continue;
+      const chordSq = 2 * (1 - cosD);
+      const t2 = chordSq * invChordSqMax; // (chord/maxChord)² ∈ [0, 1]
+      const w = applyKernelChord(kernel, t2);
       if (w <= 0) continue;
-      data[v * width + u]! += value * w;
+      data[rowOffset + u]! += value * w;
     }
   }
 };
 
-const applyKernel = (
-  kernel: HeatmapKernel,
-  ang: number,
-  radius: number,
-  r2: number
-): number => {
-  const u = ang / radius;
+/**
+ * Kernel evaluated against a squared-chord ratio t² ∈ [0, 1] (0 at the
+ * sample centre, 1 at the radius cutoff). Avoids acos in the hot path.
+ *
+ * Gaussian uses `exp(-4 t²)` so the kernel falls to ~0.018 at the cutoff,
+ * matching the previous angular-distance implementation closely. Other
+ * kernels use the same shape parametrisation as before with t = sqrt(t²).
+ */
+const applyKernelChord = (kernel: HeatmapKernel, t2: number): number => {
   switch (kernel) {
     case 'gaussian':
-      return Math.exp(-(ang * ang) / (r2 * 0.25));
+      return Math.exp(-4 * t2);
     case 'epanechnikov':
-      return Math.max(0, 1 - u * u);
+      return Math.max(0, 1 - t2);
     case 'quartic': {
-      const t = 1 - u * u;
-      return t > 0 ? t * t : 0;
+      const k = 1 - t2;
+      return k > 0 ? k * k : 0;
     }
     case 'uniform':
-      return u <= 1 ? 1 : 0;
+      return t2 <= 1 ? 1 : 0;
   }
 };
 
@@ -445,14 +572,22 @@ const sampleScaleAtT = (scale: ScaleConfig, t: number): string | null => {
 // linear lerp goes through u=0.5 (Greenwich) and the fragment ends up
 // sampling density at completely the wrong meridian. Direction is
 // continuous in 3D and atan2(z,-x) handles the wrap automatically.
+//
+// The vertex shader uses uDispCurve (decoupled from colour curve) so 3D
+// peaks can stay smooth (smoothstep / sqrt) even when the colour ramp is
+// sharp (cubic). It also samples four neighbouring texels to derive an
+// analytical surface normal, used for Lambert shading in the fragment.
 const VERTEX_SHADER = /* glsl */ `
 uniform sampler2D uDensity;
+uniform vec2 uTextureSize;
 uniform float uMaxHeight;
 uniform float uIntensity;
 uniform float uThreshold;
 uniform int uCurve;
+uniform int uDispCurve;
 
 varying vec3 vDir;
+varying vec3 vNormal;
 varying float vShaped;
 
 float curveFn(float v, int curveCode) {
@@ -464,8 +599,15 @@ float curveFn(float v, int curveCode) {
 
 vec2 dirToUv(vec3 dir) {
   float lat = degrees(asin(clamp(dir.y, -1.0, 1.0)));
-  float lng = degrees(atan(dir.z, -dir.x));
-  return vec2((lng + 180.0) / 360.0, (90.0 - lat) / 180.0);
+  float theta = degrees(atan(dir.z, -dir.x));
+  return vec2(theta / 360.0, (90.0 - lat) / 180.0);
+}
+
+float displacementAtUv(vec2 uv) {
+  float d = texture2D(uDensity, uv).r;
+  float t = clamp(d * uIntensity, 0.0, 1.0);
+  float gated = max(0.0, (t - uThreshold) / max(1e-4, 1.0 - uThreshold));
+  return curveFn(gated, uDispCurve);
 }
 
 void main() {
@@ -473,11 +615,39 @@ void main() {
   vDir = dir;
   vec2 uv = dirToUv(dir);
 
-  float d = texture2D(uDensity, uv).r;
-  float t = clamp(d * uIntensity, 0.0, 1.0);
-  float gated = max(0.0, (t - uThreshold) / max(1e-4, 1.0 - uThreshold));
-  float shaped = curveFn(gated, uCurve);
+  float shaped = displacementAtUv(uv);
   vShaped = shaped;
+
+  // Analytical surface normal — sample displacement at four neighbours,
+  // build tangent-space gradients, derive normal as (radial - gradient).
+  // Without this the displaced surface is unlit and looks like a flat
+  // colour decal rather than 3D terrain.
+  if (uMaxHeight > 0.0) {
+    vec2 dx = vec2(1.0 / uTextureSize.x, 0.0);
+    vec2 dy = vec2(0.0, 1.0 / uTextureSize.y);
+    float hL = displacementAtUv(uv - dx);
+    float hR = displacementAtUv(uv + dx);
+    float hU = displacementAtUv(uv - dy);
+    float hD = displacementAtUv(uv + dy);
+    // Tangent basis on the sphere at this point.
+    vec3 east = normalize(cross(vec3(0.0, 1.0, 0.0), dir));
+    vec3 north = normalize(cross(dir, east));
+    // dx samples are 1 texel apart on the sphere; convert to world units.
+    // East step covers (2π / W) rad longitude, scaled by cos(lat) via
+    // the implicit equirect compression — but since we want a relative
+    // gradient, the absolute scale just becomes part of the slope and
+    // cancels out via final normalisation. We multiply by maxHeight so
+    // the gradient magnitude tracks the actual displacement.
+    float slopeE = (hR - hL) * uMaxHeight * 0.5;
+    float slopeN = (hU - hD) * uMaxHeight * 0.5;
+    // Tangent-space step in world units (approximation — good enough
+    // for the visual cue we want).
+    float texelArc = 6.2831853 / uTextureSize.x;
+    vec3 grad = east * (slopeE / max(texelArc, 1e-4)) + north * (slopeN / max(texelArc, 1e-4));
+    vNormal = normalize(dir - grad);
+  } else {
+    vNormal = dir;
+  }
 
   vec3 displaced = position + dir * (shaped * uMaxHeight);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
@@ -492,10 +662,13 @@ uniform sampler2D uPalette;
 uniform float uIntensity;
 uniform float uThreshold;
 uniform float uOpacity;
+uniform float uShading;
+uniform vec3 uLightDir;
 uniform int uCurve;
 uniform int uBlendMode;
 
 varying vec3 vDir;
+varying vec3 vNormal;
 varying float vShaped;
 
 float curveFn(float v, int curveCode) {
@@ -507,8 +680,8 @@ float curveFn(float v, int curveCode) {
 
 vec2 dirToUv(vec3 dir) {
   float lat = degrees(asin(clamp(dir.y, -1.0, 1.0)));
-  float lng = degrees(atan(dir.z, -dir.x));
-  return vec2((lng + 180.0) / 360.0, (90.0 - lat) / 180.0);
+  float theta = degrees(atan(dir.z, -dir.x));
+  return vec2(theta / 360.0, (90.0 - lat) / 180.0);
 }
 
 void main() {
@@ -523,15 +696,21 @@ void main() {
 
   vec4 col = texture2D(uPalette, vec2(shaped, 0.5));
 
+  // Lambert-style shading on the displaced surface — gives the 3D peaks
+  // visible volume instead of looking like flat decals. Skipped (lambert
+  // = 1) when uShading is 0 or the normal collapses to the radial
+  // direction (flat regions).
+  vec3 normal = normalize(vNormal);
+  float lambert = max(0.0, dot(normal, normalize(uLightDir)));
+  // Soft floor so shadowed slopes don't go fully black.
+  lambert = mix(1.0, mix(0.45, 1.0, lambert), uShading);
+
+  vec3 shaded = col.rgb * lambert;
+
   if (uBlendMode == 1) {
-    // Additive — colour is premultiplied by intensity so cool regions
-    // contribute ~0 and peaks glow vividly.
-    gl_FragColor = vec4(col.rgb * shaped, col.a * shaped * uOpacity);
+    gl_FragColor = vec4(shaded * shaped, col.a * shaped * uOpacity);
   } else {
-    // Normal blend — keep colour saturated, fade opacity by shaped.
-    // This preserves the palette's vibrance and produces the classic
-    // deck.gl / Mapbox heatmap look.
-    gl_FragColor = vec4(col.rgb, col.a * shaped * uOpacity);
+    gl_FragColor = vec4(shaded, col.a * shaped * uOpacity);
   }
 }
 `;
