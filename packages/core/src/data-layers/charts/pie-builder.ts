@@ -3,12 +3,14 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   Group,
+  type LineSegments,
   Mesh,
   MeshBasicMaterial,
   type Material,
 } from 'three';
 import { colorForValue } from '../../data/scales';
 import type { ChartSeries, ChartsDataEntry, ChartsDataLayer } from '../types';
+import { attachBorder, disposeBorder, resolveBorder } from './borders';
 
 /**
  * Pie / donut renderer — one segment per series, area proportional to the
@@ -30,6 +32,8 @@ export interface PieSegmentHandle {
   readonly mesh: Mesh;
   readonly material: MeshBasicMaterial;
   readonly geometry: BufferGeometry;
+  /** Optional outline LineSegments parented to the mesh. */
+  readonly border?: LineSegments;
 }
 
 const ARC_STEPS_PER_RADIAN = 24; // ≈ 1 vertex per 2.4° — smooth enough for a 50px chart at zoom-out.
@@ -77,6 +81,7 @@ const buildAnnulus = (
   const innerR = outerR * innerRatio;
 
   const total = sumPositive(entry, series);
+  const border = resolveBorder(layer);
   const group = new Group();
   group.name = innerRatio > 0 ? 'ChartsDonut' : 'ChartsPie';
   const segments: Array<PieSegmentHandle> = [];
@@ -109,7 +114,8 @@ const buildAnnulus = (
     const material = new MeshBasicMaterial({ color, transparent: true, opacity, side: DoubleSide });
     const mesh = new Mesh(geometry, material);
     group.add(mesh);
-    segments.push({ mesh, material, geometry });
+    const handleBorder = border ? attachBorder(mesh, border) : undefined;
+    segments.push({ mesh, material, geometry, ...(handleBorder ? { border: handleBorder } : {}) });
   }
   return { group, segments };
 };
@@ -245,6 +251,7 @@ export const buildGaugeChart = (
   const innerR = outerR * innerRatio;
   const bgColor = layer.gaugeBackgroundColor ?? 'rgba(255,255,255,0.15)';
 
+  const border = resolveBorder(layer);
   const group = new Group();
   group.name = 'ChartsGauge';
   const segments: Array<PieSegmentHandle> = [];
@@ -269,6 +276,7 @@ export const buildGaugeChart = (
   });
   const bgMesh = new Mesh(bgGeometry, bgMaterial);
   group.add(bgMesh);
+  // Background arc never gets a border — it's the "track", not the value.
   segments.push({ mesh: bgMesh, material: bgMaterial, geometry: bgGeometry });
 
   if (ratio > 0) {
@@ -284,7 +292,13 @@ export const buildGaugeChart = (
     const fillMesh = new Mesh(fillGeometry, fillMaterial);
     fillMesh.renderOrder = 1; // ensure on top of background
     group.add(fillMesh);
-    segments.push({ mesh: fillMesh, material: fillMaterial, geometry: fillGeometry });
+    const fillBorder = border ? attachBorder(fillMesh, border) : undefined;
+    segments.push({
+      mesh: fillMesh,
+      material: fillMaterial,
+      geometry: fillGeometry,
+      ...(fillBorder ? { border: fillBorder } : {}),
+    });
   }
 
   return { group, segments };
@@ -315,6 +329,7 @@ export const buildSunburstChart = (
   const innerR = outerR * 0.5;
 
   const total = sumPositive(entry, series);
+  const border = resolveBorder(layer);
   const group = new Group();
   group.name = 'ChartsSunburst';
   const segments: Array<PieSegmentHandle> = [];
@@ -335,7 +350,13 @@ export const buildSunburstChart = (
   });
   const coreMesh = new Mesh(coreGeometry, coreMaterial);
   group.add(coreMesh);
-  segments.push({ mesh: coreMesh, material: coreMaterial, geometry: coreGeometry });
+  const coreBorder = border ? attachBorder(coreMesh, border) : undefined;
+  segments.push({
+    mesh: coreMesh,
+    material: coreMaterial,
+    geometry: coreGeometry,
+    ...(coreBorder ? { border: coreBorder } : {}),
+  });
 
   // Outer ring — series segments at outerInnerR..outerR.
   const totalPad = Math.min(padAngle * series.length, Math.PI * 1.9);
@@ -358,7 +379,8 @@ export const buildSunburstChart = (
     const material = new MeshBasicMaterial({ color, transparent: true, opacity, side: DoubleSide });
     const mesh = new Mesh(geometry, material);
     group.add(mesh);
-    segments.push({ mesh, material, geometry });
+    const segBorder = border ? attachBorder(mesh, border) : undefined;
+    segments.push({ mesh, material, geometry, ...(segBorder ? { border: segBorder } : {}) });
   }
   return { group, segments };
 };
@@ -388,6 +410,7 @@ const parseAlphaFromBackground = (input: string): number => {
 /** Free per-segment GPU resources. */
 export const disposePieSegments = (segments: ReadonlyArray<PieSegmentHandle>): void => {
   for (const seg of segments) {
+    disposeBorder(seg.border);
     seg.geometry.dispose();
     (seg.material as Material).dispose();
   }

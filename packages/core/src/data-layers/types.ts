@@ -763,8 +763,7 @@ export interface ChartsDataEntry {
  *  - `padAngle`    — for pie/donut: gap between segments in radians. Default 0.
  *  - `rotation`    — chart rotation around its anchor normal (radians). Default 0.
  *  - `faceCamera`  — billboard pies/donuts toward the camera so they read flat regardless of latitude. Default true for pie/donut, false for bars/radial.
- *  - `borderColor` / `borderWidth` — optional outline. `borderWidth=0` disables (default).
- *  - `showValues`  — placeholder for the labelling overlay (planned, no-op v1).
+ *  - `borderColor` / `borderWidth` — optional outline along bar / segment edges. Disabled when omitted.
  */
 /**
  * Click / hover payload for charts events. `seriesKey` and `seriesIndex`
@@ -823,9 +822,19 @@ export interface ChartsDataLayer {
   readonly padAngle?: number;
   readonly rotation?: number;
   readonly faceCamera?: boolean;
+  /**
+   * Per-segment outline colour. When set together with non-zero
+   * `borderWidth` (or `borderWidth` omitted), each bar / pie / donut
+   * segment gets `LineSegments` along its edges in this colour. Skipped
+   * entirely when omitted — no allocation, no draw call.
+   */
   readonly borderColor?: string;
+  /**
+   * 0..1 outline opacity. Default 0.55. (WebGL caps line thickness at 1px
+   * on most browsers; "width" is opacity-driven instead.) Set to 0 to
+   * disable borders even if `borderColor` is supplied.
+   */
   readonly borderWidth?: number;
-  readonly showValues?: boolean;
   /** HTML label overlay anchored above each chart. */
   readonly labels?: boolean | ChartsLabelsConfig;
   readonly opacity?: number;

@@ -1,12 +1,14 @@
 import {
   BoxGeometry,
   Group,
+  type LineSegments,
   Mesh,
   MeshBasicMaterial,
   type Material,
 } from 'three';
 import { colorForValue } from '../../data/scales';
 import type { ChartSeries, ChartsDataEntry, ChartsDataLayer } from '../types';
+import { attachBorder, disposeBorder, resolveBorder } from './borders';
 
 /**
  * Per-chart bar mesh handle — kept by the orchestrator so `tick(t)` can
@@ -21,6 +23,8 @@ export interface BarHandle {
   readonly material: MeshBasicMaterial;
   readonly geometry: BoxGeometry;
   readonly targetHeight: number;
+  /** Optional outline LineSegments parented to the mesh. */
+  readonly border?: LineSegments;
 }
 
 /**
@@ -58,6 +62,7 @@ export const buildGroupedBarsChart = (
 
   const peak = computePeakValue(entry, series);
   const safePeak = peak > 0 ? peak : 1;
+  const border = resolveBorder(layer);
 
   const group = new Group();
   group.name = 'ChartsBarsGrouped';
@@ -77,7 +82,14 @@ export const buildGroupedBarsChart = (
     mesh.position.x = left + i * slotWidth;
     mesh.scale.y = targetHeight; // animator overrides this each frame
     group.add(mesh);
-    bars.push({ mesh, material, geometry, targetHeight });
+    const handleBorder = border ? attachBorder(mesh, border) : undefined;
+    bars.push({
+      mesh,
+      material,
+      geometry,
+      targetHeight,
+      ...(handleBorder ? { border: handleBorder } : {}),
+    });
   }
   return { group, bars };
 };
@@ -111,6 +123,7 @@ export const buildStackedBarsChart = (
   const totalValue = sumValues(entry, series);
   const safePeak = globalPeak > 0 ? globalPeak : 1;
   const stackHeight = (totalValue / safePeak) * maxHeight;
+  const border = resolveBorder(layer);
 
   const group = new Group();
   group.name = 'ChartsBarsStacked';
@@ -132,7 +145,14 @@ export const buildStackedBarsChart = (
     mesh.position.y = cursor;
     mesh.scale.y = segHeight;
     group.add(mesh);
-    bars.push({ mesh, material, geometry, targetHeight: segHeight });
+    const handleBorder = border ? attachBorder(mesh, border) : undefined;
+    bars.push({
+      mesh,
+      material,
+      geometry,
+      targetHeight: segHeight,
+      ...(handleBorder ? { border: handleBorder } : {}),
+    });
     cursor += segHeight;
   }
   return { group, bars };
@@ -161,6 +181,7 @@ export const buildRadialBarsChart = (
 
   const peak = computePeakValue(entry, series);
   const safePeak = peak > 0 ? peak : 1;
+  const border = resolveBorder(layer);
 
   const group = new Group();
   group.name = 'ChartsBarsRadial';
@@ -183,7 +204,14 @@ export const buildRadialBarsChart = (
     mesh.rotation.y = -angle;
     mesh.scale.y = targetHeight;
     group.add(mesh);
-    bars.push({ mesh, material, geometry, targetHeight });
+    const handleBorder = border ? attachBorder(mesh, border) : undefined;
+    bars.push({
+      mesh,
+      material,
+      geometry,
+      targetHeight,
+      ...(handleBorder ? { border: handleBorder } : {}),
+    });
   }
   return { group, bars };
 };
@@ -244,6 +272,7 @@ export const computeStackedGlobalPeak = (
  */
 export const disposeBars = (bars: ReadonlyArray<BarHandle>): void => {
   for (const bar of bars) {
+    disposeBorder(bar.border);
     bar.geometry.dispose();
     (bar.material as Material).dispose();
   }

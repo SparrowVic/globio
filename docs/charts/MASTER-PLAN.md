@@ -601,7 +601,7 @@ Każdy chart to mini-dashboard tile.
 3. **Decoration kinds** — który kind po outline ma dostać port jako pierwszy? Dotted (najczęściej używany) vs Hologram (najbardziej widowiskowy)?
 4. **Performance ceiling** — ile chartów chcemy wspierać "bez myślenia"? 100? 1000? 10000? (Wpływa na to czy iść w InstancedMesh / shader path)
 5. **Charts vs Bars** — czy `BarsDataLayer` nadal ma sens jako osobny data-layer, czy konsolidujemy w `chartType: 'bars-grouped'` z 1 series? Konsolidacja upraszcza API, łamie back-compat.
-6. **ChartsDataEntry.color override** — istnieje w typach, ale nieużywany. Implementować czy usunąć?
+6. **`ChartsDataEntry.color` per-entry override** — nie istnieje w typach. Czy dodać? (Wartościowe dla "wybierz kolor zamiast brać ze skali" use-case'u — np. flag colour per kraj.)
 
 ---
 
