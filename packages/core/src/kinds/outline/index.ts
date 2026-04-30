@@ -31,6 +31,52 @@ const DEFAULT_PULSE_DURATION_MS = 1400;
 const DEFAULT_DIM_AMOUNT = 0.3;
 const DEFAULT_DIM_TAU = 0.25 / 3; // 250ms feel: tau ≈ 1/3 duration → ~95% by 250ms.
 
+const withOutlineHeatmapDefaults = (
+  layer: HeatmapDataLayer,
+  gridColor: string
+): HeatmapDataLayer => ({
+  ...layer,
+  ...(layer.grid === undefined && {
+    grid: {
+      stepDeg: 6,
+      widthDeg: 0.08,
+      opacity: 0.09,
+      majorEvery: 5,
+      majorOpacity: 0.18,
+      color: gridColor,
+      densityFade: 0.2,
+    },
+  }),
+  ...(layer.contours === undefined &&
+    (layer.maxHeight ?? 0) > 0 && {
+      contours: {
+        interval: 0.075,
+        width: 0.0045,
+        opacity: 0.2,
+        majorEvery: 4,
+        majorOpacity: 0.38,
+        color: '#d8fff3',
+        densityFade: 0.045,
+      },
+    }),
+  ...(layer.rimFade === undefined && {
+    rimFade: (layer.maxHeight ?? 0) > 0 ? 0.34 : 0.14,
+  }),
+  ...(layer.zoomScaling === undefined && {
+    zoomScaling: {
+      closeDistance: 1.45,
+      farDistance: 3.1,
+      closeHeightScale: 0.52,
+      farHeightScale: 1,
+      closeOpacityScale: 0.88,
+      farOpacityScale: 1,
+      thresholdBoost: 0.035,
+      gridBoost: 0.5,
+      contourBoost: 0.55,
+    },
+  }),
+});
+
 /**
  * Outline kind extras: `setHoveredCountry` for the glow halo + continent
  * dim, `setPointerPixel` for the crosshair tooltip's container-local xy.
@@ -96,18 +142,31 @@ export const outlineKind: KindModule = {
     // Outline heatmap: shader-based density texture rendering. The shader
     // does its own additive-style blending via colour * shaped(t) so we
     // pass full opacity through and let the layer handle the rest.
-    const heatmapBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
-      const cfg = input as HeatmapDataLayer;
+    const heatmapBuilder: DataLayerBuilder = (input: DataLayer, ctx): DataLayerHandle => {
+      const cfg = withOutlineHeatmapDefaults(
+        input as HeatmapDataLayer,
+        tokens['countries.border.color']
+      );
       const heatmap = new HeatmapLayer({
         layer: cfg,
+        countryFeatures: features as ReadonlyArray<CountryFeature>,
         fallbackColor: tokens['countries.borderActive.color'],
         opacity: 1,
       });
+      heatmap.updateView(ctx.camera.position.length());
       globeGroup.add(heatmap.mesh);
       return {
         type: 'heatmap',
+        update() {
+          heatmap.updateView(ctx.camera.position.length());
+        },
         setData(next: DataLayer) {
-          heatmap.setData(next as HeatmapDataLayer);
+          heatmap.setData(
+            withOutlineHeatmapDefaults(
+              next as HeatmapDataLayer,
+              tokens['countries.border.color']
+            )
+          );
         },
         dispose() {
           heatmap.dispose();

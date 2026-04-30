@@ -21,11 +21,16 @@ import {
 import { GLOBE_RADIUS } from '../../utils/coordinates';
 import { colorForValue, type ScaleConfig } from '../../data/scales';
 import type {
+  HeatmapContourConfig,
   HeatmapCurve,
+  HeatmapCountryDomeConfig,
   HeatmapDataLayer,
+  HeatmapGridConfig,
   HeatmapKernel,
   HeatmapNormalize,
+  HeatmapZoomScalingConfig,
 } from '../types';
+import type { CountryFeature, CountryPolygon } from '../../renderer/country-feature';
 
 const DEFAULT_RADIUS_RAD = 0.10;
 /**
@@ -40,6 +45,7 @@ const DEFAULT_TEXTURE_H = 1024;
 const DEFAULT_PALETTE_STEPS = 256;
 const DEFAULT_FALLBACK_COLOR = '#ffaa44';
 const DEFAULT_BLUR_PASSES = 2;
+const DEFAULT_RIM_FADE = 0;
 const RADIUS_LIFT = 1.0006;
 
 /**
@@ -57,8 +63,71 @@ const SPHERE_FLAT_H = 128;
 const SPHERE_DISPLACED_W = 1024;
 const SPHERE_DISPLACED_H = 512;
 
+interface ResolvedHeatmapGridConfig {
+  readonly enabled: boolean;
+  readonly stepDeg: number;
+  readonly widthDeg: number;
+  readonly opacity: number;
+  readonly majorEvery: number;
+  readonly majorOpacity: number;
+  readonly color: string;
+  readonly densityFade: number;
+}
+
+interface ResolvedHeatmapContourConfig {
+  readonly enabled: boolean;
+  readonly interval: number;
+  readonly width: number;
+  readonly opacity: number;
+  readonly majorEvery: number;
+  readonly majorOpacity: number;
+  readonly color: string;
+  readonly densityFade: number;
+}
+
+interface ResolvedHeatmapZoomScalingConfig {
+  readonly enabled: boolean;
+  readonly closeDistance: number;
+  readonly farDistance: number;
+  readonly closeHeightScale: number;
+  readonly farHeightScale: number;
+  readonly closeOpacityScale: number;
+  readonly farOpacityScale: number;
+  readonly thresholdBoost: number;
+  readonly gridBoost: number;
+  readonly contourBoost: number;
+}
+
+interface ResolvedHeatmapCountryDomeConfig {
+  readonly enabled: boolean;
+  readonly centerArea: number;
+  readonly shoulderHeight: number;
+  readonly edgeSteepness: number;
+}
+
+const DISABLED_ZOOM_SCALING: ResolvedHeatmapZoomScalingConfig = {
+  enabled: false,
+  closeDistance: 1.45,
+  farDistance: 3.2,
+  closeHeightScale: 1,
+  farHeightScale: 1,
+  closeOpacityScale: 1,
+  farOpacityScale: 1,
+  thresholdBoost: 0,
+  gridBoost: 0,
+  contourBoost: 0,
+};
+
+const DISABLED_COUNTRY_DOMES: ResolvedHeatmapCountryDomeConfig = {
+  enabled: false,
+  centerArea: 0.55,
+  shoulderHeight: 0.36,
+  edgeSteepness: 2.6,
+};
+
 export interface HeatmapLayerOptions {
   readonly layer: HeatmapDataLayer;
+  readonly countryFeatures?: ReadonlyArray<CountryFeature>;
   /**
    * Optional override of the heatmap shader's blending mode. Pass through
    * any of three.js's blending constants. Defaults match `layer.blendMode`.
@@ -95,6 +164,9 @@ export class HeatmapLayer {
   private readonly textureHeight: number;
   private readonly paletteSteps: number;
   private readonly fallbackColor: string;
+  private readonly countryFeaturesByKey: ReadonlyMap<string, CountryFeature>;
+  private zoomScaling: ResolvedHeatmapZoomScalingConfig = DISABLED_ZOOM_SCALING;
+  private lastCameraDistance = 3;
   /**
    * Hash of the bake-affecting fields from the last applyData() call —
    * `samples` reference, `kernel`, `radius`, `blurPasses`, `normalize`,
@@ -115,6 +187,7 @@ export class HeatmapLayer {
     this.textureWidth = layer.textureResolution?.width ?? DEFAULT_TEXTURE_W;
     this.textureHeight = layer.textureResolution?.height ?? DEFAULT_TEXTURE_H;
     this.paletteSteps = layer.paletteSteps ?? DEFAULT_PALETTE_STEPS;
+    this.countryFeaturesByKey = buildCountryFeatureIndex(options.countryFeatures ?? []);
 
     const wantsDisplacement = (layer.maxHeight ?? DEFAULT_MAX_HEIGHT) > 0;
     const geomW =
@@ -160,11 +233,13 @@ export class HeatmapLayer {
     const blending: Blending =
       (options.blending as Blending | undefined) ??
       (blendMode === 'additive' ? AdditiveBlending : NormalBlending);
+    this.zoomScaling = resolveZoomScaling(layer.zoomScaling);
 
     this.material = new ShaderMaterial({
       transparent: true,
       depthWrite: false,
       blending: blending === CustomBlending ? NormalBlending : blending,
+      extensions: { derivatives: true },
       uniforms: this.buildUniforms(layer, options.opacity ?? 1, blendMode),
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
@@ -204,6 +279,11 @@ export class HeatmapLayer {
     this.refreshUniforms(layer);
   }
 
+  public updateView(cameraDistance: number): void {
+    this.lastCameraDistance = cameraDistance;
+    this.applyZoomScaling(cameraDistance);
+  }
+
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
@@ -218,21 +298,45 @@ export class HeatmapLayer {
   ): Record<string, IUniform> {
     const lightDir = layer.lightDirection ?? [1, 0.6, 0.7];
     const lvec = new Vector3(lightDir[0], lightDir[1], lightDir[2]).normalize();
+    const grid = resolveGridConfig(layer.grid, this.fallbackColor);
+    const contours = resolveContourConfig(layer.contours, this.fallbackColor);
     return {
       uDensity: { value: this.densityTexture },
       uPalette: { value: this.paletteTexture },
       uMaxHeight: { value: layer.maxHeight ?? DEFAULT_MAX_HEIGHT },
+      uZoomHeightScale: { value: 1 },
       uIntensity: { value: layer.intensity ?? 1 },
       uThreshold: { value: layer.threshold ?? 0 },
+      uZoomThresholdBoost: { value: 0 },
       uCurve: { value: encodeCurve(layer.curve ?? 'smoothstep') },
       uDispCurve: {
         value: encodeCurve(layer.displacementCurve ?? layer.curve ?? 'smoothstep'),
       },
       uOpacity: { value: opacity },
+      uZoomOpacityScale: { value: 1 },
       uBlendMode: { value: blendMode === 'additive' ? 1 : 0 },
       uTextureSize: { value: new Vector2(this.textureWidth, this.textureHeight) },
       uLightDir: { value: lvec },
       uShading: { value: layer.shading ?? 0.6 },
+      uRimFade: { value: Math.max(0, layer.rimFade ?? DEFAULT_RIM_FADE) },
+      uGridEnabled: { value: grid.enabled ? 1 : 0 },
+      uGridColor: { value: new Color(grid.color) },
+      uGridStepDeg: { value: grid.stepDeg },
+      uGridWidthDeg: { value: grid.widthDeg },
+      uGridOpacity: { value: grid.opacity },
+      uGridMajorStepDeg: { value: grid.stepDeg * grid.majorEvery },
+      uGridMajorOpacity: { value: grid.majorOpacity },
+      uGridDensityFade: { value: grid.densityFade },
+      uGridZoomScale: { value: 1 },
+      uContourEnabled: { value: contours.enabled ? 1 : 0 },
+      uContourColor: { value: new Color(contours.color) },
+      uContourInterval: { value: contours.interval },
+      uContourWidth: { value: contours.width },
+      uContourOpacity: { value: contours.opacity },
+      uContourMajorInterval: { value: contours.interval * contours.majorEvery },
+      uContourMajorOpacity: { value: contours.majorOpacity },
+      uContourDensityFade: { value: contours.densityFade },
+      uContourZoomScale: { value: 1 },
     };
   }
 
@@ -254,6 +358,66 @@ export class HeatmapLayer {
       v.set(layer.lightDirection[0], layer.lightDirection[1], layer.lightDirection[2]).normalize();
     }
     if (layer.shading !== undefined) u['uShading']!.value = layer.shading;
+    u['uRimFade']!.value = Math.max(0, layer.rimFade ?? DEFAULT_RIM_FADE);
+    this.applyGridUniforms(layer);
+    this.applyContourUniforms(layer);
+    this.zoomScaling = resolveZoomScaling(layer.zoomScaling);
+    this.applyZoomScaling(this.lastCameraDistance);
+  }
+
+  private applyGridUniforms(layer: HeatmapDataLayer): void {
+    const grid = resolveGridConfig(layer.grid, this.fallbackColor);
+    const u = this.material.uniforms;
+    u['uGridEnabled']!.value = grid.enabled ? 1 : 0;
+    (u['uGridColor']!.value as Color).set(grid.color);
+    u['uGridStepDeg']!.value = grid.stepDeg;
+    u['uGridWidthDeg']!.value = grid.widthDeg;
+    u['uGridOpacity']!.value = grid.opacity;
+    u['uGridMajorStepDeg']!.value = grid.stepDeg * grid.majorEvery;
+    u['uGridMajorOpacity']!.value = grid.majorOpacity;
+    u['uGridDensityFade']!.value = grid.densityFade;
+  }
+
+  private applyContourUniforms(layer: HeatmapDataLayer): void {
+    const contours = resolveContourConfig(layer.contours, this.fallbackColor);
+    const u = this.material.uniforms;
+    u['uContourEnabled']!.value = contours.enabled ? 1 : 0;
+    (u['uContourColor']!.value as Color).set(contours.color);
+    u['uContourInterval']!.value = contours.interval;
+    u['uContourWidth']!.value = contours.width;
+    u['uContourOpacity']!.value = contours.opacity;
+    u['uContourMajorInterval']!.value = contours.interval * contours.majorEvery;
+    u['uContourMajorOpacity']!.value = contours.majorOpacity;
+    u['uContourDensityFade']!.value = contours.densityFade;
+  }
+
+  private applyZoomScaling(cameraDistance: number): void {
+    const u = this.material.uniforms;
+    const z = this.zoomScaling;
+    if (!z.enabled || !Number.isFinite(cameraDistance)) {
+      u['uZoomHeightScale']!.value = 1;
+      u['uZoomOpacityScale']!.value = 1;
+      u['uZoomThresholdBoost']!.value = 0;
+      u['uGridZoomScale']!.value = 1;
+      u['uContourZoomScale']!.value = 1;
+      return;
+    }
+
+    const closeFactor =
+      1 - smoothstepCpu(z.closeDistance, z.farDistance, cameraDistance);
+    u['uZoomHeightScale']!.value = lerpCpu(
+      z.farHeightScale,
+      z.closeHeightScale,
+      closeFactor
+    );
+    u['uZoomOpacityScale']!.value = lerpCpu(
+      z.farOpacityScale,
+      z.closeOpacityScale,
+      closeFactor
+    );
+    u['uZoomThresholdBoost']!.value = z.thresholdBoost * closeFactor;
+    u['uGridZoomScale']!.value = 1 + z.gridBoost * closeFactor;
+    u['uContourZoomScale']!.value = 1 + z.contourBoost * closeFactor;
   }
 
   private applyData(layer: HeatmapDataLayer): void {
@@ -270,8 +434,21 @@ export class HeatmapLayer {
 
     const defaultRadius = layer.radius ?? DEFAULT_RADIUS_RAD;
     const kernel = layer.kernel ?? 'gaussian';
+    const countryDomes = resolveCountryDomeConfig(layer.countryDomes);
+    const countryPainted =
+      countryDomes.enabled && this.countryFeaturesByKey.size > 0
+        ? paintCountryDomeSamples(
+            data,
+            this.textureWidth,
+            this.textureHeight,
+            samples,
+            this.countryFeaturesByKey,
+            countryDomes
+          )
+        : EMPTY_SAMPLE_SET;
 
     for (let i = 0; i < samples.length; i++) {
+      if (countryPainted.has(i)) continue;
       const entry = samples[i]!;
       const radius = Math.max(1e-4, entry.radius ?? defaultRadius);
       const weight = entry.weight ?? 1;
@@ -340,6 +517,543 @@ const encodeCurve = (curve: HeatmapCurve): number => {
   }
 };
 
+const resolveGridConfig = (
+  input: HeatmapDataLayer['grid'],
+  fallbackColor: string
+): ResolvedHeatmapGridConfig => {
+  if (!input) {
+    return {
+      enabled: false,
+      stepDeg: 8,
+      widthDeg: 0.16,
+      opacity: 0,
+      majorEvery: 4,
+      majorOpacity: 0,
+      color: fallbackColor,
+      densityFade: 0.28,
+    };
+  }
+  const cfg: HeatmapGridConfig = input === true ? {} : input;
+  return {
+    enabled: cfg.enabled ?? true,
+    stepDeg: clampCpu(cfg.stepDeg ?? 8, 2, 45),
+    widthDeg: clampCpu(cfg.widthDeg ?? 0.16, 0.02, 2),
+    opacity: clampCpu(cfg.opacity ?? 0.14, 0, 1),
+    majorEvery: Math.max(1, Math.round(cfg.majorEvery ?? 4)),
+    majorOpacity: clampCpu(cfg.majorOpacity ?? 0.24, 0, 1),
+    color: cfg.color ?? fallbackColor,
+    densityFade: clampCpu(cfg.densityFade ?? 0.28, 0.02, 1),
+  };
+};
+
+const resolveContourConfig = (
+  input: HeatmapDataLayer['contours'],
+  fallbackColor: string
+): ResolvedHeatmapContourConfig => {
+  if (!input) {
+    return {
+      enabled: false,
+      interval: 0.08,
+      width: 0.006,
+      opacity: 0,
+      majorEvery: 4,
+      majorOpacity: 0,
+      color: fallbackColor,
+      densityFade: 0.04,
+    };
+  }
+  const cfg: HeatmapContourConfig = input === true ? {} : input;
+  return {
+    enabled: cfg.enabled ?? true,
+    interval: clampCpu(cfg.interval ?? 0.08, 0.015, 0.5),
+    width: clampCpu(cfg.width ?? 0.006, 0.001, 0.08),
+    opacity: clampCpu(cfg.opacity ?? 0.22, 0, 1),
+    majorEvery: Math.max(1, Math.round(cfg.majorEvery ?? 4)),
+    majorOpacity: clampCpu(cfg.majorOpacity ?? 0.38, 0, 1),
+    color: cfg.color ?? fallbackColor,
+    densityFade: clampCpu(cfg.densityFade ?? 0.04, 0, 1),
+  };
+};
+
+const resolveZoomScaling = (
+  input: HeatmapDataLayer['zoomScaling']
+): ResolvedHeatmapZoomScalingConfig => {
+  if (input === undefined || input === false) return DISABLED_ZOOM_SCALING;
+  const cfg: HeatmapZoomScalingConfig = input;
+  if (cfg.enabled === false) return DISABLED_ZOOM_SCALING;
+  const closeDistance = cfg.closeDistance ?? 1.45;
+  const farDistance = Math.max(closeDistance + 0.001, cfg.farDistance ?? 3.2);
+  return {
+    enabled: true,
+    closeDistance,
+    farDistance,
+    closeHeightScale: clampCpu(cfg.closeHeightScale ?? 0.55, 0.05, 2),
+    farHeightScale: clampCpu(cfg.farHeightScale ?? 1, 0.05, 2),
+    closeOpacityScale: clampCpu(cfg.closeOpacityScale ?? 0.86, 0, 2),
+    farOpacityScale: clampCpu(cfg.farOpacityScale ?? 1, 0, 2),
+    thresholdBoost: clampCpu(cfg.thresholdBoost ?? 0.04, 0, 0.5),
+    gridBoost: clampCpu(cfg.gridBoost ?? 0.45, 0, 2),
+    contourBoost: clampCpu(cfg.contourBoost ?? 0.35, 0, 2),
+  };
+};
+
+const resolveCountryDomeConfig = (
+  input: HeatmapDataLayer['countryDomes']
+): ResolvedHeatmapCountryDomeConfig => {
+  if (input === undefined || input === false) return DISABLED_COUNTRY_DOMES;
+  const cfg: HeatmapCountryDomeConfig = input === true ? {} : input;
+  if (cfg.enabled === false) return DISABLED_COUNTRY_DOMES;
+  return {
+    enabled: true,
+    centerArea: clampCpu(cfg.centerArea ?? 0.55, 0.12, 0.78),
+    shoulderHeight: clampCpu(cfg.shoulderHeight ?? 0.36, 0.12, 0.96),
+    edgeSteepness: clampCpu(cfg.edgeSteepness ?? 2.6, 0.5, 6),
+  };
+};
+
+const countryDomeKey = (input: HeatmapDataLayer['countryDomes']): string => {
+  if (!input) return 'off';
+  if (input === true) return 'on';
+  return [
+    input.enabled === false ? 'off' : 'on',
+    input.centerArea ?? '',
+    input.shoulderHeight ?? '',
+    input.edgeSteepness ?? '',
+  ].join(',');
+};
+
+const clampCpu = (v: number, lo: number, hi: number): number =>
+  Math.max(lo, Math.min(hi, v));
+
+const lerpCpu = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+const smoothstepCpu = (edge0: number, edge1: number, x: number): number => {
+  if (edge0 === edge1) return x < edge0 ? 0 : 1;
+  const t = clampCpu((x - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+const EMPTY_SAMPLE_SET = new Set<number>();
+const DEG_TO_RAD = Math.PI / 180;
+
+const COUNTRY_NAME_ALIASES: Readonly<Record<string, string>> = {
+  bosniaandherzegovina: 'bosniaandherz',
+  centralafricanrepublic: 'centralafricanrep',
+  czechrepublic: 'czechia',
+  democraticrepublicofthecongo: 'demrepcongo',
+  dominicanrepublic: 'dominicanrep',
+  drcongo: 'demrepcongo',
+  equatorialguinea: 'eqguinea',
+  northmacedonia: 'macedonia',
+  republicofthecongo: 'congo',
+  solomonislands: 'solomonis',
+  southsudan: 'ssudan',
+  unitedstates: 'unitedstatesofamerica',
+  unitedstatesofamerica: 'unitedstatesofamerica',
+};
+
+interface RingBounds {
+  readonly minLng: number;
+  readonly maxLng: number;
+  readonly minLat: number;
+  readonly maxLat: number;
+}
+
+const buildCountryFeatureIndex = (
+  features: ReadonlyArray<CountryFeature>
+): ReadonlyMap<string, CountryFeature> => {
+  const out = new Map<string, CountryFeature>();
+  const add = (key: string | undefined, feature: CountryFeature): void => {
+    if (!key) return;
+    const raw = key.trim();
+    if (!raw) return;
+    out.set(raw, feature);
+    out.set(countryKey(raw), feature);
+    if (/^\d+$/.test(raw)) out.set(String(Number(raw)), feature);
+  };
+  for (const feature of features) {
+    add(feature.id, feature);
+    add(feature.name, feature);
+  }
+  return out;
+};
+
+const countryKey = (value: string): string => {
+  const normal = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, 'and')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+  return COUNTRY_NAME_ALIASES[normal] ?? normal;
+};
+
+const findCountryFeature = (
+  entry: HeatmapDataLayer['data'][number],
+  featuresByKey: ReadonlyMap<string, CountryFeature>
+): CountryFeature | null => {
+  if (entry.id) {
+    const byId = featuresByKey.get(entry.id) ?? featuresByKey.get(countryKey(entry.id));
+    if (byId) return byId;
+  }
+  if (entry.name) {
+    const byName = featuresByKey.get(entry.name) ?? featuresByKey.get(countryKey(entry.name));
+    if (byName) return byName;
+  }
+  return null;
+};
+
+const paintCountryDomeSamples = (
+  data: Float32Array,
+  width: number,
+  height: number,
+  samples: ReadonlyArray<HeatmapDataLayer['data'][number]>,
+  featuresByKey: ReadonlyMap<string, CountryFeature>,
+  config: ResolvedHeatmapCountryDomeConfig
+): Set<number> => {
+  const painted = new Set<number>();
+  for (let i = 0; i < samples.length; i++) {
+    const entry = samples[i]!;
+    const feature = findCountryFeature(entry, featuresByKey);
+    if (!feature) continue;
+    const polygon = chooseCountryDomePolygon(feature, entry.position);
+    if (!polygon) continue;
+    const ok = paintCountryDome(
+      data,
+      width,
+      height,
+      polygon,
+      entry.position,
+      entry.value * (entry.weight ?? 1),
+      config
+    );
+    if (ok) painted.add(i);
+  }
+  return painted;
+};
+
+const chooseCountryDomePolygon = (
+  feature: CountryFeature,
+  center: readonly [number, number]
+): CountryPolygon | null => {
+  let largest: CountryPolygon | null = null;
+  let largestArea = -1;
+  for (const polygon of feature.polygons) {
+    if (polygon.length === 0) continue;
+    if (pointInPolygon(polygon, [center[1], center[0]])) return polygon;
+    const area = polygonAreaScore(polygon);
+    if (area > largestArea) {
+      largestArea = area;
+      largest = polygon;
+    }
+  }
+  return largest;
+};
+
+const polygonAreaScore = (polygon: CountryPolygon): number => {
+  const outer = polygon[0];
+  if (!outer) return 0;
+  const bounds = ringBoundsForPolygon(outer);
+  const midLat = (bounds.minLat + bounds.maxLat) * 0.5;
+  return (
+    Math.max(0, bounds.maxLat - bounds.minLat) *
+    Math.max(0, bounds.maxLng - bounds.minLng) *
+    Math.max(0.2, Math.cos(midLat * DEG_TO_RAD))
+  );
+};
+
+const paintCountryDome = (
+  data: Float32Array,
+  width: number,
+  height: number,
+  polygon: CountryPolygon,
+  centerLatLng: readonly [number, number],
+  value: number,
+  config: ResolvedHeatmapCountryDomeConfig
+): boolean => {
+  const outer = polygon[0];
+  if (!outer || outer.length < 3 || value <= 0) return false;
+
+  const rawBounds = ringBounds(outer);
+  const crossesAnti = rawBounds.maxLng - rawBounds.minLng > 180;
+  const shiftRing = (ring: ReadonlyArray<readonly [number, number]>) =>
+    crossesAnti
+      ? ring.map((p) => [p[0] < 0 ? p[0] + 360 : p[0], p[1]] as const)
+      : ring;
+  const outerShifted = shiftRing(outer);
+  const holesShifted = polygon.slice(1).map(shiftRing);
+  const bounds = ringBounds(outerShifted);
+
+  const requestedCenter = shiftCountryPoint(centerLatLng, bounds, crossesAnti);
+  const center = chooseInteriorDomeCenter(outerShifted, holesShifted, bounds, requestedCenter);
+  const centerLng = center[0];
+  const centerLat = center[1];
+
+  const v0 = Math.max(0, Math.floor(((90 - bounds.maxLat) / 180) * height));
+  const v1 = Math.min(height - 1, Math.ceil(((90 - bounds.minLat) / 180) * height));
+  if (v1 < v0) return false;
+
+  const uRanges = countryLngPixelRanges(bounds, width, crossesAnti);
+  if (uRanges.length === 0) return false;
+
+  const cosCenterLat = Math.max(0.08, Math.cos(centerLat * DEG_TO_RAD));
+  const rx = Math.max(
+    0.18,
+    Math.max(Math.abs(bounds.maxLng - centerLng), Math.abs(centerLng - bounds.minLng)) *
+      cosCenterLat
+  );
+  const ry = Math.max(
+    0.18,
+    Math.max(Math.abs(bounds.maxLat - centerLat), Math.abs(centerLat - bounds.minLat))
+  );
+
+  let wrote = false;
+  for (let v = v0; v <= v1; v++) {
+    const pixelLat = 90 - ((v + 0.5) / height) * 180;
+    const row = v * width;
+    for (const [u0, u1] of uRanges) {
+      for (let u = u0; u <= u1; u++) {
+        const pixelLngRaw = ((u + 0.5) / width) * 360 - 180;
+        const pixelLng = crossesAnti && pixelLngRaw < 0 ? pixelLngRaw + 360 : pixelLngRaw;
+        if (pixelLng < bounds.minLng || pixelLng > bounds.maxLng) continue;
+        if (!pointInShiftedPolygon(outerShifted, holesShifted, [pixelLng, pixelLat])) continue;
+
+        const dx = (pixelLng - centerLng) * cosCenterLat;
+        const dy = pixelLat - centerLat;
+        const boundaryDistance = rayBoundaryDistance(
+          dx,
+          dy,
+          outerShifted,
+          holesShifted,
+          center,
+          cosCenterLat,
+          rx,
+          ry
+        );
+        const t = Math.sqrt(dx * dx + dy * dy) / Math.max(1e-6, boundaryDistance);
+        const w = domeWeight(t, config);
+        if (w <= 0) continue;
+        data[row + u]! += value * w;
+        wrote = true;
+      }
+    }
+  }
+  return wrote;
+};
+
+const countryLngPixelRanges = (
+  bounds: RingBounds,
+  width: number,
+  crossesAnti: boolean
+): ReadonlyArray<readonly [number, number]> => {
+  const lngToU = (lng: number): number =>
+    Math.floor((((lng + 180) / 360) * width + width) % width);
+  const clampU = (u: number): number => Math.max(0, Math.min(width - 1, u));
+  if (!crossesAnti) {
+    return [[clampU(lngToU(bounds.minLng)), clampU(Math.ceil(((bounds.maxLng + 180) / 360) * width))]];
+  }
+  const leftStart = clampU(lngToU(bounds.minLng));
+  const rightEnd = clampU(Math.ceil(((bounds.maxLng - 360 + 180) / 360) * width));
+  return [
+    [leftStart, width - 1],
+    [0, rightEnd],
+  ];
+};
+
+const shiftCountryPoint = (
+  latLng: readonly [number, number],
+  bounds: RingBounds,
+  crossesAnti: boolean
+): readonly [number, number] => {
+  let lng = latLng[1];
+  if (crossesAnti && lng < 0) lng += 360;
+  return [
+    clampCpu(lng, bounds.minLng, bounds.maxLng),
+    clampCpu(latLng[0], bounds.minLat, bounds.maxLat),
+  ];
+};
+
+const chooseInteriorDomeCenter = (
+  outer: ReadonlyArray<readonly [number, number]>,
+  holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  bounds: RingBounds,
+  requested: readonly [number, number]
+): readonly [number, number] => {
+  if (pointInShiftedPolygon(outer, holes, requested)) return requested;
+
+  const bboxCenter = [(bounds.minLng + bounds.maxLng) * 0.5, (bounds.minLat + bounds.maxLat) * 0.5] as const;
+  if (pointInShiftedPolygon(outer, holes, bboxCenter)) return bboxCenter;
+
+  let best: readonly [number, number] | null = null;
+  let bestD2 = Infinity;
+  const cols = 18;
+  const rows = 18;
+  for (let iy = 0; iy <= rows; iy++) {
+    const lat = bounds.minLat + ((bounds.maxLat - bounds.minLat) * iy) / rows;
+    for (let ix = 0; ix <= cols; ix++) {
+      const lng = bounds.minLng + ((bounds.maxLng - bounds.minLng) * ix) / cols;
+      const p = [lng, lat] as const;
+      if (!pointInShiftedPolygon(outer, holes, p)) continue;
+      const dx = lng - requested[0];
+      const dy = lat - requested[1];
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = p;
+      }
+    }
+  }
+  return best ?? bboxCenter;
+};
+
+const rayBoundaryDistance = (
+  dx: number,
+  dy: number,
+  outer: ReadonlyArray<readonly [number, number]>,
+  holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  center: readonly [number, number],
+  cosCenterLat: number,
+  fallbackRx: number,
+  fallbackRy: number
+): number => {
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d <= 1e-6) return Math.min(fallbackRx, fallbackRy);
+
+  const dirX = dx / d;
+  const dirY = dy / d;
+  let best = Infinity;
+  best = Math.min(best, rayRingBoundaryDistance(outer, center, cosCenterLat, dirX, dirY, d));
+  for (const hole of holes) {
+    best = Math.min(best, rayRingBoundaryDistance(hole, center, cosCenterLat, dirX, dirY, d));
+  }
+  if (Number.isFinite(best)) return best;
+
+  const denom = Math.sqrt(
+    (dirX / Math.max(1e-6, fallbackRx)) ** 2 +
+      (dirY / Math.max(1e-6, fallbackRy)) ** 2
+  );
+  return denom > 0 ? 1 / denom : d;
+};
+
+const rayRingBoundaryDistance = (
+  ring: ReadonlyArray<readonly [number, number]>,
+  center: readonly [number, number],
+  cosCenterLat: number,
+  dirX: number,
+  dirY: number,
+  minDistance: number
+): number => {
+  let best = Infinity;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    if (!a || !b) continue;
+
+    const ax = (a[0] - center[0]) * cosCenterLat;
+    const ay = a[1] - center[1];
+    const bx = (b[0] - center[0]) * cosCenterLat;
+    const by = b[1] - center[1];
+    const sx = bx - ax;
+    const sy = by - ay;
+    const denom = dirX * sy - dirY * sx;
+    if (Math.abs(denom) < 1e-8) continue;
+
+    const s = (ax * sy - ay * sx) / denom;
+    const u = (ax * dirY - ay * dirX) / denom;
+    if (s >= minDistance - 1e-5 && u >= -1e-5 && u <= 1 + 1e-5 && s < best) {
+      best = s;
+    }
+  }
+  return best;
+};
+
+const ringBoundsForPolygon = (ring: ReadonlyArray<readonly [number, number]>): RingBounds => {
+  const raw = ringBounds(ring);
+  if (raw.maxLng - raw.minLng <= 180) return raw;
+  return ringBounds(ring.map((p) => [p[0] < 0 ? p[0] + 360 : p[0], p[1]] as const));
+};
+
+const pointInPolygon = (
+  polygon: CountryPolygon,
+  point: readonly [lng: number, lat: number]
+): boolean => {
+  const outer = polygon[0];
+  if (!outer) return false;
+  const rawBounds = ringBounds(outer);
+  const crossesAnti = rawBounds.maxLng - rawBounds.minLng > 180;
+  const shiftRing = (ring: ReadonlyArray<readonly [number, number]>) =>
+    crossesAnti
+      ? ring.map((p) => [p[0] < 0 ? p[0] + 360 : p[0], p[1]] as const)
+      : ring;
+  const lng = crossesAnti && point[0] < 0 ? point[0] + 360 : point[0];
+  return pointInShiftedPolygon(shiftRing(outer), polygon.slice(1).map(shiftRing), [
+    lng,
+    point[1],
+  ]);
+};
+
+const pointInShiftedPolygon = (
+  outer: ReadonlyArray<readonly [number, number]>,
+  holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  point: readonly [number, number]
+): boolean => {
+  if (!pointInRing(outer, point)) return false;
+  for (const hole of holes) {
+    if (pointInRing(hole, point)) return false;
+  }
+  return true;
+};
+
+const pointInRing = (
+  ring: ReadonlyArray<readonly [number, number]>,
+  point: readonly [number, number]
+): boolean => {
+  const [x, y] = point;
+  let inside = false;
+  const n = ring.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const a = ring[i];
+    const b = ring[j];
+    if (!a || !b) continue;
+    const [xi, yi] = a;
+    const [xj, yj] = b;
+    const intersect =
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi + 0) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+
+const ringBounds = (ring: ReadonlyArray<readonly [number, number]>): RingBounds => {
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  for (const p of ring) {
+    if (p[0] < minLng) minLng = p[0];
+    if (p[0] > maxLng) maxLng = p[0];
+    if (p[1] < minLat) minLat = p[1];
+    if (p[1] > maxLat) maxLat = p[1];
+  }
+  return { minLng, maxLng, minLat, maxLat };
+};
+
+const domeWeight = (
+  t: number,
+  config: Pick<ResolvedHeatmapCountryDomeConfig, 'centerArea' | 'shoulderHeight' | 'edgeSteepness'>
+): number => {
+  if (t >= 1) return 0;
+  const crownRadius = Math.sqrt(config.centerArea);
+  if (t <= crownRadius) {
+    const q = t / Math.max(1e-6, crownRadius);
+    const rounded = q * q * (3 - 2 * q);
+    return 1 - (1 - config.shoulderHeight) * rounded;
+  }
+  const q = (t - crownRadius) / Math.max(1e-6, 1 - crownRadius);
+  const wall = 1 - q * q * (3 - 2 * q);
+  return config.shoulderHeight * Math.pow(Math.max(0, wall), config.edgeSteepness);
+};
+
 /**
  * Bake-key — a hash of every layer field that affects the density texture
  * contents. If two consecutive setData() calls produce the same key, we
@@ -350,11 +1064,24 @@ const encodeCurve = (curve: HeatmapCurve): number => {
  * `data` is compared by reference — heavy datasets (USGS-30k) are usually
  * the same array between slider ticks, so this is the right unit.
  */
+const sampleArrayIds = new WeakMap<ReadonlyArray<HeatmapDataLayer['data'][number]>, number>();
+let nextSampleArrayId = 1;
+
+const getSampleArrayId = (
+  samples: ReadonlyArray<HeatmapDataLayer['data'][number]>
+): number => {
+  const existing = sampleArrayIds.get(samples);
+  if (existing !== undefined) return existing;
+  const id = nextSampleArrayId++;
+  sampleArrayIds.set(samples, id);
+  return id;
+};
+
 const computeBakeKey = (layer: HeatmapDataLayer): string => {
   const samplesId =
-    `len=${layer.data.length}` +
-    // Identity tag for the array — different arrays of the same length still
-    // produce different keys when their first / last entries differ.
+    `id=${getSampleArrayId(layer.data)}|len=${layer.data.length}` +
+    // Debug-friendly content tags. The weak-map id is the actual identity
+    // guard; these keep the key readable in traces.
     (layer.data.length > 0
       ? `|first=${asLatLngTag(layer.data[0]!.position)}|last=${asLatLngTag(
           layer.data[layer.data.length - 1]!.position
@@ -364,6 +1091,7 @@ const computeBakeKey = (layer: HeatmapDataLayer): string => {
     samplesId,
     `r=${layer.radius ?? ''}`,
     `k=${layer.kernel ?? ''}`,
+    `cd=${countryDomeKey(layer.countryDomes)}`,
     `b=${layer.blurPasses ?? ''}`,
     `n=${layer.normalize ?? ''}`,
     `m=${layer.absoluteMax ?? ''}`,
@@ -480,6 +1208,12 @@ const applyKernelChord = (kernel: HeatmapKernel, t2: number): number => {
       const k = 1 - t2;
       return k > 0 ? k * k : 0;
     }
+    case 'dome':
+      return domeWeight(Math.sqrt(Math.max(0, t2)), {
+        centerArea: 0.5,
+        shoulderHeight: 0.52,
+        edgeSteepness: 2.2,
+      });
     case 'uniform':
       return t2 <= 1 ? 1 : 0;
   }
@@ -581,14 +1315,17 @@ const VERTEX_SHADER = /* glsl */ `
 uniform sampler2D uDensity;
 uniform vec2 uTextureSize;
 uniform float uMaxHeight;
+uniform float uZoomHeightScale;
 uniform float uIntensity;
 uniform float uThreshold;
+uniform float uZoomThresholdBoost;
 uniform int uCurve;
 uniform int uDispCurve;
 
 varying vec3 vDir;
 varying vec3 vNormal;
 varying float vShaped;
+varying float vRadialFacing;
 
 float curveFn(float v, int curveCode) {
   if (curveCode == 0) return v;
@@ -606,7 +1343,8 @@ vec2 dirToUv(vec3 dir) {
 float displacementAtUv(vec2 uv) {
   float d = texture2D(uDensity, uv).r;
   float t = clamp(d * uIntensity, 0.0, 1.0);
-  float gated = max(0.0, (t - uThreshold) / max(1e-4, 1.0 - uThreshold));
+  float threshold = clamp(uThreshold + uZoomThresholdBoost, 0.0, 0.95);
+  float gated = max(0.0, (t - threshold) / max(1e-4, 1.0 - threshold));
   return curveFn(gated, uDispCurve);
 }
 
@@ -622,7 +1360,8 @@ void main() {
   // build tangent-space gradients, derive normal as (radial - gradient).
   // Without this the displaced surface is unlit and looks like a flat
   // colour decal rather than 3D terrain.
-  if (uMaxHeight > 0.0) {
+  float maxHeight = uMaxHeight * uZoomHeightScale;
+  if (maxHeight > 0.0) {
     vec2 dx = vec2(1.0 / uTextureSize.x, 0.0);
     vec2 dy = vec2(0.0, 1.0 / uTextureSize.y);
     float hL = displacementAtUv(uv - dx);
@@ -638,8 +1377,8 @@ void main() {
     // gradient, the absolute scale just becomes part of the slope and
     // cancels out via final normalisation. We multiply by maxHeight so
     // the gradient magnitude tracks the actual displacement.
-    float slopeE = (hR - hL) * uMaxHeight * 0.5;
-    float slopeN = (hU - hD) * uMaxHeight * 0.5;
+    float slopeE = (hR - hL) * maxHeight * 0.5;
+    float slopeN = (hU - hD) * maxHeight * 0.5;
     // Tangent-space step in world units (approximation — good enough
     // for the visual cue we want).
     float texelArc = 6.2831853 / uTextureSize.x;
@@ -649,8 +1388,13 @@ void main() {
     vNormal = dir;
   }
 
-  vec3 displaced = position + dir * (shaped * uMaxHeight);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+  vec3 displaced = position + dir * (shaped * maxHeight);
+  vNormal = normalize((modelMatrix * vec4(vNormal, 0.0)).xyz);
+  vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
+  vec3 worldRadial = normalize((modelMatrix * vec4(dir, 0.0)).xyz);
+  vec3 viewDir = normalize(cameraPosition - worldPos.xyz);
+  vRadialFacing = max(0.0, dot(worldRadial, viewDir));
+  gl_Position = projectionMatrix * viewMatrix * worldPos;
 }
 `;
 
@@ -661,15 +1405,37 @@ uniform sampler2D uDensity;
 uniform sampler2D uPalette;
 uniform float uIntensity;
 uniform float uThreshold;
+uniform float uZoomThresholdBoost;
 uniform float uOpacity;
+uniform float uZoomOpacityScale;
 uniform float uShading;
 uniform vec3 uLightDir;
+uniform float uRimFade;
+uniform int uGridEnabled;
+uniform vec3 uGridColor;
+uniform float uGridStepDeg;
+uniform float uGridWidthDeg;
+uniform float uGridOpacity;
+uniform float uGridMajorStepDeg;
+uniform float uGridMajorOpacity;
+uniform float uGridDensityFade;
+uniform float uGridZoomScale;
+uniform int uContourEnabled;
+uniform vec3 uContourColor;
+uniform float uContourInterval;
+uniform float uContourWidth;
+uniform float uContourOpacity;
+uniform float uContourMajorInterval;
+uniform float uContourMajorOpacity;
+uniform float uContourDensityFade;
+uniform float uContourZoomScale;
 uniform int uCurve;
 uniform int uBlendMode;
 
 varying vec3 vDir;
 varying vec3 vNormal;
 varying float vShaped;
+varying float vRadialFacing;
 
 float curveFn(float v, int curveCode) {
   if (curveCode == 0) return v;
@@ -684,15 +1450,60 @@ vec2 dirToUv(vec3 dir) {
   return vec2(theta / 360.0, (90.0 - lat) / 180.0);
 }
 
+float gridLine(float coord, float stepDeg, float widthDeg) {
+  float stepSafe = max(stepDeg, 0.001);
+  float d = abs(fract(coord / stepSafe + 0.5) - 0.5) * stepSafe;
+  float aa = max(fwidth(coord), 0.015);
+  return 1.0 - smoothstep(widthDeg, widthDeg + aa, d);
+}
+
+float gridMask(vec3 dir, float shaped) {
+  if (uGridEnabled == 0) return 0.0;
+  float lat = degrees(asin(clamp(dir.y, -1.0, 1.0)));
+  float lng = degrees(atan(dir.z, -dir.x));
+  float minor = max(
+    gridLine(lat, uGridStepDeg, uGridWidthDeg),
+    gridLine(lng, uGridStepDeg, uGridWidthDeg)
+  );
+  float major = max(
+    gridLine(lat, uGridMajorStepDeg, uGridWidthDeg * 1.45),
+    gridLine(lng, uGridMajorStepDeg, uGridWidthDeg * 1.45)
+  );
+  float densityGate = mix(
+    0.28,
+    1.0,
+    smoothstep(0.0, max(0.001, uGridDensityFade), shaped)
+  );
+  return max(minor * uGridOpacity, major * uGridMajorOpacity) * densityGate * uGridZoomScale;
+}
+
+float contourLine(float value, float interval, float width) {
+  float safeInterval = max(interval, 0.001);
+  float d = abs(fract(value / safeInterval + 0.5) - 0.5) * safeInterval;
+  float aa = max(fwidth(value), 0.0015);
+  return 1.0 - smoothstep(width, width + aa, d);
+}
+
+float contourMask(float shaped) {
+  if (uContourEnabled == 0) return 0.0;
+  if (shaped <= uContourDensityFade) return 0.0;
+  float densityGate = smoothstep(uContourDensityFade, min(1.0, uContourDensityFade + 0.12), shaped);
+  float minor = contourLine(shaped, uContourInterval, uContourWidth);
+  float major = contourLine(shaped, uContourMajorInterval, uContourWidth * 1.5);
+  return max(minor * uContourOpacity, major * uContourMajorOpacity) * densityGate * uContourZoomScale;
+}
+
 void main() {
   vec3 dir = normalize(vDir);
   vec2 uv = dirToUv(dir);
 
   float d = texture2D(uDensity, uv).r;
   float t = clamp(d * uIntensity, 0.0, 1.0);
-  if (t <= uThreshold) discard;
-  float gated = (t - uThreshold) / max(1e-4, 1.0 - uThreshold);
+  float threshold = clamp(uThreshold + uZoomThresholdBoost, 0.0, 0.95);
+  float gated = max(0.0, (t - threshold) / max(1e-4, 1.0 - threshold));
   float shaped = curveFn(clamp(gated, 0.0, 1.0), uCurve);
+  float rim = uRimFade <= 0.0 ? 1.0 : smoothstep(0.0, uRimFade, vRadialFacing);
+  if (rim <= 0.001) discard;
 
   vec4 col = texture2D(uPalette, vec2(shaped, 0.5));
 
@@ -706,11 +1517,19 @@ void main() {
   lambert = mix(1.0, mix(0.45, 1.0, lambert), uShading);
 
   vec3 shaded = col.rgb * lambert;
+  float grid = clamp(gridMask(dir, shaped) * rim, 0.0, 0.85);
+  float contour = clamp(contourMask(shaped) * rim, 0.0, 0.9);
+  if (shaped <= 0.001 && grid <= 0.001 && contour <= 0.001) discard;
+  shaded = mix(shaded, uGridColor, min(0.85, grid * 1.05));
+  shaded = mix(shaded, uContourColor, contour);
 
+  float alpha = col.a * shaped * uOpacity * uZoomOpacityScale * rim;
+  alpha = max(alpha, grid * 0.82);
+  alpha = max(alpha, contour * 0.9);
   if (uBlendMode == 1) {
-    gl_FragColor = vec4(shaded * shaped, col.a * shaped * uOpacity);
+    gl_FragColor = vec4(shaded * shaped, alpha);
   } else {
-    gl_FragColor = vec4(shaded, col.a * shaped * uOpacity);
+    gl_FragColor = vec4(shaded, alpha);
   }
 }
 `;

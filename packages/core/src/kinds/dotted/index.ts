@@ -92,6 +92,7 @@ export const dottedKind: KindModule = {
       const cfg = input as HeatmapDataLayer;
       const heatmap = new HeatmapLayer({
         layer: cfg,
+        countryFeatures: features as ReadonlyArray<CountryFeature>,
         fallbackColor: tokens['countries.dotted.color'],
         opacity: 0.85,
       });

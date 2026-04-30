@@ -1,4 +1,4 @@
-import type { Group, Mesh, Vector3 } from 'three';
+import type { Group, Mesh, PerspectiveCamera, Vector3 } from 'three';
 import type { CountryFeature } from '../renderer/country-feature';
 import type { ResolvedTokens } from '../theme/types';
 import type { CountryDataMap, GlobeConfig, LatLng } from '../types';
@@ -133,6 +133,7 @@ export interface DataLayerBuildContext {
   readonly globeGroup: import('three').Group;
   readonly features: ReadonlyArray<import('../renderer/country-feature').CountryFeature>;
   readonly tokens: import('../theme/types').ResolvedTokens;
+  readonly camera: PerspectiveCamera;
 }
 
 export type DataLayerBuilder = (

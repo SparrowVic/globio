@@ -46,6 +46,8 @@ type Normalize = NonNullable<HeatmapDataLayer['normalize']>;
 type Curve = NonNullable<HeatmapDataLayer['curve']>;
 type BlendMode = NonNullable<HeatmapDataLayer['blendMode']>;
 type DispCurve = NonNullable<HeatmapDataLayer['displacementCurve']>;
+type SurfaceMode = 'country' | 'topographic' | 'smooth' | 'peaks';
+type DetailMode = 'topo' | 'grid' | 'clean';
 type PaletteName =
   | 'magma'
   | 'inferno'
@@ -63,6 +65,8 @@ interface Settings {
   displacementCurve: DispCurve;
   palette: PaletteName;
   blendMode: BlendMode;
+  surfaceMode: SurfaceMode;
+  detailMode: DetailMode;
   radius: number;
   maxHeight: number;
   intensity: number;
@@ -73,6 +77,62 @@ interface Settings {
   textureLevel: number; // 0..3
 }
 
+const SURFACE_PRESETS: Record<SurfaceMode, Partial<Settings>> = {
+  country: {
+    kernel: 'dome',
+    normalize: 'log',
+    curve: 'smoothstep',
+    displacementCurve: 'cubic',
+    radius: 0.035,
+    maxHeight: 0.125,
+    intensity: 1.2,
+    threshold: 0.06,
+    blurPasses: 1,
+    shading: 0.74,
+    palette: 'aurora',
+    detailMode: 'topo',
+  },
+  topographic: {
+    normalize: 'log',
+    curve: 'sqrt',
+    displacementCurve: 'smoothstep',
+    radius: 0.135,
+    maxHeight: 0.046,
+    intensity: 1.0,
+    threshold: 0,
+    blurPasses: 5,
+    shading: 0.34,
+    palette: 'aurora',
+    detailMode: 'topo',
+  },
+  smooth: {
+    normalize: 'log',
+    curve: 'sqrt',
+    displacementCurve: 'sqrt',
+    radius: 0.17,
+    maxHeight: 0.028,
+    intensity: 0.96,
+    threshold: 0,
+    blurPasses: 6,
+    shading: 0.22,
+    palette: 'aurora',
+    detailMode: 'grid',
+  },
+  peaks: {
+    normalize: 'log',
+    curve: 'smoothstep',
+    displacementCurve: 'smoothstep',
+    radius: 0.082,
+    maxHeight: 0.09,
+    intensity: 1.12,
+    threshold: 0.025,
+    blurPasses: 2,
+    shading: 0.52,
+    palette: 'inferno',
+    detailMode: 'topo',
+  },
+};
+
 const TEXTURE_RESOLUTIONS: ReadonlyArray<{ readonly width: number; readonly height: number }> = [
   { width: 1024, height: 512 },
   { width: 2048, height: 1024 },
@@ -81,23 +141,26 @@ const TEXTURE_RESOLUTIONS: ReadonlyArray<{ readonly width: number; readonly heig
 ];
 
 const PRESETS: Record<string, Partial<Settings>> = {
-  // Population heatmap covering every country. Log normalise so Vatican
-  // (1k people) and India (1.4B) both stay visible. 3D peaks rise over
-  // the most populous regions but don't dominate small countries.
+  // Population heatmap covering every country. The outline kind binds
+  // entries by name to country polygons and bakes bounded domes: each dome's
+  // rounded crown occupies roughly the central half of its country, while
+  // walls fall back toward the border instead of spilling into neighbours.
   countries: {
-    kernel: 'gaussian',
+    kernel: 'dome',
     normalize: 'log',
     curve: 'smoothstep',
-    displacementCurve: 'smoothstep',
-    palette: 'inferno',
+    displacementCurve: 'cubic',
+    palette: 'aurora',
     blendMode: 'normal',
-    radius: 0.09,
-    maxHeight: 0.18,
-    intensity: 1.0,
-    threshold: 0.02,
-    blurPasses: 2,
-    meshLevel: 1,
-    shading: 0.7,
+    surfaceMode: 'country',
+    detailMode: 'topo',
+    radius: 0.035,
+    maxHeight: 0.125,
+    intensity: 1.2,
+    threshold: 0.06,
+    blurPasses: 1,
+    meshLevel: 2,
+    shading: 0.74,
   },
   // Flat 2D heat overlay — the classical Mapbox / deck.gl look. Vivid
   // colour ramp; no displacement (so no facets at the limb).
@@ -108,6 +171,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     displacementCurve: 'smoothstep',
     palette: 'inferno',
     blendMode: 'normal',
+    surfaceMode: 'smooth',
+    detailMode: 'grid',
     radius: 0.09,
     maxHeight: 0,
     intensity: 1.2,
@@ -126,6 +191,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     displacementCurve: 'cubic',
     palette: 'inferno',
     blendMode: 'additive',
+    surfaceMode: 'peaks',
+    detailMode: 'clean',
     radius: 0.06,
     maxHeight: 0,
     intensity: 1.6,
@@ -143,6 +210,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     displacementCurve: 'linear',
     palette: 'plasma',
     blendMode: 'normal',
+    surfaceMode: 'peaks',
+    detailMode: 'clean',
     radius: 0.05,
     maxHeight: 0,
     intensity: 1.0,
@@ -161,6 +230,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     displacementCurve: 'sqrt',
     palette: 'aurora',
     blendMode: 'normal',
+    surfaceMode: 'smooth',
+    detailMode: 'grid',
     radius: 0.18,
     maxHeight: 0,
     intensity: 1.1,
@@ -179,13 +250,15 @@ const PRESETS: Record<string, Partial<Settings>> = {
     displacementCurve: 'smoothstep',
     palette: 'inferno',
     blendMode: 'normal',
+    surfaceMode: 'peaks',
+    detailMode: 'topo',
     radius: 0.09,
-    maxHeight: 0.18,
+    maxHeight: 0.13,
     intensity: 1.0,
     threshold: 0.04,
     blurPasses: 3,
     meshLevel: 2,
-    shading: 0.7,
+    shading: 0.58,
   },
   // Designed for live USGS earthquake data: tens of thousands of points
   // with magnitudes in [2.5, 8]. `log` normalisation keeps small swarms
@@ -198,6 +271,8 @@ const PRESETS: Record<string, Partial<Settings>> = {
     displacementCurve: 'smoothstep',
     palette: 'inferno',
     blendMode: 'additive',
+    surfaceMode: 'peaks',
+    detailMode: 'clean',
     radius: 0.04,
     maxHeight: 0.0,
     intensity: 1.4,
@@ -217,19 +292,21 @@ const MESH_RESOLUTIONS: ReadonlyArray<{ readonly width: number; readonly height:
 const settings: Settings = {
   kind: 'outline',
   dataset: 'countries',
-  kernel: 'gaussian',
+  kernel: 'dome',
   normalize: 'log',
   curve: 'smoothstep',
-  displacementCurve: 'smoothstep',
-  palette: 'inferno',
+  displacementCurve: 'cubic',
+  palette: 'aurora',
   blendMode: 'normal',
-  radius: 0.09,
-  maxHeight: 0.16,
-  intensity: 1.0,
-  threshold: 0.02,
-  blurPasses: 2,
-  shading: 0.7,
-  meshLevel: 1,
+  surfaceMode: 'country',
+  detailMode: 'topo',
+  radius: 0.035,
+  maxHeight: 0.125,
+  intensity: 1.2,
+  threshold: 0.06,
+  blurPasses: 1,
+  shading: 0.74,
+  meshLevel: 2,
   textureLevel: 1,
 };
 
@@ -308,6 +385,18 @@ bindRowToggle('palette-row', 'palette', (value) => {
   applyLayer();
 });
 
+bindRowToggle('surface-row', 'surface', (value) => {
+  settings.surfaceMode = value as SurfaceMode;
+  Object.assign(settings, SURFACE_PRESETS[settings.surfaceMode]);
+  syncControls();
+  applyLayer();
+});
+
+bindRowToggle('detail-row', 'detail', (value) => {
+  settings.detailMode = value as DetailMode;
+  applyLayer();
+});
+
 // Debounce sliders that trigger an actual texture rebake (radius, blur,
 // kernel) — without this, dragging the radius slider re-bakes 60+ times
 // per second on a 30k-sample dataset and freezes the page. Shader-side
@@ -329,7 +418,7 @@ bindSlider('radius', 'radius-value', 3, (v) => {
   applyLayerDebounced();
 });
 
-bindSlider('height', 'height-value', 2, (v) => {
+bindSlider('height', 'height-value', 3, (v) => {
   settings.maxHeight = v;
   applyLayer(); // shader-only, no rebake
 });
@@ -408,7 +497,7 @@ function syncControls(): void {
     if (valueEl && typeof value === 'number') valueEl.textContent = value.toFixed(decimals);
   };
   set('radius', settings.radius, 3);
-  set('height', settings.maxHeight, 2);
+  set('height', settings.maxHeight, 3);
   set('intensity', settings.intensity, 2);
   set('threshold', settings.threshold, 2);
   set('blur', settings.blurPasses);
@@ -426,6 +515,8 @@ function syncControls(): void {
   setActive('curve-row', 'curve', settings.curve);
   setActive('palette-row', 'palette', settings.palette);
   setActive('blend-row', 'blend', settings.blendMode);
+  setActive('surface-row', 'surface', settings.surfaceMode);
+  setActive('detail-row', 'detail', settings.detailMode);
 }
 
 function mountGlobe(kind: GlobeKind) {
@@ -444,6 +535,7 @@ function mountGlobe(kind: GlobeKind) {
     axisTilt: 23.5,
   });
   instance.mount();
+  instance.flyTo([18, 38], 2.85, { duration: 1 });
   return instance;
 }
 
@@ -451,6 +543,71 @@ function remount(): void {
   globe.destroy();
   globe = mountGlobe(settings.kind);
   applyLayer();
+}
+
+function buildDetailOptions(
+  mode: DetailMode
+): Pick<HeatmapDataLayer, 'grid' | 'contours' | 'rimFade' | 'zoomScaling'> {
+  const baseZoom = {
+    closeDistance: 1.45,
+    farDistance: 3.1,
+    closeHeightScale: 0.46,
+    farHeightScale: 1,
+    closeOpacityScale: 0.92,
+    farOpacityScale: 1,
+    thresholdBoost: 0,
+    gridBoost: 0.6,
+    contourBoost: 0.7,
+  } satisfies NonNullable<HeatmapDataLayer['zoomScaling']>;
+
+  if (mode === 'clean') {
+    return {
+      grid: false,
+      contours: false,
+      rimFade: 0.34,
+      zoomScaling: baseZoom,
+    };
+  }
+
+  if (mode === 'grid') {
+    return {
+      grid: {
+        stepDeg: 5,
+        widthDeg: 0.06,
+        opacity: 0.075,
+        majorEvery: 6,
+        majorOpacity: 0.14,
+        color: '#3a8bd8',
+        densityFade: 0.16,
+      },
+      contours: false,
+      rimFade: 0.34,
+      zoomScaling: { ...baseZoom, gridBoost: 0.95 },
+    };
+  }
+
+  return {
+    grid: {
+      stepDeg: 5,
+      widthDeg: 0.05,
+      opacity: 0.055,
+      majorEvery: 6,
+      majorOpacity: 0.11,
+      color: '#3a8bd8',
+      densityFade: 0.14,
+    },
+    contours: {
+      interval: 0.07,
+      width: 0.0038,
+      opacity: 0.18,
+      majorEvery: 4,
+      majorOpacity: 0.36,
+      color: '#d8fff3',
+      densityFade: 0.035,
+    },
+    rimFade: 0.36,
+    zoomScaling: { ...baseZoom, gridBoost: 0.85, contourBoost: 0.95 },
+  };
 }
 
 // Tracks which live dataset request is in-flight so out-of-order resolves
@@ -466,6 +623,7 @@ async function applyLayer(): Promise<void> {
   const palette: ScalePalette = settings.palette === 'aurora' ? AURORA : settings.palette;
   const resolution = TEXTURE_RESOLUTIONS[settings.textureLevel] ?? TEXTURE_RESOLUTIONS[1]!;
   const meshRes = MESH_RESOLUTIONS[settings.meshLevel] ?? MESH_RESOLUTIONS[1]!;
+  const detailOptions = buildDetailOptions(settings.detailMode);
   const t0 = performance.now();
   globe.setDataLayer({
     type: 'heatmap',
@@ -485,6 +643,11 @@ async function applyLayer(): Promise<void> {
     textureResolution: resolution,
     meshResolution: meshRes,
     paletteSteps: 256,
+    countryDomes:
+      settings.dataset === 'countries' && settings.surfaceMode === 'country'
+        ? { centerArea: 0.55, shoulderHeight: 0.36, edgeSteepness: 2.6 }
+        : false,
+    ...detailOptions,
   });
   const dt = performance.now() - t0;
   const stats = document.getElementById('stats');

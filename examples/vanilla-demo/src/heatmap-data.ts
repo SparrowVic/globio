@@ -8,9 +8,19 @@
  */
 import type { HeatmapDataEntry, LatLng } from '@your-globe/core';
 
-const sample = (position: LatLng, value: number, radius?: number): HeatmapDataEntry => {
+const sample = (
+  position: LatLng,
+  value: number,
+  options?: number | { readonly radius?: number; readonly id?: string; readonly name?: string }
+): HeatmapDataEntry => {
   const out: HeatmapDataEntry = { position, value };
-  if (radius !== undefined) (out as { radius?: number }).radius = radius;
+  if (typeof options === 'number') {
+    (out as { radius?: number }).radius = options;
+    return out;
+  }
+  if (options?.radius !== undefined) (out as { radius?: number }).radius = options.radius;
+  if (options?.id !== undefined) (out as { id?: string }).id = options.id;
+  if (options?.name !== undefined) (out as { name?: string }).name = options.name;
   return out;
 };
 
@@ -92,12 +102,45 @@ export const WORLD_CITIES: ReadonlyArray<HeatmapDataEntry> = Object.freeze(build
  */
 export const EARTHQUAKES: ReadonlyArray<HeatmapDataEntry> = Object.freeze(buildEarthquakes());
 
+const COUNTRY_RADIUS_OVERRIDES: Readonly<Record<string, number>> = {
+  Andorra: 0.012,
+  'Antigua and Barbuda': 0.012,
+  Bahrain: 0.014,
+  Barbados: 0.012,
+  'Cabo Verde': 0.014,
+  Comoros: 0.014,
+  Dominica: 0.012,
+  Grenada: 0.012,
+  Kiribati: 0.012,
+  Liechtenstein: 0.01,
+  Maldives: 0.012,
+  Malta: 0.012,
+  'Marshall Islands': 0.01,
+  Mauritius: 0.012,
+  Micronesia: 0.012,
+  Monaco: 0.009,
+  Nauru: 0.009,
+  Palau: 0.01,
+  'Saint Kitts and Nevis': 0.01,
+  'Saint Lucia': 0.011,
+  'Saint Vincent and the Grenadines': 0.011,
+  Samoa: 0.012,
+  'San Marino': 0.009,
+  'São Tomé and Príncipe': 0.012,
+  Seychelles: 0.01,
+  Singapore: 0.012,
+  Tonga: 0.011,
+  Tuvalu: 0.009,
+  'Vatican City': 0.008,
+};
+
 /**
  * One sample per UN member state (+ a few territories) at the country's
  * approximate centroid. `value` = population in millions. Uniform global
- * coverage — every country contributes a kernel, so the heatmap reads as
- * "where humans live" without any blank quadrants. Default kernel radius
- * ~5° gives generous overlap so neighbouring countries blend smoothly.
+ * coverage — every country contributes a sample, so the heatmap reads as
+ * "where humans live" without any blank quadrants. The entries include
+ * `name` so the outline heatmap can bind them to country polygons and draw
+ * bounded per-country domes instead of oversized radial blobs.
  *
  * Population estimates rounded to one decimal where useful, sourced from
  * UN / World Bank circa 2024. Centroids are visual centres rather than
@@ -325,7 +368,7 @@ function buildWorldCountriesPopulation(): Array<HeatmapDataEntry> {
     [8.5, -11.8, 8.7, 'Sierra Leone'],
     [5.2, 46.2, 17.6, 'Somalia'],
     [-29.0, 24.7, 60, 'South Africa'],
-    [7.9, 30.0, 11.5, 'South Sudan'],
+    [7.9, 30.0, 15.8, 'South Sudan'],
     [13.0, 30.2, 47.6, 'Sudan'],
     [-6.4, 34.9, 65, 'Tanzania'],
     [8.6, 0.8, 8.9, 'Togo'],
@@ -359,11 +402,11 @@ function buildWorldCountriesPopulation(): Array<HeatmapDataEntry> {
     [23.6, -102.5, 130, 'Mexico'],
     [12.9, -85.2, 6.8, 'Nicaragua'],
     [8.5, -80.8, 4.4, 'Panama'],
-    [-23.4, -58.4, 7.5, 'Paraguay'],
+    [-23.4, -58.4, 6.1, 'Paraguay'],
     [-10.0, -76.0, 34.4, 'Peru'],
     [17.4, -62.7, 0.05, 'Saint Kitts and Nevis'],
     [13.9, -60.9, 0.18, 'Saint Lucia'],
-    [13.2, -61.2, 0.1, 'Saint Vincent'],
+    [13.2, -61.2, 0.1, 'Saint Vincent and the Grenadines'],
     [4.0, -56.0, 0.62, 'Suriname'],
     [10.7, -61.3, 1.5, 'Trinidad and Tobago'],
     [38.0, -97.0, 333, 'United States'],
@@ -464,7 +507,7 @@ function buildWorldCountriesPopulation(): Array<HeatmapDataEntry> {
     [40.5, -3.7, 47.5, 'Spain'],
     [60.1, 18.6, 10.6, 'Sweden'],
     [46.8, 8.2, 8.7, 'Switzerland'],
-    [48.4, 31.2, 41, 'Ukraine'],
+    [48.4, 31.2, 32.9, 'Ukraine'],
     [54.0, -2.0, 67.7, 'United Kingdom'],
     [41.9, 12.45, 0.001, 'Vatican City'],
     // ===== Oceania =====
@@ -484,7 +527,19 @@ function buildWorldCountriesPopulation(): Array<HeatmapDataEntry> {
     [-7.1, 178.1, 0.011, 'Tuvalu'],
     [-15.4, 166.9, 0.32, 'Vanuatu'],
   ];
-  return rows.map(([lat, lng, pop]) => sample([lat, lng] as LatLng, pop));
+  return rows.map(([lat, lng, pop, name]) =>
+    sample([lat, lng] as LatLng, pop, {
+      name,
+      radius: countryFallbackRadius(name, pop),
+    })
+  );
+}
+
+function countryFallbackRadius(name: string, populationMillions: number): number {
+  const override = COUNTRY_RADIUS_OVERRIDES[name];
+  if (override !== undefined) return override;
+  const popSignal = Math.log10(Math.max(1.001, populationMillions + 1));
+  return Math.max(0.02, Math.min(0.105, 0.03 + popSignal * 0.018));
 }
 
 function buildRandomClusters(): Array<HeatmapDataEntry> {

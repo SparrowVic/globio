@@ -98,6 +98,11 @@ const canUpdateInPlace = (
   const n = next.meshResolution;
   if ((m?.width ?? -1) !== (n?.width ?? -1)) return false;
   if ((m?.height ?? -1) !== (n?.height ?? -1)) return false;
+  if (!m && !n) {
+    const prevDisplaced = (prev.maxHeight ?? 0) > 0;
+    const nextDisplaced = (next.maxHeight ?? 0) > 0;
+    if (prevDisplaced !== nextDisplaced) return false;
+  }
   return true;
 };
 
@@ -772,6 +777,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         globeGroup,
         features: state.features ?? [],
         tokens,
+        camera: scene.camera,
       });
       state.dataLayer = { config: layer, handle };
     },

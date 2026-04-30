@@ -91,9 +91,10 @@ export interface ExtrudedDataLayer {
  *  - `gaussian` — soft, infinite tail. The classical heatmap look.
  *  - `epanechnikov` — bell-curve with a hard edge at the radius. Tight peaks.
  *  - `quartic` — smoother edge than epanechnikov, broader plateau at peak.
+ *  - `dome` — rounded crown with a steep wall near the radius cutoff.
  *  - `uniform` — flat disk; binary inside / outside the kernel.
  */
-export type HeatmapKernel = 'gaussian' | 'epanechnikov' | 'quartic' | 'uniform';
+export type HeatmapKernel = 'gaussian' | 'epanechnikov' | 'quartic' | 'dome' | 'uniform';
 
 /**
  * How accumulated density gets mapped to the [0, 1] range that drives
@@ -114,6 +115,100 @@ export type HeatmapNormalize = 'peak' | 'absolute' | 'log';
  * mids, `linear` is raw.
  */
 export type HeatmapCurve = 'linear' | 'smoothstep' | 'cubic' | 'sqrt';
+
+/**
+ * Optional procedural latitude/longitude grid blended inside the heatmap
+ * shader. It adds topographic scale cues without allocating extra line
+ * geometry or z-fighting with country borders.
+ */
+export interface HeatmapGridConfig {
+  /** Defaults to true when the object is supplied. Pass `false` on `grid` to disable. */
+  readonly enabled?: boolean;
+  /** Minor grid spacing in degrees. Default 8. */
+  readonly stepDeg?: number;
+  /** Line width in degrees before shader anti-aliasing. Default 0.16. */
+  readonly widthDeg?: number;
+  /** Minor grid opacity. Default 0.14. */
+  readonly opacity?: number;
+  /** Major line every N minor steps. Default 4. */
+  readonly majorEvery?: number;
+  /** Major grid opacity. Default 0.24. */
+  readonly majorOpacity?: number;
+  /** Grid colour. Defaults to the heatmap fallback colour. */
+  readonly color?: string;
+  /** Density value where grid reaches full strength. Default 0.28. */
+  readonly densityFade?: number;
+}
+
+/**
+ * Optional contour/isoline overlay derived from the same density field as
+ * heatmap colour and displacement. This gives 3D heatmaps a topographic
+ * reading: users can see connected density bands instead of only isolated
+ * domes.
+ */
+export interface HeatmapContourConfig {
+  /** Defaults to true when the object is supplied. Pass `false` on `contours` to disable. */
+  readonly enabled?: boolean;
+  /** Density interval between minor contour lines in [0..1]. Default 0.08. */
+  readonly interval?: number;
+  /** Line width in density units before shader anti-aliasing. Default 0.006. */
+  readonly width?: number;
+  /** Minor contour opacity. Default 0.22. */
+  readonly opacity?: number;
+  /** Major line every N minor intervals. Default 4. */
+  readonly majorEvery?: number;
+  /** Major contour opacity. Default 0.38. */
+  readonly majorOpacity?: number;
+  /** Contour colour. Defaults to the heatmap fallback colour. */
+  readonly color?: string;
+  /** Contours below this shaped density fade out. Default 0.04. */
+  readonly densityFade?: number;
+}
+
+/**
+ * View-dependent shader scaling. The baked geographic density stays stable;
+ * only displacement, opacity, threshold and grid contrast are adjusted so
+ * the layer does not look oversized when the user zooms in.
+ */
+export interface HeatmapZoomScalingConfig {
+  /** Defaults to true when the object is supplied. Pass `false` on `zoomScaling` to disable. */
+  readonly enabled?: boolean;
+  /** Camera distance where close-up scaling is fully applied. Default 1.45. */
+  readonly closeDistance?: number;
+  /** Camera distance where the far/default scale is restored. Default 3.2. */
+  readonly farDistance?: number;
+  /** Height multiplier at close distance. Default 0.55. */
+  readonly closeHeightScale?: number;
+  /** Height multiplier at far distance. Default 1. */
+  readonly farHeightScale?: number;
+  /** Opacity multiplier at close distance. Default 0.86. */
+  readonly closeOpacityScale?: number;
+  /** Opacity multiplier at far distance. Default 1. */
+  readonly farOpacityScale?: number;
+  /** Extra threshold added at close distance. Default 0.04. */
+  readonly thresholdBoost?: number;
+  /** Grid opacity multiplier added at close distance. Default 0.45. */
+  readonly gridBoost?: number;
+  /** Contour opacity multiplier added at close distance. Default 0.35. */
+  readonly contourBoost?: number;
+}
+
+/**
+ * Country-aware dome bake. When the active kind can provide country
+ * polygons and entries include `id` or `name`, each matched sample is
+ * rasterized inside that country's polygon instead of spilling as a radial
+ * blob over neighbouring countries or oceans.
+ */
+export interface HeatmapCountryDomeConfig {
+  /** Defaults to true when the object is supplied. Pass `false` on `countryDomes` to disable. */
+  readonly enabled?: boolean;
+  /** Approximate area fraction of the country kept as the rounded central crown. Default 0.55. */
+  readonly centerArea?: number;
+  /** Height at the edge of the central crown before the wall falls down. Default 0.36. */
+  readonly shoulderHeight?: number;
+  /** Extra steepness applied to the falling wall. Default 2.6. */
+  readonly edgeSteepness?: number;
+}
 
 /**
  * Volumetric heatmap — many lat/lng samples accumulate into a continuous
@@ -142,7 +237,8 @@ export interface HeatmapDataLayer {
 
   /**
    * Max vertex displacement (world units; 1 = globe radius) at peak
-   * density. Default 0.18. Set to 0 for a flat colour-only heatmap.
+   * density. Default 0. Set to a small value such as 0.04–0.10 for a
+   * professional 3D relief; large values quickly dominate the globe.
    */
   readonly maxHeight?: number;
 
@@ -241,12 +337,50 @@ export interface HeatmapDataLayer {
    */
   readonly paletteSteps?: number;
 
+  /**
+   * Procedural lat/lng grid drawn inside the heatmap shader. Useful for
+   * high-density 3D views where the colour field needs surface texture and
+   * perspective cues. `false` disables it explicitly.
+   */
+  readonly grid?: boolean | HeatmapGridConfig;
+
+  /**
+   * Topographic contour lines drawn from the shaped density field. `false`
+   * disables them explicitly.
+   */
+  readonly contours?: boolean | HeatmapContourConfig;
+
+  /**
+   * Fade width near the visible limb, expressed as radial facing dot range
+   * [0..1]. Values around 0.12–0.20 hide exaggerated horizon silhouettes
+   * while preserving the centre of the globe. Default 0.
+   */
+  readonly rimFade?: number;
+
+  /**
+   * View-dependent relief scaling. This does not rebake density; it only
+   * adjusts shader uniforms each frame. `false` disables it explicitly.
+   */
+  readonly zoomScaling?: false | HeatmapZoomScalingConfig;
+
+  /**
+   * Rasterize matching `HeatmapDataEntry.id` / `.name` samples inside
+   * country polygons as bounded domes. If the active globe kind cannot
+   * provide country geometry, or an entry cannot be matched, the layer falls
+   * back to the normal radial kernel for that entry.
+   */
+  readonly countryDomes?: boolean | HeatmapCountryDomeConfig;
+
   readonly events?: DataLayerEvents<HeatmapDataEntry>;
 }
 
 export interface HeatmapDataEntry {
   readonly position: LatLng;
   readonly value: number;
+  /** Optional country id used by country-aware heatmap modes. */
+  readonly id?: string;
+  /** Optional country name used by country-aware heatmap modes. */
+  readonly name?: string;
   /** Per-sample influence radius (rad) override. Falls back to layer radius. */
   readonly radius?: number;
   /** Per-sample weight multiplier. Default 1. */
