@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Globio — Data Charts (bars + extruded)</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #000010;
+        color: #cfd8ff;
+        font-family: system-ui, sans-serif;
+        overflow: hidden;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      .panel {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        padding: 14px 16px;
+        background: rgba(10, 14, 30, 0.7);
+        border: 1px solid rgba(74, 158, 255, 0.4);
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.45;
+        backdrop-filter: blur(6px);
+        max-width: 320px;
+        z-index: 10;
+      }
+      .panel h1 {
+        margin: 0 0 4px;
+        font-size: 16px;
+        color: #ffd700;
+      }
+      .panel h2 {
+        margin: 14px 0 6px;
+        font-size: 13px;
+        color: #ffd700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .panel p {
+        margin: 0 0 6px;
+        opacity: 0.85;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin: 4px 0;
+      }
+      button {
+        background: rgba(74, 158, 255, 0.15);
+        color: #cfd8ff;
+        border: 1px solid rgba(74, 158, 255, 0.4);
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: inherit;
+      }
+      button:hover {
+        background: rgba(74, 158, 255, 0.3);
+      }
+      button.active {
+        background: rgba(255, 215, 0, 0.25);
+        border-color: rgba(255, 215, 0, 0.6);
+        color: #ffd700;
+      }
+      nav {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        display: flex;
+        gap: 6px;
+        background: rgba(10, 14, 30, 0.7);
+        border: 1px solid rgba(74, 158, 255, 0.4);
+        border-radius: 8px;
+        padding: 8px 10px;
+        backdrop-filter: blur(6px);
+        z-index: 10;
+      }
+      nav a {
+        color: #cfd8ff;
+        text-decoration: none;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        border: 1px solid transparent;
+      }
+      nav a:hover {
+        background: rgba(74, 158, 255, 0.18);
+      }
+      nav a.current {
+        color: #ffd700;
+        border-color: rgba(255, 215, 0, 0.5);
+        background: rgba(255, 215, 0, 0.12);
+      }
+      .legend {
+        font-size: 11px;
+        opacity: 0.75;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <nav>
+      <a href="/">Kinds</a>
+      <a href="/charts.html" class="current">Charts</a>
+      <a href="/heatmap.html">Heatmap</a>
+    </nav>
+
+    <div class="panel">
+      <h1>Data Charts</h1>
+      <p>Bars + extruded countries — same dataset, two visual presentations. Switch the kind to see how each decoration restyles them.</p>
+
+      <h2>Kind</h2>
+      <div class="row" id="kind-row">
+        <button data-kind="outline" class="active">Outline</button>
+        <button data-kind="dotted">Dotted</button>
+      </div>
+
+      <h2>Layer</h2>
+      <div class="row" id="layer-row">
+        <button data-layer="bars" class="active">Bars</button>
+        <button data-layer="extruded">Extruded</button>
+        <button data-layer="none">None</button>
+      </div>
+
+      <h2>Dataset</h2>
+      <div class="row" id="data-row">
+        <button data-set="population" class="active">Population (top 30)</button>
+        <button data-set="gdp">GDP per capita</button>
+      </div>
+
+      <p class="legend">Top countries highlighted, others fall back to the kind's neutral fallback color.</p>
+    </div>
+
+    <script type="module" src="/src/charts.ts"></script>
+  </body>
+</html>
