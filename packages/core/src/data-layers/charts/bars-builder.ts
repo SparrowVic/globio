@@ -23,6 +23,9 @@ export interface BarHandle {
   readonly material: MeshBasicMaterial;
   readonly geometry: BoxGeometry;
   readonly targetHeight: number;
+  readonly seriesKey: string;
+  readonly seriesIndex: number;
+  readonly value: number;
   /** Optional outline LineSegments parented to the mesh. */
   readonly border?: LineSegments;
 }
@@ -36,6 +39,8 @@ export interface BarHandle {
  * Layout: total chart width = `size`, divided into N bars with a 15% gap
  * between each. Negative values clamp to 0 so the bar collapses, matching
  * `ChartsDataLayer`'s "non-negative semantics" docstring.
+ * Height scale can be supplied by the layer orchestrator; when omitted,
+ * the chart falls back to its local peak for standalone builder use/tests.
  *
  * Color resolution per bar (in priority order):
  *   1. `series.color` — explicit per-series colour
@@ -46,7 +51,8 @@ export const buildGroupedBarsChart = (
   entry: ChartsDataEntry,
   series: ReadonlyArray<ChartSeries>,
   layer: ChartsDataLayer,
-  fallbackColor: string
+  fallbackColor: string,
+  globalPeak = 0
 ): { readonly group: Group; readonly bars: ReadonlyArray<BarHandle> } => {
   const size = layer.size ?? 0.05;
   const maxHeight = layer.height ?? 0.08;
@@ -60,7 +66,7 @@ export const buildGroupedBarsChart = (
   const totalWidth = slotWidth * seriesCount;
   const left = -totalWidth / 2 + slotWidth / 2;
 
-  const peak = computePeakValue(entry, series);
+  const peak = globalPeak > 0 ? globalPeak : computePeakValue(entry, series);
   const safePeak = peak > 0 ? peak : 1;
   const border = resolveBorder(layer);
 
@@ -88,6 +94,9 @@ export const buildGroupedBarsChart = (
       material,
       geometry,
       targetHeight,
+      seriesKey: s.key,
+      seriesIndex: i,
+      value,
       ...(handleBorder ? { border: handleBorder } : {}),
     });
   }
@@ -132,7 +141,8 @@ export const buildStackedBarsChart = (
   if (totalValue <= 0) return { group, bars };
 
   let cursor = 0;
-  for (const s of series) {
+  for (let i = 0; i < series.length; i++) {
+    const s = series[i]!;
     const raw = entry.values[s.key];
     const value = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
     if (value <= 0) continue;
@@ -151,6 +161,9 @@ export const buildStackedBarsChart = (
       material,
       geometry,
       targetHeight: segHeight,
+      seriesKey: s.key,
+      seriesIndex: i,
+      value,
       ...(handleBorder ? { border: handleBorder } : {}),
     });
     cursor += segHeight;
@@ -162,14 +175,15 @@ export const buildStackedBarsChart = (
  * Radial bars: N bars around a circle, each rising on the local Y axis.
  * Bar `i` is rotated `i × 2π/N` around the Y axis and pushed out by
  * `size/2` along the rotated radius. Heights are value-mapped against
- * the chart's own max (each chart self-normalises to keep its tallest
- * spoke at `maxHeight`). Best for "categorical-ordered" series like months.
+ * the layer-wide max by default, so magnitudes remain comparable across
+ * anchors. Best for "categorical-ordered" series like months.
  */
 export const buildRadialBarsChart = (
   entry: ChartsDataEntry,
   series: ReadonlyArray<ChartSeries>,
   layer: ChartsDataLayer,
-  fallbackColor: string
+  fallbackColor: string,
+  globalPeak = 0
 ): { readonly group: Group; readonly bars: ReadonlyArray<BarHandle> } => {
   const size = layer.size ?? 0.05;
   const maxHeight = layer.height ?? 0.08;
@@ -179,7 +193,7 @@ export const buildRadialBarsChart = (
   const barWidth = (size * Math.PI) / (seriesCount * 2.4);
   const depth = barWidth;
 
-  const peak = computePeakValue(entry, series);
+  const peak = globalPeak > 0 ? globalPeak : computePeakValue(entry, series);
   const safePeak = peak > 0 ? peak : 1;
   const border = resolveBorder(layer);
 
@@ -210,6 +224,9 @@ export const buildRadialBarsChart = (
       material,
       geometry,
       targetHeight,
+      seriesKey: s.key,
+      seriesIndex: i,
+      value,
       ...(handleBorder ? { border: handleBorder } : {}),
     });
   }
@@ -262,6 +279,23 @@ export const computeStackedGlobalPeak = (
   for (const entry of data) {
     const sum = sumValues(entry, series);
     if (sum > peak) peak = sum;
+  }
+  return peak;
+};
+
+/**
+ * Largest individual series value across the whole layer. Grouped/radial
+ * bars use this as their default height domain so two countries with
+ * values 10 and 100 do not both render a full-height local maximum.
+ */
+export const computeGlobalValuePeak = (
+  data: ReadonlyArray<ChartsDataEntry>,
+  series: ReadonlyArray<ChartSeries>
+): number => {
+  let peak = 0;
+  for (const entry of data) {
+    const v = computePeakValue(entry, series);
+    if (v > peak) peak = v;
   }
   return peak;
 };

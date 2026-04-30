@@ -4,6 +4,7 @@ import {
   buildGroupedBarsChart,
   buildRadialBarsChart,
   buildStackedBarsChart,
+  computeGlobalValuePeak,
   computeStackedGlobalPeak,
   disposeBars,
 } from '../bars-builder';
@@ -51,6 +52,22 @@ describe('buildGroupedBarsChart', () => {
     expect(bars[2]!.material.color.getHexString()).toBe('0000ff');
     disposeBars(bars);
   });
+
+  it('can use a layer-wide peak so grouped bars are comparable across entries', () => {
+    const entry: ChartsDataEntry = { values: { a: 50, b: 100, c: 25 } };
+    const { bars } = buildGroupedBarsChart(
+      entry,
+      SERIES,
+      baseLayer({ size: 0.06, height: 0.1 }),
+      '#fff',
+      200
+    );
+    expect(bars[1]!.targetHeight).toBeCloseTo(0.05, 4);
+    expect(bars[1]!.seriesKey).toBe('b');
+    expect(bars[1]!.seriesIndex).toBe(1);
+    expect(bars[1]!.value).toBe(100);
+    disposeBars(bars);
+  });
 });
 
 describe('buildStackedBarsChart', () => {
@@ -59,6 +76,8 @@ describe('buildStackedBarsChart', () => {
     const layer = baseLayer({ chartType: 'bars-stacked', size: 0.05, height: 0.1 });
     const { bars } = buildStackedBarsChart(entry, SERIES, layer, '#fff', /* globalPeak = */ 100);
     expect(bars).toHaveLength(2); // c skipped
+    expect(bars[0]!.seriesKey).toBe('a');
+    expect(bars[1]!.seriesKey).toBe('b');
     const totalH = bars.reduce((sum, b) => sum + b.targetHeight, 0);
     expect(totalH).toBeCloseTo(0.09, 4); // 90 / 100 × 0.1
     disposeBars(bars);
@@ -105,5 +124,15 @@ describe('computeStackedGlobalPeak', () => {
       { values: { a: 10, b: -5 } },
     ];
     expect(computeStackedGlobalPeak(entries, SERIES)).toBe(10);
+  });
+});
+
+describe('computeGlobalValuePeak', () => {
+  it('returns the largest individual series value across all entries', () => {
+    const entries: ReadonlyArray<ChartsDataEntry> = [
+      { values: { a: 1, b: 200, c: 3 } },
+      { values: { a: 10, b: 20, c: 30 } },
+    ];
+    expect(computeGlobalValuePeak(entries, SERIES)).toBe(200);
   });
 });

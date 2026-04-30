@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Vector3 } from 'three';
 import type { CountryFeature } from '../../../renderer/country-feature';
 import type { ChartsDataEntry } from '../../types';
 import { buildChartAnchor, resolveChartPosition } from '../anchors';
@@ -53,15 +54,17 @@ describe('buildChartAnchor', () => {
 
   it('quaternion rotates local +Y onto the surface normal', () => {
     const a = buildChartAnchor([45, 90]);
-    // Apply quaternion to (0,1,0) — should produce a vector parallel to anchor.normal
-    const v = { x: 0, y: 1, z: 0 };
-    // Three.js Quaternion math, manually: q.applyToVector via rotation matrix.
-    // We use the public Quaternion to avoid duplicating the math here.
-    const out = a.normal.clone(); // normal = where +Y should land after the quaternion
-    // The buildChartAnchor implementation is `setFromUnitVectors(LOCAL_UP, normal)`, so
-    // q * LOCAL_UP === normal by construction.
+    const out = new Vector3(0, 1, 0).applyQuaternion(a.quaternion);
     expect(out.length()).toBeCloseTo(1, 5);
-    expect(v.x === 0).toBe(true);
+    expect(out.x).toBeCloseTo(a.normal.x, 5);
+    expect(out.y).toBeCloseTo(a.normal.y, 5);
+    expect(out.z).toBeCloseTo(a.normal.z, 5);
+  });
+
+  it('keeps local -Z roughly north at the equator', () => {
+    const a = buildChartAnchor([0, 0]);
+    const localNorth = new Vector3(0, 0, -1).applyQuaternion(a.quaternion);
+    expect(localNorth.y).toBeGreaterThan(0.99);
   });
 
   it('produces consistent surface for equator (lat=0, lng=0)', () => {

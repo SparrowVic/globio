@@ -18,6 +18,7 @@ import type { ChartsDataEntry, ChartsLabelsConfig } from '../types';
  */
 export interface ChartLabel {
   readonly entry: ChartsDataEntry;
+  readonly entryIndex: number;
   /** Source 3D anchor — projected to screen each frame via getWorldPosition(). */
   readonly anchor: Object3D;
   readonly el: HTMLDivElement;
@@ -62,6 +63,7 @@ export const resolveLabelsConfig = (
 
 const SCRATCH_VEC = new Vector3();
 const SCRATCH_VEC_2 = new Vector3();
+const SCRATCH_TO_CAMERA = new Vector3();
 
 export class ChartsLabelsOverlay {
   private readonly container: HTMLDivElement;
@@ -84,19 +86,19 @@ export class ChartsLabelsOverlay {
   }
 
   public setLabels(
-    entries: ReadonlyArray<{ entry: ChartsDataEntry; anchor: Object3D }>
+    entries: ReadonlyArray<{ entry: ChartsDataEntry; entryIndex: number; anchor: Object3D }>
   ): void {
     // Tear down old DOM, rebuild from scratch — entry counts are 10²–10³,
     // so plain rebuild is faster than diffing.
     for (const l of this.labels) l.el.remove();
     this.labels.length = 0;
-    for (const { entry, anchor } of entries) {
+    for (const { entry, entryIndex, anchor } of entries) {
       const el = document.createElement('div');
       el.className = 'charts-label';
       el.textContent = this.cfg.format(entry);
       this.applyStyle(el);
       this.container.appendChild(el);
-      this.labels.push({ entry, anchor, el });
+      this.labels.push({ entry, entryIndex, anchor, el });
     }
   }
 
@@ -134,7 +136,7 @@ export class ChartsLabelsOverlay {
       label.anchor.getWorldPosition(SCRATCH_VEC);
       // Visibility check: hover-only mode hides everything except the hovered chart.
       const isHover =
-        this.cfg.mode === 'hover' && this.hoveredEntryIndex === i;
+        this.cfg.mode === 'hover' && this.hoveredEntryIndex === label.entryIndex;
       if (this.cfg.mode === 'hover' && !isHover) {
         label.el.style.display = 'none';
         continue;
@@ -144,7 +146,7 @@ export class ChartsLabelsOverlay {
       const anchor = SCRATCH_VEC;
       if (this.cfg.mode === 'occlusion' || this.cfg.mode === 'always') {
         const radial = anchor.length();
-        const toCam = anchor.clone().sub(cameraPos);
+        const toCam = SCRATCH_TO_CAMERA.copy(anchor).sub(cameraPos);
         const dot = anchor.x * toCam.x + anchor.y * toCam.y + anchor.z * toCam.z;
         // If the anchor's outward direction faces away from the camera, it's occluded.
         if (this.cfg.mode === 'occlusion' && dot > 0) {

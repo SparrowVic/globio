@@ -32,6 +32,9 @@ export interface PieSegmentHandle {
   readonly mesh: Mesh;
   readonly material: MeshBasicMaterial;
   readonly geometry: BufferGeometry;
+  readonly seriesKey: string | null;
+  readonly seriesIndex: number;
+  readonly value: number;
   /** Optional outline LineSegments parented to the mesh. */
   readonly border?: LineSegments;
 }
@@ -80,7 +83,8 @@ const buildAnnulus = (
   const outerR = size / 2;
   const innerR = outerR * innerRatio;
 
-  const total = sumPositive(entry, series);
+  const values = positiveSeriesValues(entry, series);
+  const total = values.reduce((sum, item) => sum + item.value, 0);
   const border = resolveBorder(layer);
   const group = new Group();
   group.name = innerRatio > 0 ? 'ChartsDonut' : 'ChartsPie';
@@ -90,18 +94,12 @@ const buildAnnulus = (
 
   // Sum of pad angles can't exceed the full circle. Cap so we never
   // produce negative segment angles when caller picks a silly padAngle.
-  const totalPad = Math.min(padAngle * series.length, Math.PI * 1.9);
+  const totalPad = Math.min(padAngle * values.length, Math.PI * 1.9);
   const usableSweep = Math.PI * 2 - totalPad;
-  const padPerGap = totalPad / series.length;
+  const padPerGap = totalPad / values.length;
 
   let cursor = rotation;
-  for (const s of series) {
-    const raw = entry.values[s.key];
-    const value = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
-    if (value <= 0) {
-      cursor += padPerGap;
-      continue;
-    }
+  for (const { series: s, seriesIndex, value } of values) {
     const sweep = (value / total) * usableSweep;
     const startAngle = cursor;
     const endAngle = cursor + sweep;
@@ -115,7 +113,15 @@ const buildAnnulus = (
     const mesh = new Mesh(geometry, material);
     group.add(mesh);
     const handleBorder = border ? attachBorder(mesh, border) : undefined;
-    segments.push({ mesh, material, geometry, ...(handleBorder ? { border: handleBorder } : {}) });
+    segments.push({
+      mesh,
+      material,
+      geometry,
+      seriesKey: s.key,
+      seriesIndex,
+      value,
+      ...(handleBorder ? { border: handleBorder } : {}),
+    });
   }
   return { group, segments };
 };
@@ -201,13 +207,18 @@ const buildDonutSegmentGeometry = (
   return geometry;
 };
 
-const sumPositive = (entry: ChartsDataEntry, series: ReadonlyArray<ChartSeries>): number => {
-  let sum = 0;
-  for (const s of series) {
+const positiveSeriesValues = (
+  entry: ChartsDataEntry,
+  series: ReadonlyArray<ChartSeries>
+): Array<{ readonly series: ChartSeries; readonly seriesIndex: number; readonly value: number }> => {
+  const out: Array<{ series: ChartSeries; seriesIndex: number; value: number }> = [];
+  for (let i = 0; i < series.length; i++) {
+    const s = series[i]!;
     const raw = entry.values[s.key];
-    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) sum += raw;
+    const value = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
+    if (value > 0) out.push({ series: s, seriesIndex: i, value });
   }
-  return sum;
+  return out;
 };
 
 const pickSeriesColor = (
@@ -275,9 +286,17 @@ export const buildGaugeChart = (
     side: DoubleSide,
   });
   const bgMesh = new Mesh(bgGeometry, bgMaterial);
+  bgMesh.position.y = -1e-6;
   group.add(bgMesh);
   // Background arc never gets a border — it's the "track", not the value.
-  segments.push({ mesh: bgMesh, material: bgMaterial, geometry: bgGeometry });
+  segments.push({
+    mesh: bgMesh,
+    material: bgMaterial,
+    geometry: bgGeometry,
+    seriesKey: s.key,
+    seriesIndex: 0,
+    value,
+  });
 
   if (ratio > 0) {
     const fillSweep = fullSweep * ratio;
@@ -290,6 +309,7 @@ export const buildGaugeChart = (
       side: DoubleSide,
     });
     const fillMesh = new Mesh(fillGeometry, fillMaterial);
+    fillMesh.position.y = 1e-6;
     fillMesh.renderOrder = 1; // ensure on top of background
     group.add(fillMesh);
     const fillBorder = border ? attachBorder(fillMesh, border) : undefined;
@@ -297,6 +317,9 @@ export const buildGaugeChart = (
       mesh: fillMesh,
       material: fillMaterial,
       geometry: fillGeometry,
+      seriesKey: s.key,
+      seriesIndex: 0,
+      value,
       ...(fillBorder ? { border: fillBorder } : {}),
     });
   }
@@ -328,7 +351,8 @@ export const buildSunburstChart = (
   const outerInnerR = outerR * 0.55;
   const innerR = outerR * 0.5;
 
-  const total = sumPositive(entry, series);
+  const values = positiveSeriesValues(entry, series);
+  const total = values.reduce((sum, item) => sum + item.value, 0);
   const border = resolveBorder(layer);
   const group = new Group();
   group.name = 'ChartsSunburst';
@@ -339,7 +363,7 @@ export const buildSunburstChart = (
   // Falls back to the first series' colour when no scale is present.
   const coreColor =
     layer.scale && (layer.scale.type === 'sequential' || layer.scale.type === 'diverging')
-      ? pickSeriesColor(series[0] ?? { key: '_total' }, total, total, layer, fallbackColor)
+      ? colorForValue(layer.scale, total, [0, Math.max(total, 1)]) ?? fallbackColor
       : series[0]?.color ?? fallbackColor;
   const coreGeometry = buildPieSegmentGeometry(innerR, 0, Math.PI * 2);
   const coreMaterial = new MeshBasicMaterial({
@@ -355,21 +379,18 @@ export const buildSunburstChart = (
     mesh: coreMesh,
     material: coreMaterial,
     geometry: coreGeometry,
+    seriesKey: null,
+    seriesIndex: -1,
+    value: total,
     ...(coreBorder ? { border: coreBorder } : {}),
   });
 
   // Outer ring — series segments at outerInnerR..outerR.
-  const totalPad = Math.min(padAngle * series.length, Math.PI * 1.9);
+  const totalPad = Math.min(padAngle * values.length, Math.PI * 1.9);
   const usableSweep = Math.PI * 2 - totalPad;
-  const padPerGap = totalPad / Math.max(1, series.length);
+  const padPerGap = totalPad / Math.max(1, values.length);
   let cursor = rotation;
-  for (const s of series) {
-    const raw = entry.values[s.key];
-    const value = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : 0;
-    if (value <= 0) {
-      cursor += padPerGap;
-      continue;
-    }
+  for (const { series: s, seriesIndex, value } of values) {
     const sweep = (value / total) * usableSweep;
     const startAngle = cursor;
     const endAngle = cursor + sweep;
@@ -380,7 +401,15 @@ export const buildSunburstChart = (
     const mesh = new Mesh(geometry, material);
     group.add(mesh);
     const segBorder = border ? attachBorder(mesh, border) : undefined;
-    segments.push({ mesh, material, geometry, ...(segBorder ? { border: segBorder } : {}) });
+    segments.push({
+      mesh,
+      material,
+      geometry,
+      seriesKey: s.key,
+      seriesIndex,
+      value,
+      ...(segBorder ? { border: segBorder } : {}),
+    });
   }
   return { group, segments };
 };

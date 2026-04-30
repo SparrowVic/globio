@@ -772,8 +772,10 @@ export interface ChartsDataEntry {
  */
 export interface ChartsHoverPayload {
   readonly entry: ChartsDataEntry;
+  /** Index in the original `ChartsDataLayer.data` array. */
   readonly entryIndex: number;
   readonly seriesKey: string | null;
+  /** Index in `ChartsDataLayer.series`; `-1` for aggregate-only segments such as sunburst core. */
   readonly seriesIndex: number;
   readonly value: number;
 }

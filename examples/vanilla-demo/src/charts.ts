@@ -182,31 +182,7 @@ applyLayer();
 
 bindRowToggle('type-row', 'type', (value) => {
   settings.chartType = value as ChartType;
-  // Auto-swap to a sensible dataset for the chosen chart-type.
-  // - gauge: needs single value 0..max per country → 'kpi'
-  // - extruded: needs whole-globe coverage so colour spreads across
-  //   countries, not just G7 → 'world-gdp' (~70 economies with ISO ids)
-  // - rest: multi-series default → 'energy'
-  if (settings.chartType === 'gauge' && settings.dataset !== 'kpi') {
-    settings.dataset = 'kpi';
-    setActiveButton('data-row', 'set', 'kpi');
-  } else if (
-    settings.chartType === 'extruded' &&
-    settings.dataset !== 'world-gdp' &&
-    settings.dataset !== 'world-co2'
-  ) {
-    settings.dataset = 'world-gdp';
-    setActiveButton('data-row', 'set', 'world-gdp');
-  } else if (
-    settings.chartType !== 'gauge' &&
-    settings.chartType !== 'extruded' &&
-    (settings.dataset === 'kpi' ||
-      settings.dataset === 'world-gdp' ||
-      settings.dataset === 'world-co2')
-  ) {
-    settings.dataset = 'energy';
-    setActiveButton('data-row', 'set', 'energy');
-  }
+  reconcileDatasetForChartType();
   applyLayer();
 });
 
@@ -221,6 +197,7 @@ function setActiveButton(rowId: string, attr: string, value: string): void {
 
 bindRowToggle('data-row', 'set', (value) => {
   settings.dataset = value as DataSet;
+  reconcileChartTypeForDataset();
   applyLayer();
 });
 
@@ -328,7 +305,7 @@ function applyLayer(): void {
     highlight: settings.highlight,
     segmentStagger: settings.segmentStaggerMs,
     labels:
-      settings.labels === 'off'
+      settings.labels === 'off' || settings.chartType === 'extruded'
         ? false
         : { mode: settings.labels, fontSize: 11 },
     events: {
@@ -353,6 +330,62 @@ function applyLayer(): void {
   setStatus(
     `${data.length} charts · ${series.length} series · type: <b>${settings.chartType}</b>`
   );
+}
+
+function reconcileDatasetForChartType(): void {
+  // Auto-swap to a sensible dataset for the chosen chart-type.
+  // - gauge: single value 0..max per country → 'kpi'
+  // - extruded: whole-globe coverage so colour spreads across countries
+  // - rest: multi-series default → 'energy'
+  if (settings.chartType === 'gauge' && settings.dataset !== 'kpi') {
+    settings.dataset = 'kpi';
+    setActiveButton('data-row', 'set', 'kpi');
+    return;
+  }
+  if (
+    settings.chartType === 'extruded' &&
+    settings.dataset !== 'world-gdp' &&
+    settings.dataset !== 'world-co2'
+  ) {
+    settings.dataset = 'world-gdp';
+    setActiveButton('data-row', 'set', 'world-gdp');
+    return;
+  }
+  if (
+    settings.chartType !== 'gauge' &&
+    settings.chartType !== 'extruded' &&
+    (settings.dataset === 'kpi' ||
+      settings.dataset === 'world-gdp' ||
+      settings.dataset === 'world-co2')
+  ) {
+    settings.dataset = 'energy';
+    setActiveButton('data-row', 'set', 'energy');
+  }
+}
+
+function reconcileChartTypeForDataset(): void {
+  if (settings.dataset === 'kpi' && settings.chartType !== 'gauge') {
+    settings.chartType = 'gauge';
+    setActiveButton('type-row', 'type', 'gauge');
+    return;
+  }
+  if (
+    (settings.dataset === 'world-gdp' || settings.dataset === 'world-co2') &&
+    settings.chartType !== 'extruded'
+  ) {
+    settings.chartType = 'extruded';
+    setActiveButton('type-row', 'type', 'extruded');
+    return;
+  }
+  if (
+    settings.dataset !== 'kpi' &&
+    settings.dataset !== 'world-gdp' &&
+    settings.dataset !== 'world-co2' &&
+    (settings.chartType === 'gauge' || settings.chartType === 'extruded')
+  ) {
+    settings.chartType = 'bars-grouped';
+    setActiveButton('type-row', 'type', 'bars-grouped');
+  }
 }
 
 const tooltip = document.getElementById('tooltip') as HTMLDivElement;

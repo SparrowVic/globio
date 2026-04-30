@@ -14,6 +14,7 @@ import {
   buildGroupedBarsChart,
   buildRadialBarsChart,
   buildStackedBarsChart,
+  computeGlobalValuePeak,
   computeStackedGlobalPeak,
   disposeBars,
   type BarHandle,
@@ -55,8 +56,6 @@ interface ChartInstance {
   readonly startSec: number;
   /** Per-bar / per-segment offset added on top of `startSec`. */
   readonly perSegmentOffset: ReadonlyArray<number>;
-  /** Per-bar / per-segment series key (parallels `bars` / `segments`). */
-  readonly seriesKeys: ReadonlyArray<string>;
   /** Bar handles for bars-* charts. */
   readonly bars?: ReadonlyArray<BarHandle>;
   /** Segment handles for pie / donut. */
@@ -117,6 +116,7 @@ export class ChartsLayer {
   private highlightConfig: ResolvedHighlight = {
     enabled: false,
     color: new Color('#ffffff'),
+    opacity: 0.55,
     dimRest: 0.5,
   };
   /** Flat list of every chart mesh (bars + pie segments) — driven by hover. */
@@ -124,7 +124,16 @@ export class ChartsLayer {
   /** Currently-hovered mesh (null = none). */
   private hoveredMesh: Mesh | null = null;
   /** Maps a chart's mesh.uuid → instance index for fast raycast lookups. */
-  private readonly meshIndex = new Map<string, { instance: ChartInstance; segmentIndex: number }>();
+  private readonly meshIndex = new Map<
+    string,
+    {
+      readonly instance: ChartInstance;
+      readonly mesh: Mesh;
+      readonly seriesKey: string | null;
+      readonly seriesIndex: number;
+      readonly value: number;
+    }
+  >();
 
   public constructor(options: ChartsLayerOptions) {
     this.group = new Group();
@@ -138,7 +147,7 @@ export class ChartsLayer {
     this.raycaster = new Raycaster();
     this.pointer = new Vector2();
     this.applyData(options.layer);
-    this.maybeAttachPointer();
+    this.refreshPointerListeners();
   }
 
   /**
@@ -148,10 +157,11 @@ export class ChartsLayer {
    * re-trigger the mount animation.
    */
   public setData(layer: ChartsDataLayer): void {
+    this.resetInteractiveState();
     this.disposeInstances();
     this.layer = layer;
     this.applyData(layer);
-    this.maybeAttachPointer();
+    this.refreshPointerListeners();
   }
 
   /**
@@ -187,9 +197,7 @@ export class ChartsLayer {
     // Restore original colours before tearing down — keeps subsequent
     // sets / kind-swaps from inheriting a frozen "tinted" state if the
     // same meshes get reused.
-    clearHighlight(this.allMeshes);
-    this.allMeshes.length = 0;
-    this.hoveredMesh = null;
+    this.resetInteractiveState();
     this.disposeInstances();
   }
 
@@ -199,11 +207,17 @@ export class ChartsLayer {
   // back to its (chart instance, segment index) pair in O(1).
   // -------------------------------------------------------------------------
 
-  private maybeAttachPointer(): void {
-    if (this.pointerAttached) return;
+  private refreshPointerListeners(): void {
     if (!this.camera || !this.domElement) return;
+    const labels = resolveLabelsConfig(this.layer.labels);
     const wantsEvents = Boolean(this.layer.events?.onClick || this.layer.events?.onHover);
-    if (!wantsEvents) return;
+    const wantsHoverLabels = labels.enabled && labels.mode === 'hover' && this.layer.chartType !== 'extruded';
+    const wantsPointer = wantsEvents || wantsHoverLabels || this.highlightConfig.enabled;
+    if (!wantsPointer) {
+      this.detachPointer();
+      return;
+    }
+    if (this.pointerAttached) return;
     const el = this.domElement;
     el.addEventListener('pointermove', this.onPointerMove);
     el.addEventListener('pointerdown', this.onPointerDown);
@@ -246,12 +260,26 @@ export class ChartsLayer {
     for (const inst of this.instances) {
       if (inst.bars) {
         for (let i = 0; i < inst.bars.length; i++) {
-          this.meshIndex.set(inst.bars[i]!.mesh.uuid, { instance: inst, segmentIndex: i });
+          const bar = inst.bars[i]!;
+          this.meshIndex.set(bar.mesh.uuid, {
+            instance: inst,
+            mesh: bar.mesh,
+            seriesKey: bar.seriesKey,
+            seriesIndex: bar.seriesIndex,
+            value: bar.value,
+          });
         }
       }
       if (inst.segments) {
         for (let i = 0; i < inst.segments.length; i++) {
-          this.meshIndex.set(inst.segments[i]!.mesh.uuid, { instance: inst, segmentIndex: i });
+          const seg = inst.segments[i]!;
+          this.meshIndex.set(seg.mesh.uuid, {
+            instance: inst,
+            mesh: seg.mesh,
+            seriesKey: seg.seriesKey,
+            seriesIndex: seg.seriesIndex,
+            value: seg.value,
+          });
         }
       }
     }
@@ -274,47 +302,25 @@ export class ChartsLayer {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hits = this.raycaster.intersectObject(this.group, true);
     if (hits.length === 0) return null;
-    const hit = hits[0]!;
-    const lookup = this.meshIndex.get(hit.object.uuid);
-    if (!lookup) return null;
-    const { instance, segmentIndex } = lookup;
-    const seriesKey = instance.seriesKeys[segmentIndex] ?? null;
-    const value = seriesKey ? (instance.entry.values[seriesKey] ?? 0) : 0;
-    return {
-      payload: {
-        entry: instance.entry,
-        entryIndex: instance.entryIndex,
-        seriesKey,
-        seriesIndex: segmentIndex,
-        value,
-      },
-      mesh: hit.object as Mesh,
-    };
+    for (const hit of hits) {
+      const lookup = this.meshIndex.get(hit.object.uuid);
+      if (!lookup) continue;
+      return {
+        payload: {
+          entry: lookup.instance.entry,
+          entryIndex: lookup.instance.entryIndex,
+          seriesKey: lookup.seriesKey,
+          seriesIndex: lookup.seriesIndex,
+          value: lookup.value,
+        },
+        mesh: lookup.mesh,
+      };
+    }
+    return null;
   }
 
   private raycastSegment(event: PointerEvent): ChartsHoverPayload | null {
-    if (!this.camera || !this.domElement) return null;
-    if (this.instances.length === 0) return null;
-    const rect = this.domElement.getBoundingClientRect();
-    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    // Recursive raycast against the layer group — picks up every bar /
-    // segment mesh inside every chart instance with one call.
-    const hits = this.raycaster.intersectObject(this.group, true);
-    if (hits.length === 0) return null;
-    const lookup = this.meshIndex.get(hits[0]!.object.uuid);
-    if (!lookup) return null;
-    const { instance, segmentIndex } = lookup;
-    const seriesKey = instance.seriesKeys[segmentIndex] ?? null;
-    const value = seriesKey ? (instance.entry.values[seriesKey] ?? 0) : 0;
-    return {
-      entry: instance.entry,
-      entryIndex: instance.entryIndex,
-      seriesKey,
-      seriesIndex: segmentIndex,
-      value,
-    };
+    return this.raycastSegmentMesh(event)?.payload ?? null;
   }
 
   private applyData(layer: ChartsDataLayer): void {
@@ -325,15 +331,26 @@ export class ChartsLayer {
     // ExtrudedCountriesLayer covers every entry's polygon at once.
     if (layer.chartType === 'extruded') {
       this.applyExtrudedData(layer);
+      this.applyLabels();
+      this.rebuildHighlightIndex(layer);
       return;
     }
 
     const anchorList = buildAnchorList(layer.data, this.featuresByKey);
-    if (anchorList.length === 0) return;
+    if (anchorList.length === 0) {
+      this.animElapsedSec = 0;
+      this.applyLabels();
+      this.rebuildHighlightIndex(layer);
+      return;
+    }
 
     const stackedPeak =
       layer.chartType === 'bars-stacked'
         ? computeStackedGlobalPeak(layer.data, layer.series)
+        : 0;
+    const valuePeak =
+      layer.chartType === 'bars-grouped' || layer.chartType === 'radial'
+        ? computeGlobalValuePeak(layer.data, layer.series)
         : 0;
     // Flat charts (pie/donut/gauge/sunburst) read best when billboarded
     // toward the camera so they don't squash into ellipses at high latitudes.
@@ -354,8 +371,9 @@ export class ChartsLayer {
       this.animConfig.origin
     );
 
-    for (const { entry, anchor, index } of anchorList) {
-      const rank = entryRanks[index] ?? index;
+    for (let visibleIndex = 0; visibleIndex < anchorList.length; visibleIndex++) {
+      const { entry, anchor, index } = anchorList[visibleIndex]!;
+      const rank = entryRanks[visibleIndex] ?? visibleIndex;
       const instance = this.buildOneChart(
         entry,
         anchor,
@@ -363,6 +381,7 @@ export class ChartsLayer {
         rank,
         layer,
         stackedPeak,
+        valuePeak,
         faceCamera
       );
       if (!instance) continue;
@@ -441,7 +460,7 @@ export class ChartsLayer {
       this.labelsOverlay.updateConfig(resolved);
     }
     this.labelsOverlay.setLabels(
-      this.instances.map((i) => ({ entry: i.entry, anchor: i.group }))
+      this.instances.map((i) => ({ entry: i.entry, entryIndex: i.entryIndex, anchor: i.group }))
     );
   }
 
@@ -452,9 +471,10 @@ export class ChartsLayer {
     rank: number,
     layer: ChartsDataLayer,
     stackedPeak: number,
+    valuePeak: number,
     faceCamera: boolean
   ): ChartInstance | null {
-    const built = buildChartGeometry(entry, layer, this.fallbackColor, stackedPeak);
+    const built = buildChartGeometry(entry, layer, this.fallbackColor, stackedPeak, valuePeak);
     if (!built) return null;
     const { group, bars, segments } = built;
     group.position.copy(anchor.surface);
@@ -474,10 +494,8 @@ export class ChartsLayer {
     const segmentStaggerSec = Math.max(0, layer.segmentStagger ?? 0) / 1000;
     const segmentCount = bars ? bars.length : segments?.length ?? 0;
     const perSegmentOffset: Array<number> = new Array(segmentCount);
-    const seriesKeys: Array<string> = new Array(segmentCount);
     for (let i = 0; i < segmentCount; i++) {
       perSegmentOffset[i] = i * segmentStaggerSec;
-      seriesKeys[i] = layer.series[i]?.key ?? '';
     }
     return {
       group,
@@ -488,7 +506,6 @@ export class ChartsLayer {
       faceCamera,
       startSec,
       perSegmentOffset,
-      seriesKeys,
       ...(bars !== undefined ? { bars } : {}),
       ...(segments !== undefined ? { segments } : {}),
     };
@@ -605,6 +622,14 @@ export class ChartsLayer {
       this.extrudedHandle = null;
     }
   }
+
+  private resetInteractiveState(): void {
+    clearHighlight(this.allMeshes);
+    this.meshIndex.clear();
+    this.allMeshes.length = 0;
+    this.hoveredMesh = null;
+    if (this.labelsOverlay) this.labelsOverlay.setHoveredEntry(-1);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -626,11 +651,12 @@ const buildChartGeometry = (
   entry: ChartsDataEntry,
   layer: ChartsDataLayer,
   fallbackColor: string,
-  stackedPeak: number
+  stackedPeak: number,
+  valuePeak: number
 ): { group: Group; bars?: ReadonlyArray<BarHandle>; segments?: ReadonlyArray<PieSegmentHandle> } | null => {
   switch (layer.chartType) {
     case 'bars-grouped': {
-      const { group, bars } = buildGroupedBarsChart(entry, layer.series, layer, fallbackColor);
+      const { group, bars } = buildGroupedBarsChart(entry, layer.series, layer, fallbackColor, valuePeak);
       return bars.length === 0 ? null : { group, bars };
     }
     case 'bars-stacked': {
@@ -638,7 +664,7 @@ const buildChartGeometry = (
       return bars.length === 0 ? null : { group, bars };
     }
     case 'radial': {
-      const { group, bars } = buildRadialBarsChart(entry, layer.series, layer, fallbackColor);
+      const { group, bars } = buildRadialBarsChart(entry, layer.series, layer, fallbackColor, valuePeak);
       return bars.length === 0 ? null : { group, bars };
     }
     case 'pie': {

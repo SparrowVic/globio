@@ -15,25 +15,29 @@ import type { ChartsDataLayer } from '../types';
 export interface ResolvedHighlight {
   readonly enabled: boolean;
   readonly color: Color;
+  /** 0..1 blend strength toward `color` for the hovered segment. */
+  readonly opacity: number;
   /** 0..1 opacity multiplier applied to non-hovered segments. Default 0.5. */
   readonly dimRest: number;
 }
 
 const DEFAULT_HIGHLIGHT_COLOR = new Color('#ffffff');
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 export const resolveChartsHighlight = (
   input: ChartsDataLayer['highlight']
 ): ResolvedHighlight => {
   if (input === undefined || input === false) {
-    return { enabled: false, color: DEFAULT_HIGHLIGHT_COLOR, dimRest: 0.5 };
+    return { enabled: false, color: DEFAULT_HIGHLIGHT_COLOR, opacity: 0.55, dimRest: 0.5 };
   }
   if (input === true) {
-    return { enabled: true, color: DEFAULT_HIGHLIGHT_COLOR, dimRest: 0.5 };
+    return { enabled: true, color: DEFAULT_HIGHLIGHT_COLOR, opacity: 0.55, dimRest: 0.5 };
   }
   return {
     enabled: true,
     color: new Color(input.color ?? '#ffffff'),
-    dimRest: input.dimRest ?? 0.5,
+    opacity: clamp01(input.opacity ?? 0.55),
+    dimRest: clamp01(input.dimRest ?? 0.5),
   };
 };
 
@@ -78,7 +82,7 @@ export const applyChartsHighlight = (
     if (mesh === targetMesh) {
       // Lerp toward the highlight color (50% blend keeps the segment
       // identifiable while making the hover read clearly).
-      material.color.copy(original).lerp(highlight.color, 0.55);
+      material.color.copy(original).lerp(highlight.color, highlight.opacity);
     } else {
       // Dim by multiplying RGB by dimRest — keeps hue, kills saturation.
       material.color

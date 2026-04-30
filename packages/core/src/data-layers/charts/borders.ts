@@ -24,7 +24,7 @@ export const resolveBorder = (layer: ChartsDataLayer): ResolvedBorder | null => 
   if (opacity === 0) return null;
   return {
     color: layer.borderColor,
-    opacity: opacity ?? 0.55,
+    opacity: Math.max(0, Math.min(1, opacity ?? 0.55)),
   };
 };
 
