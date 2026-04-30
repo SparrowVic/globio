@@ -23,7 +23,7 @@ import type { HeatmapDataLayer, HeatmapNormalize } from '../types';
 import type { CountryFeature } from '../../renderer/country-feature';
 import { VERTEX_SHADER, FRAGMENT_SHADER } from './shaders';
 import { encodeCurve } from './kernels';
-import { lerpCpu, smoothstepCpu } from './polygon-utils';
+import { clampCpu, lerpCpu, smoothstepCpu } from './polygon-utils';
 import { writePalette } from './palette';
 import { computeBakeKey, computePaletteKey } from './bake-keys';
 import {
@@ -37,6 +37,16 @@ import {
 import { blurDensity, paintSample } from './radial-baker';
 import { paintCountryDomeSamples } from './country-dome';
 import { buildCountryFeatureIndex } from './country-features';
+import {
+  DISABLED_ANIMATION,
+  animationBakeTag,
+  buildEasingLut,
+  easingFunctionFor,
+  encodeAnimationStyle,
+  entryAnimationDelaySec,
+  resolveAnimationConfig,
+  type ResolvedHeatmapAnimationConfig,
+} from './animation';
 
 const DEFAULT_RADIUS_RAD = 0.10;
 /**
@@ -114,6 +124,30 @@ export class HeatmapLayer {
   private zoomScaling: ResolvedHeatmapZoomScalingConfig = DISABLED_ZOOM_SCALING;
   private lastCameraDistance = 3;
   /**
+   * Animation state. `animConfig` mirrors the layer's resolved animation;
+   * `animElapsedSec` advances each tick when `enabled` and `trigger==='init'`.
+   * `easingLut` is a 1×256 RGBA Float texture re-built whenever the easing
+   * name changes; the shader samples it for per-pixel `localT` curve.
+   * `delayMapTexture` is the per-pixel start-time map (allocated lazily —
+   * only once any sample needs a non-zero delay; otherwise a 1×1 zero-stub
+   * keeps the uniform binding type-correct).
+   */
+  private animConfig: ResolvedHeatmapAnimationConfig = DISABLED_ANIMATION;
+  private animElapsedSec = 0;
+  private animLastEasing = '';
+  /**
+   * Max per-pixel delay encountered during the last bake (seconds). Lets
+   * `animHasMore()` keep ticking until even the most-delayed country has
+   * had a chance to finish — without this, late-staggered domes would
+   * never reach t=1 because the layer-wide tick would have stopped.
+   */
+  private animMaxPixelDelaySec = 0;
+  private animLastBakeTag = '';
+  private easingLut: DataTexture;
+  private delayMapTexture: DataTexture;
+  private delayMapData: Float32Array;
+  private delayMapHasContent = false;
+  /**
    * Hash of the bake-affecting fields from the last applyData() call —
    * `samples` reference, `kernel`, `radius`, `blurPasses`, `normalize`,
    * `absoluteMax`. Setting a layer with the same key re-uses the existing
@@ -175,6 +209,41 @@ export class HeatmapLayer {
     this.paletteTexture.wrapT = ClampToEdgeWrapping;
     this.paletteTexture.needsUpdate = true;
 
+    // Easing LUT (1×256 RGBA Float). Re-encoded each time the resolved
+    // animation easing changes — cheap enough we don't bother caching.
+    this.animConfig = resolveAnimationConfig(layer.animation);
+    const easingLutData = buildEasingLut(this.animConfig.easing) as unknown as Float32Array<ArrayBuffer>;
+    this.easingLut = new DataTexture(
+      easingLutData,
+      256,
+      1,
+      RGBAFormat,
+      FloatType
+    );
+    this.easingLut.minFilter = LinearFilter;
+    this.easingLut.magFilter = LinearFilter;
+    this.easingLut.wrapS = ClampToEdgeWrapping;
+    this.easingLut.wrapT = ClampToEdgeWrapping;
+    this.easingLut.needsUpdate = true;
+    this.animLastEasing = this.animConfig.easing;
+
+    // Delay map starts as a 1×1 zero texture so the shader sampler binding
+    // is always valid; if any sample needs a non-zero delay the bake path
+    // promotes this to a full-resolution Float32 R texture (see ensureDelayMap).
+    this.delayMapData = new Float32Array(1);
+    this.delayMapTexture = new DataTexture(
+      this.delayMapData as unknown as Float32Array<ArrayBuffer>,
+      1,
+      1,
+      RedFormat,
+      FloatType
+    );
+    this.delayMapTexture.minFilter = LinearFilter;
+    this.delayMapTexture.magFilter = LinearFilter;
+    this.delayMapTexture.wrapS = RepeatWrapping;
+    this.delayMapTexture.wrapT = ClampToEdgeWrapping;
+    this.delayMapTexture.needsUpdate = true;
+
     const blendMode = layer.blendMode ?? 'normal';
     const blending: Blending =
       (options.blending as Blending | undefined) ??
@@ -204,9 +273,18 @@ export class HeatmapLayer {
 
   public setData(layer: HeatmapDataLayer): void {
     const bakeKey = computeBakeKey(layer);
-    if (bakeKey !== this.lastBakeKey) {
+    const animBakeTag = animationBakeTag(layer.animation);
+    const bakeChanged =
+      bakeKey !== this.lastBakeKey || animBakeTag !== this.animLastBakeTag;
+    if (bakeChanged) {
       this.applyData(layer);
       this.lastBakeKey = bakeKey;
+      this.animLastBakeTag = animBakeTag;
+      // Re-trigger the init animation when the dataset / animation timing
+      // actually changed. Keeps mid-flight HUD slider tweaks (intensity,
+      // curve) from re-playing the bloom every keystroke.
+      const cfg = resolveAnimationConfig(layer.animation);
+      if (cfg.enabled && cfg.trigger === 'init') this.animElapsedSec = 0;
     } else {
       // Skip the (expensive) bake — only palette / shader uniforms can
       // possibly need updating in this branch.
@@ -230,11 +308,60 @@ export class HeatmapLayer {
     this.applyZoomScaling(cameraDistance);
   }
 
+  /**
+   * Advance the mount/init animation by `deltaSec` and write `uAnimT` /
+   * `uAnimTimeSec` into the shader. Cheap no-op when the animation is
+   * disabled or already complete (the delay-map path can keep "completing"
+   * pixels for an extra `maxDelay` window — see `animHasMore()`).
+   */
+  public tick(deltaSec: number): void {
+    if (!this.animConfig.enabled) return;
+    if (!this.animHasMore()) return;
+    this.animElapsedSec += Math.max(0, deltaSec);
+    const u = this.material.uniforms;
+    u['uAnimTimeSec']!.value = this.animElapsedSec;
+    const rawT = clampCpu(
+      (this.animElapsedSec - this.animConfig.delay) / Math.max(1e-4, this.animConfig.duration),
+      0,
+      1
+    );
+    u['uAnimT']!.value = easingFunctionFor(this.animConfig.easing)(rawT);
+  }
+
+  /**
+   * Restart the init animation from t=0. Storyteller hook for the future:
+   * once we wire `'enter'` / `'leave'` triggers, this same path resets the
+   * timeline; the `target` selector argument is reserved for the per-entry
+   * variant (rebuilds the delay map masking only the matched samples).
+   */
+  public playAnimation(): void {
+    if (!this.animConfig.enabled) return;
+    this.animElapsedSec = 0;
+    const u = this.material.uniforms;
+    u['uAnimT']!.value = 0;
+    u['uAnimTimeSec']!.value = 0;
+  }
+
+  /**
+   * `true` while at least one pixel still has unfinished animation. The
+   * delay-map case can run past the layer-wide window because each pixel
+   * adds its own `pixelDelay`. We approximate this by tracking the max
+   * delay encountered during the last bake.
+   */
+  private animHasMore(): boolean {
+    if (!this.animConfig.enabled) return false;
+    const totalSec =
+      this.animConfig.delay + this.animConfig.duration + this.animMaxPixelDelaySec;
+    return this.animElapsedSec < totalSec + 0.05;
+  }
+
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
     this.densityTexture.dispose();
     this.paletteTexture.dispose();
+    this.easingLut.dispose();
+    this.delayMapTexture.dispose();
   }
 
   private buildUniforms(
@@ -283,6 +410,18 @@ export class HeatmapLayer {
       uContourMajorOpacity: { value: contours.majorOpacity },
       uContourDensityFade: { value: contours.densityFade },
       uContourZoomScale: { value: 1 },
+      // Animation uniforms — `uAnimT` is the layer-wide eased value (used
+      // when the delay map is absent / 1×1), `uAnimTimeSec` is real elapsed
+      // time fed to the per-pixel path so delay-map pixels can reproduce
+      // their own local timeline. `uHasDelayMap=0` skips the texture read.
+      uDelayMap: { value: this.delayMapTexture },
+      uEasingLut: { value: this.easingLut },
+      uAnimEnabled: { value: this.animConfig.enabled ? 1 : 0 },
+      uAnimStyle: { value: encodeAnimationStyle(this.animConfig.style) },
+      uAnimHasDelayMap: { value: 0 },
+      uAnimT: { value: this.animConfig.enabled ? 0 : 1 },
+      uAnimTimeSec: { value: 0 },
+      uAnimDurationSec: { value: this.animConfig.duration },
     };
   }
 
@@ -307,8 +446,34 @@ export class HeatmapLayer {
     u['uRimFade']!.value = Math.max(0, layer.rimFade ?? DEFAULT_RIM_FADE);
     this.applyGridUniforms(layer);
     this.applyContourUniforms(layer);
+    this.applyAnimationUniforms(layer);
     this.zoomScaling = resolveZoomScaling(layer.zoomScaling);
     this.applyZoomScaling(this.lastCameraDistance);
+  }
+
+  /**
+   * Reconcile the resolved animation config with the shader uniforms.
+   * Re-encodes the easing LUT only when the easing name changed (cheap,
+   * but no point doing it every slider movement). Toggling `enabled` mid-
+   * play snaps the layer to its final state to avoid a frozen-mid-animation
+   * artifact when the user disables it from the HUD.
+   */
+  private applyAnimationUniforms(layer: HeatmapDataLayer): void {
+    const next = resolveAnimationConfig(layer.animation);
+    const u = this.material.uniforms;
+    u['uAnimEnabled']!.value = next.enabled ? 1 : 0;
+    u['uAnimStyle']!.value = encodeAnimationStyle(next.style);
+    u['uAnimDurationSec']!.value = next.duration;
+    if (!next.enabled) {
+      u['uAnimT']!.value = 1;
+    }
+    if (next.easing !== this.animLastEasing) {
+      const lut = this.easingLut.image.data as unknown as Float32Array;
+      lut.set(buildEasingLut(next.easing));
+      this.easingLut.needsUpdate = true;
+      this.animLastEasing = next.easing;
+    }
+    this.animConfig = next;
   }
 
   private applyGridUniforms(layer: HeatmapDataLayer): void {
@@ -375,8 +540,16 @@ export class HeatmapLayer {
       this.peakDensity = 0;
       writePalette(this.paletteTexture.image.data as unknown as Float32Array, this.paletteSteps, layer, this.fallbackColor);
       this.paletteTexture.needsUpdate = true;
+      this.resetDelayMap();
       return;
     }
+
+    const animCfg = resolveAnimationConfig(layer.animation);
+    const { entryDelaysSec, needsDelayMap, maxDelaySec } = this.computeEntryDelays(
+      samples,
+      animCfg
+    );
+    const delayMap = needsDelayMap ? this.ensureDelayMap() : undefined;
 
     const defaultRadius = layer.radius ?? DEFAULT_RADIUS_RAD;
     const kernel = layer.kernel ?? 'gaussian';
@@ -389,7 +562,9 @@ export class HeatmapLayer {
             this.textureHeight,
             samples,
             this.countryFeaturesByKey,
-            countryDomes
+            countryDomes,
+            delayMap,
+            entryDelaysSec
           )
         : EMPTY_SAMPLE_SET;
     // When per-country normalize is on, clamp every fallback radial stamp
@@ -414,7 +589,9 @@ export class HeatmapLayer {
         entry.position[1],
         radius,
         stampValue,
-        kernel
+        kernel,
+        delayMap,
+        entryDelaysSec?.[i]
       );
     }
 
@@ -466,5 +643,105 @@ export class HeatmapLayer {
       this.fallbackColor
     );
     this.paletteTexture.needsUpdate = true;
+
+    // Finalise the delay map: replace the painter's "unset" sentinel with
+    // 0 (start at t=0 = follow the layer-wide bloom). Update the shader
+    // toggle + remember the worst-case delay so `tick()` keeps running
+    // until even the latest staggered country has had a chance to finish.
+    this.finaliseDelayMap(needsDelayMap, maxDelaySec);
+  }
+
+  /**
+   * Walk samples once to build the per-entry effective delay (seconds).
+   * Returns `needsDelayMap=false` when every sample resolves to the same
+   * delay as the layer-wide config — in that case the shader can skip the
+   * delay-map texture sample and use `uAnimT` directly, saving GPU work
+   * and avoiding the 8MB delay-map allocation entirely.
+   */
+  private computeEntryDelays(
+    samples: ReadonlyArray<HeatmapDataLayer['data'][number]>,
+    animCfg: ResolvedHeatmapAnimationConfig
+  ): {
+    readonly entryDelaysSec: ReadonlyArray<number> | undefined;
+    readonly needsDelayMap: boolean;
+    readonly maxDelaySec: number;
+  } {
+    if (!animCfg.enabled) {
+      return { entryDelaysSec: undefined, needsDelayMap: false, maxDelaySec: 0 };
+    }
+    const delays: Array<number> = new Array(samples.length);
+    let any = false;
+    let maxDelay = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const result = entryAnimationDelaySec(samples[i]!.animation, animCfg.stagger, i);
+      const d = result.enabled ? result.delay : 0;
+      delays[i] = d;
+      if (d > 0) any = true;
+      if (d > maxDelay) maxDelay = d;
+    }
+    return { entryDelaysSec: delays, needsDelayMap: any, maxDelaySec: maxDelay };
+  }
+
+  /**
+   * Promote the 1×1 stub delay map to the full density-texture resolution
+   * if it hasn't been already, fill it with the "unset" sentinel, and
+   * return the writable Float32Array view. The shader's `min` rule then
+   * selects the smallest written delay per pixel; pixels untouched by
+   * any sample remain at the sentinel and are reset to 0 in the finalise
+   * step (= "follow layer-wide bloom").
+   */
+  private ensureDelayMap(): Float32Array {
+    const expectedLength = this.textureWidth * this.textureHeight;
+    if (this.delayMapData.length !== expectedLength) {
+      this.delayMapData = new Float32Array(expectedLength);
+      this.delayMapTexture.dispose();
+      this.delayMapTexture = new DataTexture(
+        this.delayMapData as unknown as Float32Array<ArrayBuffer>,
+        this.textureWidth,
+        this.textureHeight,
+        RedFormat,
+        FloatType
+      );
+      this.delayMapTexture.minFilter = LinearFilter;
+      this.delayMapTexture.magFilter = LinearFilter;
+      this.delayMapTexture.wrapS = RepeatWrapping;
+      this.delayMapTexture.wrapT = ClampToEdgeWrapping;
+      this.material.uniforms['uDelayMap']!.value = this.delayMapTexture;
+    }
+    this.delayMapData.fill(DELAY_SENTINEL);
+    return this.delayMapData;
+  }
+
+  private resetDelayMap(): void {
+    if (this.delayMapHasContent) this.delayMapData.fill(0);
+    this.delayMapHasContent = false;
+    this.animMaxPixelDelaySec = 0;
+    const u = this.material.uniforms;
+    u['uAnimHasDelayMap']!.value = 0;
+    this.delayMapTexture.needsUpdate = true;
+  }
+
+  private finaliseDelayMap(used: boolean, maxDelaySec: number): void {
+    if (!used) {
+      this.resetDelayMap();
+      return;
+    }
+    // Replace any unwritten sentinel with 0 (= "play with the layer-wide
+    // timeline"). Clamp to a reasonable upper bound so floating-point
+    // garbage can't drift the shader into negative `(time - delay)` ranges.
+    const buf = this.delayMapData;
+    for (let i = 0; i < buf.length; i++) {
+      if (buf[i]! >= DELAY_SENTINEL_THRESHOLD) buf[i] = 0;
+    }
+    this.delayMapHasContent = true;
+    this.animMaxPixelDelaySec = maxDelaySec;
+    const u = this.material.uniforms;
+    u['uAnimHasDelayMap']!.value = 1;
+    this.delayMapTexture.needsUpdate = true;
   }
 }
+
+/** Sentinel meaning "no sample painted this pixel yet" — well above any
+ *  reasonable delay (max 35s after clamping in resolveAnimationConfig). */
+const DELAY_SENTINEL = 1e9;
+const DELAY_SENTINEL_THRESHOLD = 1e6;

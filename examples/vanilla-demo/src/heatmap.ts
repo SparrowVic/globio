@@ -83,6 +83,12 @@ interface Settings {
   domePreScale: DomePreScale;
   domeRounding: number;
   domePerCountryNormalize: boolean;
+  animEnabled: boolean;
+  animStyle: 'rise' | 'pop' | 'fade';
+  animEasing: string;
+  animDurationMs: number;
+  animStaggerMs: number;
+  animDelayMs: number;
 }
 
 const SURFACE_PRESETS: Record<SurfaceMode, Partial<Settings>> = {
@@ -335,6 +341,12 @@ const settings: Settings = {
   domePreScale: 'log',
   domeRounding: 1,
   domePerCountryNormalize: false,
+  animEnabled: true,
+  animStyle: 'rise',
+  animEasing: 'ease-out-cubic',
+  animDurationMs: 1200,
+  animStaggerMs: 12,
+  animDelayMs: 0,
 };
 
 // Slightly darker variant of outline-dark so the heatmap colours have more
@@ -509,6 +521,52 @@ bindRowToggle('dome-norm-row', 'norm', (value) => {
   if (el) el.textContent = settings.domePerCountryNormalize ? 'on' : 'off';
   applyLayerDebounced();
 });
+
+// Animation controls. The duration/easing changes are shader-only (cheap)
+// so they don't need debounce; stagger triggers a delay-map re-bake so we
+// fire it through the debounced applyLayer to coalesce drag events.
+bindRowToggle('anim-style-row', 'animStyle', (value) => {
+  settings.animStyle = value as Settings['animStyle'];
+  const el = document.getElementById('anim-style-value');
+  if (el) el.textContent = settings.animStyle;
+  applyLayer();
+});
+
+bindRowToggle('anim-enabled-row', 'animEnabled', (value) => {
+  settings.animEnabled = value === 'on';
+  applyLayer();
+});
+
+const easingSelect = document.getElementById('anim-easing') as HTMLSelectElement | null;
+if (easingSelect) {
+  easingSelect.value = settings.animEasing;
+  easingSelect.addEventListener('change', () => {
+    settings.animEasing = easingSelect.value;
+    const el = document.getElementById('anim-easing-value');
+    if (el) el.textContent = settings.animEasing;
+    applyLayer();
+  });
+}
+
+bindSlider('anim-duration', 'anim-duration-value', 0, (v) => {
+  settings.animDurationMs = Math.round(v);
+  applyLayer();
+});
+
+bindSlider('anim-stagger', 'anim-stagger-value', 0, (v) => {
+  settings.animStaggerMs = Math.round(v);
+  applyLayerDebounced();
+});
+
+bindSlider('anim-delay', 'anim-delay-value', 0, (v) => {
+  settings.animDelayMs = Math.round(v);
+  applyLayer();
+});
+
+const replayBtn = document.getElementById('anim-replay');
+if (replayBtn) {
+  replayBtn.addEventListener('click', () => void applyLayer());
+}
 
 function bindRowToggle(rowId: string, attr: string, onPick: (value: string) => void): void {
   const row = document.getElementById(rowId);
@@ -732,6 +790,15 @@ async function applyLayer(): Promise<void> {
             perCountryNormalize: settings.domePerCountryNormalize,
           }
         : false,
+    animation: settings.animEnabled
+      ? {
+          style: settings.animStyle,
+          duration: settings.animDurationMs,
+          delay: settings.animDelayMs,
+          stagger: settings.animStaggerMs,
+          easing: settings.animEasing as never,
+        }
+      : false,
     ...detailOptions,
   });
   const dt = performance.now() - t0;

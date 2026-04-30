@@ -23,6 +23,8 @@
  */
 export const VERTEX_SHADER = /* glsl */ `
 uniform sampler2D uDensity;
+uniform sampler2D uDelayMap;
+uniform sampler2D uEasingLut;
 uniform vec2 uTextureSize;
 uniform float uMaxHeight;
 uniform float uZoomHeightScale;
@@ -31,11 +33,36 @@ uniform float uThreshold;
 uniform float uZoomThresholdBoost;
 uniform int uCurve;
 uniform int uDispCurve;
+uniform int uAnimEnabled;
+uniform int uAnimStyle;
+uniform int uAnimHasDelayMap;
+uniform float uAnimT;
+uniform float uAnimTimeSec;
+uniform float uAnimDurationSec;
 
 varying vec3 vDir;
 varying vec3 vNormal;
 varying float vShaped;
+varying float vAnimT;
 varying float vRadialFacing;
+
+float animLocalT(vec2 uv) {
+  if (uAnimEnabled == 0) return 1.0;
+  if (uAnimHasDelayMap == 0) return uAnimT;
+  float pixelDelay = texture2D(uDelayMap, uv).r;
+  float raw = clamp((uAnimTimeSec - pixelDelay) / max(uAnimDurationSec, 1e-4), 0.0, 1.0);
+  return texture2D(uEasingLut, vec2(raw, 0.5)).r;
+}
+
+// Multiplier on raw (un-eased) displacement for per-style shape.
+//   rise: t  → linear ramp of displacement, alpha follows t
+//   pop : t  → same as rise (overshoot lives in the easing curve itself)
+//   fade: 1  → displacement is full-strength from frame 0; only alpha rides t
+float animDisplacementScale(float t) {
+  if (uAnimEnabled == 0) return 1.0;
+  if (uAnimStyle == 2) return 1.0;
+  return t;
+}
 
 float curveFn(float v, int curveCode) {
   if (curveCode == 0) return v;
@@ -69,6 +96,10 @@ void main() {
   vDir = dir;
   vec2 uv = dirToUv(dir);
 
+  float animT = animLocalT(uv);
+  vAnimT = animT;
+  float dispScale = animDisplacementScale(animT);
+
   float shaped = displacementAtUv(uv);
   vShaped = shaped;
 
@@ -95,7 +126,7 @@ void main() {
     vNormal = dir;
   }
 
-  vec3 displaced = position + dir * (shaped * maxHeight);
+  vec3 displaced = position + dir * (shaped * maxHeight * dispScale);
   vNormal = normalize((modelMatrix * vec4(vNormal, 0.0)).xyz);
   vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
   vec3 worldRadial = normalize((modelMatrix * vec4(dir, 0.0)).xyz);
@@ -144,10 +175,13 @@ uniform float uContourDensityFade;
 uniform float uContourZoomScale;
 uniform int uCurve;
 uniform int uBlendMode;
+uniform int uAnimEnabled;
+uniform int uAnimStyle;
 
 varying vec3 vDir;
 varying vec3 vNormal;
 varying float vShaped;
+varying float vAnimT;
 varying float vRadialFacing;
 
 float curveFn(float v, int curveCode) {
@@ -238,9 +272,10 @@ void main() {
   shaded = mix(shaded, uGridColor, min(0.85, grid * 1.05));
   shaded = mix(shaded, uContourColor, contour);
 
-  float alpha = col.a * shaped * uOpacity * uZoomOpacityScale * rim;
-  alpha = max(alpha, grid * 0.82);
-  alpha = max(alpha, contour * 0.9);
+  float alphaScale = (uAnimEnabled == 1) ? clamp(vAnimT, 0.0, 1.0) : 1.0;
+  float alpha = col.a * shaped * uOpacity * uZoomOpacityScale * rim * alphaScale;
+  alpha = max(alpha, grid * 0.82 * alphaScale);
+  alpha = max(alpha, contour * 0.9 * alphaScale);
   if (uBlendMode == 1) {
     gl_FragColor = vec4(shaded * shaped, alpha);
   } else {

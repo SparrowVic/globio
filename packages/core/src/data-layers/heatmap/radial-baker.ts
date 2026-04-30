@@ -26,7 +26,12 @@ export const paintSample = (
   lng: number,
   radiusRad: number,
   value: number,
-  kernel: HeatmapKernel
+  kernel: HeatmapKernel,
+  /** When supplied, every painted pixel gets `pixelDelaySec` written into
+   * `delayMap` (smaller value wins when multiple samples overlap, so the
+   * earliest scheduled delay always governs that pixel's animation start). */
+  delayMap?: Float32Array,
+  pixelDelaySec?: number
 ): void => {
   const cu = ((lng + 180) / 360) * width;
   const cv = ((90 - lat) / 180) * height;
@@ -69,7 +74,11 @@ export const paintSample = (
       const t2 = chordSq * invChordSqMax;
       const w = applyKernelChord(kernel, t2);
       if (w <= 0) continue;
-      data[rowOffset + u]! += value * w;
+      const idx = rowOffset + u;
+      data[idx]! += value * w;
+      if (delayMap !== undefined && pixelDelaySec !== undefined) {
+        if (pixelDelaySec < delayMap[idx]!) delayMap[idx] = pixelDelaySec;
+      }
     }
   }
 };

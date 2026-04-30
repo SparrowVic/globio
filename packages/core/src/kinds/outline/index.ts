@@ -157,8 +157,9 @@ export const outlineKind: KindModule = {
       globeGroup.add(heatmap.mesh);
       return {
         type: 'heatmap',
-        update() {
+        update(delta: number) {
           heatmap.updateView(ctx.camera.position.length());
+          heatmap.tick(delta);
         },
         setData(next: DataLayer) {
           heatmap.setData(

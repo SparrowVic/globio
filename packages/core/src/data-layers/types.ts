@@ -261,6 +261,72 @@ export interface HeatmapCountryDomeConfig {
 }
 
 /**
+ * Visual style of the heatmap animation:
+ *  - `rise`   — domes/blobs grow vertically out of the globe surface,
+ *               displacement and alpha both ramp from 0 → 1 (default).
+ *  - `pop`    — same as rise but uses an `easeOutBack`-style overshoot
+ *               so each peak settles in with a tiny bounce.
+ *  - `fade`   — alpha 0 → 1 only; displacement is at full strength
+ *               from t=0 (good when `maxHeight` is low / 2D look).
+ */
+export type HeatmapAnimationStyle = 'rise' | 'pop' | 'fade';
+
+/**
+ * Curve applied to the animation `t∈[0,1]` before it drives displacement
+ * scaling and alpha. CSS-style names match their `transition-timing-function`
+ * counterparts where applicable; the Penner names follow the de-facto
+ * Robert Penner library naming.
+ */
+export type HeatmapEasingName =
+  | 'linear'
+  | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out'
+  | 'ease-in-quad' | 'ease-out-quad' | 'ease-in-out-quad'
+  | 'ease-in-cubic' | 'ease-out-cubic' | 'ease-in-out-cubic'
+  | 'ease-in-quart' | 'ease-out-quart' | 'ease-in-out-quart'
+  | 'ease-in-quint' | 'ease-out-quint' | 'ease-in-out-quint'
+  | 'ease-in-sine' | 'ease-out-sine' | 'ease-in-out-sine'
+  | 'ease-in-expo' | 'ease-out-expo' | 'ease-in-out-expo'
+  | 'ease-in-circ' | 'ease-out-circ' | 'ease-in-out-circ'
+  | 'ease-in-back' | 'ease-out-back' | 'ease-in-out-back'
+  | 'ease-in-elastic' | 'ease-out-elastic' | 'ease-in-out-elastic'
+  | 'ease-in-bounce' | 'ease-out-bounce' | 'ease-in-out-bounce';
+
+/**
+ * Heatmap animation — drives the per-frame `t∈[0,1]` factor that scales
+ * displacement and/or alpha. Can be set on the layer (one timeline shared
+ * by every sample) AND/OR overridden per-entry (see {@link HeatmapDataEntry}).
+ *
+ * Future-proofing: `trigger` is currently always `'init'`, but the field
+ * is reserved so storytelling can later call `heatmap.playAnimation({ trigger: 'enter', target: { id } })`
+ * without breaking the public type shape.
+ */
+export interface HeatmapAnimationConfig {
+  /** Defaults to true when the object is supplied. Pass `false` to disable. */
+  readonly enabled?: boolean;
+  /** Visual style — see {@link HeatmapAnimationStyle}. Default `'rise'`. */
+  readonly style?: HeatmapAnimationStyle;
+  /** Animation duration in milliseconds. Default 1200. */
+  readonly duration?: number;
+  /** Initial delay in milliseconds before the timeline starts. Default 0. */
+  readonly delay?: number;
+  /**
+   * Per-entry stagger in milliseconds — each successive entry's effective
+   * start time is shifted by `index × stagger`. Only used by per-point
+   * animation; ignored when no entries are matched into the delay map.
+   * Default 0.
+   */
+  readonly stagger?: number;
+  /** Easing curve — see {@link HeatmapEasingName}. Default `'ease-out-cubic'`. */
+  readonly easing?: HeatmapEasingName;
+  /**
+   * What kicks the animation off. Today only `'init'` is wired (plays
+   * once on construction or on data change). `'manual'` reserves a hook
+   * for storyteller-driven `playAnimation()` calls in a future release.
+   */
+  readonly trigger?: 'init' | 'manual';
+}
+
+/**
  * Volumetric heatmap — many lat/lng samples accumulate into a continuous
  * density field. The density is rendered both as a colour band over the
  * globe AND as a vertical displacement of a high-resolution sphere.
@@ -421,6 +487,15 @@ export interface HeatmapDataLayer {
    */
   readonly countryDomes?: boolean | HeatmapCountryDomeConfig;
 
+  /**
+   * Mount/init animation. `true` enables the default rise (1.2s,
+   * `ease-out-cubic`); object form lets you tune duration / easing /
+   * stagger / style. Set `false` to mount instantly. Per-entry overrides
+   * (`HeatmapDataEntry.animation.delay`) compose with the layer-level
+   * `stagger` to drive a per-pixel delay map at bake time.
+   */
+  readonly animation?: boolean | HeatmapAnimationConfig;
+
   readonly events?: DataLayerEvents<HeatmapDataEntry>;
 }
 
@@ -435,6 +510,14 @@ export interface HeatmapDataEntry {
   readonly radius?: number;
   /** Per-sample weight multiplier. Default 1. */
   readonly weight?: number;
+  /**
+   * Per-entry animation override. Only `delay` (relative shift in ms,
+   * combined with the layer's `stagger`) and `enabled: false` (skip this
+   * entry from the animation entirely) are honoured today; `style`,
+   * `easing`, `duration` come from the layer-level config so the GPU LUT
+   * stays per-layer. Pass `false` to opt this entry out of animation.
+   */
+  readonly animation?: boolean | HeatmapAnimationConfig;
 }
 
 export type DataLayer =

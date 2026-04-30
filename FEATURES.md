@@ -274,7 +274,21 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Choropleth (country-scale)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'choropleth', data, scale? })`. Per-country fill (`CountriesFillLayer`), value-mapped color via `scale`, fade-in tween 250ms. Legacy `setCountryData(map, scale?)` routes through this same pipeline. Decorations: outline (solid fill).
 - **Bars (lat/lng or country centroid)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'bars', data: [{ id?, position?, value, color? }], scale?, height?, width?, animateOnMount? })`. Per-bar `CylinderGeometry`, anchored at sphere surface, oriented along normal, height `value`-mapped to `[height.min, height.max]`. Mount animation: `'rise'` grows from 0 over `mountDurationMs` (default 700, easeOutCubic). Decorations: outline (solid `MeshBasicMaterial`), dotted (additive glow blending).
 - **Extruded countries (3D choropleth)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'extruded', data, scale?, height?, animateOnMount? })`. Each country polygon lifted along surface normal at value-mapped height; side walls connect surface ring to elevated cap. Per-vertex `directions` array drives rise animation by pushing only the elevated set outward. Decorations: outline (opaque `DoubleSide`), dotted (additive glow).
-- **Density heatmap (volumetric)** `[v1·LAYER·L·built]` 🌟 — `globe.setDataLayer({ type: 'heatmap', data: [{ position, value }], scale?, radius?, maxHeight?, subdivisions? })`. `IcosahedronGeometry` (default 5 subdivisions ≈ 10k verts) with per-vertex density = Σ `value · exp(-d²/r²)`. Density drives both vertex displacement (`maxHeight` at peak) and per-vertex color via the `scale`. Decorations: outline (opaque), dotted (additive glow).
+- **Density heatmap (volumetric, shader-based)** `[v1·LAYER·L·built]` 🌟 — `globe.setDataLayer({ type: 'heatmap', data: [{ position, value, id?, name?, radius?, weight?, animation? }], scale?, ... })`. **Architektura:** equirectangular density texture (default 2048×1024 Float32 R) bake'owana CPU-side, `SphereGeometry` (auto 256² flat / 1024² displaced / 2048² hero), shader robi displacement w vertexie i palette-lookup w fragmencie. Per-fragment UV liczone z 3D direction (omija seam na antymerydianie). Pełna kontrola wizualna:
+  - **Kernels** (`kernel: 'gaussian' | 'epanechnikov' | 'quartic' | 'dome' | 'uniform'`) — różne kształty rozmycia. Hot loop optimized: `cosD` zamiast `acos`, kernel weights z `chord²` zamiast great-circle arc.
+  - **Country-aware domes** (`countryDomes: { centerArea, shoulderHeight, edgeSteepness, valuePreScale: 'log'|'sqrt'|'linear', rounding, perCountryNormalize }`) — entry z `id`/`name` raster'uje się w polygonie kraju (distance-to-edge field via 16×N spatial-hash edge grid + opcjonalny ray-cast blend dla polygon-shape vs bubble). Pole-of-inaccessibility jako anchor, `accumulate=max` przy enclave overlap. Demo presetuje `surface: 'country'` jako landing view.
+  - **Normalize** (`'peak' | 'absolute' | 'log'` + `absoluteMax`) — globalna kontrola kontrastu.
+  - **Curves** (`curve` dla koloru, `displacementCurve` osobno: `'linear'|'smoothstep'|'cubic'|'sqrt'`) — decoupled żeby 3D miało gładki bell-curve nawet gdy kolor używa cubic dla ostrych hotspotów.
+  - **Intensity** (`pow(d, 1/intensity)` gamma — boost'uje midy bez plateau saturacji).
+  - **Threshold** — pixele poniżej fraction-of-peak są transparent.
+  - **Grid + contours** (`grid: { stepDeg, widthDeg, opacity, majorEvery, color }`, `contours: { interval, width, opacity, majorEvery, color }`) — proceduralne in-shader, anti-aliased przez `fwidth`, `densityFade` ukrywa je w cool regions. Bez extra geometrii / z-fightingu z borderami.
+  - **Zoom scaling** (`zoomScaling: { closeDistance, farDistance, closeHeightScale, farHeightScale, closeOpacityScale, farOpacityScale, thresholdBoost, gridBoost, contourBoost }`) — view-dependent shader uniformy bez re-bake. Layer nie wygląda wielki przy zoom-in.
+  - **Animation system** (`animation: { style: 'rise'|'pop'|'fade', duration, delay, stagger, easing, trigger: 'init'|'manual' }`) — init mount: domeny "wyrastają z wnętrza globu" (vertex skaluje displacement przez `t∈[0,1]`, fragment skaluje alpha). 33 krzywe easing (CSS keyword cubic-bezier + pełen Penner: `linear / ease(-in/-out/-in-out) / quad / cubic / quart / quint / sine / expo / circ / back / elastic / bounce`). Per-warstwa **lub** per-rekord (`HeatmapDataEntry.animation: { delay?, enabled? }`) — bake'uje delay map (Float32 R, taka sama jak density) gdy `stagger > 0` lub jakikolwiek entry ma `delay`; shader sampluje delay → liczy `localT = (timeSec - pixelDelay) / duration` → easing przez 256-binową LUT. Bez delay'i mapa nie jest alokowana (1×1 stub, zero kosztu). `playAnimation()` jako publiczny hook reset'uje timeline (story-ready, patrz §4.9.1).
+  - **Bake-key cache** — `setData(layer)` z tym samym `samples` reference + bake-affecting params (kernel/radius/blur/normalize/absoluteMax/animation timing) skip'uje re-bake i tylko refresh'uje shader uniformy. Slidery intensity/threshold/curve/duration/easing są shader-only (instant). Bake jest in-place (Float32Array re-fill, jedna `DataTexture` cały czas).
+  - **Demo** — `examples/vanilla-demo/heatmap.html` ma 5 surface presetów (country / topographic / smooth / peaks), 8 datasetów (countries+population, megacities, worldcities, earthquakes, random, +3 live USGS feeds), pełny HUD z slider'ami radius / height / intensity / threshold / blur / texture-resolution / dome-shape / animation.
+  - **Modularna struktura:** `data-layers/heatmap/` jest 11 plików (`heatmap-layer.ts` orchestrator + `shaders / kernels / polygon-utils / palette / bake-keys / config / radial-baker / edge-grid / country-features / country-dome / animation`).
+  - **Decorations:** outline (built — pełna funkcjonalność), dotted (legacy additive glow displaced sphere — czeka na port na shader-based pipeline). Inne kindy = future.
+  - **TODO / potencjał:** per-record easing/style (dziś tylko delay per-entry — wymaga 2D LUT z entryEasingRow), `playAnimation({ trigger: 'enter'|'leave', target: { id } })` faktyczna implementacja dla story-tellingu, smooth data-update crossfade przy zmianie datasetu, hex-bin agregacja (§4.6 niżej), particle-flow over density field, time-keyframed heat (§4.11).
 - **Hex-bin aggregation** `[v2+·LAYER·L]` — h3-binning, agregacja punktów do hex.
 - **Pulse / halo na markerach** `[v1·LAYER·S]` — emphasizing data points.
 - **Color scale builder** `[v1·LAYER·S·built]` 🌟 — wspólny dla wszystkich data-layerów (choropleth/bars/extruded/heatmap). `{ type: 'sequential' \| 'diverging' \| 'threshold' \| 'categorical', palette, domain?, noDataColor? }`. Built-in palety: `blues / reds / greens / oranges / purples / viridis / magma / plasma / inferno / RdBu / BrBG / PiYG`, plus własna lista hex-stops. Linear-RGB interpolation między stopami; explicit `color` na entry zawsze wygrywa nad skalą; `domain` defaultuje do data extent.
@@ -311,13 +325,37 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 ### 4.9 Animation system
 
-- **Easing primitives** `[v1·GLOBAL·S]` — bundled set easings (cubic-bezier API).
+- **Easing primitives** `[v1·GLOBAL·S·partially-built]` — `utils/easing.ts` ma `linear / easeIn / easeOut / easeInOut` + `resolveEasing()` (używane przez story engine i flyTo). Heatmap-specific biblioteka 33 krzywych (CSS keyword cubic-bezier + pełen Penner: `quad/cubic/quart/quint/sine/expo/circ/back/elastic/bounce` × `in/out/in-out`) leży w `data-layers/heatmap/animation.ts` — kandydat na promocję do globalnego `utils/easings.ts` jak inne layery zaczną tego potrzebować.
+- **Heatmap mount animation** `[v1·LAYER·M·built]` 🌟 — `HeatmapDataLayer.animation: { style: 'rise'|'pop'|'fade', duration, delay, stagger, easing, trigger: 'init'|'manual' }`. Domeny "wyrastają z wnętrza globu" przy `setData()`; per-warstwa LUB per-rekord (`HeatmapDataEntry.animation`). Shader-side easing przez 1D LUT (256 sampli), per-pixel delay map (Float32 R, alokowana lazy gdy `stagger > 0` lub jakikolwiek entry ma `delay`). `HeatmapLayer.tick(deltaSec)` wpięte w `kindHandle.update()` → globe `onRender` loop. `playAnimation()` publiczny hook reset'uje timeline. Patrz §4.6 po pełną listę pól.
+- **Bars / extruded mount animation** `[v1·LAYER·S·built]` — `animateOnMount: 'rise' | 'none'` + `mountDurationMs`. Bars: `easeOutCubic` od `height=0`. Extruded: per-vertex `directions` array push'uje tylko elevated set outward.
 - **Tween manager** `[v1·GLOBAL·S]` — per-instance, cancellable, chainable.
 - **Style transition animation** `[v1.x·GLOBAL·L]` — animowana zmiana z stylu A → B (cross-fade albo morph).
 - **Marker pulse animation** `[v1·LAYER·S]` — opisana w 4.4.
 - **Auto-rotate z custom osią** `[v1·GLOBAL·S]` — np. obrót wokół pochylonej osi (efekt globusa szkolnego).
-- **Reduced-motion support** `[v1·GLOBAL·S]` — respect `prefers-reduced-motion`; skipping animacji.
+- **Reduced-motion support** `[v1·GLOBAL·S]` — respect `prefers-reduced-motion`; skipping animacji + animation timeline'y skacze do końcowego stanu.
 - **Frame-budget primitives** `[v1·GLOBAL·S]` — `requestIdleCallback`-style queue, żeby nie psuć FPS.
+
+### 4.9.1 Data-layer lifecycle hooks (planned) 🌟
+
+> **Cel:** spiąć animation system z story enginem (§4.8) tak, żeby `scene.focusOnCountry: 'PL'` mógł odpalać per-country bloom na heatmapie (`onEnter`) i fade'ować przy wyjściu (`onLeave`), bez wiedzy story-engine'u o specyfice każdego data layera.
+>
+> **Inspiracja:** Angularowy lifecycle (`ngOnInit / ngOnDestroy / ngOnChanges`) — deklaratywne hooki na konkretnych momentach flow'u globe'a, każdy data layer może je opcjonalnie zaimplementować.
+
+- **Lifecycle interface** `[v1.x·LAYER·M]` 🚀 *future* — rozszerzyć `DataLayerHandle` o:
+  ```ts
+  interface DataLayerHandle {
+    onMount?(ctx: LayerContext): void;          // raz, po build (dziś = constructor)
+    onEnter?(ctx: LayerContext, target?: { id: string }): void;  // story focus enter
+    onLeave?(ctx: LayerContext, target?: { id: string }): void;  // story focus leave
+    onSceneChange?(ctx: LayerContext, scene: Scene): void;  // dowolna zmiana sceny
+    onDispose?(ctx: LayerContext): void;        // przed teardown
+  }
+  ```
+  Każdy hook może zwrócić `{ playUntil: number }` żeby story engine poczekał na zakończenie animacji przed `transitionDelay`. Domyślne implementacje są no-op'em.
+- **Heatmap.playAnimation({ trigger, target })** `[v1.x·LAYER·M]` 🚀 — dziś `playAnimation()` resetuje całą warstwę. Future: `target.id` przerysuje delay map maskując tylko piksele wskazanego kraju (reszta zostaje w `t=1`), `trigger: 'leave'` puszcza animację w odwrotną stronę (alpha + displacement od 1→0).
+- **Story → heatmap bridge** `[v1.x·GLOBAL·M]` 🚀 — w `setStory()` payload sceny może zawierać `dataLayer: { animation: HeatmapAnimationConfig }` override'ujący globalny config przy wejściu do sceny. Story engine wywoła `handle.onEnter(ctx, { id: scene.focusOnCountry })` po flyTo settle.
+- **Reverse / chained animations** `[v2+·LAYER·M]` 🚀 — `animation.chain: [{ at: 0.5, animation: {...} }]` — sekwencjonowanie wielu pulsów / kolorów na timeline.
+- **Loop / heartbeat mode** `[v2+·LAYER·S]` 🚀 — `animation.style: 'pulse'` z `period` zamiast `duration`; pulsuje wartość w zakresie `[shoulder, peak]` w nieskończoność (dobre do live-data flagging'u: każdy nowy earthquake "tętni" przez kilka sekund).
 
 ### 4.10 Backgrounds & sky
 
@@ -562,13 +600,15 @@ Reguła kciuka: **data layer = zbiór wartości z jednym dominującym sposobem w
 | **v0.3** | Markery + arcs | Pin/HTML marker, animated arcs, focus-on-country, country labels |
 | **v0.4** | Style #3-#4 | Wireframe + Choropleth, country data binding, hover/click events |
 | **v0.5** | Style #5-#6 | Paper + Hologram, custom shaders pipeline, easings polish |
+| **v0.55** *(in progress)* | Heatmap polish | Shader-based density bake, country-aware domes (distance-to-edge field), 5 kernels / 4 normalize / 4 curves / 5 surface presets, grid + contour overlays, **mount animation system (rise/pop/fade × 33 easings, per-pixel delay map for staggered bloom)**, 11-module refactor, 8 datasets in demo |
 | **v0.6** | Story engine v1 | Declarative scenes, autoplay, manual controls, easings |
-| **v0.7** | A11y + i18n | Keyboard nav, reduced-motion, locale country names |
+| **v0.65** | Story ↔ data-layer bridge | **Lifecycle hooks** (§4.9.1) na `DataLayerHandle` (`onEnter / onLeave / onSceneChange`), `heatmap.playAnimation({ trigger, target })` z per-country masking, story scene config może override'ować animation per scena |
+| **v0.7** | A11y + i18n | Keyboard nav, reduced-motion (heatmap timeline'y skaczą do końca), locale country names |
 | **v0.8** | Wrappery + SSR | React/Angular/Vue dopracowane, SSR safety, error boundaries |
 | **v0.9** | Docs site | Examples per use-case (A,B,C,D,F), storybook, playground |
 | **v1.0** | **Public release** | All 6 styles, 3 wrappery, narrative engine, a11y, docs, tests |
-| **v1.x** | Sub-divisions, time | Admin-1, time slider, density heat, plugin API, region groupings |
-| **v2.0** | Topographic + Neon | Future styles, day/night, video export, Svelte/Web-Component wrappers, scrollytelling |
+| **v1.x** | Sub-divisions, time | Admin-1, time slider, time-keyframed heat, plugin API, region groupings, heatmap heartbeat/pulse mode, smooth data-update crossfade |
+| **v2.0** | Topographic + Neon | Future styles, day/night, video export, Svelte/Web-Component wrappers, scrollytelling, hex-bin agregacja, particle flow over heat field |
 | **stretch** | WYSIWYG, AR/VR | Scene editor, ARView, branching narratives |
 
 **Realistyczny harmonogram dla solo-deva (3-5h/dzień):** v0.5 ~3 mies., v1.0 ~12-15 mies.,

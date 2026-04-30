@@ -296,6 +296,63 @@
         <button data-detail="clean">Clean</button>
       </div>
 
+      <h2>
+        Animation
+        <button id="anim-replay" type="button" style="float:right;font-size:11px;padding:2px 8px">↻ Replay</button>
+      </h2>
+      <div class="slider-row">
+        <label>Style: <span id="anim-style-value">rise</span></label>
+        <div class="row" id="anim-style-row">
+          <button data-anim-style="rise" class="active">Rise</button>
+          <button data-anim-style="pop">Pop</button>
+          <button data-anim-style="fade">Fade</button>
+        </div>
+        <p class="hint">Rise: domes grow up + fade in. Pop: same but with the easing curve's overshoot showing as a tiny bounce. Fade: alpha-only (good when displacement is low).</p>
+      </div>
+      <div class="slider-row">
+        <label>Easing: <span id="anim-easing-value">ease-out-cubic</span></label>
+        <select id="anim-easing">
+          <option value="linear">linear</option>
+          <option value="ease">ease</option>
+          <option value="ease-in">ease-in</option>
+          <option value="ease-out">ease-out</option>
+          <option value="ease-in-out">ease-in-out</option>
+          <option value="ease-out-quad">ease-out-quad</option>
+          <option value="ease-out-cubic" selected>ease-out-cubic</option>
+          <option value="ease-out-quart">ease-out-quart</option>
+          <option value="ease-out-quint">ease-out-quint</option>
+          <option value="ease-out-sine">ease-out-sine</option>
+          <option value="ease-out-expo">ease-out-expo</option>
+          <option value="ease-out-circ">ease-out-circ</option>
+          <option value="ease-out-back">ease-out-back</option>
+          <option value="ease-out-elastic">ease-out-elastic</option>
+          <option value="ease-out-bounce">ease-out-bounce</option>
+          <option value="ease-in-out-cubic">ease-in-out-cubic</option>
+          <option value="ease-in-out-back">ease-in-out-back</option>
+          <option value="ease-in-out-elastic">ease-in-out-elastic</option>
+        </select>
+      </div>
+      <div class="slider-row">
+        <label>Duration: <span id="anim-duration-value">1200</span> ms</label>
+        <input type="range" id="anim-duration" min="100" max="5000" step="50" value="1200" />
+      </div>
+      <div class="slider-row">
+        <label>Stagger: <span id="anim-stagger-value">12</span> ms / entry</label>
+        <input type="range" id="anim-stagger" min="0" max="80" step="1" value="12" />
+        <p class="hint">Per-entry delay step. Bakes a delay map so each country / point starts blooming at <code>index × stagger</code>; 0 = whole layer rises in unison. Values above ~30ms create a visible wave across the globe.</p>
+      </div>
+      <div class="slider-row">
+        <label>Delay: <span id="anim-delay-value">0</span> ms</label>
+        <input type="range" id="anim-delay" min="0" max="2000" step="50" value="0" />
+        <p class="hint">Initial pause before the whole timeline begins (after the bake completes).</p>
+      </div>
+      <div class="slider-row">
+        <div class="row" id="anim-enabled-row">
+          <button data-anim-enabled="on" class="active">On</button>
+          <button data-anim-enabled="off">Off</button>
+        </div>
+      </div>
+
       <hr />
 
       <div class="slider-row">

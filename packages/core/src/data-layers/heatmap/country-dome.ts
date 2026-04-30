@@ -40,7 +40,11 @@ export const paintCountryDome = (
   polygon: CountryPolygon,
   centerLatLng: readonly [number, number],
   value: number,
-  config: ResolvedHeatmapCountryDomeConfig
+  config: ResolvedHeatmapCountryDomeConfig,
+  /** When supplied, every interior pixel gets `pixelDelaySec` written into
+   * `delayMap` (smaller wins on overlap, e.g. enclaves). */
+  delayMap?: Float32Array,
+  pixelDelaySec?: number
 ): boolean => {
   const outer = polygon[0];
   if (!outer || outer.length < 3 || value <= 0) return false;
@@ -162,6 +166,9 @@ export const paintCountryDome = (
     const w = domeWeight(t, config);
     if (w <= 0) continue;
     accumulate(idx, stampPeak * w);
+    if (delayMap !== undefined && pixelDelaySec !== undefined) {
+      if (pixelDelaySec < delayMap[idx]!) delayMap[idx] = pixelDelaySec;
+    }
     wrote = true;
   }
   return wrote;
@@ -178,7 +185,12 @@ export const paintCountryDomeSamples = (
   height: number,
   samples: ReadonlyArray<HeatmapDataLayer['data'][number]>,
   featuresByKey: ReadonlyMap<string, CountryFeature>,
-  config: ResolvedHeatmapCountryDomeConfig
+  config: ResolvedHeatmapCountryDomeConfig,
+  /** Optional parallel delay-map output. `entryDelaysSec[i]` is the
+   * effective per-entry start time (layer.delay + i × stagger + entry override).
+   * Pixels of unmatched samples are left untouched. */
+  delayMap?: Float32Array,
+  entryDelaysSec?: ReadonlyArray<number>
 ): Set<number> => {
   const painted = new Set<number>();
   for (let i = 0; i < samples.length; i++) {
@@ -194,7 +206,9 @@ export const paintCountryDomeSamples = (
       polygon,
       entry.position,
       entry.value * (entry.weight ?? 1),
-      config
+      config,
+      delayMap,
+      entryDelaysSec?.[i]
     );
     if (ok) painted.add(i);
   }
