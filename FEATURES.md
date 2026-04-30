@@ -146,6 +146,8 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Anatomia:** sphere z Earth equirectangular texture + bump/normal map + opcjonalna warstwa borders.
 - **Trade-off:** wymaga licencjonowanej tekstury (Natural Earth, NASA Visible Earth) — kilka MB.
   Bundle albo lazy-load.
+- **Inspiracje (globe.gl screenshots):** "Daytime/Nighttime", "Realistic Earth", "Satellite View".
+- **API kierunek:** nowy `kind: 'satellite'` z opcjonalnym day/night terminator (§4.10) jako global effect, nie cześć kindu.
 
 ### 3.8 Neon Cyberpunk `[v2+·S]` 🎨 `A·F` 🚀 *future*
 
@@ -153,6 +155,28 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Anatomia:** outline + post-processing bloom pass + dwa style passes dla granic.
 - **Trade-off:** prosty technicznie (w gruncie rzeczy outline z post-fx), ale wymaga post-processing
   pipeline który dotąd nie był potrzebny.
+
+### 3.9 Hollow Globe `[v2+·M]` 🎨 `A·F` 🚀 *future*
+
+- **Vibe:** brak wypełnionej kuli — same kraje jako "wycięte" wektorowe sylwetki w pustce. Wnętrze widoczne (back-side wystaje).
+- **Anatomia:** brak globe surface mesh; tylko `CountriesLayer` z DoubleSide rendering, depthWrite off.
+  Picking layer pozostaje jako invisible mesh.
+- **Inspiracja (globe.gl):** "Hollow Globe".
+- **Best for:** futurystyczne UI, info-graphics, marketing teasery.
+
+### 3.10 Tiled / Map-tile Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
+
+- **Vibe:** prawdziwe slippy-map tiles (OSM / Mapbox) zwinięte na sferze — z możliwością zoom-in do poziomu street.
+- **Anatomia:** sphere z dynamic tile loader (XYZ → spherical UV mapping), level-of-detail per zoom.
+- **Inspiracja (globe.gl):** "Map tiles".
+- **Trade-off:** wymaga tile servera (zewnętrzny lub bundle podstawowych); spore complexity.
+
+### 3.11 Hex Polygons Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
+
+- **Vibe:** glob pokryty siatką hexagonalną (h3-grid); kraje wypełnione kolorem heksów.
+- **Anatomia:** generowany h3 hex tessellation; każdy hex to mały Three.js mesh; kolor per-hex z data binding.
+- **Inspiracja (globe.gl):** "Hexed Polygons", "Polygons Per Capita".
+- **Best for:** dataviz dashboardy, density z naturalnym binningiem.
 
 ---
 
@@ -245,11 +269,15 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 ### 4.6 Heat & area layers
 
-- **Choropleth (country-scale)** `[v1·LAYER·M]` — opisany w 3.4 jako styl; tu jako data layer.
-- **Density heatmap (point cloud)** `[v1.x·LAYER·L]` — np. gęstość zaludnienia, zdarzeń.
+> Wszystkie 4 cztery typy z tej sekcji wchodzą jeden-spod-drugiego przez wspólne API `globe.setDataLayer(layer)` — patrz §5c "Data layers" po szczegóły architektoniczne i tabelę dekoracji per kind.
+
+- **Choropleth (country-scale)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'choropleth', data, scale? })`. Per-country fill (`CountriesFillLayer`), value-mapped color via `scale`, fade-in tween 250ms. Legacy `setCountryData(map, scale?)` routes through this same pipeline. Decorations: outline (solid fill).
+- **Bars (lat/lng or country centroid)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'bars', data: [{ id?, position?, value, color? }], scale?, height?, width?, animateOnMount? })`. Per-bar `CylinderGeometry`, anchored at sphere surface, oriented along normal, height `value`-mapped to `[height.min, height.max]`. Mount animation: `'rise'` grows from 0 over `mountDurationMs` (default 700, easeOutCubic). Decorations: outline (solid `MeshBasicMaterial`), dotted (additive glow blending).
+- **Extruded countries (3D choropleth)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'extruded', data, scale?, height?, animateOnMount? })`. Each country polygon lifted along surface normal at value-mapped height; side walls connect surface ring to elevated cap. Per-vertex `directions` array drives rise animation by pushing only the elevated set outward. Decorations: outline (opaque `DoubleSide`), dotted (additive glow).
+- **Density heatmap (volumetric)** `[v1·LAYER·L·built]` 🌟 — `globe.setDataLayer({ type: 'heatmap', data: [{ position, value }], scale?, radius?, maxHeight?, subdivisions? })`. `IcosahedronGeometry` (default 5 subdivisions ≈ 10k verts) with per-vertex density = Σ `value · exp(-d²/r²)`. Density drives both vertex displacement (`maxHeight` at peak) and per-vertex color via the `scale`. Decorations: outline (opaque), dotted (additive glow).
 - **Hex-bin aggregation** `[v2+·LAYER·L]` — h3-binning, agregacja punktów do hex.
 - **Pulse / halo na markerach** `[v1·LAYER·S]` — emphasizing data points.
-- **Color scale builder** `[v1·LAYER·S·built]` 🌟 — `setCountryData(map, { type: 'sequential' \| 'diverging' \| 'threshold' \| 'categorical', palette, domain?, noDataColor? })`. Built-in palety: `blues / reds / greens / oranges / purples / viridis / magma / plasma / inferno / RdBu / BrBG / PiYG`, plus własna lista hex-stops. Linear-RGB interpolation między stopami; explicit `color` na entry zawsze wygrywa nad skalą; `domain` defaultuje do data extent.
+- **Color scale builder** `[v1·LAYER·S·built]` 🌟 — wspólny dla wszystkich data-layerów (choropleth/bars/extruded/heatmap). `{ type: 'sequential' \| 'diverging' \| 'threshold' \| 'categorical', palette, domain?, noDataColor? }`. Built-in palety: `blues / reds / greens / oranges / purples / viridis / magma / plasma / inferno / RdBu / BrBG / PiYG`, plus własna lista hex-stops. Linear-RGB interpolation między stopami; explicit `color` na entry zawsze wygrywa nad skalą; `domain` defaultuje do data extent.
 - **Legend HUD** `[v1·LAYER·S·built]` 🌟 — `globe.showLegend(scale, { title?, format?, tickCount?, position?, width?, style? })` / `globe.hideLegend()`. Auto-renders gradient bar + ticks dla sequential / diverging, swatch list dla threshold (z labelkami `< t0`, `t0 – t1`, `≥ tN`) i categorical. Tokens: `legend.backgroundColor / textColor / titleColor / fontSize / fontFamily / padding / borderRadius`. Przyklejony do containera globusa (4 pozycje), pointer-events disabled (nie blokuje interakcji). Standalone `createLegend({ container, scale, ... })` dla custom umieszczenia.
 - **Polygon overlay (custom area)** `[v1.x·LAYER·M]` — własne wielokąty (np. strefy ekonomiczne).
 - **Iso-lines / contours** `[v2+·LAYER·L]` — np. linie temperatury.
@@ -446,6 +474,85 @@ Niektóre featury są **shared semantically** (każdy rodzaj globu je MA), ale i
 
 ---
 
+## 5c. Data layers 🌟
+
+> **Architektura.** "Data layer" to wysokopoziomowa wizualizacja danych nakładana na **dowolny kind** (outline, dotted, …). Użytkownik aktywuje **jeden** data layer na raz przez `globe.setDataLayer(config | null)`; aktywny kind decyduje **jak** ten layer się rysuje, przez per-kind dekoratory zarejestrowane w `KindHandle.decorations.dataLayers`. Dzięki temu **te same dane** wyglądają inaczej w outline (solidne) vs dotted (additive glow) vs (przyszłość) hologram (cyan + scanline) bez dotykania kodu konsumenta.
+>
+> Patrz też §5b "Decoration pattern roadmap" — to ten sam pattern, ale dla featurów semantycznych (focus pulse, hover crosshair) zamiast danych.
+
+### 5c.1 Public API
+
+```ts
+globe.setDataLayer({ type: 'choropleth' | 'bars' | 'extruded' | 'heatmap', ... });
+globe.setDataLayer(null);          // teardown — disposes the previous handle
+globe.getDataLayer();              // current config | null
+
+// Backward-compatible shortcut for the most common case:
+globe.setCountryData({ '616': { value: 38, color: '#1e6fff' } }); // routes to setDataLayer({ type: 'choropleth', data })
+```
+
+Konfiguracje per-typ są w `data-layers/types.ts` (`ChoroplethDataLayer`, `BarsDataLayer`, `ExtrudedDataLayer`, `HeatmapDataLayer`). Pojedynczy slot — kolejne `setDataLayer(...)` tear-down'uje poprzedni handle i buduje nowy.
+
+### 5c.2 Per-kind matrix (Phase 1–4 deliverables)
+
+| Data layer | outline | dotted | wireframe | paper | hologram |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **choropleth** | ✅ solid fill | — | — *(no surface)* | future *(stamped ink)* | future *(scanline tint)* |
+| **bars** | ✅ solid cylinders | ✅ additive glow | future *(monospace tower)* | future *(ink stack stamps)* | future *(cyan beam + scanline)* |
+| **extruded** | ✅ opaque pillars (DoubleSide) | ✅ additive glow pillars | future | future | future |
+| **heatmap** | ✅ opaque displaced sphere | ✅ additive glow displaced sphere | future | future *(pencil shading)* | future *(scanline tint)* |
+
+Brakująca dekoracja per kind = silent no-op (jednorazowy `console.warn` "kind X has no Y decoration"). Konsument nie crash'uje przy zmianie kindu.
+
+### 5c.3 Mechanika dekoratorów
+
+Każda dekoracja to fabryka:
+
+```ts
+type DataLayerBuilder = (
+  layer: DataLayer,
+  ctx: { globeGroup: Group; features: ReadonlyArray<CountryFeature>; tokens: ResolvedTokens }
+) => DataLayerHandle; // { type, setData?, update?, dispose }
+```
+
+Kind module wystawia komplet w `decorations.dataLayers`:
+
+```ts
+return {
+  decorations: {
+    focusPulse,
+    dataLayers: {
+      choropleth: choroplethBuilder,
+      bars: barsBuilder,
+      extruded: extrudedBuilder,
+      heatmap: heatmapBuilder,
+    },
+  },
+  ...
+};
+```
+
+`globe.ts` w `setDataLayer(layer)`:
+1. Tear-down poprzedniego `state.dataLayer.handle` przez `dispose()`.
+2. Lookup `state.kindHandle.decorations.dataLayers[layer.type]`.
+3. Brak buildera → warn + no-op (zachowujemy poprzednio sclear'owany slot).
+4. Build → `state.dataLayer = { config, handle }`.
+5. Per-frame tick `handle.update?.(delta, elapsedSeconds)` w głównej pętli rendererowej (obok `kindHandle.update`).
+
+`setDataLayer` wywołane **przed** załadowaniem features (czyli przed `kindHandle`) wpada do `pendingDataLayer` — drainowane w `initCountries` po zbudowaniu kindu. Pozwala konsumentowi wystawić dane już w `GlobeConfig` lub od razu po `createGlobe(...)` bez czekania na `ready`.
+
+### 5c.4 Co nie jest data layerem (a mogłoby się wydawać)
+
+Świadome cięcia, żeby utrzymać API klarowne:
+
+- **Markers, HtmlMarkers, Arcs** — to są **layery niezależne od data-layer slot'u**. Można je używać jednocześnie z dowolnym data layerem (np. choropleth + markers + arcs naraz). Patrz §4.4, §4.5, §4.7. To są features zarządzane bezpośrednio przez `setMarkers / setArcs / setHtmlMarkers`, każdy z własnym slotem.
+- **Country labels, focus pulse, hover crosshair** — to są **decorations dekoracyjne** semantyczne (§5b), nie data layery. Inne API (`setCountryLabelsEnabled`, lifecycle hook'i kindu).
+- **Atmosphere, starfield** — to są **global effects** (§4.10). Włączane raz w configu, nie zmieniane runtime per data layer.
+
+Reguła kciuka: **data layer = zbiór wartości z jednym dominującym sposobem wizualizacji, który zmienia look całego globusa**. Jeśli to "punkty na powierzchni które masz dodać do tego co już jest" → markers/arcs.
+
+---
+
 ## 6. Roadmap
 
 | Wersja | Cel główny | Highlights |
@@ -466,6 +573,36 @@ Niektóre featury są **shared semantically** (każdy rodzaj globu je MA), ale i
 
 **Realistyczny harmonogram dla solo-deva (3-5h/dzień):** v0.5 ~3 mies., v1.0 ~12-15 mies.,
 v2.0 +12 mies. To jest pełna prawda, nie marketing.
+
+---
+
+## 6b. Pre-built feature presets (future) 🚀
+
+> Specjalizowane "out-of-the-box" presety które pakują kombinacje data layerów + markers + arcs + opinionated tokens jako jedną instalację. Konsument płaci za to convenience, my płacimy za to spójność wizualną.
+
+### 6b.1 World Cities preset `[v1.x·LAYER·M]` 🚀 *future*
+
+- **Co dostarcza:** zestaw ~1000 największych miast jako `MarkerConfig[]` z `size = log(population)`, always-on `HtmlMarker` labels (declutter na zoom-out), opcjonalny `setDataLayer({ type: 'bars' })` dla per-city populacji.
+- **Inspiracja (globe.gl):** "World Cities", "Population Bars".
+- **API kierunek:** `import { worldCitiesPreset } from '@your-globe/core/presets/world-cities'` → `worldCitiesPreset({ minPopulation: 500_000 })` returns the marker config + suggested data layer.
+- **Decyzja:** wbudowany dataset (lazy-loaded JSON, ~50KB), nie hardcoded.
+
+### 6b.2 Airline Routes preset `[v1.x·LAYER·L]` 🚀 *future*
+
+- **Co dostarcza:** najpopularniejsze airline routes jako `ArcConfig[]` (animated, particle flow), pakiet airport markerów, opcjonalny live-flight feed via `subscribe()`.
+- **Inspiracja (globe.gl):** "Airline Routes".
+- **API kierunek:** `import { airlineRoutesPreset } from '@your-globe/core/presets/airline-routes'` → `airlineRoutesPreset({ source: 'openflights', topN: 1000 })`.
+- **Decyzja:** opt-in, dataset pobierany z CDN (zbyt duży na bundle).
+
+### 6b.3 Earthquakes / Disasters preset `[v2+·LAYER·M]` 🚀 *future*
+
+- **Co dostarcza:** ostatnie trzęsienia ziemi (USGS feed) jako pulse markers + heatmap intensywności + time slider scrubber dla replay.
+- **Inspiracja (globe.gl):** "Recent Earthquakes", "Geographic Heatmap".
+
+### 6b.4 Solar Terminator + Clock preset `[v2+·GLOBAL·M]` 🚀 *future*
+
+- **Co dostarcza:** bieżąca pozycja słońca, global day/night shading (§4.10 jako global effect), zegar UTC HUD, rotacja sceny w czasie rzeczywistym.
+- **Inspiracja (globe.gl):** "Day-Night Cycle".
 
 ---
 

@@ -1,7 +1,24 @@
 import { CountriesDottedLayer } from './dotted-layer';
 import { buildDottedFocusPulse } from '../shared/focus-pulse-decorators';
+import { BarsLayer } from '../../data-layers/bars/bars-layer';
+import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
+import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
+import { AdditiveBlending, DoubleSide, MeshBasicMaterial } from 'three';
 import type { CountryDataMap } from '../../types';
-import type { KindBuildContext, KindHandle, KindModule } from '../types';
+import type {
+  DataLayerBuilder,
+  KindBuildContext,
+  KindHandle,
+  KindModule,
+} from '../types';
+import type {
+  BarsDataLayer,
+  DataLayer,
+  DataLayerHandle,
+  ExtrudedDataLayer,
+  HeatmapDataLayer,
+} from '../../data-layers/types';
+import type { CountryFeature } from '../../renderer/country-feature';
 
 /**
  * Dotted kind extras: a `setHoveredCountry` widening so globe.ts can drive
@@ -69,8 +86,105 @@ export const dottedKind: KindModule = {
       durationSeconds: 1.1,
     });
 
+    // Dotted heatmap: additive glow displacement, peaks blend toward bright.
+    const heatmapBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as HeatmapDataLayer;
+      const heatmap = new HeatmapLayer({
+        layer: cfg,
+        fallbackColor: tokens['countries.dotted.color'],
+        buildMaterial: () =>
+          new MeshBasicMaterial({
+            transparent: true,
+            opacity: 0.55,
+            blending: AdditiveBlending,
+            depthWrite: false,
+          }),
+      });
+      globeGroup.add(heatmap.mesh);
+      return {
+        type: 'heatmap',
+        setData(next: DataLayer) {
+          heatmap.setData(next as HeatmapDataLayer);
+        },
+        dispose() {
+          heatmap.dispose();
+          globeGroup.remove(heatmap.mesh);
+        },
+      };
+    };
+
+    // Dotted extruded: country pillars with additive glow palette.
+    const extrudedBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as ExtrudedDataLayer;
+      const fallback = tokens['countries.dotted.color'];
+      const extruded = new ExtrudedCountriesLayer({
+        features: features as ReadonlyArray<CountryFeature>,
+        layer: cfg,
+        fallbackColor: fallback,
+        buildMaterial: (color) =>
+          new MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.7,
+            side: DoubleSide,
+            blending: AdditiveBlending,
+            depthWrite: false,
+          }),
+      });
+      globeGroup.add(extruded.group);
+      return {
+        type: 'extruded',
+        update(delta: number) {
+          extruded.update(delta);
+        },
+        dispose() {
+          extruded.dispose();
+          globeGroup.remove(extruded.group);
+        },
+      };
+    };
+
+    // Dotted bars: additive glow cylinders that match the dot palette.
+    // Solid colored bars would clash with the soft dot field; additive
+    // blending + the dot color reads as "dots stacked vertically".
+    const barsBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as BarsDataLayer;
+      const fallback = tokens['countries.dotted.color'];
+      const bars = new BarsLayer({
+        features: features as ReadonlyArray<CountryFeature>,
+        layer: cfg,
+        fallbackColor: fallback,
+        buildMaterial: (color) =>
+          new MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.85,
+            blending: AdditiveBlending,
+            depthWrite: false,
+          }),
+      });
+      globeGroup.add(bars.group);
+      return {
+        type: 'bars',
+        update(delta: number) {
+          bars.update(delta);
+        },
+        dispose() {
+          bars.dispose();
+          globeGroup.remove(bars.group);
+        },
+      };
+    };
+
     return {
-      decorations: { focusPulse },
+      decorations: {
+        focusPulse,
+        dataLayers: {
+          bars: barsBuilder,
+          extruded: extrudedBuilder,
+          heatmap: heatmapBuilder,
+        },
+      },
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);

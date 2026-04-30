@@ -3,8 +3,27 @@ import { continentOf, type Continent } from './continent-of';
 import { HoverCrosshairLayer } from './hover-crosshair';
 import { HoverGlowLayer } from './hover-glow-layer';
 import { buildOutlineFocusPulse } from '../shared/focus-pulse-decorators';
+import { CountriesFillLayer } from '../../renderer/countries-fill-layer';
+import { BarsLayer } from '../../data-layers/bars/bars-layer';
+import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
+import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
+import { DoubleSide, MeshBasicMaterial } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
-import type { FocusPulseDecorator, KindBuildContext, KindHandle, KindModule } from '../types';
+import type {
+  BarsDataLayer,
+  ChoroplethDataLayer,
+  DataLayer,
+  DataLayerHandle,
+  ExtrudedDataLayer,
+  HeatmapDataLayer,
+} from '../../data-layers/types';
+import type {
+  DataLayerBuilder,
+  FocusPulseDecorator,
+  KindBuildContext,
+  KindHandle,
+  KindModule,
+} from '../types';
 import type { LatLng } from '../../types';
 import type { Vector3 } from 'three';
 
@@ -48,6 +67,120 @@ export const outlineKind: KindModule = {
       borderOpacity: tokens['countries.border.opacity'],
     });
     globeGroup.add(layer.group);
+
+    // Per-country fill — owned by outline kind, surfaced as the `choropleth`
+    // data-layer decoration. Hidden until `setDataLayer({type:'choropleth'})`
+    // (or the legacy `setCountryData`) routes data through here.
+    const fill = new CountriesFillLayer({
+      features: features as ReadonlyArray<CountryFeature>,
+      defaultColor: tokens['countries.fill.defaultColor'],
+      defaultOpacity: tokens['countries.fill.opacity'],
+    });
+    globeGroup.add(fill.group);
+
+    const choroplethBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as ChoroplethDataLayer;
+      fill.setData(cfg.data, cfg.scale);
+      return {
+        type: 'choropleth',
+        setData(next: DataLayer) {
+          const ncfg = next as ChoroplethDataLayer;
+          fill.setData(ncfg.data, ncfg.scale);
+        },
+        dispose() {
+          fill.setData(null);
+        },
+      };
+    };
+
+    // Outline heatmap: vertex-colored displaced sphere over the underlying
+    // globe. Opaque-ish so it reads as a solid bump at peaks.
+    const heatmapBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as HeatmapDataLayer;
+      const heatmap = new HeatmapLayer({
+        layer: cfg,
+        fallbackColor: tokens['countries.fill.defaultColor'],
+        buildMaterial: () =>
+          new MeshBasicMaterial({
+            transparent: true,
+            opacity: 0.85,
+            depthWrite: false,
+          }),
+      });
+      globeGroup.add(heatmap.mesh);
+      return {
+        type: 'heatmap',
+        setData(next: DataLayer) {
+          heatmap.setData(next as HeatmapDataLayer);
+        },
+        dispose() {
+          heatmap.dispose();
+          globeGroup.remove(heatmap.mesh);
+        },
+      };
+    };
+
+    // Outline extruded: opaque colored 3D pillars per country. DoubleSide so
+    // walls render correctly when looking under a steep angle.
+    const extrudedBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as ExtrudedDataLayer;
+      const fallback = tokens['countries.fill.defaultColor'];
+      const extruded = new ExtrudedCountriesLayer({
+        features: features as ReadonlyArray<CountryFeature>,
+        layer: cfg,
+        fallbackColor: fallback,
+        buildMaterial: (color) =>
+          new MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.85,
+            side: DoubleSide,
+            depthWrite: false,
+          }),
+      });
+      globeGroup.add(extruded.group);
+      return {
+        type: 'extruded',
+        update(delta: number) {
+          extruded.update(delta);
+        },
+        dispose() {
+          extruded.dispose();
+          globeGroup.remove(extruded.group);
+        },
+      };
+    };
+
+    // Outline bars: solid colored cylinders. We default to the active border
+    // color so unscaled data still reads as "outline-look" — but a layer's
+    // own scale or per-entry color overrides this on a per-bar basis.
+    const barsBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as BarsDataLayer;
+      const fallback = tokens['countries.borderActive.color'];
+      const bars = new BarsLayer({
+        features: features as ReadonlyArray<CountryFeature>,
+        layer: cfg,
+        fallbackColor: fallback,
+        buildMaterial: (color) =>
+          new MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.95,
+            depthWrite: false,
+          }),
+      });
+      globeGroup.add(bars.group);
+      return {
+        type: 'bars',
+        update(delta: number) {
+          bars.update(delta);
+        },
+        dispose() {
+          bars.dispose();
+          globeGroup.remove(bars.group);
+        },
+      };
+    };
 
     const outlineConfig = config.outline;
     const glowEnabled = outlineConfig?.hoverGlow?.enabled ?? true;
@@ -98,10 +231,20 @@ export const outlineKind: KindModule = {
     let lastPixelY = 0;
 
     return {
-      decorations: { focusPulse },
+      decorations: {
+        focusPulse,
+        dataLayers: {
+          choropleth: choroplethBuilder,
+          bars: barsBuilder,
+          extruded: extrudedBuilder,
+          heatmap: heatmapBuilder,
+        },
+      },
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);
+        fill.dispose();
+        globeGroup.remove(fill.group);
         if (glow) {
           glow.dispose();
           globeGroup.remove(glow.object);
@@ -116,10 +259,12 @@ export const outlineKind: KindModule = {
         layer.setVisible(visible);
         if (glow) glow.object.visible = visible && glow.object.visible;
         if (crosshair) crosshair.setEnabled(visible);
+        fill.group.visible = visible && fill.group.visible;
       },
       update(delta: number) {
         glow?.update(delta);
         crosshair?.update(delta);
+        fill.update(delta);
         if (dimEnabled || dimDirty) {
           const moved = layer.tickOpacity(delta, DEFAULT_DIM_TAU);
           if (!moved) dimDirty = false;

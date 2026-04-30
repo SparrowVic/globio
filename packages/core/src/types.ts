@@ -540,6 +540,19 @@ export interface GlobeInstance {
   readonly setCountryData: (data: CountryDataMap | null, scale?: ScaleConfig) => void;
   readonly getCountryData: () => CountryDataMap | null;
   /**
+   * Mount or replace the active **data layer** — the high-level data
+   * visualisation slot orthogonal to the kind. Pass `null` to remove.
+   *
+   * `globe.setDataLayer({ type: 'choropleth' | 'bars' | 'extruded' | 'heatmap', ... })`
+   *
+   * Only one data layer can be active at a time. Visual rendering is
+   * delegated to the active kind's decoration; if the kind doesn't ship
+   * a decoration for the requested type, the call is a no-op (with a
+   * single console.warn). See `FEATURES.md` section 5c for the catalogue.
+   */
+  readonly setDataLayer: (layer: import('./data-layers/types').DataLayer | null) => void;
+  readonly getDataLayer: () => import('./data-layers/types').DataLayer | null;
+  /**
    * Toggle on-globe country name labels. If labels weren't enabled in the
    * initial config, this turns them on for the first time and reuses the
    * defaults — pass `setCountryLabels()` afterwards to customise.

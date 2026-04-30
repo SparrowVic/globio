@@ -4,7 +4,6 @@ import { GlobeMesh } from './renderer/globe-mesh';
 import { MarkersLayer } from './renderer/markers-layer';
 import type { CountryFeature } from './renderer/country-feature';
 import { CountriesPickingLayer } from './renderer/countries-picking-layer';
-import { CountriesFillLayer } from './renderer/countries-fill-layer';
 import { CountryLabelsLayer } from './renderer/country-labels-layer';
 import { CountryHighlightLayer } from './renderer/country-highlight-layer';
 import { CountryTooltip } from './renderer/country-tooltip';
@@ -116,7 +115,11 @@ interface InternalState {
   kindHandle: KindHandle | null;
   resolvedKind: GlobeKind;
   countriesPickingLayer: CountriesPickingLayer | null;
-  countriesFillLayer: CountriesFillLayer | null;
+  /**
+   * Loaded country features. Set once `initCountries()` resolves; data-layer
+   * builders read this so they can scaffold their geometry without re-loading.
+   */
+  features: ReadonlyArray<CountryFeature> | null;
   countryLabelsLayer: CountryLabelsLayer | null;
   countryHighlightLayer: CountryHighlightLayer | null;
   countryActiveLayer: CountryHighlightLayer | null;
@@ -129,6 +132,12 @@ interface InternalState {
   emitter: GlobeEventEmitter;
   activeCountryId: string | null;
   countryData: CountryDataMap | null;
+  /**
+   * Active data layer slot. `setDataLayer(...)` replaces the entire pair —
+   * disposes the previous handle, builds a new one via the active kind's
+   * decoration, swaps it in. Null when no data layer is mounted.
+   */
+  dataLayer: { config: import('./data-layers/types').DataLayer; handle: import('./data-layers/types').DataLayerHandle } | null;
   legend: LegendInstance | null;
   /** Last surface click in lat/lng. Used for the focus-pulse `origin: 'click'` mode. */
   lastClickLatLng: LatLng | null;
@@ -154,11 +163,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       arcsLayer.update(state.elapsedSeconds);
       state.kindHandle?.update?.(delta, state.elapsedSeconds);
       state.kindHandle?.decorations?.focusPulse?.update?.(delta);
+      state.dataLayer?.handle.update?.(delta, state.elapsedSeconds);
       state.htmlMarkersLayer.update();
       state.markersLayer.update(delta);
       state.countryHighlightLayer?.update(delta);
       state.countryActiveLayer?.update(delta);
-      state.countriesFillLayer?.update(delta);
       state.countryLabelsLayer?.update();
     },
   });
@@ -413,7 +422,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     kindHandle: null,
     resolvedKind,
     countriesPickingLayer: null,
-    countriesFillLayer: null,
+    features: null,
     countryLabelsLayer: null,
     countryHighlightLayer: null,
     countryActiveLayer: null,
@@ -426,6 +435,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     emitter,
     activeCountryId: null,
     countryData: config.countryData ?? null,
+    dataLayer: null,
     legend: null,
     lastClickLatLng: null,
     elapsedSeconds: 0,
@@ -436,25 +446,22 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     markersLayer.setMarkers(config.markers);
   }
 
+  // Queue for `setDataLayer` calls that arrive before features (and the
+  // active kind's decorators) have loaded. Drained inside `initCountries`
+  // once `state.kindHandle` is built.
+  let pendingDataLayer: import('./data-layers/types').DataLayer | null = null;
+
   const initCountries = async (): Promise<void> => {
     if (!config.countries) return;
     try {
       const features = await loadCountries({ resolution: countries.resolution });
       if (state.destroyed) return;
+      state.features = features as ReadonlyArray<CountryFeature>;
 
-      const fill = new CountriesFillLayer({
-        features: features as ReadonlyArray<CountryFeature>,
-        defaultColor: tokens['countries.fill.defaultColor'],
-        defaultOpacity: tokens['countries.fill.opacity'],
-      });
-      globeGroup.add(fill.group);
-      state.countriesFillLayer = fill;
-      if (state.countryData) fill.setData(state.countryData);
-
-      // Dispatch to the active kind module — outline draws borders, dotted
-      // a Points cloud, wireframe a lat/lng grid (without country geometry),
-      // future kinds whatever they want. The picking layer is mounted
-      // separately below for kinds that opt into country interaction.
+      // Dispatch to the active kind module — outline draws borders + fills,
+      // dotted a Points cloud, wireframe a lat/lng grid (without country
+      // geometry), future kinds whatever they want. The picking layer is
+      // mounted separately below for kinds that opt into country interaction.
       state.kindHandle = kindModule.build({
         globeGroup,
         features: features as ReadonlyArray<CountryFeature>,
@@ -462,6 +469,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         config,
         globeSurfaceMesh: globeMesh.mesh,
       });
+      // Re-apply pending data layer (or legacy countryData) once the kind's
+      // decorators are live. setDataLayer queues silently when kindHandle is
+      // null; here we drain the queue. Order matters: explicit dataLayer
+      // overrides any pending choropleth set via setCountryData.
+      if (pendingDataLayer) {
+        const queued = pendingDataLayer;
+        pendingDataLayer = null;
+        instance.setDataLayer(queued);
+      } else if (state.countryData) {
+        instance.setDataLayer({ type: 'choropleth', data: state.countryData });
+      }
       // Re-apply pending active country to kind handle (e.g. wireframe ring)
       // if user called setActiveCountry before features loaded.
       if (state.activeCountryId) {
@@ -615,8 +633,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       controls.destroy();
       markersLayer.dispose();
       globeMesh.dispose();
+      state.dataLayer?.handle.dispose();
       state.kindHandle?.dispose();
-      state.countriesFillLayer?.dispose();
       state.legend?.dispose();
       state.countriesPickingLayer?.dispose();
       state.countryHighlightLayer?.dispose();
@@ -641,8 +659,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         controls.setZoom(partial.zoom);
       }
       if (partial.countryData !== undefined) {
-        state.countryData = partial.countryData;
-        state.countriesFillLayer?.setData(partial.countryData);
+        instance.setCountryData(partial.countryData);
       }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
@@ -664,12 +681,56 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
     getActiveCountry: () => state.activeCountryId,
     setCountryData: (data, scale) => {
+      // Legacy convenience API; routes through the new DataLayer pipeline so
+      // choropleth rendering goes through the active kind's decoration.
+      // Clearing only yanks the slot when it's currently choropleth — leaves
+      // bars/extruded/heatmap untouched.
       const prev = state.countryData;
       state.countryData = data;
-      state.countriesFillLayer?.setData(data, scale);
       state.kindHandle?.onCountryDataChange?.(data, prev);
+      if (data === null) {
+        if (state.dataLayer?.config.type === 'choropleth') {
+          instance.setDataLayer(null);
+        }
+        return;
+      }
+      instance.setDataLayer({
+        type: 'choropleth',
+        data,
+        ...(scale && { scale }),
+      });
     },
     getCountryData: () => state.countryData,
+    setDataLayer: (layer) => {
+      // Always tear down the previous layer first.
+      state.dataLayer?.handle.dispose();
+      state.dataLayer = null;
+      if (!layer) {
+        pendingDataLayer = null;
+        return;
+      }
+      // No kindHandle yet (features still loading) → queue, drain in
+      // initCountries once decorators are ready.
+      if (!state.kindHandle) {
+        pendingDataLayer = layer;
+        return;
+      }
+      const builder = state.kindHandle.decorations?.dataLayers?.[layer.type];
+      if (!builder) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[globio] kind '${state.resolvedKind}' has no '${layer.type}' data-layer decoration; layer not rendered.`
+        );
+        return;
+      }
+      const handle = builder(layer, {
+        globeGroup,
+        features: state.features ?? [],
+        tokens,
+      });
+      state.dataLayer = { config: layer, handle };
+    },
+    getDataLayer: () => state.dataLayer?.config ?? null,
     setCountryLabelsEnabled: (enabled) => {
       state.countryLabelsLayer?.setEnabled(enabled);
     },

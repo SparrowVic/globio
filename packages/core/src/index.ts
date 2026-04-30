@@ -91,3 +91,15 @@ export {
   type TokenSet,
 } from './theme';
 export { PRESET_DEFAULT_KIND } from './kinds/registry';
+export type {
+  BarsDataEntry,
+  BarsDataLayer,
+  ChoroplethDataLayer,
+  DataLayer,
+  DataLayerEvents,
+  DataLayerHandle,
+  DataLayerType,
+  ExtrudedDataLayer,
+  HeatmapDataEntry,
+  HeatmapDataLayer,
+} from './data-layers/types';

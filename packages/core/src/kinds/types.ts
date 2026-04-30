@@ -112,8 +112,37 @@ export interface FocusPulseDecorator {
   dispose(): void;
 }
 
+/**
+ * Builders for kind-specific data-layer decorations. Each builder takes
+ * the user-supplied layer config + a build context (globeGroup, features,
+ * tokens) and returns a `DataLayerHandle` with dispose / update / setData
+ * lifecycle. Globe.ts calls these on `setDataLayer(...)` and disposes the
+ * previous handle on swap.
+ *
+ * If a kind doesn't register a builder for a given data-layer type, that
+ * type silently no-ops on that kind (a `console.warn` flags it once).
+ */
+export interface DataLayerDecorations {
+  readonly choropleth?: DataLayerBuilder;
+  readonly bars?: DataLayerBuilder;
+  readonly extruded?: DataLayerBuilder;
+  readonly heatmap?: DataLayerBuilder;
+}
+
+export interface DataLayerBuildContext {
+  readonly globeGroup: import('three').Group;
+  readonly features: ReadonlyArray<import('../renderer/country-feature').CountryFeature>;
+  readonly tokens: import('../theme/types').ResolvedTokens;
+}
+
+export type DataLayerBuilder = (
+  layer: import('../data-layers/types').DataLayer,
+  ctx: DataLayerBuildContext
+) => import('../data-layers/types').DataLayerHandle;
+
 export interface KindDecorations {
   readonly focusPulse?: FocusPulseDecorator;
+  readonly dataLayers?: DataLayerDecorations;
   // Future: arcs, markers, hoverBorders, htmlMarkers, labels, starfield…
   // See FEATURES.md "Decoration pattern roadmap".
 }
