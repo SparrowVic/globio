@@ -1,4 +1,4 @@
-import { Group, Raycaster, Vector2, type Camera } from 'three';
+import { Color, Group, Raycaster, Vector2, type Camera, type Mesh } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { ChartsDataEntry, ChartsDataLayer, ChartsHoverPayload } from '../types';
 import {
@@ -28,6 +28,13 @@ import {
 } from './pie-builder';
 import { ChartsLabelsOverlay, resolveLabelsConfig } from './labels-overlay';
 import { buildExtrudedChart, type ExtrudedChartHandle } from './extruded-builder';
+import {
+  applyChartsHighlight,
+  clearHighlight,
+  resolveChartsHighlight,
+  stashOriginalColor,
+  type ResolvedHighlight,
+} from './hover-highlight';
 
 /**
  * Per-entry runtime state — one per chart instance. The orchestrator
@@ -105,6 +112,16 @@ export class ChartsLayer {
   private extrudedHandle: ExtrudedChartHandle | null = null;
   /** Country features kept around for the extruded path (entries → polygons). */
   private readonly countryFeatures: ReadonlyArray<CountryFeature>;
+  /** Resolved hover-highlight config (rebuilt on setData). */
+  private highlightConfig: ResolvedHighlight = {
+    enabled: false,
+    color: new Color('#ffffff'),
+    dimRest: 0.5,
+  };
+  /** Flat list of every chart mesh (bars + pie segments) — driven by hover. */
+  private allMeshes: Array<Mesh> = [];
+  /** Currently-hovered mesh (null = none). */
+  private hoveredMesh: Mesh | null = null;
   /** Maps a chart's mesh.uuid → instance index for fast raycast lookups. */
   private readonly meshIndex = new Map<string, { instance: ChartInstance; segmentIndex: number }>();
 
@@ -166,6 +183,12 @@ export class ChartsLayer {
       this.labelsOverlay.dispose();
       this.labelsOverlay = null;
     }
+    // Restore original colours before tearing down — keeps subsequent
+    // sets / kind-swaps from inheriting a frozen "tinted" state if the
+    // same meshes get reused.
+    clearHighlight(this.allMeshes);
+    this.allMeshes.length = 0;
+    this.hoveredMesh = null;
     this.disposeInstances();
   }
 
@@ -194,10 +217,20 @@ export class ChartsLayer {
   }
 
   private readonly onPointerMove = (event: PointerEvent): void => {
-    const hit = this.raycastSegment(event);
+    const result = this.raycastSegmentMesh(event);
+    const hit = result?.payload ?? null;
     this.layer.events?.onHover?.(hit);
     if (this.labelsOverlay) {
       this.labelsOverlay.setHoveredEntry(hit?.entryIndex ?? -1);
+    }
+    // Highlight: tint the hit segment's material in place. Skip when
+    // the layer hasn't opted in.
+    if (this.highlightConfig.enabled) {
+      const targetMesh = result?.mesh ?? null;
+      if (targetMesh !== this.hoveredMesh) {
+        this.hoveredMesh = targetMesh;
+        applyChartsHighlight(this.allMeshes, targetMesh, this.highlightConfig);
+      }
     }
   };
 
@@ -221,6 +254,41 @@ export class ChartsLayer {
         }
       }
     }
+  }
+
+  /**
+   * Like `raycastSegment` but also returns the raw `Mesh` so the hover-
+   * highlight system can tint it in place. The two methods walk the
+   * same hits but the hover-highlight system needs the Three.js Mesh
+   * reference (not just the payload) to mutate its material colour.
+   */
+  private raycastSegmentMesh(
+    event: PointerEvent
+  ): { readonly payload: ChartsHoverPayload; readonly mesh: Mesh } | null {
+    if (!this.camera || !this.domElement) return null;
+    if (this.instances.length === 0) return null;
+    const rect = this.domElement.getBoundingClientRect();
+    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObject(this.group, true);
+    if (hits.length === 0) return null;
+    const hit = hits[0]!;
+    const lookup = this.meshIndex.get(hit.object.uuid);
+    if (!lookup) return null;
+    const { instance, segmentIndex } = lookup;
+    const seriesKey = instance.seriesKeys[segmentIndex] ?? null;
+    const value = seriesKey ? (instance.entry.values[seriesKey] ?? 0) : 0;
+    return {
+      payload: {
+        entry: instance.entry,
+        entryIndex: instance.entryIndex,
+        seriesKey,
+        seriesIndex: segmentIndex,
+        value,
+      },
+      mesh: hit.object as Mesh,
+    };
   }
 
   private raycastSegment(event: PointerEvent): ChartsHoverPayload | null {
@@ -287,6 +355,34 @@ export class ChartsLayer {
     if (this.animConfig.enabled) this.applyAnimation();
     this.rebuildMeshIndex();
     this.applyLabels();
+    this.rebuildHighlightIndex(layer);
+  }
+
+  /**
+   * Build a flat array of every segment mesh (bars + pie/donut/sunburst
+   * segments) and stash each one's original colour for later restore.
+   * Called after every applyData (post-rebuild). The `extruded` chart-
+   * type isn't included — its meshes live in the wrapped extruded layer
+   * which doesn't expose them per-country here.
+   */
+  private rebuildHighlightIndex(layer: ChartsDataLayer): void {
+    this.highlightConfig = resolveChartsHighlight(layer.highlight);
+    this.allMeshes.length = 0;
+    this.hoveredMesh = null;
+    for (const inst of this.instances) {
+      if (inst.bars) {
+        for (const bar of inst.bars) {
+          stashOriginalColor(bar.mesh);
+          this.allMeshes.push(bar.mesh);
+        }
+      }
+      if (inst.segments) {
+        for (const seg of inst.segments) {
+          stashOriginalColor(seg.mesh);
+          this.allMeshes.push(seg.mesh);
+        }
+      }
+    }
   }
 
   /**
