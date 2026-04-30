@@ -86,20 +86,14 @@ export const dottedKind: KindModule = {
       durationSeconds: 1.1,
     });
 
-    // Dotted heatmap: additive glow displacement, peaks blend toward bright.
+    // Dotted heatmap: shader-based density texture; lower opacity so the
+    // dot field shows through underneath.
     const heatmapBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
       const cfg = input as HeatmapDataLayer;
       const heatmap = new HeatmapLayer({
         layer: cfg,
         fallbackColor: tokens['countries.dotted.color'],
-        buildMaterial: () =>
-          new MeshBasicMaterial({
-            transparent: true,
-            opacity: 0.55,
-            blending: AdditiveBlending,
-            depthWrite: false,
-            vertexColors: true,
-          }),
+        opacity: 0.85,
       });
       globeGroup.add(heatmap.mesh);
       return {

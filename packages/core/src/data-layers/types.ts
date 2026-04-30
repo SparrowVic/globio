@@ -86,29 +86,140 @@ export interface ExtrudedDataLayer {
 }
 
 /**
+ * Kernel function used to spread each sample's value into a continuous
+ * density field. Different kernels give different visual characters:
+ *  - `gaussian` — soft, infinite tail. The classical heatmap look.
+ *  - `epanechnikov` — bell-curve with a hard edge at the radius. Tight peaks.
+ *  - `quartic` — smoother edge than epanechnikov, broader plateau at peak.
+ *  - `uniform` — flat disk; binary inside / outside the kernel.
+ */
+export type HeatmapKernel = 'gaussian' | 'epanechnikov' | 'quartic' | 'uniform';
+
+/**
+ * How accumulated density gets mapped to the [0, 1] range that drives
+ * displacement and color:
+ *  - `peak` — divide by the maximum density. Always saturates to 1 at the
+ *    hottest pixel. Good for relative comparisons.
+ *  - `absolute` — caller's `absoluteMax` value is treated as the saturation
+ *    point. Lets you keep a stable visual reference across data updates.
+ *  - `log` — `log1p(d) / log1p(peak)`. Compresses wide-range data so small
+ *    clusters stay visible next to extreme outliers.
+ */
+export type HeatmapNormalize = 'peak' | 'absolute' | 'log';
+
+/**
+ * Curve applied to the normalised density before sampling colour /
+ * displacement. Lets you bend the visual response without changing the
+ * data: `smoothstep` softens, `cubic` sharpens peaks, `sqrt` brightens
+ * mids, `linear` is raw.
+ */
+export type HeatmapCurve = 'linear' | 'smoothstep' | 'cubic' | 'sqrt';
+
+/**
  * Volumetric heatmap — many lat/lng samples accumulate into a continuous
- * density field that displaces a high-resolution sphere along normals.
- * Peaks rise where many high-value samples cluster. Good for crime
- * density, cell-tower coverage, natural-disaster aggregations.
+ * density field. The density is rendered both as a colour band over the
+ * globe AND as a vertical displacement of a high-resolution sphere.
+ *
+ * Implementation: density is **pre-baked into an equirectangular texture**
+ * (default 2048×1024) so the GPU samples it per-pixel. Vertex shader
+ * displaces the surface; fragment shader picks colour from a 1D palette
+ * texture built from the layer's `scale`. Pixel-perfect smoothness — no
+ * triangulation artifacts even at low subdivisions.
+ *
+ * Good for crime density, cell-tower coverage, earthquake aggregations,
+ * population pressure, internet usage — anything that feels "continuous".
  */
 export interface HeatmapDataLayer {
   readonly type: 'heatmap';
   readonly data: ReadonlyArray<HeatmapDataEntry>;
   readonly scale?: ScaleConfig;
-  /** Angular radius of each sample's influence (radians). Default 0.06 (~3.4°). */
-  readonly radius?: number;
-  /** Max displacement in world units at peak density. Default 0.25. */
-  readonly maxHeight?: number;
+
   /**
-   * Sphere subdivision level — higher = smoother, costs vertices.
-   * Default 5 (icosphere ~10k verts). 6 is silky, 4 chunkier.
+   * Default angular influence radius (radians) when an entry doesn't
+   * specify its own. Default 0.12 (~6.9°).
+   */
+  readonly radius?: number;
+
+  /**
+   * Max vertex displacement (world units; 1 = globe radius) at peak
+   * density. Default 0.18. Set to 0 for a flat colour-only heatmap.
+   */
+  readonly maxHeight?: number;
+
+  /**
+   * Icosphere subdivision driving the displacement mesh. Colour is
+   * pixel-perfect via the shader regardless. Default 6 (≈40k verts).
+   * 7 (≈160k) is hero-shot quality; 5 (≈10k) is fine for big-picture.
    */
   readonly subdivisions?: number;
+
+  /** Kernel shape — see {@link HeatmapKernel}. Default `'gaussian'`. */
+  readonly kernel?: HeatmapKernel;
+
+  /**
+   * Resolution of the density texture (equirectangular). Higher = sharper
+   * detail in tight clusters; costs more bake time + GPU memory. Default
+   * 2048×1024 (~8MB). 4096×2048 for hero shots, 1024×512 for live updates.
+   */
+  readonly textureResolution?: {
+    readonly width: number;
+    readonly height: number;
+  };
+
+  /**
+   * How the heatmap composites with the underlying globe surface.
+   *  - `'normal'` (default) — opaque-style alpha blend; vivid, professional.
+   *    Looks like deck.gl HeatmapLayer / Mapbox heatmaps.
+   *  - `'additive'` — adds onto the surface; produces glow / neon look,
+   *    great for night-style globes and hotspot reveals.
+   */
+  readonly blendMode?: 'normal' | 'additive';
+
+  /**
+   * Post-bake blur passes applied to the density texture (3×3 box blur,
+   * separable). Smooths over pixel-level discontinuities at high
+   * subdivisions or low texture resolutions. Default 2. 0 disables.
+   */
+  readonly blurPasses?: number;
+
+  /** Density normalisation — see {@link HeatmapNormalize}. Default `'peak'`. */
+  readonly normalize?: HeatmapNormalize;
+
+  /** Required when `normalize: 'absolute'`. Density value treated as 1.0. */
+  readonly absoluteMax?: number;
+
+  /**
+   * Cutoff fraction of peak density (0..1). Pixels below this threshold
+   * render fully transparent — sharpens the hotspots and reveals the
+   * underlying globe in cooler regions. Default 0.
+   */
+  readonly threshold?: number;
+
+  /**
+   * Multiplier on normalised density before the curve. >1 pushes mids
+   * toward saturation; <1 dampens. Default 1.
+   */
+  readonly intensity?: number;
+
+  /** Response curve — see {@link HeatmapCurve}. Default `'smoothstep'`. */
+  readonly curve?: HeatmapCurve;
+
+  /**
+   * Palette texture resolution — controls colour banding. Default 256.
+   * Bump to 512 for very smooth gradients; drop to 16/32 for stepped/topo.
+   */
+  readonly paletteSteps?: number;
+
+  readonly events?: DataLayerEvents<HeatmapDataEntry>;
 }
 
 export interface HeatmapDataEntry {
   readonly position: LatLng;
   readonly value: number;
+  /** Per-sample influence radius (rad) override. Falls back to layer radius. */
+  readonly radius?: number;
+  /** Per-sample weight multiplier. Default 1. */
+  readonly weight?: number;
 }
 
 export type DataLayer =

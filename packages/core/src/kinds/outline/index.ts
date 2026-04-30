@@ -7,7 +7,7 @@ import { CountriesFillLayer } from '../../renderer/countries-fill-layer';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
-import { AdditiveBlending, DoubleSide, MeshBasicMaterial } from 'three';
+import { DoubleSide, MeshBasicMaterial } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type {
   BarsDataLayer,
@@ -93,22 +93,15 @@ export const outlineKind: KindModule = {
       };
     };
 
-    // Outline heatmap: vertex-colored displaced sphere over the underlying
-    // globe. Additive blending so low-density vertices don't darken the
-    // surface — they contribute ~0 — and peaks glow with the scale color.
+    // Outline heatmap: shader-based density texture rendering. The shader
+    // does its own additive-style blending via colour * shaped(t) so we
+    // pass full opacity through and let the layer handle the rest.
     const heatmapBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
       const cfg = input as HeatmapDataLayer;
       const heatmap = new HeatmapLayer({
         layer: cfg,
         fallbackColor: tokens['countries.borderActive.color'],
-        buildMaterial: () =>
-          new MeshBasicMaterial({
-            transparent: true,
-            opacity: 0.95,
-            blending: AdditiveBlending,
-            depthWrite: false,
-            vertexColors: true,
-          }),
+        opacity: 1,
       });
       globeGroup.add(heatmap.mesh);
       return {
