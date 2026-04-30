@@ -26,10 +26,10 @@ interface Settings {
 const settings: Settings = {
   resolution: 3,
   aggregate: 'sum',
-  dataset: 'random-2k',
-  height: 0.04,
-  inset: 0.94,
-  opacity: 0.85,
+  dataset: 'cluster',
+  height: 0.06,
+  inset: 0.96,
+  opacity: 0.95,
   showEmpty: false,
   durationMs: 1400,
   staggerMs: 3,
@@ -195,7 +195,10 @@ function applyLayer(): void {
     showEmpty: settings.showEmpty,
     scale: {
       type: 'sequential',
-      palette: 'viridis',
+      // 'inferno' (red→yellow) reads much better than viridis on the dark
+      // outline-dark globe — viridis's bottom 50% is dark purple/blue and
+      // disappears into the background.
+      palette: 'inferno',
     },
     animation: {
       duration: settings.durationMs,

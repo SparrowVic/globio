@@ -75,7 +75,10 @@ export class HexBinLayer {
 
   /**
    * Per-frame tick. Advances `animElapsedSec`, computes per-face animation
-   * scale through the easing curve, and pushes it into the mesh in-place.
+   * scale through the easing curve, and pushes it into the mesh as both
+   * extrusion height AND per-face RGB intensity — so cells *fade in* (not
+   * just rise) as their stagger window opens. Layer-wide material opacity
+   * stays at the slider value; the per-face RGB scaling drives the bloom.
    */
   public tick(deltaSec: number): void {
     if (!this.animConfig.enabled || !this.mesh) return;
@@ -91,7 +94,6 @@ export class HexBinLayer {
       this.faceAnimScale[f] = this.easingFn(local);
     }
     this.mesh.applyAnimation(this.faceAnimScale, this.heightRange);
-    this.mesh.setOpacity(this.computeLayerOpacity());
   }
 
   /** Restart the mount animation from `t=0`. Story-bridge hook. */
@@ -160,7 +162,7 @@ export class HexBinLayer {
       this.faceAnimScale[f] = this.animConfig.enabled ? 0 : 1;
     }
     this.mesh.applyAnimation(this.faceAnimScale, this.heightRange);
-    this.mesh.setOpacity(this.computeLayerOpacity());
+    this.mesh.setOpacity(this.layerCfg.opacity ?? 1);
   }
 
   private animHasMore(): boolean {
@@ -177,19 +179,6 @@ export class HexBinLayer {
       if (v > max) max = v;
     }
     return max;
-  }
-
-  /** Layer-wide opacity scaled by the median per-face animation t. */
-  private computeLayerOpacity(): number {
-    const baseOpacity = this.layerCfg.opacity ?? 1;
-    if (!this.animConfig.enabled) return baseOpacity;
-    // Cheap proxy for "how far through the bloom are we" — average of all
-    // per-face scales. Keeps fade-in monotonic without per-face material
-    // opacity (which we'd need vertex-colour alpha for; not worth the cost).
-    let sum = 0;
-    for (let f = 0; f < this.faceAnimScale.length; f++) sum += this.faceAnimScale[f]!;
-    const avg = this.faceAnimScale.length > 0 ? sum / this.faceAnimScale.length : 1;
-    return baseOpacity * Math.max(0.05, avg);
   }
 
   private disposeMesh(): void {

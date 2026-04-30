@@ -55,6 +55,12 @@ export class HexBinMesh {
   private readonly positions: Float32Array;
   private readonly colors: Float32Array;
   private readonly basePositions: Float32Array;
+  /**
+   * Per-vertex "fully bloomed" colour (RGB ×3 floats × 3 verts/face). The
+   * vertex `colors` buffer is `baseColors × faceAnimScale` each frame so
+   * cells visibly fade in as their stagger window opens.
+   */
+  private readonly baseColors: Float32Array;
   /** Per-face current extrusion height (world units, post-clamp). */
   private readonly heights: Float32Array;
   /** Per-face animation scaling [0..1] applied each tick. */
@@ -71,6 +77,7 @@ export class HexBinMesh {
     this.basePositions = new Float32Array(vertCount * 3);
     this.positions = new Float32Array(vertCount * 3);
     this.colors = new Float32Array(vertCount * 3);
+    this.baseColors = new Float32Array(vertCount * 3);
     this.heights = new Float32Array(this.faceCount);
     this.animScale = new Float32Array(this.faceCount);
     this.animScale.fill(1);
@@ -166,13 +173,25 @@ export class HexBinMesh {
   }
 
   /**
-   * Apply per-face animation scale and rewrite positions. Called by the
-   * orchestrator's tick once per frame while the mount animation runs.
+   * Apply per-face animation scale and rewrite positions + RGB. Called by
+   * the orchestrator's tick once per frame. Per-face colour fades from
+   * black (animScale=0) to its baked baseColor (animScale=1) so cells
+   * visibly bloom in alongside their extrusion rise.
    */
   public applyAnimation(animScalePerFace: Float32Array, heightRange: { readonly min: number; readonly max: number }): void {
     this.animScale.set(animScalePerFace);
     this.writePositionsAtAnimT(0, heightRange);
+    for (let f = 0; f < this.faceCount; f++) {
+      const s = this.animScale[f]!;
+      for (let k = 0; k < 3; k++) {
+        const idx = (f * 3 + k) * 3;
+        this.colors[idx] = this.baseColors[idx]! * s;
+        this.colors[idx + 1] = this.baseColors[idx + 1]! * s;
+        this.colors[idx + 2] = this.baseColors[idx + 2]! * s;
+      }
+    }
     (this.geometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute('color') as Float32BufferAttribute).needsUpdate = true;
   }
 
   public setOpacity(opacity: number): void {
@@ -207,13 +226,27 @@ export class HexBinMesh {
     }
   }
 
+  /**
+   * Write a face's BASE colour (the "fully bloomed" target). Per-frame
+   * `applyAnimation` multiplies by `animScale` to get the visible colour.
+   * `alpha` lets `update()` zero out empty cells so they stay invisible
+   * regardless of animation state.
+   */
   private writeFaceColor(face: number, color: string, alpha: number): void {
     _color.set(color);
+    const r = _color.r * alpha;
+    const g = _color.g * alpha;
+    const b = _color.b * alpha;
     for (let k = 0; k < 3; k++) {
       const idx = (face * 3 + k) * 3;
-      this.colors[idx] = _color.r * alpha;
-      this.colors[idx + 1] = _color.g * alpha;
-      this.colors[idx + 2] = _color.b * alpha;
+      this.baseColors[idx] = r;
+      this.baseColors[idx + 1] = g;
+      this.baseColors[idx + 2] = b;
+      // Mirror into the live colour buffer at full intensity so static
+      // (animation-disabled) layers render correctly without a tick().
+      this.colors[idx] = r;
+      this.colors[idx + 1] = g;
+      this.colors[idx + 2] = b;
     }
   }
 }
