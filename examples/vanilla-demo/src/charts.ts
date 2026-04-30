@@ -22,6 +22,7 @@ interface Settings {
   easing: string;
   durationMs: number;
   staggerMs: number;
+  segmentStaggerMs: number;
 }
 
 const settings: Settings = {
@@ -34,6 +35,7 @@ const settings: Settings = {
   easing: 'ease-out-back',
   durationMs: 900,
   staggerMs: 35,
+  segmentStaggerMs: 60,
 };
 
 // ---------------------------------------------------------------------------
@@ -169,6 +171,10 @@ bindSlider('stagger', 'stagger-value', 0, (v) => {
   settings.staggerMs = Math.round(v);
   applyLayer();
 });
+bindSlider('seg-stagger', 'seg-stagger-value', 0, (v) => {
+  settings.segmentStaggerMs = Math.round(v);
+  applyLayer();
+});
 
 const easingSelect = document.getElementById('easing') as HTMLSelectElement | null;
 if (easingSelect) {
@@ -206,12 +212,36 @@ function applyLayer(): void {
       stagger: settings.staggerMs,
       easing: settings.easing as never,
     },
+    segmentStagger: settings.segmentStaggerMs,
+    events: {
+      onHover: (payload) => {
+        if (!payload) {
+          tooltip.style.display = 'none';
+          return;
+        }
+        const seriesLabel = series.find((s) => s.key === payload.seriesKey)?.label
+          ?? payload.seriesKey
+          ?? '?';
+        tooltip.innerHTML = `<b>${payload.entry.label ?? payload.entry.id ?? '?'}</b><br/>${seriesLabel}: <b>${payload.value}</b>`;
+        tooltip.style.display = 'block';
+      },
+      onClick: (payload) => {
+        // eslint-disable-next-line no-console
+        console.log('[charts] click', payload);
+      },
+    },
   };
   globe.setDataLayer(layer as DataLayer);
   setStatus(
     `${data.length} charts · ${series.length} series · type: <b>${settings.chartType}</b>`
   );
 }
+
+const tooltip = document.getElementById('tooltip') as HTMLDivElement;
+window.addEventListener('pointermove', (e) => {
+  tooltip.style.left = `${e.clientX + 12}px`;
+  tooltip.style.top = `${e.clientY + 12}px`;
+});
 
 function setStatus(html: string): void {
   const el = document.getElementById('stats');

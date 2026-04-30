@@ -1,6 +1,6 @@
-import { Group, type Camera } from 'three';
+import { Group, Raycaster, Vector2, type Camera } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
-import type { ChartsDataEntry, ChartsDataLayer } from '../types';
+import type { ChartsDataEntry, ChartsDataLayer, ChartsHoverPayload } from '../types';
 import {
   DISABLED_ANIMATION,
   easingFunctionFor,
@@ -34,11 +34,16 @@ import {
 interface ChartInstance {
   readonly group: Group;
   readonly anchor: ChartAnchor;
+  readonly entry: ChartsDataEntry;
   readonly entryIndex: number;
   readonly chartType: ChartsDataLayer['chartType'];
   readonly faceCamera: boolean;
-  /** Pre-computed start time in seconds (layer.delay + index × stagger). */
+  /** Chart-wide start time in seconds (layer.delay + entryIndex × stagger). */
   readonly startSec: number;
+  /** Per-bar / per-segment offset added on top of `startSec`. */
+  readonly perSegmentOffset: ReadonlyArray<number>;
+  /** Per-bar / per-segment series key (parallels `bars` / `segments`). */
+  readonly seriesKeys: ReadonlyArray<string>;
   /** Bar handles for bars-* charts. */
   readonly bars?: ReadonlyArray<BarHandle>;
   /** Segment handles for pie / donut. */
@@ -50,6 +55,7 @@ export interface ChartsLayerOptions {
   readonly countryFeatures?: ReadonlyArray<CountryFeature>;
   readonly fallbackColor?: string;
   readonly camera?: Camera;
+  readonly domElement?: HTMLElement;
 }
 
 const DEFAULT_FALLBACK_COLOR = '#8ab6ff';
@@ -73,6 +79,7 @@ export class ChartsLayer {
   public readonly group: Group;
   private readonly fallbackColor: string;
   private readonly camera: Camera | null;
+  private readonly domElement: HTMLElement | null;
   private readonly featuresByKey: ReadonlyMap<string, CountryFeature>;
   private layer: ChartsDataLayer;
   private animConfig: ResolvedHeatmapAnimationConfig = DISABLED_ANIMATION;
@@ -80,15 +87,24 @@ export class ChartsLayer {
   private instances: Array<ChartInstance> = [];
   /** Cached so `tick()` doesn't re-resolve the easing every frame. */
   private easingFn: (t: number) => number = (t) => t;
+  private readonly raycaster: Raycaster;
+  private readonly pointer: Vector2;
+  private pointerAttached = false;
+  /** Maps a chart's mesh.uuid → instance index for fast raycast lookups. */
+  private readonly meshIndex = new Map<string, { instance: ChartInstance; segmentIndex: number }>();
 
   public constructor(options: ChartsLayerOptions) {
     this.group = new Group();
     this.group.name = 'ChartsLayer';
     this.fallbackColor = options.fallbackColor ?? DEFAULT_FALLBACK_COLOR;
     this.camera = options.camera ?? null;
+    this.domElement = options.domElement ?? null;
     this.featuresByKey = buildFeatureIndex(options.countryFeatures ?? []);
     this.layer = options.layer;
+    this.raycaster = new Raycaster();
+    this.pointer = new Vector2();
     this.applyData(options.layer);
+    this.maybeAttachPointer();
   }
 
   /**
@@ -101,6 +117,7 @@ export class ChartsLayer {
     this.disposeInstances();
     this.layer = layer;
     this.applyData(layer);
+    this.maybeAttachPointer();
   }
 
   /**
@@ -125,7 +142,84 @@ export class ChartsLayer {
   }
 
   public dispose(): void {
+    this.detachPointer();
     this.disposeInstances();
+  }
+
+  // -------------------------------------------------------------------------
+  // Pointer events — raycaster on every chart's bar / segment meshes.
+  // The mesh-uuid index is rebuilt every setData() so we can resolve a hit
+  // back to its (chart instance, segment index) pair in O(1).
+  // -------------------------------------------------------------------------
+
+  private maybeAttachPointer(): void {
+    if (this.pointerAttached) return;
+    if (!this.camera || !this.domElement) return;
+    const wantsEvents = Boolean(this.layer.events?.onClick || this.layer.events?.onHover);
+    if (!wantsEvents) return;
+    const el = this.domElement;
+    el.addEventListener('pointermove', this.onPointerMove);
+    el.addEventListener('pointerdown', this.onPointerDown);
+    this.pointerAttached = true;
+  }
+
+  private detachPointer(): void {
+    if (!this.pointerAttached || !this.domElement) return;
+    this.domElement.removeEventListener('pointermove', this.onPointerMove);
+    this.domElement.removeEventListener('pointerdown', this.onPointerDown);
+    this.pointerAttached = false;
+  }
+
+  private readonly onPointerMove = (event: PointerEvent): void => {
+    const hit = this.raycastSegment(event);
+    this.layer.events?.onHover?.(hit);
+  };
+
+  private readonly onPointerDown = (event: PointerEvent): void => {
+    const hit = this.raycastSegment(event);
+    if (hit) this.layer.events?.onClick?.(hit);
+  };
+
+  /** Single rebuild path for the meshIndex — called every applyData(). */
+  private rebuildMeshIndex(): void {
+    this.meshIndex.clear();
+    for (const inst of this.instances) {
+      if (inst.bars) {
+        for (let i = 0; i < inst.bars.length; i++) {
+          this.meshIndex.set(inst.bars[i]!.mesh.uuid, { instance: inst, segmentIndex: i });
+        }
+      }
+      if (inst.segments) {
+        for (let i = 0; i < inst.segments.length; i++) {
+          this.meshIndex.set(inst.segments[i]!.mesh.uuid, { instance: inst, segmentIndex: i });
+        }
+      }
+    }
+  }
+
+  private raycastSegment(event: PointerEvent): ChartsHoverPayload | null {
+    if (!this.camera || !this.domElement) return null;
+    if (this.instances.length === 0) return null;
+    const rect = this.domElement.getBoundingClientRect();
+    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    // Recursive raycast against the layer group — picks up every bar /
+    // segment mesh inside every chart instance with one call.
+    const hits = this.raycaster.intersectObject(this.group, true);
+    if (hits.length === 0) return null;
+    const lookup = this.meshIndex.get(hits[0]!.object.uuid);
+    if (!lookup) return null;
+    const { instance, segmentIndex } = lookup;
+    const seriesKey = instance.seriesKeys[segmentIndex] ?? null;
+    const value = seriesKey ? (instance.entry.values[seriesKey] ?? 0) : 0;
+    return {
+      entry: instance.entry,
+      entryIndex: instance.entryIndex,
+      seriesKey,
+      seriesIndex: segmentIndex,
+      value,
+    };
   }
 
   private applyData(layer: ChartsDataLayer): void {
@@ -151,6 +245,7 @@ export class ChartsLayer {
     // at full size before tick() runs (avoids a one-frame flash).
     this.animElapsedSec = 0;
     if (this.animConfig.enabled) this.applyAnimation();
+    this.rebuildMeshIndex();
   }
 
   private buildOneChart(
@@ -168,13 +263,24 @@ export class ChartsLayer {
     group.quaternion.copy(anchor.quaternion);
     const startSec =
       this.animConfig.delay + index * this.animConfig.stagger;
+    const segmentStaggerSec = Math.max(0, layer.segmentStagger ?? 0) / 1000;
+    const segmentCount = bars ? bars.length : segments?.length ?? 0;
+    const perSegmentOffset: Array<number> = new Array(segmentCount);
+    const seriesKeys: Array<string> = new Array(segmentCount);
+    for (let i = 0; i < segmentCount; i++) {
+      perSegmentOffset[i] = i * segmentStaggerSec;
+      seriesKeys[i] = layer.series[i]?.key ?? '';
+    }
     return {
       group,
       anchor,
+      entry,
       entryIndex: index,
       chartType: layer.chartType,
       faceCamera,
       startSec,
+      perSegmentOffset,
+      seriesKeys,
       ...(bars !== undefined ? { bars } : {}),
       ...(segments !== undefined ? { segments } : {}),
     };
@@ -193,27 +299,48 @@ export class ChartsLayer {
     const cfg = this.animConfig;
     const baseOpacity = this.layer.opacity ?? 1;
     for (const inst of this.instances) {
-      const local = clampCpu(
-        (this.animElapsedSec - inst.startSec) / cfg.duration,
-        0,
-        1
-      );
-      const t = this.easingFn(local);
-      const scale = cfg.style === 'fade' ? 1 : t;
-      const alpha = baseOpacity * t;
+      const tForSeg = (i: number): number => {
+        const local = clampCpu(
+          (this.animElapsedSec - inst.startSec - (inst.perSegmentOffset[i] ?? 0)) /
+            cfg.duration,
+          0,
+          1
+        );
+        return this.easingFn(local);
+      };
       if (inst.bars) {
-        for (const bar of inst.bars) {
+        // Bars-grouped / bars-stacked / radial — each bar animates with
+        // its own per-segment t. For stacked, that gives a "stack rising
+        // through segments" feel; for radial, a clockwise sweep.
+        let stackBase = 0;
+        const isStacked = inst.chartType === 'bars-stacked';
+        for (let i = 0; i < inst.bars.length; i++) {
+          const bar = inst.bars[i]!;
+          const t = tForSeg(i);
+          const scale = cfg.style === 'fade' ? 1 : t;
+          const alpha = baseOpacity * t;
           bar.mesh.scale.y = bar.targetHeight * scale;
+          if (isStacked) {
+            // Recompute stack Y so partially-grown segments sit on top of
+            // already-grown ones rather than overlapping or floating in air.
+            bar.mesh.position.y = stackBase;
+            stackBase += bar.targetHeight * scale;
+          }
           bar.material.opacity = alpha;
         }
       }
       if (inst.segments) {
-        // For pie/donut: scale the entire group uniformly. Group scale
-        // composes with the anchor's quaternion correctly because the
-        // quaternion is set before scale in three.js's local matrix.
-        inst.group.scale.setScalar(Math.max(0.0001, scale));
-        for (const seg of inst.segments) {
-          seg.material.opacity = alpha;
+        // Pie / donut — chart group scales as a whole with the FIRST
+        // segment's t (so the chart "pops" in), but each segment fades
+        // alpha individually with its own per-segment t (visible "wipe"
+        // around the ring).
+        const firstT = tForSeg(0);
+        const groupScale = cfg.style === 'fade' ? 1 : firstT;
+        inst.group.scale.setScalar(Math.max(0.0001, groupScale));
+        for (let i = 0; i < inst.segments.length; i++) {
+          const seg = inst.segments[i]!;
+          const t = tForSeg(i);
+          seg.material.opacity = baseOpacity * t;
         }
       }
     }

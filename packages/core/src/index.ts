@@ -98,6 +98,7 @@ export type {
   ChartType,
   ChartsDataEntry,
   ChartsDataLayer,
+  ChartsHoverPayload,
   ChoroplethDataLayer,
   DataLayer,
   DataLayerEvents,

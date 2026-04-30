@@ -131,6 +131,7 @@
   </head>
   <body>
     <div id="app"></div>
+    <div id="tooltip" style="position:fixed;pointer-events:none;background:rgba(8,12,24,0.92);border:1px solid rgba(255,215,0,0.5);border-radius:6px;padding:8px 12px;font-size:12px;color:#ffd700;display:none;z-index:50;backdrop-filter:blur(6px);"></div>
     <div class="nav">
       <a href="/">Index</a>
       <a href="/heatmap.html">Heatmap</a>
@@ -197,6 +198,11 @@
       <div class="slider-row">
         <label>Stagger: <span id="stagger-value">35</span> ms / chart</label>
         <input type="range" id="stagger" min="0" max="200" step="5" value="35" />
+      </div>
+      <div class="slider-row">
+        <label>Per-segment stagger: <span id="seg-stagger-value">60</span> ms / segment</label>
+        <input type="range" id="seg-stagger" min="0" max="400" step="10" value="60" />
+        <p class="hint">Stacked: segments grow bottom-up. Radial: clockwise sweep. Pie/donut: alpha wipe around the ring. Grouped: bars reveal left→right.</p>
       </div>
 
       <hr />

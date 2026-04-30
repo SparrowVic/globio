@@ -730,6 +730,19 @@ export interface ChartsDataEntry {
  *  - `borderColor` / `borderWidth` — optional outline. `borderWidth=0` disables (default).
  *  - `showValues`  — placeholder for the labelling overlay (planned, no-op v1).
  */
+/**
+ * Click / hover payload for charts events. `seriesKey` and `seriesIndex`
+ * pinpoint the specific bar / segment that was hit; `entry` is the
+ * underlying data row.
+ */
+export interface ChartsHoverPayload {
+  readonly entry: ChartsDataEntry;
+  readonly entryIndex: number;
+  readonly seriesKey: string | null;
+  readonly seriesIndex: number;
+  readonly value: number;
+}
+
 export interface ChartsDataLayer {
   readonly type: 'charts';
   readonly data: ReadonlyArray<ChartsDataEntry>;
@@ -748,7 +761,20 @@ export interface ChartsDataLayer {
   readonly opacity?: number;
   /** Mount/init animation. Reuses {@link HeatmapAnimationConfig}; set `false` to mount instantly. */
   readonly animation?: boolean | HeatmapAnimationConfig;
-  readonly events?: DataLayerEvents<ChartsDataEntry>;
+  /**
+   * Extra delay applied per-series within each chart, in ms. With `0`
+   * (default) every segment of one chart animates together; with `>0`
+   * the series reveal one after another (e.g. stacked bars grow
+   * bottom-up, radial spokes sweep clockwise).
+   */
+  readonly segmentStagger?: number;
+  /**
+   * Pointer-driven highlight on hover — same idea as hex-bin's. When
+   * enabled, the hit bar/segment fades up to `color` opacity (default
+   * white tint) while the rest dim a touch.
+   */
+  readonly highlight?: boolean | { readonly color?: string; readonly opacity?: number; readonly dimRest?: number };
+  readonly events?: DataLayerEvents<ChartsHoverPayload>;
 }
 
 export type DataLayer =

@@ -217,6 +217,7 @@ export const outlineKind: KindModule = {
         countryFeatures: features as ReadonlyArray<CountryFeature>,
         fallbackColor: tokens['countries.fill.defaultColor'],
         camera: ctx.camera,
+        ...(ctx.domElement ? { domElement: ctx.domElement } : {}),
       });
       globeGroup.add(charts.group);
       return {
