@@ -819,6 +819,15 @@ export interface ChartsDataLayer {
   readonly gaugeMax?: number;
   /** For `chartType: 'gauge'` — colour of the empty arc behind the fill. Default 'rgba(255,255,255,0.15)'. */
   readonly gaugeBackgroundColor?: string;
+  /**
+   * For `chartType: 'extruded'` — compress per-entry value before the
+   * scale-to-height mapping. Power-law data (GDP, CO₂, population) puts
+   * 95% of countries near zero height under linear scaling, while USA /
+   * China / India tower above. `'sqrt'` (default) gives visible mid-tier
+   * heights without flattening the giants; `'log'` compresses harder;
+   * `'linear'` preserves raw ratios.
+   */
+  readonly valuePreScale?: 'linear' | 'sqrt' | 'log';
   readonly padAngle?: number;
   readonly rotation?: number;
   readonly faceCamera?: boolean;

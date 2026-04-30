@@ -41,6 +41,29 @@ export const buildExtrudedChart = (
 ): ExtrudedChartHandle | null => {
   // Convert entries → CountryDataMap. Skip entries without an id (no
   // polygon to extrude); skip entries with zero total (no height).
+  //
+  // Colour resolution order (by priority):
+  //   1. layer.scale present  → let the underlying extruded layer
+  //      compute per-country colour from `value` ↦ scale extent
+  //   2. else series[0].color → use that as a flat override
+  //   3. else fallback colour
+  // The scale path is what users want for whole-globe gradient renders
+  // (e.g. World GDP), so it MUST win over the series-default colour.
+  // (Earlier version always passed `series[0].color`, which silently
+  // overrode the scale via ExtrudedCountriesLayer's `if (datum.color)`
+  // short-circuit — every country ended up flat-green.)
+  const useScale = layer.scale !== undefined;
+  const fallbackOverride = useScale ? undefined : layer.series[0]?.color;
+  // Power-law datasets (GDP, CO₂) collapse most countries to ~0 height
+  // under linear scaling — sqrt by default spreads mid-tier countries
+  // visibly while keeping USA/China dominant. Caller can opt out via
+  // `valuePreScale: 'linear'` to preserve raw ratios.
+  const preScale = layer.valuePreScale ?? 'sqrt';
+  const compress = (v: number): number => {
+    if (preScale === 'log') return Math.log1p(v);
+    if (preScale === 'sqrt') return Math.sqrt(v);
+    return v;
+  };
   const data: Record<string, { value: number; color?: string }> = {};
   for (const entry of entries) {
     if (!entry.id) continue;
@@ -50,10 +73,11 @@ export const buildExtrudedChart = (
       if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) total += raw;
     }
     if (total <= 0) continue;
-    // First series colour wins as a per-entry override; scale fallback
-    // happens inside the extruded layer.
-    const color = layer.series[0]?.color;
-    data[entry.id] = color !== undefined ? { value: total, color } : { value: total };
+    const compressed = compress(total);
+    data[entry.id] =
+      fallbackOverride !== undefined
+        ? { value: compressed, color: fallbackOverride }
+        : { value: compressed };
   }
   if (Object.keys(data).length === 0) return null;
 
