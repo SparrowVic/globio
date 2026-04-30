@@ -8,6 +8,7 @@ import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ChartsLayer } from '../../data-layers/charts/charts-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
+import { HexBinLayer } from '../../data-layers/hexbin/hexbin-layer';
 import { DoubleSide, MeshBasicMaterial } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type {
@@ -18,6 +19,7 @@ import type {
   DataLayerHandle,
   ExtrudedDataLayer,
   HeatmapDataLayer,
+  HexBinDataLayer,
 } from '../../data-layers/types';
 import type {
   DataLayerBuilder,
@@ -178,6 +180,31 @@ export const outlineKind: KindModule = {
       };
     };
 
+    // Outline hex-bin: spatial aggregation into icosphere face cells.
+    // Uses vertex-coloured BufferGeometry — each cell gets its own 3-vertex
+    // triangle so colours don't bleed into neighbours.
+    const hexbinBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+      const cfg = input as HexBinDataLayer;
+      const layer = new HexBinLayer({
+        layer: cfg,
+        fallbackColor: tokens['countries.fill.defaultColor'],
+      });
+      globeGroup.add(layer.group);
+      return {
+        type: 'hexbin',
+        update(delta: number) {
+          layer.tick(delta);
+        },
+        setData(next: DataLayer) {
+          layer.setData(next as HexBinDataLayer);
+        },
+        dispose() {
+          layer.dispose();
+          globeGroup.remove(layer.group);
+        },
+      };
+    };
+
     // Outline charts: multi-series chart visualisations anchored at lat/lng
     // (or country centroid). Solid `MeshBasicMaterial` per-bar/segment so
     // colours read crisply against the dark outline backdrop.
@@ -323,6 +350,7 @@ export const outlineKind: KindModule = {
           bars: barsBuilder,
           extruded: extrudedBuilder,
           heatmap: heatmapBuilder,
+          hexbin: hexbinBuilder,
           charts: chartsBuilder,
         },
       },
