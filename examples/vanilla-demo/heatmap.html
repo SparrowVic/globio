@@ -248,6 +248,34 @@
         <button data-surface="peaks">Sharp peaks</button>
       </div>
 
+      <div id="dome-shape" class="dome-shape">
+        <h2>Dome shape</h2>
+        <div class="slider-row">
+          <label>Crown area: <span id="dome-center-value">0.55</span></label>
+          <input type="range" id="dome-center" min="0.30" max="0.85" step="0.01" value="0.55" />
+          <p class="hint">How wide the rounded top of each country is. 0.55 = inner ~55% of the country, walls below.</p>
+        </div>
+        <div class="slider-row">
+          <label>Crown plateau: <span id="dome-shoulder-value">0.36</span></label>
+          <input type="range" id="dome-shoulder" min="0.05" max="0.95" step="0.01" value="0.36" />
+          <p class="hint">Height where the rounded crown hands off to the falling wall. Lower = sharper peak, higher = flatter top.</p>
+        </div>
+        <div class="slider-row">
+          <label>Edge falloff: <span id="dome-steep-value">2.6</span></label>
+          <input type="range" id="dome-steep" min="0.5" max="5.5" step="0.1" value="2.6" />
+          <p class="hint">Wall steepness near the polygon border. 1 = linear ramp, 4+ = cliff just inside the boundary.</p>
+        </div>
+        <div class="slider-row">
+          <label>Cross-country compression: <span id="dome-prescale-value">log</span></label>
+          <div class="row" id="dome-prescale-row">
+            <button data-prescale="log" class="active">log</button>
+            <button data-prescale="sqrt">√</button>
+            <button data-prescale="linear">linear</button>
+          </div>
+          <p class="hint">Pre-scales each country's value before painting. <code>log</code> keeps Vatican and India both readable; <code>linear</code> shows raw ratios.</p>
+        </div>
+      </div>
+
       <h2>Detail</h2>
       <div class="row" id="detail-row">
         <button data-detail="topo" class="active">Contours</button>

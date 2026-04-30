@@ -103,6 +103,7 @@ interface ResolvedHeatmapCountryDomeConfig {
   readonly centerArea: number;
   readonly shoulderHeight: number;
   readonly edgeSteepness: number;
+  readonly valuePreScale: 'linear' | 'log' | 'sqrt';
 }
 
 const DISABLED_ZOOM_SCALING: ResolvedHeatmapZoomScalingConfig = {
@@ -123,6 +124,7 @@ const DISABLED_COUNTRY_DOMES: ResolvedHeatmapCountryDomeConfig = {
   centerArea: 0.55,
   shoulderHeight: 0.36,
   edgeSteepness: 2.6,
+  valuePreScale: 'log',
 };
 
 export interface HeatmapLayerOptions {
@@ -605,9 +607,10 @@ const resolveCountryDomeConfig = (
   if (cfg.enabled === false) return DISABLED_COUNTRY_DOMES;
   return {
     enabled: true,
-    centerArea: clampCpu(cfg.centerArea ?? 0.55, 0.12, 0.78),
-    shoulderHeight: clampCpu(cfg.shoulderHeight ?? 0.36, 0.12, 0.96),
-    edgeSteepness: clampCpu(cfg.edgeSteepness ?? 2.6, 0.5, 6),
+    centerArea: clampCpu(cfg.centerArea ?? 0.55, 0.12, 0.85),
+    shoulderHeight: clampCpu(cfg.shoulderHeight ?? 0.36, 0.05, 0.98),
+    edgeSteepness: clampCpu(cfg.edgeSteepness ?? 2.6, 0.5, 8),
+    valuePreScale: cfg.valuePreScale ?? 'log',
   };
 };
 
@@ -619,6 +622,7 @@ const countryDomeKey = (input: HeatmapDataLayer['countryDomes']): string => {
     input.centerArea ?? '',
     input.shoulderHeight ?? '',
     input.edgeSteepness ?? '',
+    input.valuePreScale ?? '',
   ].join(',');
 };
 
@@ -762,6 +766,22 @@ const polygonAreaScore = (polygon: CountryPolygon): number => {
   );
 };
 
+const applyDomeValuePreScale = (
+  value: number,
+  mode: ResolvedHeatmapCountryDomeConfig['valuePreScale']
+): number => {
+  if (value <= 0) return 0;
+  switch (mode) {
+    case 'log':
+      return Math.log1p(value);
+    case 'sqrt':
+      return Math.sqrt(value);
+    case 'linear':
+    default:
+      return value;
+  }
+};
+
 const paintCountryDome = (
   data: Float32Array,
   width: number,
@@ -773,6 +793,13 @@ const paintCountryDome = (
 ): boolean => {
   const outer = polygon[0];
   if (!outer || outer.length < 3 || value <= 0) return false;
+  // Pre-scale the country's stamp magnitude (raw value) so per-country
+  // gradients stay linear-shaped after the global density normalize step.
+  // Without this, a global `log` normalize compresses values >> 1 into
+  // a flat-top plateau across most of the country, which makes large
+  // countries look like rectangular slabs instead of domes.
+  const stampValue = applyDomeValuePreScale(value, config.valuePreScale);
+  if (stampValue <= 0) return false;
 
   const rawBounds = ringBounds(outer);
   const crossesAnti = rawBounds.maxLng - rawBounds.minLng > 180;
@@ -833,7 +860,7 @@ const paintCountryDome = (
         const t = Math.sqrt(dx * dx + dy * dy) / Math.max(1e-6, boundaryDistance);
         const w = domeWeight(t, config);
         if (w <= 0) continue;
-        data[row + u]! += value * w;
+        data[row + u]! += stampValue * w;
         wrote = true;
       }
     }
@@ -873,6 +900,39 @@ const shiftCountryPoint = (
   ];
 };
 
+const ringAreaCentroid = (
+  ring: ReadonlyArray<readonly [number, number]>
+): readonly [number, number] | null => {
+  let cx = 0;
+  let cy = 0;
+  let A = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i];
+    const b = ring[j];
+    if (!a || !b) continue;
+    const cross = a[0] * b[1] - b[0] * a[1];
+    A += cross;
+    cx += (a[0] + b[0]) * cross;
+    cy += (a[1] + b[1]) * cross;
+  }
+  if (Math.abs(A) < 1e-12) return null;
+  A *= 0.5;
+  return [cx / (6 * A), cy / (6 * A)];
+};
+
+/**
+ * Pick a dome-anchor inside the polygon. Strategy:
+ *  1. If the user-supplied centroid is inside the polygon AND not in a
+ *     pinched corner, use it — it's the caller's intentional placement.
+ *  2. Else try the area-weighted centroid (fast, good for convex-ish
+ *     countries; lands deep in the polygon for compact shapes).
+ *  3. Else the bbox centre, then a grid search for the closest interior
+ *     point to the user request.
+ *
+ * The area centroid is preferred over the bbox centre because for L-shaped
+ * countries (Norway, Chile) the bbox centre often lands in ocean. The area
+ * centroid is biased toward the geometric mass and tends to stay inside.
+ */
 const chooseInteriorDomeCenter = (
   outer: ReadonlyArray<readonly [number, number]>,
   holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
@@ -881,7 +941,13 @@ const chooseInteriorDomeCenter = (
 ): readonly [number, number] => {
   if (pointInShiftedPolygon(outer, holes, requested)) return requested;
 
-  const bboxCenter = [(bounds.minLng + bounds.maxLng) * 0.5, (bounds.minLat + bounds.maxLat) * 0.5] as const;
+  const areaC = ringAreaCentroid(outer);
+  if (areaC && pointInShiftedPolygon(outer, holes, areaC)) return areaC;
+
+  const bboxCenter = [
+    (bounds.minLng + bounds.maxLng) * 0.5,
+    (bounds.minLat + bounds.maxLat) * 0.5,
+  ] as const;
   if (pointInShiftedPolygon(outer, holes, bboxCenter)) return bboxCenter;
 
   let best: readonly [number, number] | null = null;

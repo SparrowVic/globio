@@ -194,10 +194,32 @@ export interface HeatmapZoomScalingConfig {
 }
 
 /**
+ * Per-sample value pre-scaling applied **inside** the country dome bake.
+ * Lets the per-country dome gradient stay readable when the dataset spans
+ * many orders of magnitude (e.g. populations from 0.001M to 1410M). The
+ * pre-scale is applied to `entry.value` BEFORE the dome's interior weight
+ * is multiplied in, so the gradient inside one country is linear-in-shape
+ * even though cross-country comparison is log-compressed.
+ *
+ * Use `'log'` (default) when values range over many orders of magnitude,
+ * `'sqrt'` for a softer compression, `'linear'` to preserve raw ratios.
+ */
+export type HeatmapValuePreScale = 'linear' | 'log' | 'sqrt';
+
+/**
  * Country-aware dome bake. When the active kind can provide country
  * polygons and entries include `id` or `name`, each matched sample is
  * rasterized inside that country's polygon instead of spilling as a radial
  * blob over neighbouring countries or oceans.
+ *
+ * Tuning the dome shape:
+ *  - `centerArea` (≈ 0.3–0.95) — fraction of the country that holds the
+ *    rounded central crown. Higher = wider plateau, lower = sharper peak.
+ *  - `shoulderHeight` (0–1) — height at the crown / wall transition.
+ *    1 = crown stays at peak across the entire crown band; 0 = sharp tip.
+ *  - `edgeSteepness` (1–5) — exponent applied to the wall falloff.
+ *    1 = linear ramp to the boundary, 4+ = sharp cliff just inside the edge.
+ *  - `valuePreScale` — see {@link HeatmapValuePreScale}. Default `'log'`.
  */
 export interface HeatmapCountryDomeConfig {
   /** Defaults to true when the object is supplied. Pass `false` on `countryDomes` to disable. */
@@ -208,6 +230,8 @@ export interface HeatmapCountryDomeConfig {
   readonly shoulderHeight?: number;
   /** Extra steepness applied to the falling wall. Default 2.6. */
   readonly edgeSteepness?: number;
+  /** Per-sample value pre-scale — see {@link HeatmapValuePreScale}. Default `'log'`. */
+  readonly valuePreScale?: HeatmapValuePreScale;
 }
 
 /**

@@ -56,6 +56,8 @@ type PaletteName =
   | 'RdBu'
   | 'aurora';
 
+type DomePreScale = 'linear' | 'log' | 'sqrt';
+
 interface Settings {
   kind: GlobeKind;
   dataset: DataSet;
@@ -75,6 +77,10 @@ interface Settings {
   shading: number;
   meshLevel: number; // 0..2 → 256x128 / 1024x512 / 2048x1024
   textureLevel: number; // 0..3
+  domeCenterArea: number;
+  domeShoulderHeight: number;
+  domeEdgeSteepness: number;
+  domePreScale: DomePreScale;
 }
 
 const SURFACE_PRESETS: Record<SurfaceMode, Partial<Settings>> = {
@@ -142,12 +148,15 @@ const TEXTURE_RESOLUTIONS: ReadonlyArray<{ readonly width: number; readonly heig
 
 const PRESETS: Record<string, Partial<Settings>> = {
   // Population heatmap covering every country. The outline kind binds
-  // entries by name to country polygons and bakes bounded domes: each dome's
-  // rounded crown occupies roughly the central half of its country, while
-  // walls fall back toward the border instead of spilling into neighbours.
+  // entries by name to country polygons and bakes bounded domes: each
+  // dome's rounded crown occupies roughly the central half of its country,
+  // walls fall back toward the border. We use `peak` normalize + `log`
+  // pre-scale per dome so each country still has a linear gradient inside
+  // (instead of a flat-top plateau from global log normalize), while big
+  // populations stay distinguishable from small ones cross-country.
   countries: {
     kernel: 'dome',
-    normalize: 'log',
+    normalize: 'peak',
     curve: 'smoothstep',
     displacementCurve: 'cubic',
     palette: 'aurora',
@@ -156,11 +165,15 @@ const PRESETS: Record<string, Partial<Settings>> = {
     detailMode: 'topo',
     radius: 0.035,
     maxHeight: 0.125,
-    intensity: 1.2,
-    threshold: 0.06,
+    intensity: 1.05,
+    threshold: 0.04,
     blurPasses: 1,
     meshLevel: 2,
     shading: 0.74,
+    domeCenterArea: 0.55,
+    domeShoulderHeight: 0.36,
+    domeEdgeSteepness: 2.6,
+    domePreScale: 'log',
   },
   // Flat 2D heat overlay — the classical Mapbox / deck.gl look. Vivid
   // colour ramp; no displacement (so no facets at the limb).
@@ -293,7 +306,7 @@ const settings: Settings = {
   kind: 'outline',
   dataset: 'countries',
   kernel: 'dome',
-  normalize: 'log',
+  normalize: 'peak',
   curve: 'smoothstep',
   displacementCurve: 'cubic',
   palette: 'aurora',
@@ -302,12 +315,16 @@ const settings: Settings = {
   detailMode: 'topo',
   radius: 0.035,
   maxHeight: 0.125,
-  intensity: 1.2,
-  threshold: 0.06,
+  intensity: 1.05,
+  threshold: 0.04,
   blurPasses: 1,
   shading: 0.74,
   meshLevel: 2,
   textureLevel: 1,
+  domeCenterArea: 0.55,
+  domeShoulderHeight: 0.36,
+  domeEdgeSteepness: 2.6,
+  domePreScale: 'log',
 };
 
 // Slightly darker variant of outline-dark so the heatmap colours have more
@@ -451,6 +468,27 @@ bindSlider('tex', 'tex-value', 0, (v) => {
   applyLayer();
 });
 
+// Dome-shape sliders — these all change the bake (the dome stamps are
+// re-rasterised), so debounce against rapid drags.
+bindSlider('dome-center', 'dome-center-value', 2, (v) => {
+  settings.domeCenterArea = v;
+  applyLayerDebounced();
+});
+bindSlider('dome-shoulder', 'dome-shoulder-value', 2, (v) => {
+  settings.domeShoulderHeight = v;
+  applyLayerDebounced();
+});
+bindSlider('dome-steep', 'dome-steep-value', 1, (v) => {
+  settings.domeEdgeSteepness = v;
+  applyLayerDebounced();
+});
+bindRowToggle('dome-prescale-row', 'prescale', (value) => {
+  settings.domePreScale = value as DomePreScale;
+  const el = document.getElementById('dome-prescale-value');
+  if (el) el.textContent = settings.domePreScale === 'sqrt' ? '√' : settings.domePreScale;
+  applyLayerDebounced();
+});
+
 function bindRowToggle(rowId: string, attr: string, onPick: (value: string) => void): void {
   const row = document.getElementById(rowId);
   if (!row) return;
@@ -501,6 +539,12 @@ function syncControls(): void {
   set('intensity', settings.intensity, 2);
   set('threshold', settings.threshold, 2);
   set('blur', settings.blurPasses);
+  set('dome-center', settings.domeCenterArea, 2);
+  set('dome-shoulder', settings.domeShoulderHeight, 2);
+  set('dome-steep', settings.domeEdgeSteepness, 1);
+  const preScaleEl = document.getElementById('dome-prescale-value');
+  if (preScaleEl)
+    preScaleEl.textContent = settings.domePreScale === 'sqrt' ? '√' : settings.domePreScale;
 
   const setActive = (rowId: string, attr: string, value: string) => {
     const row = document.getElementById(rowId);
@@ -517,6 +561,15 @@ function syncControls(): void {
   setActive('blend-row', 'blend', settings.blendMode);
   setActive('surface-row', 'surface', settings.surfaceMode);
   setActive('detail-row', 'detail', settings.detailMode);
+  setActive('dome-prescale-row', 'prescale', settings.domePreScale);
+
+  // Hide dome-shape controls unless we're actually rendering country domes.
+  const domeShape = document.getElementById('dome-shape');
+  if (domeShape) {
+    const visible =
+      settings.dataset === 'countries' && settings.surfaceMode === 'country';
+    domeShape.style.display = visible ? '' : 'none';
+  }
 }
 
 function mountGlobe(kind: GlobeKind) {
@@ -645,7 +698,12 @@ async function applyLayer(): Promise<void> {
     paletteSteps: 256,
     countryDomes:
       settings.dataset === 'countries' && settings.surfaceMode === 'country'
-        ? { centerArea: 0.55, shoulderHeight: 0.36, edgeSteepness: 2.6 }
+        ? {
+            centerArea: settings.domeCenterArea,
+            shoulderHeight: settings.domeShoulderHeight,
+            edgeSteepness: settings.domeEdgeSteepness,
+            valuePreScale: settings.domePreScale,
+          }
         : false,
     ...detailOptions,
   });
