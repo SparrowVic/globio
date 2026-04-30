@@ -11,9 +11,9 @@ import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import { colorForValue, type ScaleConfig } from '../../data/scales';
 import type { HeatmapDataEntry, HeatmapDataLayer } from '../types';
 
-const DEFAULT_RADIUS_RAD = 0.08; // ~4.6° — broader influence so peaks merge into mounds
-const DEFAULT_MAX_HEIGHT = 0.35; // big enough to be obvious without dominating the globe
-const DEFAULT_SUBDIVISIONS = 5;
+const DEFAULT_RADIUS_RAD = 0.12; // ~6.9° — wide kernel so individual cities merge into smooth mounds
+const DEFAULT_MAX_HEIGHT = 0.18; // gentle bumps; the colour does most of the storytelling
+const DEFAULT_SUBDIVISIONS = 6;  // ~40k vertices — eliminates visible icosphere triangulation
 
 export interface HeatmapLayerOptions {
   readonly layer: HeatmapDataLayer;
@@ -70,8 +70,19 @@ export class HeatmapLayer {
     this.geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
 
     this.material = options.buildMaterial();
-    const safe = this.material as Material & { vertexColors?: boolean; transparent?: boolean };
-    safe.vertexColors = true;
+    const safe = this.material as Material & {
+      vertexColors?: boolean;
+      transparent?: boolean;
+      needsUpdate?: boolean;
+    };
+    // Defensive — kind decorators should pass vertexColors:true in the
+    // constructor (so the shader compiles with the color attribute hooked
+    // up), but flip + invalidate here in case they don't, otherwise the
+    // mesh would render in the material's base `color` property (white).
+    if (!safe.vertexColors) {
+      safe.vertexColors = true;
+      safe.needsUpdate = true;
+    }
     if (safe.transparent === undefined) safe.transparent = true;
     this.mesh = new Mesh(this.geometry, this.material);
     this.mesh.renderOrder = 5;
@@ -165,27 +176,28 @@ export class HeatmapLayer {
       const idx = vi / 3;
       const density = densities[idx]!;
       const t = density / peak;
-      const offset = t * this.maxHeight;
+      // Smoothstep curve flattens the low-density base and lets only real
+      // peaks rise — keeps the geometry "mound-like" rather than uniformly
+      // tilted across half the globe.
+      const tDisp = t * t * (3 - 2 * t);
+      const offset = tDisp * this.maxHeight;
       livePositions[vi] = verts[vi]! + normals[vi]! * offset;
       livePositions[vi + 1] = verts[vi + 1]! + normals[vi + 1]! * offset;
       livePositions[vi + 2] = verts[vi + 2]! + normals[vi + 2]! * offset;
 
+      // Smoothstep-style falloff: t² (3 - 2t) gives flatter low-end and
+      // softer transition to peaks than linear t. Combined with additive
+      // blending, vast empty regions stay completely dark while clustered
+      // peaks bloom in colour.
+      const ts = t * t * (3 - 2 * t);
       let color: Color;
       if (this.scale) {
-        // Map density (in original sample units) through the scale.
         const scaledValue = extent[0] + t * (extent[1] - extent[0]);
         const c = colorForValue(this.scale, scaledValue, extent);
         color = c ? new Color(c) : fallback;
-        // For additive blending, scale brightness by density so low-density
-        // areas don't add ambient tint over the entire globe. Sequential
-        // palettes already start dark at low t, but threshold/categorical
-        // can bin to bright colors at t≈0; the multiplier keeps those quiet.
-        color.multiplyScalar(t);
+        color.multiplyScalar(ts);
       } else {
-        // Brightness ∝ density (0 at base → fallback at peak). With additive
-        // blending this means low-density areas don't tint the underlying
-        // globe at all and peaks glow vividly.
-        color = fallback.clone().multiplyScalar(t);
+        color = fallback.clone().multiplyScalar(ts);
       }
       liveColors[vi] = color.r;
       liveColors[vi + 1] = color.g;

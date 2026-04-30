@@ -33,8 +33,6 @@ bindRadioRow('data-row', 'set', (value) => {
   applyLayer();
 });
 
-applyLayer();
-
 function bindRadioRow(rowId: string, attr: string, onPick: (value: string) => void): void {
   const row = document.getElementById(rowId);
   if (!row) return;
@@ -90,7 +88,7 @@ function buildBarsLayer(set: DataSet): DataLayer {
     data: entries,
     scale: { type: 'sequential', palette },
     width: 0.018,
-    height: { min: 0.02, max: 0.5 },
+    height: { min: 0.015, max: 0.22 },
     animateOnMount: 'rise',
     mountDurationMs: 900,
   };
@@ -126,8 +124,8 @@ const POPULATION: CountryDataMap = Object.freeze({
   '360': { value: 275 }, // Indonesia
   '586': { value: 240 }, // Pakistan
   '566': { value: 224 }, // Nigeria
-  '076': { value: 215 }, // Brazil
-  '050': { value: 170 }, // Bangladesh
+  '76': { value: 215 }, // Brazil
+  '50': { value: 170 }, // Bangladesh
   '643': { value: 144 }, // Russia
   '484': { value: 130 }, // Mexico
   '392': { value: 125 }, // Japan
@@ -162,13 +160,13 @@ const GDP_PER_CAPITA: CountryDataMap = Object.freeze({
   '840': { value: 75000 }, // United States
   '352': { value: 70000 }, // Iceland
   '208': { value: 68000 }, // Denmark
-  '036': { value: 65000 }, // Australia
+  '36': { value: 65000 }, // Australia
   '528': { value: 60000 }, // Netherlands
   '752': { value: 58000 }, // Sweden
-  '040': { value: 55000 }, // Austria
+  '40': { value: 55000 }, // Austria
   '376': { value: 55000 }, // Israel
   '124': { value: 53000 }, // Canada
-  '056': { value: 52000 }, // Belgium
+  '56': { value: 52000 }, // Belgium
   '276': { value: 50000 }, // Germany
   '246': { value: 50000 }, // Finland
   '826': { value: 48000 }, // United Kingdom
@@ -184,3 +182,8 @@ const GDP_PER_CAPITA: CountryDataMap = Object.freeze({
   '203': { value: 30000 }, // Czech Republic
   '682': { value: 28000 }, // Saudi Arabia
 });
+
+// Kick off after all module-level `const`s are initialised — calling
+// applyLayer() before this point hits the temporal dead zone for
+// POPULATION / GDP_PER_CAPITA.
+applyLayer();

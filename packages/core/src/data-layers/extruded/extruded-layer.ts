@@ -214,11 +214,22 @@ const buildEntryGeometry = (
       const opened = closes ? ring.slice(0, -1) : ring;
       if (opened.length < 3) continue;
 
+      // Edges spanning more than this angle on the sphere are dropped — they
+      // indicate a source ring with an unsplit antimeridian crossing or a
+      // degenerate jump that would produce a giant wall slicing across the
+      // globe. ~5° is plenty: real ring segments in world-atlas medium res
+      // are sub-degree, so this only catches data anomalies.
+      const MAX_EDGE_DOT = Math.cos((5 * Math.PI) / 180);
       for (let i = 0; i < opened.length; i++) {
         const a = opened[i]!;
         const b = opened[(i + 1) % opened.length]!;
         const va = latLngToVector3([a[1], a[0]], radius);
         const vb = latLngToVector3([b[1], b[0]], radius);
+        const lenA = Math.hypot(va.x, va.y, va.z) || 1;
+        const lenB = Math.hypot(vb.x, vb.y, vb.z) || 1;
+        // Dot product of unit vectors = cos(angle between them).
+        const dot = (va.x * vb.x + va.y * vb.y + va.z * vb.z) / (lenA * lenB);
+        if (dot < MAX_EDGE_DOT) continue;
         const baseIdx = positions.length / 3;
         // [0] surface A, [1] surface B, [2] top A, [3] top B
         positions.push(va.x, va.y, va.z);
@@ -226,10 +237,8 @@ const buildEntryGeometry = (
         positions.push(vb.x, vb.y, vb.z);
         directions.push(0, 0, 0);
         positions.push(va.x, va.y, va.z);
-        const lenA = Math.hypot(va.x, va.y, va.z) || 1;
         directions.push(va.x / lenA, va.y / lenA, va.z / lenA);
         positions.push(vb.x, vb.y, vb.z);
-        const lenB = Math.hypot(vb.x, vb.y, vb.z) || 1;
         directions.push(vb.x / lenB, vb.y / lenB, vb.z / lenB);
         // Two triangles for the wall quad.
         indices.push(baseIdx, baseIdx + 1, baseIdx + 2);

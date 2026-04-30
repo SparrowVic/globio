@@ -19,9 +19,9 @@ const state: {
 } = {
   kind: 'outline',
   data: 'cities',
-  radius: 0.08,
-  maxHeight: 0.35,
-  subdivisions: 5,
+  radius: 0.12,
+  maxHeight: 0.18,
+  subdivisions: 6,
 };
 
 let globe = mountGlobe(state.kind);
@@ -47,8 +47,6 @@ bindSlider('subs', 'subs-value', (v) => {
   state.subdivisions = Math.round(v);
   applyLayer();
 });
-
-applyLayer();
 
 function bindRadioRow(rowId: string, attr: string, onPick: (value: string) => void): void {
   const row = document.getElementById(rowId);
@@ -196,3 +194,8 @@ function generateRandom(): Array<HeatmapDataEntry> {
   }
   return out;
 }
+
+// Kick off after all module-level `const`s are initialised — calling
+// applyLayer() before this point hits the temporal dead zone for
+// CITIES_DATA / RANDOM_DATA.
+applyLayer();

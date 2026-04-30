@@ -107,6 +107,7 @@ export const outlineKind: KindModule = {
             opacity: 0.95,
             blending: AdditiveBlending,
             depthWrite: false,
+            vertexColors: true,
           }),
       });
       globeGroup.add(heatmap.mesh);

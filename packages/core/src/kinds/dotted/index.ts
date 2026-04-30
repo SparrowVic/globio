@@ -98,6 +98,7 @@ export const dottedKind: KindModule = {
             opacity: 0.55,
             blending: AdditiveBlending,
             depthWrite: false,
+            vertexColors: true,
           }),
       });
       globeGroup.add(heatmap.mesh);
