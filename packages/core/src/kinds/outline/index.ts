@@ -173,6 +173,9 @@ export const outlineKind: KindModule = {
             )
           );
         },
+        playAnimation() {
+          return heatmap.playAnimation();
+        },
         dispose() {
           heatmap.dispose();
           globeGroup.remove(heatmap.mesh);
@@ -199,6 +202,9 @@ export const outlineKind: KindModule = {
         },
         setData(next: DataLayer) {
           layer.setData(next as HexBinDataLayer);
+        },
+        playAnimation() {
+          return layer.playAnimation();
         },
         dispose() {
           layer.dispose();
@@ -227,6 +233,9 @@ export const outlineKind: KindModule = {
         },
         setData(next: DataLayer) {
           charts.setData(next as ChartsDataLayer);
+        },
+        playAnimation() {
+          return charts.playAnimation();
         },
         dispose() {
           charts.dispose();

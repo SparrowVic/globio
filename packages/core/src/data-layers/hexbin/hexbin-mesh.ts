@@ -1,8 +1,8 @@
 import {
+  BufferAttribute,
   BufferGeometry,
   Color,
   DoubleSide,
-  Float32BufferAttribute,
   LineBasicMaterial,
   LineSegments,
   Mesh,
@@ -28,12 +28,10 @@ import type { IcosphereData } from './icosphere';
  */
 export interface HexBinMeshOptions {
   readonly icosphere: IcosphereData;
-  /** 0..1, how much each cell shrinks toward its centroid. Default 0.94. */
+  /** 0..1, how much of each cell footprint remains after centroid shrink. Default 0.94. */
   readonly cellInset: number;
   /** Material opacity multiplier. Default 1. */
   readonly opacity: number;
-  /** Colour for cells with no samples (when `showEmpty` is true). */
-  readonly noDataColor: string;
   /** Min/max extrusion in world units (1 = globe radius). */
   readonly heightRange: { readonly min: number; readonly max: number };
   /** Outer-shell lift to avoid z-fighting with the underlying globe surface. */
@@ -65,6 +63,7 @@ export class HexBinMesh {
   private readonly positions: Float32Array;
   private readonly colors: Float32Array;
   private readonly basePositions: Float32Array;
+  private readonly faceCenters: Float32Array;
   /**
    * Per-vertex "fully bloomed" colour (RGB ×3 floats × 3 verts/face). The
    * vertex `colors` buffer is `baseColors × faceAnimScale` each frame so
@@ -75,22 +74,27 @@ export class HexBinMesh {
   private readonly heights: Float32Array;
   /** Per-face animation scaling [0..1] applied each tick. */
   private readonly animScale: Float32Array;
+  /** Per-face visibility. Hidden cells are collapsed to a zero-area triangle. */
+  private readonly visible: Uint8Array;
   private readonly faceCount: number;
   private readonly lift: number;
 
   public constructor(options: HexBinMeshOptions) {
     const { icosphere, cellInset, opacity, heightRange } = options;
-    this.lift = SHELL_LIFT_DEFAULT;
+    this.lift = options.lift ?? SHELL_LIFT_DEFAULT;
     this.faceCount = icosphere.faces.length / 3;
     const vertCount = this.faceCount * 3;
 
     this.basePositions = new Float32Array(vertCount * 3);
+    this.faceCenters = new Float32Array(this.faceCount * 3);
     this.positions = new Float32Array(vertCount * 3);
     this.colors = new Float32Array(vertCount * 3);
     this.baseColors = new Float32Array(vertCount * 3);
     this.heights = new Float32Array(this.faceCount);
     this.animScale = new Float32Array(this.faceCount);
     this.animScale.fill(1);
+    this.visible = new Uint8Array(this.faceCount);
+    this.visible.fill(1);
 
     const verts = icosphere.vertices;
     const faces = icosphere.faces;
@@ -104,14 +108,21 @@ export class HexBinMesh {
       const cx = centroids[f * 3]!;
       const cy = centroids[f * 3 + 1]!;
       const cz = centroids[f * 3 + 2]!;
+      this.faceCenters[f * 3] = cx;
+      this.faceCenters[f * 3 + 1] = cy;
+      this.faceCenters[f * 3 + 2] = cz;
       for (let k = 0; k < 3; k++) {
         const vIdx = faces[f * 3 + k]! * 3;
         const vx = verts[vIdx]!;
         const vy = verts[vIdx + 1]!;
         const vz = verts[vIdx + 2]!;
-        const ix = cx + (vx - cx) * cellInset;
-        const iy = cy + (vy - cy) * cellInset;
-        const iz = cz + (vz - cz) * cellInset;
+        let ix = cx + (vx - cx) * cellInset;
+        let iy = cy + (vy - cy) * cellInset;
+        let iz = cz + (vz - cz) * cellInset;
+        const len = Math.sqrt(ix * ix + iy * iy + iz * iz) || 1;
+        ix /= len;
+        iy /= len;
+        iz /= len;
         const out = (f * 3 + k) * 3;
         this.basePositions[out] = ix;
         this.basePositions[out + 1] = iy;
@@ -123,14 +134,14 @@ export class HexBinMesh {
     this.writePositionsAtAnimT(1, heightRange);
 
     this.geometry = new BufferGeometry();
-    this.geometry.setAttribute('position', new Float32BufferAttribute(this.positions, 3));
-    this.geometry.setAttribute('color', new Float32BufferAttribute(this.colors, 3));
+    this.geometry.setAttribute('position', new BufferAttribute(this.positions, 3));
+    this.geometry.setAttribute('color', new BufferAttribute(this.colors, 3));
     this.geometry.computeVertexNormals();
 
     this.material = new MeshBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity,
+      opacity: clamp01(opacity),
       side: DoubleSide,
       depthWrite: false,
     });
@@ -147,12 +158,12 @@ export class HexBinMesh {
       this.borderGeometry = new BufferGeometry();
       this.borderGeometry.setAttribute(
         'position',
-        new Float32BufferAttribute(this.borderPositions, 3)
+        new BufferAttribute(this.borderPositions, 3)
       );
       this.borderMaterial = new LineBasicMaterial({
         color: options.border.color,
         transparent: true,
-        opacity: options.border.opacity,
+        opacity: clamp01(options.border.opacity),
         depthWrite: false,
       });
       this.borderLines = new LineSegments(this.borderGeometry, this.borderMaterial);
@@ -174,7 +185,9 @@ export class HexBinMesh {
     heightRange: { readonly min: number; readonly max: number },
     noDataColor: string
   ): void {
-    const span = Math.max(1e-9, extent[1] - extent[0]);
+    const span = extent[1] - extent[0];
+    const degenerateExtent = Math.abs(span) < 1e-9;
+    const resolvedNoDataColor = scale?.noDataColor ?? noDataColor;
     for (let f = 0; f < this.faceCount; f++) {
       const v = values[f]!;
       const empty = !Number.isFinite(v);
@@ -182,24 +195,28 @@ export class HexBinMesh {
       let normalised: number;
       if (empty) {
         if (!showEmpty) {
+          this.visible[f] = 0;
           this.heights[f] = 0;
           this.writeFaceColor(f, '#000000', 0);
           continue;
         }
-        color = noDataColor;
+        this.visible[f] = 1;
+        color = resolvedNoDataColor;
         normalised = 0;
       } else {
-        normalised = (v - extent[0]) / span;
+        this.visible[f] = 1;
+        normalised = degenerateExtent ? 1 : (v - extent[0]) / span;
         const cell = scale ? colorForValue(scale, v, extent) : null;
-        color = cell ?? fallbackColor;
+        color = cell ?? scale?.noDataColor ?? fallbackColor;
       }
+      normalised = Math.max(0, Math.min(1, normalised));
       const cellHeight = heightRange.min + normalised * (heightRange.max - heightRange.min);
       this.heights[f] = empty ? 0 : cellHeight;
       this.writeFaceColor(f, color, 1);
     }
     this.writePositionsAtAnimT(1, heightRange);
-    (this.geometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
-    (this.geometry.getAttribute('color') as Float32BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute('position') as BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute('color') as BufferAttribute).needsUpdate = true;
     this.writeBorderPositions();
     this.geometry.computeBoundingSphere();
   }
@@ -211,7 +228,10 @@ export class HexBinMesh {
    * visibly bloom in alongside their extrusion rise.
    */
   public applyAnimation(animScalePerFace: Float32Array, heightRange: { readonly min: number; readonly max: number }): void {
-    this.animScale.set(animScalePerFace);
+    for (let f = 0; f < this.faceCount; f++) {
+      const s = animScalePerFace[f] ?? 0;
+      this.animScale[f] = Number.isFinite(s) ? Math.max(0, s) : 0;
+    }
     this.writePositionsAtAnimT(0, heightRange);
     for (let f = 0; f < this.faceCount; f++) {
       const s = this.animScale[f]!;
@@ -222,13 +242,13 @@ export class HexBinMesh {
         this.colors[idx + 2] = this.baseColors[idx + 2]! * s;
       }
     }
-    (this.geometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
-    (this.geometry.getAttribute('color') as Float32BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute('position') as BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute('color') as BufferAttribute).needsUpdate = true;
     this.writeBorderPositions();
   }
 
   public setOpacity(opacity: number): void {
-    this.material.opacity = opacity;
+    this.material.opacity = clamp01(opacity);
   }
 
   public dispose(): void {
@@ -272,6 +292,10 @@ export class HexBinMesh {
     for (let k = 0; k < 9; k++) out[k] = this.positions[f * 9 + k]!;
   }
 
+  public isFaceVisible(f: number): boolean {
+    return f >= 0 && f < this.faceCount && this.visible[f] !== 0;
+  }
+
   /** Refresh border line positions from the current animated mesh state. */
   private writeBorderPositions(): void {
     if (!this.borderPositions) return;
@@ -301,7 +325,7 @@ export class HexBinMesh {
       this.borderPositions[out + 17] = this.positions[base + 2]!;
     }
     if (this.borderGeometry) {
-      (this.borderGeometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
+      (this.borderGeometry.getAttribute('position') as BufferAttribute).needsUpdate = true;
     }
   }
 
@@ -319,6 +343,19 @@ export class HexBinMesh {
     for (let f = 0; f < this.faceCount; f++) {
       const h = this.heights[f]! * this.animScale[f]!;
       const radial = GLOBE_RADIUS * (lift + h);
+      if (this.visible[f] === 0) {
+        const c = f * 3;
+        const x = this.faceCenters[c]! * GLOBE_RADIUS * lift;
+        const y = this.faceCenters[c + 1]! * GLOBE_RADIUS * lift;
+        const z = this.faceCenters[c + 2]! * GLOBE_RADIUS * lift;
+        for (let k = 0; k < 3; k++) {
+          const idx = (f * 3 + k) * 3;
+          this.positions[idx] = x;
+          this.positions[idx + 1] = y;
+          this.positions[idx + 2] = z;
+        }
+        continue;
+      }
       for (let k = 0; k < 3; k++) {
         const idx = (f * 3 + k) * 3;
         this.positions[idx] = this.basePositions[idx]! * radial;
@@ -352,3 +389,8 @@ export class HexBinMesh {
     }
   }
 }
+
+const clamp01 = (value: number): number => {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, value));
+};

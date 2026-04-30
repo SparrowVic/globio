@@ -543,7 +543,7 @@ export interface GlobeInstance {
    * Mount or replace the active **data layer** — the high-level data
    * visualisation slot orthogonal to the kind. Pass `null` to remove.
    *
-   * `globe.setDataLayer({ type: 'choropleth' | 'bars' | 'extruded' | 'heatmap', ... })`
+   * `globe.setDataLayer({ type: 'choropleth' | 'bars' | 'extruded' | 'heatmap' | 'hexbin' | 'charts', ... })`
    *
    * Only one data layer can be active at a time. Visual rendering is
    * delegated to the active kind's decoration; if the kind doesn't ship
@@ -552,6 +552,11 @@ export interface GlobeInstance {
    */
   readonly setDataLayer: (layer: import('./data-layers/types').DataLayer | null) => void;
   readonly getDataLayer: () => import('./data-layers/types').DataLayer | null;
+  /**
+   * Replay the active data layer's mount animation when the current layer
+   * supports animation. Returns false when no animated data layer is active.
+   */
+  readonly playDataLayerAnimation: () => boolean;
   /**
    * Toggle on-globe country name labels. If labels weren't enabled in the
    * initial config, this turns them on for the first time and reuses the

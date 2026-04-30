@@ -36,6 +36,24 @@ describe('aggregateSamples', () => {
     expect(total).toBeCloseTo(3, 5);
   });
 
+  it('returns per-cell sample counts alongside aggregate values', () => {
+    const samples = [
+      { position: [0, 0] as const, value: 2 },
+      { position: [0, 0] as const, value: 4 },
+      { position: [45, 45] as const, value: 8 },
+    ];
+    const bins = aggregateSamples(samples, ico.faceCentroids, 'sum');
+    let occupiedCells = 0;
+    let totalSamples = 0;
+    for (let i = 0; i < bins.sampleCounts.length; i++) {
+      const count = bins.sampleCounts[i]!;
+      if (count > 0) occupiedCells++;
+      totalSamples += count;
+    }
+    expect(totalSamples).toBe(3);
+    expect(occupiedCells).toBe(2);
+  });
+
   it('takes max of values when mode is "max"', () => {
     const samples = [
       { position: [0, 0] as const, value: 5 },
@@ -121,6 +139,21 @@ describe('aggregateSamples', () => {
     expect(found).toBe(5);
   });
 
+  it('computes median as the average of the two middle values for even sample counts', () => {
+    const samples = [
+      { position: [0, 0] as const, value: 1 },
+      { position: [0, 0] as const, value: 5 },
+      { position: [0, 0] as const, value: 9 },
+      { position: [0, 0] as const, value: 100 },
+    ];
+    const bins = aggregateSamples(samples, ico.faceCentroids, 'median');
+    let found = NaN;
+    for (let i = 0; i < bins.values.length; i++) {
+      if (Number.isFinite(bins.values[i]!)) found = bins.values[i]!;
+    }
+    expect(found).toBe(7);
+  });
+
   it('computes p90 per cell', () => {
     const samples = [
       { position: [0, 0] as const, value: 1 },
@@ -139,8 +172,8 @@ describe('aggregateSamples', () => {
     for (let i = 0; i < bins.values.length; i++) {
       if (Number.isFinite(bins.values[i]!)) found = bins.values[i]!;
     }
-    // p90 of 10 samples = index floor(10 × 0.9) = 9 → value 100.
-    expect(found).toBe(100);
+    // Nearest-rank p90 of 10 samples = ceil(10 × 0.9) - 1 = index 8.
+    expect(found).toBe(9);
   });
 
   it('reports samplesBinned == samples.length even when many samples land in the same cell', () => {
@@ -150,5 +183,37 @@ describe('aggregateSamples', () => {
     }));
     const bins = aggregateSamples(samples, ico.faceCentroids, 'sum');
     expect(bins.samplesBinned).toBe(50);
+  });
+
+  it('skips invalid positions and non-finite values instead of poisoning a bin', () => {
+    const samples = [
+      { position: [0, 0] as const, value: 2 },
+      { position: [Number.NaN, 0] as const, value: 100 },
+      { position: [91, 0] as const, value: 100 },
+      { position: [0, 0] as const, value: Number.NaN },
+    ];
+    const bins = aggregateSamples(samples, ico.faceCentroids, 'sum');
+    let total = 0;
+    for (let i = 0; i < bins.values.length; i++) {
+      const v = bins.values[i]!;
+      if (Number.isFinite(v)) total += v;
+    }
+    expect(total).toBe(2);
+    expect(bins.samplesBinned).toBe(1);
+  });
+
+  it('count mode ignores non-finite values but still skips invalid positions', () => {
+    const samples = [
+      { position: [0, 0] as const, value: Number.NaN },
+      { position: [Number.NaN, 0] as const, value: 1 },
+    ];
+    const bins = aggregateSamples(samples, ico.faceCentroids, 'count');
+    let total = 0;
+    for (let i = 0; i < bins.values.length; i++) {
+      const v = bins.values[i]!;
+      if (Number.isFinite(v)) total += v;
+    }
+    expect(total).toBe(1);
+    expect(bins.samplesBinned).toBe(1);
   });
 });

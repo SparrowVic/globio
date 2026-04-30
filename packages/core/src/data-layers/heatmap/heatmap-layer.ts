@@ -334,12 +334,13 @@ export class HeatmapLayer {
    * timeline; the `target` selector argument is reserved for the per-entry
    * variant (rebuilds the delay map masking only the matched samples).
    */
-  public playAnimation(): void {
-    if (!this.animConfig.enabled) return;
+  public playAnimation(): boolean {
+    if (!this.animConfig.enabled) return false;
     this.animElapsedSec = 0;
     const u = this.material.uniforms;
     u['uAnimT']!.value = 0;
     u['uAnimTimeSec']!.value = 0;
+    return true;
   }
 
   /**

@@ -1,7 +1,7 @@
 import {
+  BufferAttribute,
   BufferGeometry,
   DoubleSide,
-  Float32BufferAttribute,
   Mesh,
   MeshBasicMaterial,
   Vector3,
@@ -20,7 +20,7 @@ export class HexBinHighlight {
   private readonly geometry: BufferGeometry;
   private readonly material: MeshBasicMaterial;
   private readonly positions: Float32Array;
-  private readonly liftOffset: number;
+  private liftOffset: number;
   private currentFace = -1;
   /** Latest corner snapshot used by `refreshFromHover()` after animation. */
   private readonly lastCorners = new Float32Array(9);
@@ -31,14 +31,14 @@ export class HexBinHighlight {
     readonly opacity: number;
     readonly liftOffset: number;
   }) {
-    this.liftOffset = options.liftOffset;
+    this.liftOffset = nonNegative(options.liftOffset, 0);
     this.positions = new Float32Array(9);
     this.geometry = new BufferGeometry();
-    this.geometry.setAttribute('position', new Float32BufferAttribute(this.positions, 3));
+    this.geometry.setAttribute('position', new BufferAttribute(this.positions, 3));
     this.material = new MeshBasicMaterial({
       color: options.color,
       transparent: true,
-      opacity: options.opacity,
+      opacity: clamp01(options.opacity),
       side: DoubleSide,
       depthWrite: false,
     });
@@ -65,6 +65,17 @@ export class HexBinHighlight {
 
   public get faceIndex(): number {
     return this.currentFace;
+  }
+
+  public updateStyle(options: {
+    readonly color: string;
+    readonly opacity: number;
+    readonly liftOffset: number;
+  }): void {
+    this.material.color.set(options.color);
+    this.material.opacity = clamp01(options.opacity);
+    this.liftOffset = nonNegative(options.liftOffset, this.liftOffset);
+    this.refreshFromHover();
   }
 
   /** Re-write positions from the cached corners — called after animation tick. */
@@ -104,8 +115,18 @@ export class HexBinHighlight {
         this.positions[idx + 2] = v.z;
       }
     }
-    (this.geometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
+    (this.geometry.getAttribute('position') as BufferAttribute).needsUpdate = true;
   }
 }
 
 const SCRATCH_VEC = new Vector3();
+
+const clamp01 = (value: number): number => {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, value));
+};
+
+const nonNegative = (value: number, fallback: number): number => {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, value);
+};

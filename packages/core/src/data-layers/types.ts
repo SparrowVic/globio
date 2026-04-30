@@ -574,6 +574,15 @@ export interface HeatmapDataEntry {
  * Level 3 is the sweet-spot default — fine enough to pick up regional
  * patterns, coarse enough to cluster cleanly even with 1k samples.
  */
+export type HexBinAggregateMode = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
+
+/**
+ * Hex-bin mount animation. This is intentionally the same field shape as
+ * heatmap/charts animation; `order: 'radial'` auto-centres on the data's
+ * spherical centroid when `origin` is omitted.
+ */
+export type HexBinAnimationConfig = HeatmapAnimationConfig;
+
 /**
  * Per-cell border line overlay drawn on top of the hex-bin cells. Useful
  * when `cellInset = 1` (no gap between cells) and you still want a clear
@@ -614,6 +623,8 @@ export interface HexBinHighlightConfig {
 export interface HexBinHoverPayload {
   readonly cellIndex: number;
   readonly value: number;
+  /** Number of input samples that landed in this cell. */
+  readonly sampleCount: number;
   readonly empty: boolean;
   /** Cell centroid lat/lng in degrees. */
   readonly position: LatLng;
@@ -626,16 +637,17 @@ export interface HexBinDataLayer {
   /** Icosphere subdivision level (0–5). Default 3. */
   readonly resolution?: number;
   /** How multiple samples landing in the same cell combine. See {@link HexBinAggregateMode}. Default 'sum'. */
-  readonly aggregate?: 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
+  readonly aggregate?: HexBinAggregateMode;
   /** Min/max cell extrusion in world units (1 = globe radius). Default { min: 0, max: 0.06 }. */
   readonly height?: { readonly min?: number; readonly max?: number };
-  /** Render cells with no samples using the scale's noData colour. Default false. */
+  /** Render cells with no samples using `scale.noDataColor` or the layer default. Default false. */
   readonly showEmpty?: boolean;
   /** Layer opacity multiplier. Default 1. */
   readonly opacity?: number;
   /**
-   * 0..1 — how much each cell shrinks toward its centroid so neighbouring
-   * cells visually separate. Default 0.94 (≈3% gap on each edge).
+   * 0..1 — how much each cell keeps its original footprint after shrinking
+   * toward its centroid. `1` means contiguous cells; lower values create
+   * larger gaps. Default 0.94 (≈3% gap on each edge).
    */
   readonly cellInset?: number;
   /**
@@ -646,8 +658,8 @@ export interface HexBinDataLayer {
   readonly cellBorder?: boolean | HexBinCellBorderConfig;
   /** Pointer-hover highlight overlay. Default disabled. */
   readonly highlight?: boolean | HexBinHighlightConfig;
-  /** Mount/init animation (reuses the heatmap animation config shape). */
-  readonly animation?: boolean | HeatmapAnimationConfig;
+  /** Mount/init animation. Set `false` to mount instantly. */
+  readonly animation?: boolean | HexBinAnimationConfig;
   /**
    * Pointer hover/click events. `entry` is a `HexBinHoverPayload`; the
    * cellIndex is stable across re-bakes for the same `resolution`.
@@ -885,6 +897,8 @@ export interface DataLayerHandle {
   readonly type: DataLayerType;
   /** Replace the layer's data (typically with smooth transition). */
   setData?(layer: DataLayer): void;
+  /** Restart the layer's mount animation when supported. Returns false when disabled. */
+  playAnimation?(): boolean;
   update?(delta: number, elapsedSeconds: number): void;
   dispose(): void;
 }

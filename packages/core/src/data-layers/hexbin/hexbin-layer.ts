@@ -1,4 +1,4 @@
-import { Group, Raycaster, Vector2, type Camera } from 'three';
+import { Group, Raycaster, Vector2, Vector3, type Camera } from 'three';
 import type { HexBinDataLayer, HexBinHoverPayload } from '../types';
 import {
   DISABLED_ANIMATION,
@@ -7,6 +7,7 @@ import {
   type ResolvedHeatmapAnimationConfig,
 } from '../heatmap/animation';
 import { clampCpu } from '../heatmap/polygon-utils';
+import { latLngToVector3, vector3ToLatLng } from '../../utils/coordinates';
 import { aggregateSamples } from './aggregator';
 import { buildFaceStartTimes } from './face-ordering';
 import { buildIcosphere, type IcosphereData } from './icosphere';
@@ -19,6 +20,7 @@ const DEFAULT_HEIGHT_MAX = 0.06;
 const DEFAULT_CELL_INSET = 0.94;
 const DEFAULT_FALLBACK_COLOR = '#5cb8ff';
 const DEFAULT_NO_DATA_COLOR = '#1f2a44';
+const ORIGIN_SCRATCH = new Vector3();
 
 export interface HexBinLayerOptions {
   readonly layer: HexBinDataLayer;
@@ -82,12 +84,20 @@ export class HexBinLayer {
   private heightRange = { min: DEFAULT_HEIGHT_MIN, max: DEFAULT_HEIGHT_MAX };
   /** Latest aggregated values — kept around so hover/click can report value. */
   private currentValues: Float32Array = new Float32Array(0);
+  /** Latest per-cell sample counts — reported through hover/click payloads. */
+  private currentCounts: Uint32Array = new Uint32Array(0);
+  /** Cells currently rendered/interactable. Empty hidden cells are 0. */
+  private currentVisibleFaces: Uint8Array = new Uint8Array(0);
   /** Internal raycaster scratch — only allocated when events/highlight are wired. */
   private readonly raycaster: Raycaster;
   private readonly pointer: Vector2;
   private readonly cornerScratch = new Float32Array(9);
   /** Whether `attachPointer()` has wired listeners on `domElement`. */
   private pointerAttached = false;
+  private hoveredFace = -1;
+  private meshCellInset = Number.NaN;
+  private meshBorderKey = '';
+  private highlightKey = '';
 
   public constructor(options: HexBinLayerOptions) {
     this.group = new Group();
@@ -96,11 +106,11 @@ export class HexBinLayer {
     this.camera = options.camera ?? null;
     this.domElement = options.domElement ?? null;
     this.layerCfg = options.layer;
-    this.icosphere = buildIcosphere(options.layer.resolution ?? DEFAULT_RESOLUTION);
+    this.icosphere = buildIcosphere(resolveResolution(options.layer.resolution));
     this.raycaster = new Raycaster();
     this.pointer = new Vector2();
     this.applyData(options.layer);
-    this.maybeAttachPointer();
+    this.refreshPointerListeners();
   }
 
   /**
@@ -109,9 +119,14 @@ export class HexBinLayer {
    * push new colours/heights into the existing buffers.
    */
   public setData(layer: HexBinDataLayer): void {
-    const newResolution = layer.resolution ?? DEFAULT_RESOLUTION;
+    const newResolution = resolveResolution(layer.resolution);
     const oldResolution = this.icosphere.level;
+    const previousEvents = this.layerCfg.events;
+    const wasHovering = this.hoveredFace >= 0;
     this.layerCfg = layer;
+    this.hoveredFace = -1;
+    this.highlight?.hide();
+    if (wasHovering) previousEvents?.onHover?.(null);
     if (newResolution !== oldResolution) {
       this.icosphere = buildIcosphere(newResolution);
       this.disposeMesh();
@@ -120,13 +135,14 @@ export class HexBinLayer {
         this.group.remove(this.highlight.mesh);
         this.highlight.dispose();
         this.highlight = null;
+        this.highlightKey = '';
       }
     }
     this.applyData(layer);
     // Resolution change can't bring listeners online if dom/camera weren't
     // wired. But events / highlight toggling between calls IS legit, so
     // re-evaluate attachment.
-    this.maybeAttachPointer();
+    this.refreshPointerListeners();
   }
 
   /**
@@ -152,7 +168,7 @@ export class HexBinLayer {
         const phase = ((this.animElapsedSec - this.faceStartSec[f]!) / period) * twoPi;
         const raw = (Math.sin(phase) + 1) * 0.5;
         const eased = this.easingFn(raw);
-        this.faceAnimScale[f] = 0.4 + eased * 0.6;
+        this.faceAnimScale[f] = 0.4 + clampFinite(eased, 0, 0, 1) * 0.6;
       }
     } else {
       for (let f = 0; f < this.faceStartSec.length; f++) {
@@ -161,7 +177,7 @@ export class HexBinLayer {
           0,
           1
         );
-        this.faceAnimScale[f] = this.easingFn(local);
+        this.faceAnimScale[f] = Math.max(0, finiteOr(this.easingFn(local), 0));
       }
     }
     this.mesh.applyAnimation(this.faceAnimScale, this.heightRange);
@@ -172,11 +188,12 @@ export class HexBinLayer {
   }
 
   /** Restart the mount animation from `t=0`. Story-bridge hook. */
-  public playAnimation(): void {
-    if (!this.animConfig.enabled || !this.mesh) return;
+  public playAnimation(): boolean {
+    if (!this.animConfig.enabled || !this.mesh) return false;
     this.animElapsedSec = 0;
     this.faceAnimScale.fill(0);
     this.mesh.applyAnimation(this.faceAnimScale, this.heightRange);
+    return true;
   }
 
   public dispose(): void {
@@ -194,32 +211,31 @@ export class HexBinLayer {
   // -------------------------------------------------------------------------
 
   private applyData(layer: HexBinDataLayer): void {
-    this.heightRange = {
-      min: layer.height?.min ?? DEFAULT_HEIGHT_MIN,
-      max: layer.height?.max ?? DEFAULT_HEIGHT_MAX,
-    };
+    this.heightRange = resolveHeightRange(layer.height);
     this.animConfig = resolveAnimationConfig(layer.animation);
     this.easingFn = easingFunctionFor(this.animConfig.easing);
 
     const border = resolveBorderConfig(layer.cellBorder);
     const highlightCfg = resolveHighlightConfig(layer.highlight);
+    const cellInset = clampFinite(layer.cellInset, DEFAULT_CELL_INSET, 0, 1);
+    const borderKey = border.enabled ? `${border.color}|${border.opacity}` : 'off';
+    const highlightKey = highlightCfg.enabled
+      ? `${highlightCfg.color}|${highlightCfg.opacity}|${highlightCfg.liftOffset}`
+      : 'off';
 
     // Mesh requires border config at construction (LineSegments are owned
     // by the mesh). If border on/off changed between setData calls, drop
     // the mesh and rebuild — cheap relative to the bake.
     const meshNeedsRebuild =
       !this.mesh ||
-      Boolean(this.mesh.borderLines) !== border.enabled ||
-      // Inset is also baked into base positions, so changing it = rebuild.
-      false;
+      this.meshCellInset !== cellInset ||
+      this.meshBorderKey !== borderKey;
     if (meshNeedsRebuild) {
       this.disposeMesh();
-      const cellInset = clampCpu(layer.cellInset ?? DEFAULT_CELL_INSET, 0.5, 1);
       this.mesh = new HexBinMesh({
         icosphere: this.icosphere,
         cellInset,
-        opacity: layer.opacity ?? 1,
-        noDataColor: DEFAULT_NO_DATA_COLOR,
+        opacity: resolveOpacity(layer.opacity),
         heightRange: this.heightRange,
         lift: 1.001,
         ...(border.enabled
@@ -228,6 +244,8 @@ export class HexBinLayer {
       });
       this.group.add(this.mesh.mesh);
       if (this.mesh.borderLines) this.group.add(this.mesh.borderLines);
+      this.meshCellInset = cellInset;
+      this.meshBorderKey = borderKey;
     }
 
     // Highlight: build/teardown overlay based on resolved config.
@@ -239,11 +257,19 @@ export class HexBinLayer {
           liftOffset: highlightCfg.liftOffset,
         });
         this.group.add(this.highlight.mesh);
+      } else if (this.highlightKey !== highlightKey) {
+        this.highlight.updateStyle({
+          color: highlightCfg.color,
+          opacity: highlightCfg.opacity,
+          liftOffset: highlightCfg.liftOffset,
+        });
       }
+      this.highlightKey = highlightKey;
     } else if (this.highlight) {
       this.group.remove(this.highlight.mesh);
       this.highlight.dispose();
       this.highlight = null;
+      this.highlightKey = 'off';
     }
 
     const aggregate = layer.aggregate ?? 'sum';
@@ -253,6 +279,8 @@ export class HexBinLayer {
     }));
     const bins = aggregateSamples(samples, this.icosphere.faceCentroids, aggregate);
     this.currentValues = bins.values;
+    this.currentCounts = bins.sampleCounts;
+    this.currentVisibleFaces = buildVisibleFaceMask(bins.values, layer.showEmpty ?? false);
 
     this.mesh!.update(
       bins.values,
@@ -284,19 +312,19 @@ export class HexBinLayer {
       this.animConfig.stagger,
       this.animConfig.order,
       radialOrigin,
-      this.faceStartSec
+      this.faceStartSec,
+      this.currentVisibleFaces
     );
     for (let f = 0; f < faceCount; f++) {
       this.faceAnimScale[f] = this.animConfig.enabled ? 0 : 1;
     }
     this.mesh!.applyAnimation(this.faceAnimScale, this.heightRange);
-    this.mesh!.setOpacity(this.layerCfg.opacity ?? 1);
+    this.mesh!.setOpacity(resolveOpacity(this.layerCfg.opacity));
   }
 
   private animHasMore(): boolean {
     if (!this.animConfig.enabled) return false;
-    const total =
-      this.animConfig.delay + this.animConfig.duration + this.lastFaceStartSec();
+    const total = this.animConfig.duration + this.lastFaceStartSec();
     return this.animElapsedSec < total + 0.05;
   }
 
@@ -325,19 +353,15 @@ export class HexBinLayer {
     }
     let cx = 0, cy = 0, cz = 0;
     for (const d of layer.data) {
-      const lat = (d.position[0] * Math.PI) / 180;
-      const lng = (d.position[1] * Math.PI) / 180;
-      cx += Math.cos(lat) * Math.cos(lng);
-      cy += Math.sin(lat);
-      cz += Math.cos(lat) * Math.sin(lng);
+      if (!isValidLatLng(d.position)) continue;
+      const v = latLngToVector3(d.position, 1, ORIGIN_SCRATCH);
+      cx += v.x;
+      cy += v.y;
+      cz += v.z;
     }
-    const len = Math.sqrt(cx * cx + cy * cy + cz * cz) || 1;
-    cx /= len;
-    cy /= len;
-    cz /= len;
-    const lat = (Math.asin(Math.max(-1, Math.min(1, cy))) * 180) / Math.PI;
-    const lng = (Math.atan2(cz, cx) * 180) / Math.PI;
-    return [lat, lng];
+    const len = Math.sqrt(cx * cx + cy * cy + cz * cz);
+    if (len <= 1e-9) return this.animConfig.origin;
+    return vector3ToLatLng(ORIGIN_SCRATCH.set(cx / len, cy / len, cz / len));
   }
 
   private disposeMesh(): void {
@@ -346,6 +370,9 @@ export class HexBinLayer {
     if (this.mesh.borderLines) this.group.remove(this.mesh.borderLines);
     this.mesh.dispose();
     this.mesh = null;
+    this.meshCellInset = Number.NaN;
+    this.meshBorderKey = '';
+    this.highlightKey = '';
   }
 
   // -------------------------------------------------------------------------
@@ -357,13 +384,16 @@ export class HexBinLayer {
    * first time hover/click are needed. Attaching is idempotent — multiple
    * calls keep the single set of listeners. Detached on `dispose()`.
    */
-  private maybeAttachPointer(): void {
-    if (this.pointerAttached) return;
+  private refreshPointerListeners(): void {
     if (!this.camera || !this.domElement) return;
     const cfg = this.layerCfg;
     const wantsEvents = Boolean(cfg.events?.onHover || cfg.events?.onClick);
     const wantsHighlight = resolveHighlightConfig(cfg.highlight).enabled;
-    if (!wantsEvents && !wantsHighlight) return;
+    if (!wantsEvents && !wantsHighlight) {
+      this.detachPointer();
+      return;
+    }
+    if (this.pointerAttached) return;
     const el = this.domElement;
     el.addEventListener('pointermove', this.onPointerMove);
     el.addEventListener('pointerdown', this.onPointerDown);
@@ -391,8 +421,10 @@ export class HexBinLayer {
   };
 
   private handleHover(face: number): void {
-    const previous = this.highlight?.faceIndex ?? -1;
-    if (face === previous && (face >= 0 || !this.layerCfg.events?.onHover)) return;
+    if (!this.mesh || !this.mesh.isFaceVisible(face)) face = -1;
+    const previous = this.hoveredFace;
+    if (face === previous) return;
+    this.hoveredFace = face;
     if (face >= 0 && this.mesh) {
       this.mesh.getFaceCorners(face, this.cornerScratch);
       this.highlight?.showFace(face, this.cornerScratch);
@@ -412,11 +444,13 @@ export class HexBinLayer {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hits = this.raycaster.intersectObject(this.mesh.mesh, false);
     if (hits.length === 0) return -1;
-    const hit = hits[0]!;
-    if (hit.faceIndex === undefined) return -1;
-    // Each face = 1 triangle = 3 verts; faceIndex is already the cell index
-    // because our geometry is non-indexed and laid out one cell per triangle.
-    return hit.faceIndex;
+    for (const hit of hits) {
+      if (hit.faceIndex === undefined) continue;
+      // Each face = 1 triangle = 3 verts; faceIndex is already the cell index
+      // because our geometry is non-indexed and laid out one cell per triangle.
+      if (this.mesh.isFaceVisible(hit.faceIndex)) return hit.faceIndex;
+    }
+    return -1;
   }
 
   private buildPayload(face: number): HexBinHoverPayload {
@@ -426,6 +460,7 @@ export class HexBinLayer {
     return {
       cellIndex: face,
       value,
+      sampleCount: this.currentCounts[face] ?? 0,
       empty: !Number.isFinite(value),
       position: [lat, lng],
     };
@@ -437,6 +472,32 @@ export class HexBinLayer {
   }
 }
 
+const resolveResolution = (input: HexBinDataLayer['resolution']): number => {
+  const n = input ?? DEFAULT_RESOLUTION;
+  if (!Number.isFinite(n)) return DEFAULT_RESOLUTION;
+  return Math.max(0, Math.min(5, Math.round(n)));
+};
+
+const resolveHeightRange = (
+  input: HexBinDataLayer['height']
+): { readonly min: number; readonly max: number } => {
+  const min = Math.max(0, finiteOr(input?.min, DEFAULT_HEIGHT_MIN));
+  const rawMax = Math.max(0, finiteOr(input?.max, DEFAULT_HEIGHT_MAX));
+  return { min, max: Math.max(min, rawMax) };
+};
+
+const buildVisibleFaceMask = (values: Float32Array, showEmpty: boolean): Uint8Array => {
+  const out = new Uint8Array(values.length);
+  if (showEmpty) {
+    out.fill(1);
+    return out;
+  }
+  for (let i = 0; i < values.length; i++) {
+    out[i] = Number.isFinite(values[i]!) ? 1 : 0;
+  }
+  return out;
+};
+
 const resolveHighlightConfig = (input: HexBinDataLayer['highlight']): ResolvedHighlight => {
   if (input === undefined || input === false) return DEFAULT_HIGHLIGHT;
   if (input === true) return { ...DEFAULT_HIGHLIGHT, enabled: true };
@@ -444,8 +505,8 @@ const resolveHighlightConfig = (input: HexBinDataLayer['highlight']): ResolvedHi
   return {
     enabled: true,
     color: input.color ?? DEFAULT_HIGHLIGHT.color,
-    liftOffset: input.liftOffset ?? DEFAULT_HIGHLIGHT.liftOffset,
-    opacity: input.opacity ?? DEFAULT_HIGHLIGHT.opacity,
+    liftOffset: Math.max(0, finiteOr(input.liftOffset, DEFAULT_HIGHLIGHT.liftOffset)),
+    opacity: clampFinite(input.opacity, DEFAULT_HIGHLIGHT.opacity, 0, 1),
   };
 };
 
@@ -456,6 +517,23 @@ const resolveBorderConfig = (input: HexBinDataLayer['cellBorder']): ResolvedBord
   return {
     enabled: true,
     color: input.color ?? DEFAULT_BORDER.color,
-    opacity: input.opacity ?? DEFAULT_BORDER.opacity,
+    opacity: clampFinite(input.opacity, DEFAULT_BORDER.opacity, 0, 1),
   };
+};
+
+const finiteOr = (value: number | undefined, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const clampFinite = (
+  value: number | undefined,
+  fallback: number,
+  min: number,
+  max: number
+): number => clampCpu(finiteOr(value, fallback), min, max);
+
+const resolveOpacity = (value: number | undefined): number => clampFinite(value, 1, 0, 1);
+
+const isValidLatLng = (position: readonly [number, number]): boolean => {
+  const [lat, lng] = position;
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90;
 };

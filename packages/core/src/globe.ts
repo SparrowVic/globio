@@ -783,6 +783,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.dataLayer = { config: layer, handle };
     },
     getDataLayer: () => state.dataLayer?.config ?? null,
+    playDataLayerAnimation: () => {
+      const play = state.dataLayer?.handle.playAnimation;
+      if (!play) return false;
+      return play();
+    },
     setCountryLabelsEnabled: (enabled) => {
       state.countryLabelsLayer?.setEnabled(enabled);
     },

@@ -182,10 +182,11 @@ export class ChartsLayer {
   }
 
   /** Restart the mount animation from `t=0`. Story-engine bridge hook. */
-  public playAnimation(): void {
-    if (!this.animConfig.enabled) return;
+  public playAnimation(): boolean {
+    if (!this.animConfig.enabled) return false;
     this.animElapsedSec = 0;
     this.applyAnimation();
+    return true;
   }
 
   public dispose(): void {

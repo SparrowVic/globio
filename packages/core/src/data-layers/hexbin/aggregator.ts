@@ -9,24 +9,17 @@
  */
 
 import { latLngToVector3 } from '../../utils/coordinates';
+import type { HexBinAggregateMode } from '../types';
 
-/**
- * Aggregation strategy applied per cell:
- *  - `'sum'`    — total of all sample values (default)
- *  - `'count'`  — number of samples, ignores value
- *  - `'mean'`   — average value
- *  - `'min'`    — smallest value (handy for "best response time" style maps)
- *  - `'max'`    — largest value
- *  - `'median'` — middle value (P50). Robust to outliers, but quadratic-ish
- *                 in cells with many samples (sort per cell). Use sparingly
- *                 with > 50k samples.
- *  - `'p90'`    — 90th percentile. Same complexity caveat as median.
+/*
+ * HexBinAggregateMode is public in ../types. Keep the implementation's
+ * mode semantics in sync with that union.
  */
-export type HexBinAggregateMode = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
-
 export interface AggregatedBins {
   /** Per-face aggregated value. NaN means "no samples" (cell is empty). */
   readonly values: Float32Array;
+  /** Per-face input sample counts. Empty cells have count 0. */
+  readonly sampleCounts: Uint32Array;
   /** Min/max of finite values for scale-domain auto-fitting. */
   readonly extent: readonly [number, number];
   /** Total samples that fell into a cell (for diagnostic / status display). */
@@ -94,9 +87,11 @@ export const aggregateSamples = (
   const targetVec = latLngToVector3([0, 0]);
   for (let i = 0; i < samples.length; i++) {
     const sample = samples[i]!;
+    if (!isValidPosition(sample.position)) continue;
     const v = latLngToVector3(sample.position, 1, targetVec);
     const faceIdx = nearestFace(faceCentroids, v.x, v.y, v.z);
     const sampleValue = sample.value ?? 1;
+    if (mode !== 'count' && !Number.isFinite(sampleValue)) continue;
     const valueForAggregate = mode === 'count' ? 1 : sampleValue;
     if (mode === 'max') {
       if (valueForAggregate > values[faceIdx]!) values[faceIdx] = valueForAggregate;
@@ -124,11 +119,7 @@ export const aggregateSamples = (
     } else if (mode === 'median' || mode === 'p90') {
       const arr = perCellSamples[i]!;
       arr.sort((a, b) => a - b);
-      const idx =
-        mode === 'median'
-          ? Math.floor(arr.length / 2)
-          : Math.min(arr.length - 1, Math.floor(arr.length * 0.9));
-      values[i] = arr[idx]!;
+      values[i] = mode === 'median' ? median(arr) : nearestRankPercentile(arr, 0.9);
     }
     // 'sum', 'count', 'max', 'min' are already in their final form.
     const v = values[i]!;
@@ -144,5 +135,25 @@ export const aggregateSamples = (
     max = 0;
   }
 
-  return { values, extent: [min, max], samplesBinned: binned };
+  return { values, sampleCounts: counts, extent: [min, max], samplesBinned: binned };
+};
+
+const isValidPosition = (position: readonly [number, number]): boolean => {
+  const [lat, lng] = position;
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90;
+};
+
+const median = (sorted: ReadonlyArray<number>): number => {
+  const n = sorted.length;
+  if (n === 0) return Number.NaN;
+  const mid = Math.floor(n / 2);
+  if (n % 2 === 1) return sorted[mid]!;
+  return (sorted[mid - 1]! + sorted[mid]!) / 2;
+};
+
+const nearestRankPercentile = (sorted: ReadonlyArray<number>, p: number): number => {
+  const n = sorted.length;
+  if (n === 0) return Number.NaN;
+  const rank = Math.ceil(Math.max(0, Math.min(1, p)) * n);
+  return sorted[Math.max(0, Math.min(n - 1, rank - 1))]!;
 };

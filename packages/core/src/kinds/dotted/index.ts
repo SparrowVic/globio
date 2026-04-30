@@ -88,7 +88,7 @@ export const dottedKind: KindModule = {
 
     // Dotted heatmap: shader-based density texture; lower opacity so the
     // dot field shows through underneath.
-    const heatmapBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+    const heatmapBuilder: DataLayerBuilder = (input: DataLayer, ctx): DataLayerHandle => {
       const cfg = input as HeatmapDataLayer;
       const heatmap = new HeatmapLayer({
         layer: cfg,
@@ -99,8 +99,15 @@ export const dottedKind: KindModule = {
       globeGroup.add(heatmap.mesh);
       return {
         type: 'heatmap',
+        update(delta: number) {
+          heatmap.updateView(ctx.camera.position.length());
+          heatmap.tick(delta);
+        },
         setData(next: DataLayer) {
           heatmap.setData(next as HeatmapDataLayer);
+        },
+        playAnimation() {
+          return heatmap.playAnimation();
         },
         dispose() {
           heatmap.dispose();

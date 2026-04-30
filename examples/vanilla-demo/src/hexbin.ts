@@ -1,6 +1,8 @@
 import {
   createGlobe,
-  type DataLayer,
+  type HeatmapEasingName,
+  type HexBinAggregateMode,
+  type HexBinAnimationConfig,
   type HexBinDataEntry,
   type HexBinDataLayer,
 } from '@your-globe/core';
@@ -8,11 +10,11 @@ import {
 const container = document.getElementById('app');
 if (!container) throw new Error('#app not found');
 
-type AggregateMode = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
+type AggregateMode = HexBinAggregateMode;
 type DataSet = 'random-2k' | 'random-10k' | 'cluster' | 'bands';
 
-type AnimStyle = 'rise' | 'pop' | 'fade' | 'pulse';
-type AnimOrder = 'sequential' | 'radial' | 'value' | 'reverse-value' | 'random';
+type AnimStyle = NonNullable<HexBinAnimationConfig['style']>;
+type AnimOrder = NonNullable<HexBinAnimationConfig['order']>;
 
 interface Settings {
   resolution: number;
@@ -28,7 +30,7 @@ interface Settings {
   staggerMs: number;
   animStyle: AnimStyle;
   animOrder: AnimOrder;
-  animEasing: string;
+  animEasing: HeatmapEasingName;
 }
 
 const settings: Settings = {
@@ -129,6 +131,15 @@ const datasets: Record<DataSet, () => ReadonlyArray<HexBinDataEntry>> = {
   bands: () => buildLatBands(),
 };
 
+const datasetCache = new Map<DataSet, ReadonlyArray<HexBinDataEntry>>();
+const getDataset = (key: DataSet): ReadonlyArray<HexBinDataEntry> => {
+  const cached = datasetCache.get(key);
+  if (cached) return cached;
+  const built = datasets[key]();
+  datasetCache.set(key, built);
+  return built;
+};
+
 const cellsForLevel = (l: number): number => 20 * Math.pow(4, l);
 
 // ---------------------------------------------------------------------------
@@ -193,7 +204,11 @@ bindSlider('stagger', 'stagger-value', 1, (v) => {
 });
 
 const replayBtn = document.getElementById('anim-replay');
-if (replayBtn) replayBtn.addEventListener('click', () => applyLayer());
+if (replayBtn) {
+  replayBtn.addEventListener('click', () => {
+    if (!globe.playDataLayerAnimation()) applyLayer();
+  });
+}
 
 bindRowToggle('border-row', 'border', (v) => {
   settings.showBorders = v === 'on';
@@ -214,7 +229,7 @@ bindRowToggle('order-row', 'order', (v) => {
 const easingSelect = document.getElementById('easing') as HTMLSelectElement | null;
 if (easingSelect) {
   easingSelect.addEventListener('change', () => {
-    settings.animEasing = easingSelect.value;
+    settings.animEasing = easingSelect.value as HeatmapEasingName;
     applyLayer();
   });
 }
@@ -230,7 +245,7 @@ window.addEventListener('pointermove', (e) => {
 // ---------------------------------------------------------------------------
 
 function applyLayer(): void {
-  const data = datasets[settings.dataset]();
+  const data = getDataset(settings.dataset);
   const t0 = performance.now();
   const layer: HexBinDataLayer = {
     type: 'hexbin',
@@ -253,7 +268,7 @@ function applyLayer(): void {
     animation: {
       duration: settings.durationMs,
       stagger: settings.staggerMs,
-      easing: settings.animEasing as never,
+      easing: settings.animEasing,
       style: settings.animStyle,
       order: settings.animOrder,
     },
@@ -275,7 +290,7 @@ function applyLayer(): void {
       },
     },
   };
-  globe.setDataLayer(layer as DataLayer);
+  globe.setDataLayer(layer);
   const dt = performance.now() - t0;
   setStatus(
     `${data.length.toLocaleString()} samples → ${cellsForLevel(settings.resolution).toLocaleString()} cells · agg <b>${settings.aggregate}</b> · bake ${dt.toFixed(0)} ms`
