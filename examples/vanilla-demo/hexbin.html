@@ -76,6 +76,7 @@
   </head>
   <body>
     <div id="app"></div>
+    <div id="tooltip" style="position:fixed;pointer-events:none;background:rgba(8,12,24,0.92);border:1px solid rgba(255,215,0,0.5);border-radius:6px;padding:8px 12px;font-size:12px;color:#ffd700;display:none;z-index:50;backdrop-filter:blur(6px);"></div>
     <div class="nav">
       <a href="/">Index</a>
       <a href="/heatmap.html">Heatmap</a>
@@ -97,7 +98,10 @@
         <button data-agg="sum" class="active">Sum</button>
         <button data-agg="count">Count</button>
         <button data-agg="mean">Mean</button>
+        <button data-agg="min">Min</button>
         <button data-agg="max">Max</button>
+        <button data-agg="median">Median</button>
+        <button data-agg="p90">P90</button>
       </div>
 
       <h2>Dataset</h2>
@@ -124,6 +128,14 @@
       <div class="row" id="empty-row">
         <button data-empty="off" class="active">Hide empty cells</button>
         <button data-empty="on">Show empty</button>
+      </div>
+      <div class="row" id="border-row" style="margin-top:8px">
+        <button data-border="off" class="active">No borders</button>
+        <button data-border="on">Cell borders</button>
+      </div>
+      <div class="row" id="highlight-row" style="margin-top:8px">
+        <button data-highlight="on" class="active">Hover highlight</button>
+        <button data-highlight="off">Off</button>
       </div>
 
       <h2>

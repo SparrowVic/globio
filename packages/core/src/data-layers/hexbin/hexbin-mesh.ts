@@ -3,6 +3,8 @@ import {
   Color,
   DoubleSide,
   Float32BufferAttribute,
+  LineBasicMaterial,
+  LineSegments,
   Mesh,
   MeshBasicMaterial,
 } from 'three';
@@ -36,6 +38,8 @@ export interface HexBinMeshOptions {
   readonly heightRange: { readonly min: number; readonly max: number };
   /** Outer-shell lift to avoid z-fighting with the underlying globe surface. */
   readonly lift: number;
+  /** Enable cell borders (LineSegments along each triangle's 3 edges). */
+  readonly border?: { readonly color: string; readonly opacity: number };
 }
 
 const SHELL_LIFT_DEFAULT = 1.001;
@@ -50,8 +54,14 @@ const _color = new Color();
  */
 export class HexBinMesh {
   public readonly mesh: Mesh;
+  /** Optional cell-border LineSegments — only allocated when `options.border` is supplied. */
+  public readonly borderLines: LineSegments | null = null;
   private readonly geometry: BufferGeometry;
   private readonly material: MeshBasicMaterial;
+  private readonly borderGeometry: BufferGeometry | null = null;
+  private readonly borderMaterial: LineBasicMaterial | null = null;
+  /** Per-edge XYZ buffer (6 verts per face — 3 edges × 2 endpoints). */
+  private readonly borderPositions: Float32Array | null = null;
   private readonly positions: Float32Array;
   private readonly colors: Float32Array;
   private readonly basePositions: Float32Array;
@@ -127,6 +137,27 @@ export class HexBinMesh {
 
     this.mesh = new Mesh(this.geometry, this.material);
     this.mesh.renderOrder = 5;
+
+    // Optional border lines — one LineSegments mesh sharing the per-face
+    // vertex layout but emitting edge pairs (3 edges × 2 endpoints per
+    // face = 6 verts/face). Positions follow the cell's animated XYZ.
+    if (options.border) {
+      this.borderPositions = new Float32Array(this.faceCount * 6 * 3);
+      this.writeBorderPositions();
+      this.borderGeometry = new BufferGeometry();
+      this.borderGeometry.setAttribute(
+        'position',
+        new Float32BufferAttribute(this.borderPositions, 3)
+      );
+      this.borderMaterial = new LineBasicMaterial({
+        color: options.border.color,
+        transparent: true,
+        opacity: options.border.opacity,
+        depthWrite: false,
+      });
+      this.borderLines = new LineSegments(this.borderGeometry, this.borderMaterial);
+      this.borderLines.renderOrder = 6;
+    }
   }
 
   /**
@@ -169,6 +200,7 @@ export class HexBinMesh {
     this.writePositionsAtAnimT(1, heightRange);
     (this.geometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
     (this.geometry.getAttribute('color') as Float32BufferAttribute).needsUpdate = true;
+    this.writeBorderPositions();
     this.geometry.computeBoundingSphere();
   }
 
@@ -192,6 +224,7 @@ export class HexBinMesh {
     }
     (this.geometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
     (this.geometry.getAttribute('color') as Float32BufferAttribute).needsUpdate = true;
+    this.writeBorderPositions();
   }
 
   public setOpacity(opacity: number): void {
@@ -201,6 +234,75 @@ export class HexBinMesh {
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
+    if (this.borderGeometry) this.borderGeometry.dispose();
+    if (this.borderMaterial) this.borderMaterial.dispose();
+  }
+
+  /** Number of cells (= number of icosphere faces). */
+  public get faceCount_(): number {
+    return this.faceCount;
+  }
+
+  /**
+   * World-space XYZ at the centroid of cell `f` after animation/extrusion.
+   * Used by the highlight overlay so it sits flush on top of the hovered
+   * cell's centre. Returns into a 3-tuple via the supplied scratch array.
+   */
+  public getFaceCenter(f: number, out: [number, number, number]): void {
+    let cx = 0;
+    let cy = 0;
+    let cz = 0;
+    for (let k = 0; k < 3; k++) {
+      const idx = (f * 3 + k) * 3;
+      cx += this.positions[idx]!;
+      cy += this.positions[idx + 1]!;
+      cz += this.positions[idx + 2]!;
+    }
+    out[0] = cx / 3;
+    out[1] = cy / 3;
+    out[2] = cz / 3;
+  }
+
+  /**
+   * World-space corner positions of cell `f` after animation. Caller passes
+   * a Float32Array of length 9 (3 verts × 3 floats) which gets filled in
+   * place. Used by the highlight overlay to copy the cell's exact triangle.
+   */
+  public getFaceCorners(f: number, out: Float32Array): void {
+    for (let k = 0; k < 9; k++) out[k] = this.positions[f * 9 + k]!;
+  }
+
+  /** Refresh border line positions from the current animated mesh state. */
+  private writeBorderPositions(): void {
+    if (!this.borderPositions) return;
+    for (let f = 0; f < this.faceCount; f++) {
+      const base = f * 9;
+      const out = f * 18;
+      // Edge 0-1
+      this.borderPositions[out + 0] = this.positions[base + 0]!;
+      this.borderPositions[out + 1] = this.positions[base + 1]!;
+      this.borderPositions[out + 2] = this.positions[base + 2]!;
+      this.borderPositions[out + 3] = this.positions[base + 3]!;
+      this.borderPositions[out + 4] = this.positions[base + 4]!;
+      this.borderPositions[out + 5] = this.positions[base + 5]!;
+      // Edge 1-2
+      this.borderPositions[out + 6] = this.positions[base + 3]!;
+      this.borderPositions[out + 7] = this.positions[base + 4]!;
+      this.borderPositions[out + 8] = this.positions[base + 5]!;
+      this.borderPositions[out + 9] = this.positions[base + 6]!;
+      this.borderPositions[out + 10] = this.positions[base + 7]!;
+      this.borderPositions[out + 11] = this.positions[base + 8]!;
+      // Edge 2-0
+      this.borderPositions[out + 12] = this.positions[base + 6]!;
+      this.borderPositions[out + 13] = this.positions[base + 7]!;
+      this.borderPositions[out + 14] = this.positions[base + 8]!;
+      this.borderPositions[out + 15] = this.positions[base + 0]!;
+      this.borderPositions[out + 16] = this.positions[base + 1]!;
+      this.borderPositions[out + 17] = this.positions[base + 2]!;
+    }
+    if (this.borderGeometry) {
+      (this.borderGeometry.getAttribute('position') as Float32BufferAttribute).needsUpdate = true;
+    }
   }
 
   /**

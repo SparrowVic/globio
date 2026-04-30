@@ -92,6 +92,57 @@ describe('aggregateSamples', () => {
     expect(total).toBeCloseTo(2, 5);
   });
 
+  it('takes min of values when mode is "min"', () => {
+    const samples = [
+      { position: [0, 0] as const, value: 5 },
+      { position: [0, 0] as const, value: 100 },
+      { position: [0, 0] as const, value: 50 },
+    ];
+    const bins = aggregateSamples(samples, ico.faceCentroids, 'min');
+    let min = Infinity;
+    for (let i = 0; i < bins.values.length; i++) {
+      const v = bins.values[i]!;
+      if (Number.isFinite(v) && v < min) min = v;
+    }
+    expect(min).toBe(5);
+  });
+
+  it('computes median (P50) per cell', () => {
+    const samples = [
+      { position: [0, 0] as const, value: 1 },
+      { position: [0, 0] as const, value: 5 },
+      { position: [0, 0] as const, value: 100 },
+    ];
+    const bins = aggregateSamples(samples, ico.faceCentroids, 'median');
+    let found = NaN;
+    for (let i = 0; i < bins.values.length; i++) {
+      if (Number.isFinite(bins.values[i]!)) found = bins.values[i]!;
+    }
+    expect(found).toBe(5);
+  });
+
+  it('computes p90 per cell', () => {
+    const samples = [
+      { position: [0, 0] as const, value: 1 },
+      { position: [0, 0] as const, value: 2 },
+      { position: [0, 0] as const, value: 3 },
+      { position: [0, 0] as const, value: 4 },
+      { position: [0, 0] as const, value: 5 },
+      { position: [0, 0] as const, value: 6 },
+      { position: [0, 0] as const, value: 7 },
+      { position: [0, 0] as const, value: 8 },
+      { position: [0, 0] as const, value: 9 },
+      { position: [0, 0] as const, value: 100 },
+    ];
+    const bins = aggregateSamples(samples, ico.faceCentroids, 'p90');
+    let found = NaN;
+    for (let i = 0; i < bins.values.length; i++) {
+      if (Number.isFinite(bins.values[i]!)) found = bins.values[i]!;
+    }
+    // p90 of 10 samples = index floor(10 × 0.9) = 9 → value 100.
+    expect(found).toBe(100);
+  });
+
   it('reports samplesBinned == samples.length even when many samples land in the same cell', () => {
     const samples = Array.from({ length: 50 }, () => ({
       position: [0, 0] as const,

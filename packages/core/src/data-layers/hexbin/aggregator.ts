@@ -10,7 +10,19 @@
 
 import { latLngToVector3 } from '../../utils/coordinates';
 
-export type HexBinAggregateMode = 'sum' | 'count' | 'mean' | 'max';
+/**
+ * Aggregation strategy applied per cell:
+ *  - `'sum'`    — total of all sample values (default)
+ *  - `'count'`  — number of samples, ignores value
+ *  - `'mean'`   — average value
+ *  - `'min'`    — smallest value (handy for "best response time" style maps)
+ *  - `'max'`    — largest value
+ *  - `'median'` — middle value (P50). Robust to outliers, but quadratic-ish
+ *                 in cells with many samples (sort per cell). Use sparingly
+ *                 with > 50k samples.
+ *  - `'p90'`    — 90th percentile. Same complexity caveat as median.
+ */
+export type HexBinAggregateMode = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
 
 export interface AggregatedBins {
   /** Per-face aggregated value. NaN means "no samples" (cell is empty). */
@@ -60,18 +72,25 @@ export const aggregateSamples = (
 ): AggregatedBins => {
   const faceCount = faceCentroids.length / 3;
   const values = new Float32Array(faceCount);
-  // Sum mode initialises to 0 (so empty later flips to NaN).
-  // Max mode needs -Infinity so `Math.max` works.
+  // Initial values per mode — sum/count/mean accumulate into 0; min/max
+  // need their respective extreme starting points so the first sample wins.
   if (mode === 'max') {
     values.fill(-Infinity);
+  } else if (mode === 'min') {
+    values.fill(Infinity);
   } else {
     values.fill(0);
   }
   const counts = new Uint32Array(faceCount);
+  // `'median'` and `'p90'` need every sample's value retained so we can
+  // sort + index per cell. Built lazily so the common (cheap) modes don't
+  // pay the allocation cost.
+  const needsSamples = mode === 'median' || mode === 'p90';
+  const perCellSamples: Array<Array<number>> = needsSamples
+    ? Array.from({ length: faceCount }, () => [])
+    : [];
 
   let binned = 0;
-  // `latLngToVector3` accepts a `target` so we reuse one Vector3 across
-  // every sample (zero per-sample allocation).
   const targetVec = latLngToVector3([0, 0]);
   for (let i = 0; i < samples.length; i++) {
     const sample = samples[i]!;
@@ -81,6 +100,10 @@ export const aggregateSamples = (
     const valueForAggregate = mode === 'count' ? 1 : sampleValue;
     if (mode === 'max') {
       if (valueForAggregate > values[faceIdx]!) values[faceIdx] = valueForAggregate;
+    } else if (mode === 'min') {
+      if (valueForAggregate < values[faceIdx]!) values[faceIdx] = valueForAggregate;
+    } else if (needsSamples) {
+      perCellSamples[faceIdx]!.push(sampleValue);
     } else {
       values[faceIdx] = values[faceIdx]! + valueForAggregate;
     }
@@ -88,7 +111,6 @@ export const aggregateSamples = (
     binned++;
   }
 
-  // Finalise per-mode.
   let min = Infinity;
   let max = -Infinity;
   for (let i = 0; i < faceCount; i++) {
@@ -99,8 +121,16 @@ export const aggregateSamples = (
     }
     if (mode === 'mean') {
       values[i] = values[i]! / c;
+    } else if (mode === 'median' || mode === 'p90') {
+      const arr = perCellSamples[i]!;
+      arr.sort((a, b) => a - b);
+      const idx =
+        mode === 'median'
+          ? Math.floor(arr.length / 2)
+          : Math.min(arr.length - 1, Math.floor(arr.length * 0.9));
+      values[i] = arr[idx]!;
     }
-    // 'sum', 'count', 'max' are already in their final form.
+    // 'sum', 'count', 'max', 'min' are already in their final form.
     const v = values[i]!;
     if (Number.isFinite(v)) {
       if (v < min) min = v;

@@ -106,6 +106,9 @@ export type {
   ExtrudedDataLayer,
   HeatmapDataEntry,
   HeatmapDataLayer,
+  HexBinCellBorderConfig,
   HexBinDataEntry,
   HexBinDataLayer,
+  HexBinHighlightConfig,
+  HexBinHoverPayload,
 } from './data-layers/types';

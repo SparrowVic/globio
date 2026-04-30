@@ -8,7 +8,7 @@ import {
 const container = document.getElementById('app');
 if (!container) throw new Error('#app not found');
 
-type AggregateMode = 'sum' | 'count' | 'mean' | 'max';
+type AggregateMode = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
 type DataSet = 'random-2k' | 'random-10k' | 'cluster' | 'bands';
 
 interface Settings {
@@ -19,6 +19,8 @@ interface Settings {
   inset: number;
   opacity: number;
   showEmpty: boolean;
+  showBorders: boolean;
+  highlight: boolean;
   durationMs: number;
   staggerMs: number;
 }
@@ -31,6 +33,8 @@ const settings: Settings = {
   inset: 0.96,
   opacity: 0.95,
   showEmpty: false,
+  showBorders: false,
+  highlight: true,
   durationMs: 1400,
   staggerMs: 3,
 };
@@ -177,6 +181,21 @@ bindSlider('stagger', 'stagger-value', 1, (v) => {
 const replayBtn = document.getElementById('anim-replay');
 if (replayBtn) replayBtn.addEventListener('click', () => applyLayer());
 
+bindRowToggle('border-row', 'border', (v) => {
+  settings.showBorders = v === 'on';
+  applyLayer();
+});
+bindRowToggle('highlight-row', 'highlight', (v) => {
+  settings.highlight = v === 'on';
+  applyLayer();
+});
+
+const tooltip = document.getElementById('tooltip') as HTMLDivElement;
+window.addEventListener('pointermove', (e) => {
+  tooltip.style.left = `${e.clientX + 12}px`;
+  tooltip.style.top = `${e.clientY + 12}px`;
+});
+
 // ---------------------------------------------------------------------------
 // Apply / status
 // ---------------------------------------------------------------------------
@@ -193,17 +212,33 @@ function applyLayer(): void {
     cellInset: settings.inset,
     opacity: settings.opacity,
     showEmpty: settings.showEmpty,
+    cellBorder: settings.showBorders,
+    highlight: settings.highlight,
     scale: {
       type: 'sequential',
-      // 'inferno' (red→yellow) reads much better than viridis on the dark
-      // outline-dark globe — viridis's bottom 50% is dark purple/blue and
-      // disappears into the background.
       palette: 'inferno',
     },
     animation: {
       duration: settings.durationMs,
       stagger: settings.staggerMs,
       easing: 'ease-out-cubic',
+    },
+    events: {
+      onHover: (payload) => {
+        if (!payload) {
+          tooltip.style.display = 'none';
+          return;
+        }
+        const valueText = payload.empty
+          ? 'empty cell'
+          : `value <b>${payload.value.toFixed(2)}</b>`;
+        tooltip.innerHTML = `cell #${payload.cellIndex} · ${valueText} · [${payload.position[0].toFixed(1)}°, ${payload.position[1].toFixed(1)}°]`;
+        tooltip.style.display = 'block';
+      },
+      onClick: (payload) => {
+        // eslint-disable-next-line no-console
+        console.log('[hexbin] click', payload);
+      },
     },
   };
   globe.setDataLayer(layer as DataLayer);

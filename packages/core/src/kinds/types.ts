@@ -136,6 +136,12 @@ export interface DataLayerBuildContext {
   readonly features: ReadonlyArray<import('../renderer/country-feature').CountryFeature>;
   readonly tokens: import('../theme/types').ResolvedTokens;
   readonly camera: PerspectiveCamera;
+  /**
+   * The renderer canvas — supplied to layers that need their own pointer
+   * raycasting (hexbin cell hover, chart click). Layers that don't take
+   * input can ignore this. Optional so older builders keep compiling.
+   */
+  readonly domElement?: HTMLElement;
 }
 
 export type DataLayerBuilder = (

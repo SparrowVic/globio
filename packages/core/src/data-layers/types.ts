@@ -537,14 +537,59 @@ export interface HeatmapDataEntry {
  * Level 3 is the sweet-spot default — fine enough to pick up regional
  * patterns, coarse enough to cluster cleanly even with 1k samples.
  */
+/**
+ * Per-cell border line overlay drawn on top of the hex-bin cells. Useful
+ * when `cellInset = 1` (no gap between cells) and you still want a clear
+ * cell separation, or for "wireframe-look" presets where the border IS
+ * the visualisation.
+ */
+export interface HexBinCellBorderConfig {
+  /** Defaults to true when the object is supplied. */
+  readonly enabled?: boolean;
+  /** Line colour. Default '#ffffff'. */
+  readonly color?: string;
+  /** Line opacity. Default 0.35. */
+  readonly opacity?: number;
+}
+
+/**
+ * Pointer-driven highlight on hover. Disabled by default; enable by
+ * passing `true` for the default look or an object to tune. Adds a
+ * second mesh on top of the hovered cell — same triangle but lifted
+ * slightly outward and tinted with `color`.
+ */
+export interface HexBinHighlightConfig {
+  readonly enabled?: boolean;
+  /** Highlight tint blended over the cell colour. Default '#ffffff'. */
+  readonly color?: string;
+  /** Extra outward lift on top of the cell's own height. Default 0.012. */
+  readonly liftOffset?: number;
+  /** Highlight mesh opacity. Default 0.55. */
+  readonly opacity?: number;
+}
+
+/**
+ * Bin-level event payload passed through `HexBinDataLayer.events`. Carries
+ * the index of the hovered/clicked icosphere face plus the aggregated
+ * value (NaN for empty cells) and a snapshot of the per-face state so
+ * tooltip implementations don't need to reach into the layer internals.
+ */
+export interface HexBinHoverPayload {
+  readonly cellIndex: number;
+  readonly value: number;
+  readonly empty: boolean;
+  /** Cell centroid lat/lng in degrees. */
+  readonly position: LatLng;
+}
+
 export interface HexBinDataLayer {
   readonly type: 'hexbin';
   readonly data: ReadonlyArray<HexBinDataEntry>;
   readonly scale?: ScaleConfig;
   /** Icosphere subdivision level (0–5). Default 3. */
   readonly resolution?: number;
-  /** How multiple samples landing in the same cell combine. Default 'sum'. */
-  readonly aggregate?: 'sum' | 'count' | 'mean' | 'max';
+  /** How multiple samples landing in the same cell combine. See {@link HexBinAggregateMode}. Default 'sum'. */
+  readonly aggregate?: 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
   /** Min/max cell extrusion in world units (1 = globe radius). Default { min: 0, max: 0.06 }. */
   readonly height?: { readonly min?: number; readonly max?: number };
   /** Render cells with no samples using the scale's noData colour. Default false. */
@@ -556,9 +601,21 @@ export interface HexBinDataLayer {
    * cells visually separate. Default 0.94 (≈3% gap on each edge).
    */
   readonly cellInset?: number;
+  /**
+   * Optional border lines drawn along each cell's edges. Useful for
+   * topographic-style maps where the cell boundary itself is informative,
+   * or when `cellInset = 1` (no gap) and you still want grid lines.
+   */
+  readonly cellBorder?: boolean | HexBinCellBorderConfig;
+  /** Pointer-hover highlight overlay. Default disabled. */
+  readonly highlight?: boolean | HexBinHighlightConfig;
   /** Mount/init animation (reuses the heatmap animation config shape). */
   readonly animation?: boolean | HeatmapAnimationConfig;
-  readonly events?: DataLayerEvents<HexBinDataEntry>;
+  /**
+   * Pointer hover/click events. `entry` is a `HexBinHoverPayload`; the
+   * cellIndex is stable across re-bakes for the same `resolution`.
+   */
+  readonly events?: DataLayerEvents<HexBinHoverPayload>;
 }
 
 export interface HexBinDataEntry {

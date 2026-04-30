@@ -183,11 +183,13 @@ export const outlineKind: KindModule = {
     // Outline hex-bin: spatial aggregation into icosphere face cells.
     // Uses vertex-coloured BufferGeometry — each cell gets its own 3-vertex
     // triangle so colours don't bleed into neighbours.
-    const hexbinBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
+    const hexbinBuilder: DataLayerBuilder = (input: DataLayer, ctx): DataLayerHandle => {
       const cfg = input as HexBinDataLayer;
       const layer = new HexBinLayer({
         layer: cfg,
         fallbackColor: tokens['countries.fill.defaultColor'],
+        camera: ctx.camera,
+        ...(ctx.domElement ? { domElement: ctx.domElement } : {}),
       });
       globeGroup.add(layer.group);
       return {

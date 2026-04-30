@@ -778,6 +778,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         features: state.features ?? [],
         tokens,
         camera: scene.camera,
+        domElement: scene.renderer.domElement,
       });
       state.dataLayer = { config: layer, handle };
     },
