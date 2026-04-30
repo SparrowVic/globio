@@ -1,8 +1,10 @@
 import type {
+  HeatmapAnimationOrder,
   HeatmapAnimationStyle,
   HeatmapDataLayer,
   HeatmapEasingName,
 } from '../types';
+import type { LatLng } from '../../types';
 import { clampCpu } from './polygon-utils';
 
 /**
@@ -18,7 +20,7 @@ export type HeatmapEasingFn = (t: number) => number;
 export interface ResolvedHeatmapAnimationConfig {
   readonly enabled: boolean;
   readonly style: HeatmapAnimationStyle;
-  /** Duration in seconds (input ms / 1000, clamped). */
+  /** Duration in seconds (input ms / 1000, clamped). For `style: 'pulse'` this is the period. */
   readonly duration: number;
   /** Initial delay in seconds. */
   readonly delay: number;
@@ -26,6 +28,8 @@ export interface ResolvedHeatmapAnimationConfig {
   readonly stagger: number;
   readonly easing: HeatmapEasingName;
   readonly trigger: 'init' | 'manual';
+  readonly order: HeatmapAnimationOrder;
+  readonly origin: LatLng;
 }
 
 export const DISABLED_ANIMATION: ResolvedHeatmapAnimationConfig = {
@@ -36,6 +40,8 @@ export const DISABLED_ANIMATION: ResolvedHeatmapAnimationConfig = {
   stagger: 0,
   easing: 'ease-out-cubic',
   trigger: 'init',
+  order: 'sequential',
+  origin: [0, 0],
 };
 
 const DEFAULT_ANIMATION: ResolvedHeatmapAnimationConfig = {
@@ -46,6 +52,8 @@ const DEFAULT_ANIMATION: ResolvedHeatmapAnimationConfig = {
   stagger: 0,
   easing: 'ease-out-cubic',
   trigger: 'init',
+  order: 'sequential',
+  origin: [0, 0],
 };
 
 export const resolveAnimationConfig = (
@@ -62,6 +70,8 @@ export const resolveAnimationConfig = (
     stagger: clampCpu((input.stagger ?? 0) / 1000, 0, 5),
     easing: input.easing ?? DEFAULT_ANIMATION.easing,
     trigger: input.trigger ?? DEFAULT_ANIMATION.trigger,
+    order: input.order ?? DEFAULT_ANIMATION.order,
+    origin: input.origin ?? DEFAULT_ANIMATION.origin,
   };
 };
 
@@ -248,7 +258,7 @@ export const buildEasingLut = (
   return out;
 };
 
-/** Encode {`rise`:0, `pop`:1, `fade`:2} for the shader. */
+/** Encode {`rise`:0, `pop`:1, `fade`:2, `pulse`:3} for the shader. */
 export const encodeAnimationStyle = (style: HeatmapAnimationStyle): number => {
   switch (style) {
     case 'rise':
@@ -257,5 +267,7 @@ export const encodeAnimationStyle = (style: HeatmapAnimationStyle): number => {
       return 1;
     case 'fade':
       return 2;
+    case 'pulse':
+      return 3;
   }
 };

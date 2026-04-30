@@ -143,13 +143,45 @@
         <button id="anim-replay" type="button" style="float:right;font-size:10px;padding:2px 6px">↻ Replay</button>
       </h2>
       <div class="slider-row">
-        <label>Duration: <span id="duration-value">1400</span> ms</label>
+        <label>Style</label>
+        <div class="row" id="style-row">
+          <button data-style="rise" class="active">Rise</button>
+          <button data-style="pop">Pop</button>
+          <button data-style="fade">Fade</button>
+          <button data-style="pulse">Pulse</button>
+        </div>
+      </div>
+      <div class="slider-row">
+        <label>Order (stagger sequence)</label>
+        <div class="row" id="order-row">
+          <button data-order="sequential" class="active">Sequential</button>
+          <button data-order="radial">Radial</button>
+          <button data-order="value">Top values</button>
+          <button data-order="reverse-value">Low values</button>
+          <button data-order="random">Random</button>
+        </div>
+        <p class="hint">Order in which cells start blooming. <code>radial</code> uses lat/lng [0, 0] as the anchor.</p>
+      </div>
+      <div class="slider-row">
+        <label>Easing</label>
+        <select id="easing">
+          <option value="ease-out-cubic" selected>ease-out-cubic</option>
+          <option value="ease-out-quart">ease-out-quart</option>
+          <option value="ease-out-back">ease-out-back</option>
+          <option value="ease-out-elastic">ease-out-elastic</option>
+          <option value="ease-out-bounce">ease-out-bounce</option>
+          <option value="ease-in-out-cubic">ease-in-out-cubic</option>
+          <option value="ease-in-out-sine">ease-in-out-sine</option>
+        </select>
+      </div>
+      <div class="slider-row">
+        <label>Duration / pulse period: <span id="duration-value">1400</span> ms</label>
         <input type="range" id="duration" min="200" max="5000" step="50" value="1400" />
       </div>
       <div class="slider-row">
         <label>Stagger: <span id="stagger-value">3</span> ms / cell</label>
         <input type="range" id="stagger" min="0" max="30" step="0.5" value="3" />
-        <p class="hint">Per-face delay × cell index. Tiny values (1-5ms) are enough to spread a 1280-cell bloom across ~3-6 seconds.</p>
+        <p class="hint">Per-face delay × cell rank. Tiny values (1-5ms) are enough to spread a 1280-cell bloom across ~3-6 seconds.</p>
       </div>
 
       <hr />

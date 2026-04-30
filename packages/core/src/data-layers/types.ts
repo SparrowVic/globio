@@ -275,7 +275,33 @@ export interface HeatmapCountryDomeConfig {
  *  - `fade`   — alpha 0 → 1 only; displacement is at full strength
  *               from t=0 (good when `maxHeight` is low / 2D look).
  */
-export type HeatmapAnimationStyle = 'rise' | 'pop' | 'fade';
+/**
+ * Animation style:
+ *  - `'rise'`  — displacement + alpha 0→1 (default).
+ *  - `'pop'`   — same envelope as rise; overshoot lives in the easing
+ *                curve (`'ease-out-back'` etc.).
+ *  - `'fade'`  — alpha-only; geometry sits at full extrusion from t=0.
+ *  - `'pulse'` — continuous heartbeat. `t` follows a sin wave on `duration`
+ *                period. No end state. Use with low-amplitude curves.
+ */
+export type HeatmapAnimationStyle = 'rise' | 'pop' | 'fade' | 'pulse';
+
+/**
+ * Order in which entries enter the animation when `stagger > 0`:
+ *  - `'sequential'` — input array order (default; cheap, deterministic).
+ *  - `'radial'`     — distance from `animation.origin` lat/lng. Cells
+ *                     near the anchor bloom first; great for "spreading
+ *                     wave" effects.
+ *  - `'value'`      — descending by aggregated value (top values first).
+ *  - `'reverse-value'` — ascending (low values first).
+ *  - `'random'`     — shuffled. Looks "spontaneous" / sparkly.
+ */
+export type HeatmapAnimationOrder =
+  | 'sequential'
+  | 'radial'
+  | 'value'
+  | 'reverse-value'
+  | 'random';
 
 /**
  * Curve applied to the animation `t∈[0,1]` before it drives displacement
@@ -330,6 +356,17 @@ export interface HeatmapAnimationConfig {
    * for storyteller-driven `playAnimation()` calls in a future release.
    */
   readonly trigger?: 'init' | 'manual';
+  /**
+   * Stagger ordering — how entries / cells get their `index × stagger`
+   * delay assigned. Default `'sequential'`. Currently used by hex-bin
+   * (per-face) and charts (per-chart); heatmap path uses sequential.
+   */
+  readonly order?: HeatmapAnimationOrder;
+  /**
+   * Origin lat/lng for `order: 'radial'`. Cells / entries closest to this
+   * anchor get the smallest delays. Default `[0, 0]` (Africa centre).
+   */
+  readonly origin?: LatLng;
 }
 
 /**

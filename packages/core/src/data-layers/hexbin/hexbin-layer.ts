@@ -8,6 +8,7 @@ import {
 } from '../heatmap/animation';
 import { clampCpu } from '../heatmap/polygon-utils';
 import { aggregateSamples } from './aggregator';
+import { buildFaceStartTimes } from './face-ordering';
 import { buildIcosphere, type IcosphereData } from './icosphere';
 import { HexBinHighlight } from './hexbin-highlight';
 import { HexBinMesh } from './hexbin-mesh';
@@ -137,16 +138,31 @@ export class HexBinLayer {
    */
   public tick(deltaSec: number): void {
     if (!this.animConfig.enabled || !this.mesh) return;
-    if (!this.animHasMore()) return;
-    this.animElapsedSec += Math.max(0, deltaSec);
     const cfg = this.animConfig;
-    for (let f = 0; f < this.faceStartSec.length; f++) {
-      const local = clampCpu(
-        (this.animElapsedSec - this.faceStartSec[f]!) / cfg.duration,
-        0,
-        1
-      );
-      this.faceAnimScale[f] = this.easingFn(local);
+    const isPulse = cfg.style === 'pulse';
+    if (!isPulse && !this.animHasMore()) return;
+    this.animElapsedSec += Math.max(0, deltaSec);
+    if (isPulse) {
+      // Heartbeat mode: each face oscillates between 0.4 and 1.0 on a
+      // sine wave with `duration` period, phase-offset by faceStartSec
+      // so per-cell stagger reads as a wave travelling across the globe.
+      const period = Math.max(1e-3, cfg.duration);
+      const twoPi = Math.PI * 2;
+      for (let f = 0; f < this.faceStartSec.length; f++) {
+        const phase = ((this.animElapsedSec - this.faceStartSec[f]!) / period) * twoPi;
+        const raw = (Math.sin(phase) + 1) * 0.5;
+        const eased = this.easingFn(raw);
+        this.faceAnimScale[f] = 0.4 + eased * 0.6;
+      }
+    } else {
+      for (let f = 0; f < this.faceStartSec.length; f++) {
+        const local = clampCpu(
+          (this.animElapsedSec - this.faceStartSec[f]!) / cfg.duration,
+          0,
+          1
+        );
+        this.faceAnimScale[f] = this.easingFn(local);
+      }
     }
     this.mesh.applyAnimation(this.faceAnimScale, this.heightRange);
     if (this.highlight && this.highlight.faceIndex >= 0 && this.mesh) {
@@ -248,15 +264,25 @@ export class HexBinLayer {
       DEFAULT_NO_DATA_COLOR
     );
 
-    // Reset animation state and seed face start times.
+    // Reset animation state and seed face start times via the chosen
+    // ordering (sequential / radial / value / reverse-value / random).
     this.animElapsedSec = 0;
     const faceCount = this.icosphere.faceCentroids.length / 3;
     if (this.faceStartSec.length !== faceCount) {
       this.faceStartSec = new Float32Array(faceCount);
       this.faceAnimScale = new Float32Array(faceCount);
     }
+    buildFaceStartTimes(
+      faceCount,
+      bins.values,
+      this.icosphere.faceLatLng,
+      this.animConfig.delay,
+      this.animConfig.stagger,
+      this.animConfig.order,
+      this.animConfig.origin,
+      this.faceStartSec
+    );
     for (let f = 0; f < faceCount; f++) {
-      this.faceStartSec[f] = this.animConfig.delay + f * this.animConfig.stagger;
       this.faceAnimScale[f] = this.animConfig.enabled ? 0 : 1;
     }
     this.mesh!.applyAnimation(this.faceAnimScale, this.heightRange);

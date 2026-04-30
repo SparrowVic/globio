@@ -11,6 +11,9 @@ if (!container) throw new Error('#app not found');
 type AggregateMode = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
 type DataSet = 'random-2k' | 'random-10k' | 'cluster' | 'bands';
 
+type AnimStyle = 'rise' | 'pop' | 'fade' | 'pulse';
+type AnimOrder = 'sequential' | 'radial' | 'value' | 'reverse-value' | 'random';
+
 interface Settings {
   resolution: number;
   aggregate: AggregateMode;
@@ -23,6 +26,9 @@ interface Settings {
   highlight: boolean;
   durationMs: number;
   staggerMs: number;
+  animStyle: AnimStyle;
+  animOrder: AnimOrder;
+  animEasing: string;
 }
 
 const settings: Settings = {
@@ -37,6 +43,9 @@ const settings: Settings = {
   highlight: true,
   durationMs: 1400,
   staggerMs: 3,
+  animStyle: 'rise',
+  animOrder: 'sequential',
+  animEasing: 'ease-out-cubic',
 };
 
 // Deterministic RNG so the demo is repeatable on reload.
@@ -189,6 +198,21 @@ bindRowToggle('highlight-row', 'highlight', (v) => {
   settings.highlight = v === 'on';
   applyLayer();
 });
+bindRowToggle('style-row', 'style', (v) => {
+  settings.animStyle = v as AnimStyle;
+  applyLayer();
+});
+bindRowToggle('order-row', 'order', (v) => {
+  settings.animOrder = v as AnimOrder;
+  applyLayer();
+});
+const easingSelect = document.getElementById('easing') as HTMLSelectElement | null;
+if (easingSelect) {
+  easingSelect.addEventListener('change', () => {
+    settings.animEasing = easingSelect.value;
+    applyLayer();
+  });
+}
 
 const tooltip = document.getElementById('tooltip') as HTMLDivElement;
 window.addEventListener('pointermove', (e) => {
@@ -221,7 +245,9 @@ function applyLayer(): void {
     animation: {
       duration: settings.durationMs,
       stagger: settings.staggerMs,
-      easing: 'ease-out-cubic',
+      easing: settings.animEasing as never,
+      style: settings.animStyle,
+      order: settings.animOrder,
     },
     events: {
       onHover: (payload) => {
