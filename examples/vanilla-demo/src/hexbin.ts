@@ -33,12 +33,17 @@ interface Settings {
 
 const settings: Settings = {
   resolution: 3,
-  aggregate: 'sum',
+  // Count gives a more visually-readable distribution (every cell with
+  // at least one sample contributes 1+, no near-zero halo cells that
+  // sink into the palette's dark end).
+  aggregate: 'count',
   dataset: 'cluster',
-  height: 0.06,
-  inset: 0.96,
+  height: 0.08,
+  inset: 1,
   opacity: 0.95,
-  showEmpty: false,
+  // Show empty cells as a subtle base layer so the icosphere reads as a
+  // coherent shell rather than a sparse archipelago.
+  showEmpty: true,
   showBorders: false,
   highlight: true,
   durationMs: 1400,
@@ -239,8 +244,11 @@ function applyLayer(): void {
     cellBorder: settings.showBorders,
     highlight: settings.highlight,
     scale: {
+      // Custom palette: dark teal → orange → bright yellow. Reads better
+      // on outline-dark than vanilla 'inferno' (whose bottom 30% sinks
+      // into the background) yet still has a clear hot-spot top end.
       type: 'sequential',
-      palette: 'inferno',
+      palette: ['#1d3a4f', '#3d8eb9', '#f4a261', '#ffd700', '#fff5b1'],
     },
     animation: {
       duration: settings.durationMs,
