@@ -14,7 +14,13 @@
 import type { CountryDataMap, LatLng } from '../types';
 import type { ScaleConfig } from '../data/scales';
 
-export type DataLayerType = 'choropleth' | 'bars' | 'extruded' | 'heatmap';
+export type DataLayerType =
+  | 'choropleth'
+  | 'bars'
+  | 'extruded'
+  | 'heatmap'
+  | 'hexbin'
+  | 'charts';
 
 export interface DataLayerEvents<TEntry = unknown> {
   readonly onHover?: (entry: TEntry | null) => void;
@@ -520,11 +526,144 @@ export interface HeatmapDataEntry {
   readonly animation?: boolean | HeatmapAnimationConfig;
 }
 
+/**
+ * Hex-bin aggregation — lat/lng point samples are binned into the faces
+ * of a subdivided icosphere (visually triangular cells; "hex" is the
+ * common name for this kind of geographic binning). Each cell renders
+ * as a flat or extruded prism whose colour comes from the aggregated
+ * value via `scale` and whose height comes from value→[height.min, max].
+ *
+ * Subdivision levels: 0=20 cells · 1=80 · 2=320 · 3=1280 · 4=5120 · 5=20480.
+ * Level 3 is the sweet-spot default — fine enough to pick up regional
+ * patterns, coarse enough to cluster cleanly even with 1k samples.
+ */
+export interface HexBinDataLayer {
+  readonly type: 'hexbin';
+  readonly data: ReadonlyArray<HexBinDataEntry>;
+  readonly scale?: ScaleConfig;
+  /** Icosphere subdivision level (0–5). Default 3. */
+  readonly resolution?: number;
+  /** How multiple samples landing in the same cell combine. Default 'sum'. */
+  readonly aggregate?: 'sum' | 'count' | 'mean' | 'max';
+  /** Min/max cell extrusion in world units (1 = globe radius). Default { min: 0, max: 0.06 }. */
+  readonly height?: { readonly min?: number; readonly max?: number };
+  /** Render cells with no samples using the scale's noData colour. Default false. */
+  readonly showEmpty?: boolean;
+  /** Layer opacity multiplier. Default 1. */
+  readonly opacity?: number;
+  /**
+   * 0..1 — how much each cell shrinks toward its centroid so neighbouring
+   * cells visually separate. Default 0.94 (≈3% gap on each edge).
+   */
+  readonly cellInset?: number;
+  /** Mount/init animation (reuses the heatmap animation config shape). */
+  readonly animation?: boolean | HeatmapAnimationConfig;
+  readonly events?: DataLayerEvents<HexBinDataEntry>;
+}
+
+export interface HexBinDataEntry {
+  readonly position: LatLng;
+  /** Aggregated as `value` — defaults to 1 (so `aggregate: 'count'` works). */
+  readonly value?: number;
+}
+
+/**
+ * Chart sub-type rendered at each anchor (one anchor = one entry on the
+ * globe). Pick by data shape, not aesthetics:
+ *  - `'bars-grouped'` — N parallel bars side-by-side, one per series. Best
+ *    for comparing 2-4 categorical series across many locations.
+ *  - `'bars-stacked'` — single column with N coloured segments stacked
+ *    vertically. Best when totals matter as much as composition.
+ *  - `'pie'` — flat disc segmented by series share. Best for a single
+ *    "share of total" dimension.
+ *  - `'donut'` — pie with a hollow centre, slightly more readable for
+ *    high segment counts and leaves room for value labels.
+ *  - `'radial'` — N bars arranged around a circle, height = value. Best
+ *    when series are categorical AND ordered (months, weekdays, …).
+ */
+export type ChartType = 'bars-grouped' | 'bars-stacked' | 'pie' | 'donut' | 'radial';
+
+/**
+ * One series of a multi-series chart. `key` indexes into each entry's
+ * `values` map; `color` overrides the layer-level `scale` for this series
+ * specifically.
+ */
+export interface ChartSeries {
+  readonly key: string;
+  readonly label?: string;
+  readonly color?: string;
+}
+
+/**
+ * Per-location chart data. `id` resolves to a country centroid via the
+ * active kind's feature map; `position` overrides that and works for any
+ * lat/lng anchor (cities, sensors, custom POIs).
+ */
+export interface ChartsDataEntry {
+  readonly id?: string;
+  readonly position?: LatLng;
+  /**
+   * Per-series values keyed by `ChartSeries.key`. Missing keys are treated
+   * as 0 (segment not drawn). Negative values are clamped to 0 — chart
+   * geometry assumes non-negative semantics.
+   */
+  readonly values: Readonly<Record<string, number>>;
+  /** Optional display label, used by future labelling overlay. */
+  readonly label?: string;
+  /** Free-form payload available in events. */
+  readonly data?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * Multi-series chart visualisation anchored on the globe — one chart per
+ * `ChartsDataEntry`, all sharing the same `chartType` and `series` schema.
+ * Rendered as Three.js meshes in a layer group (no shader pipeline like
+ * heatmap; volumes here are 10²–10³ charts so per-mesh CPU cost is fine).
+ *
+ * Architecture matches the rest of `setDataLayer` pipeline: orchestrator
+ * builds Three.js objects in a `Group`, decoration owns the dispose path,
+ * `tick(delta)` advances the mount animation. Animation reuses the heatmap
+ * `HeatmapAnimationConfig` shape so the same easing library / HUD bindings
+ * work across both layers.
+ *
+ * Tuning knobs:
+ *  - `size`     — overall chart footprint in world units (1 = globe radius). Default 0.05.
+ *  - `height`   — for bars / radial: max bar height. Default 0.08.
+ *  - `innerRadius` — for donut: inner hole as fraction of outer (0..0.95). Default 0.45.
+ *  - `padAngle`    — for pie/donut: gap between segments in radians. Default 0.
+ *  - `rotation`    — chart rotation around its anchor normal (radians). Default 0.
+ *  - `faceCamera`  — billboard pies/donuts toward the camera so they read flat regardless of latitude. Default true for pie/donut, false for bars/radial.
+ *  - `borderColor` / `borderWidth` — optional outline. `borderWidth=0` disables (default).
+ *  - `showValues`  — placeholder for the labelling overlay (planned, no-op v1).
+ */
+export interface ChartsDataLayer {
+  readonly type: 'charts';
+  readonly data: ReadonlyArray<ChartsDataEntry>;
+  readonly chartType: ChartType;
+  readonly series: ReadonlyArray<ChartSeries>;
+  readonly scale?: ScaleConfig;
+  readonly size?: number;
+  readonly height?: number;
+  readonly innerRadius?: number;
+  readonly padAngle?: number;
+  readonly rotation?: number;
+  readonly faceCamera?: boolean;
+  readonly borderColor?: string;
+  readonly borderWidth?: number;
+  readonly showValues?: boolean;
+  readonly opacity?: number;
+  /** Mount/init animation. Reuses {@link HeatmapAnimationConfig}; set `false` to mount instantly. */
+  readonly animation?: boolean | HeatmapAnimationConfig;
+  readonly events?: DataLayerEvents<ChartsDataEntry>;
+}
+
 export type DataLayer =
   | ChoroplethDataLayer
   | BarsDataLayer
   | ExtrudedDataLayer
-  | HeatmapDataLayer;
+  | HeatmapDataLayer
+  | HexBinDataLayer
+  | ChartsDataLayer;
 
 /**
  * Returned by a kind's data-layer decoration. The decoration owns the

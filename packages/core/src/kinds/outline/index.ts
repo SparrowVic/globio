@@ -5,12 +5,14 @@ import { HoverGlowLayer } from './hover-glow-layer';
 import { buildOutlineFocusPulse } from '../shared/focus-pulse-decorators';
 import { CountriesFillLayer } from '../../renderer/countries-fill-layer';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
+import { ChartsLayer } from '../../data-layers/charts/charts-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
 import { DoubleSide, MeshBasicMaterial } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type {
   BarsDataLayer,
+  ChartsDataLayer,
   ChoroplethDataLayer,
   DataLayer,
   DataLayerHandle,
@@ -176,6 +178,33 @@ export const outlineKind: KindModule = {
       };
     };
 
+    // Outline charts: multi-series chart visualisations anchored at lat/lng
+    // (or country centroid). Solid `MeshBasicMaterial` per-bar/segment so
+    // colours read crisply against the dark outline backdrop.
+    const chartsBuilder: DataLayerBuilder = (input: DataLayer, ctx): DataLayerHandle => {
+      const cfg = input as ChartsDataLayer;
+      const charts = new ChartsLayer({
+        layer: cfg,
+        countryFeatures: features as ReadonlyArray<CountryFeature>,
+        fallbackColor: tokens['countries.fill.defaultColor'],
+        camera: ctx.camera,
+      });
+      globeGroup.add(charts.group);
+      return {
+        type: 'charts',
+        update(delta: number) {
+          charts.tick(delta);
+        },
+        setData(next: DataLayer) {
+          charts.setData(next as ChartsDataLayer);
+        },
+        dispose() {
+          charts.dispose();
+          globeGroup.remove(charts.group);
+        },
+      };
+    };
+
     // Outline extruded: opaque colored 3D pillars per country. DoubleSide so
     // walls render correctly when looking under a steep angle.
     const extrudedBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
@@ -294,6 +323,7 @@ export const outlineKind: KindModule = {
           bars: barsBuilder,
           extruded: extrudedBuilder,
           heatmap: heatmapBuilder,
+          charts: chartsBuilder,
         },
       },
       dispose() {

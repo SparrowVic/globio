@@ -127,6 +127,8 @@ export interface DataLayerDecorations {
   readonly bars?: DataLayerBuilder;
   readonly extruded?: DataLayerBuilder;
   readonly heatmap?: DataLayerBuilder;
+  readonly hexbin?: DataLayerBuilder;
+  readonly charts?: DataLayerBuilder;
 }
 
 export interface DataLayerBuildContext {
