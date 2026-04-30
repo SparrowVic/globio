@@ -13,6 +13,7 @@ if (!container) throw new Error('#app not found');
 type DataSet = 'energy' | 'population' | 'quarterly' | 'kpi';
 
 type LabelsMode = 'off' | 'hover' | 'always' | 'occlusion';
+type AnimOrder = 'sequential' | 'radial' | 'value' | 'reverse-value' | 'random';
 
 interface Settings {
   chartType: ChartType;
@@ -26,6 +27,9 @@ interface Settings {
   staggerMs: number;
   segmentStaggerMs: number;
   labels: LabelsMode;
+  borders: boolean;
+  highlight: boolean;
+  animOrder: AnimOrder;
 }
 
 const settings: Settings = {
@@ -40,6 +44,9 @@ const settings: Settings = {
   staggerMs: 35,
   segmentStaggerMs: 60,
   labels: 'hover',
+  borders: false,
+  highlight: true,
+  animOrder: 'sequential',
 };
 
 // ---------------------------------------------------------------------------
@@ -233,6 +240,18 @@ bindRowToggle('labels-row', 'labels', (v) => {
   settings.labels = v as LabelsMode;
   applyLayer();
 });
+bindRowToggle('borders-row', 'borders', (v) => {
+  settings.borders = v === 'on';
+  applyLayer();
+});
+bindRowToggle('highlight-row', 'highlight', (v) => {
+  settings.highlight = v === 'on';
+  applyLayer();
+});
+bindRowToggle('order-row', 'order', (v) => {
+  settings.animOrder = v as AnimOrder;
+  applyLayer();
+});
 
 const easingSelect = document.getElementById('easing') as HTMLSelectElement | null;
 if (easingSelect) {
@@ -270,7 +289,10 @@ function applyLayer(): void {
       duration: settings.durationMs,
       stagger: settings.staggerMs,
       easing: settings.easing as never,
+      order: settings.animOrder,
     },
+    ...(settings.borders ? { borderColor: '#ffffff', borderWidth: 0.45 } : {}),
+    highlight: settings.highlight,
     segmentStagger: settings.segmentStaggerMs,
     labels:
       settings.labels === 'off'

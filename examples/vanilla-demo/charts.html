@@ -187,6 +187,35 @@
         <button data-labels="occlusion">Visible side</button>
       </div>
 
+      <h2>Polish</h2>
+      <div class="slider-row">
+        <label>Borders</label>
+        <div class="row" id="borders-row">
+          <button data-borders="off" class="active">Off</button>
+          <button data-borders="on">On</button>
+        </div>
+        <p class="hint">Outline along bar / segment edges. Thin (1px on most browsers).</p>
+      </div>
+      <div class="slider-row">
+        <label>Hover highlight</label>
+        <div class="row" id="highlight-row">
+          <button data-highlight="off">Off</button>
+          <button data-highlight="on" class="active">On</button>
+        </div>
+        <p class="hint">Hovered segment tints toward white, rest dim. Visual feedback for hover events.</p>
+      </div>
+      <div class="slider-row">
+        <label>Animation order (stagger sequence)</label>
+        <div class="row" id="order-row">
+          <button data-order="sequential" class="active">Sequential</button>
+          <button data-order="radial">Radial</button>
+          <button data-order="value">Top values</button>
+          <button data-order="reverse-value">Low values</button>
+          <button data-order="random">Random</button>
+        </div>
+        <p class="hint">Order in which charts start blooming. <code>radial</code> uses lat/lng [0,0] as the anchor.</p>
+      </div>
+
       <h2>
         Animation
         <button id="anim-replay" type="button" style="float:right;font-size:10px;padding:2px 6px">↻ Replay</button>

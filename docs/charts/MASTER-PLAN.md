@@ -495,11 +495,12 @@ Each decoration is a `DataLayerBuilder` factory in the kind's `decorations.dataL
 
 **Cel:** zamknąć wszystkie podejrzane edge'e i ucztę pierwszego testu publikacyjnego.
 
-- ✅ DONE: 8 chart types
-- 🌱 Per-bar value labels (najważniejsza brakująca afordancja)
-- 🌱 Hover highlight overlay (visual feedback po hover, na razie jest tylko event)
-- 🌱 Border / stroke per segment (pole w typie istnieje, brak implementacji)
-- 🌱 Animation `order` field uznawany w charts (jak w hexbin)
+- ✅ 8 chart types
+- ✅ **Hover highlight overlay** (in-place material tint via `data-layers/charts/hover-highlight.ts`)
+- ✅ **Border / stroke per segment** (`borderColor` / `borderWidth` faktycznie wpięte przez `EdgesGeometry` LineSegments)
+- ✅ **Animation `order` field uznawany w charts** (sequential/radial/value/reverse-value/random — `data-layers/charts/entry-ordering.ts` + 7 testów)
+- ✅ Removed `showValues` stub (premature) — wróci wraz z per-bar value labels
+- 🌱 Per-bar value labels (najważniejsza brakująca afordancja po basics)
 - 🌱 Theme tokens dla charts colors (`charts.fill.default` etc.)
 - 🌱 Per-entry `color` override
 - 🌱 Tests: pie-builder, gauge-builder, sunburst-builder, extruded-builder
