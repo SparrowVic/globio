@@ -94,6 +94,10 @@ export { PRESET_DEFAULT_KIND } from './kinds/registry';
 export type {
   BarsDataEntry,
   BarsDataLayer,
+  ChartSeries,
+  ChartType,
+  ChartsDataEntry,
+  ChartsDataLayer,
   ChoroplethDataLayer,
   DataLayer,
   DataLayerEvents,
@@ -102,4 +106,6 @@ export type {
   ExtrudedDataLayer,
   HeatmapDataEntry,
   HeatmapDataLayer,
+  HexBinDataEntry,
+  HexBinDataLayer,
 } from './data-layers/types';

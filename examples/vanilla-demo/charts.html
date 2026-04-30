@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Globio — Data Charts (bars + extruded)</title>
+    <title>Globio — Charts data layer</title>
     <style>
       html,
       body {
         margin: 0;
         padding: 0;
         height: 100%;
-        background: #000010;
+        background: #03050d;
         color: #cfd8ff;
         font-family: system-ui, sans-serif;
         overflow: hidden;
@@ -19,18 +19,37 @@
         position: fixed;
         inset: 0;
       }
+      .nav {
+        position: fixed;
+        top: 12px;
+        right: 16px;
+        font-size: 12px;
+        z-index: 12;
+      }
+      .nav a {
+        color: #cfd8ff;
+        opacity: 0.7;
+        margin-left: 8px;
+        text-decoration: none;
+      }
+      .nav a:hover {
+        opacity: 1;
+        color: #ffd700;
+      }
       .panel {
         position: fixed;
         top: 12px;
         left: 12px;
         padding: 14px 16px;
-        background: rgba(10, 14, 30, 0.7);
-        border: 1px solid rgba(74, 158, 255, 0.4);
+        background: rgba(10, 14, 30, 0.78);
+        border: 1px solid rgba(74, 158, 255, 0.35);
         border-radius: 8px;
         font-size: 13px;
-        line-height: 1.45;
+        line-height: 1.5;
         backdrop-filter: blur(6px);
-        max-width: 320px;
+        max-width: 360px;
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
         z-index: 10;
       }
       .panel h1 {
@@ -40,14 +59,16 @@
       }
       .panel h2 {
         margin: 14px 0 6px;
-        font-size: 13px;
+        font-size: 12px;
         color: #ffd700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.6px;
       }
-      .panel p {
-        margin: 0 0 6px;
-        opacity: 0.85;
+      .panel .hint {
+        font-size: 11px;
+        opacity: 0.55;
+        margin: 4px 0 0;
+        line-height: 1.35;
       }
       .row {
         display: flex;
@@ -56,92 +77,130 @@
         margin: 4px 0;
       }
       button {
-        background: rgba(74, 158, 255, 0.15);
+        background: rgba(74, 158, 255, 0.12);
         color: #cfd8ff;
-        border: 1px solid rgba(74, 158, 255, 0.4);
-        padding: 5px 10px;
-        border-radius: 4px;
+        border: 1px solid rgba(74, 158, 255, 0.35);
+        padding: 6px 10px;
         cursor: pointer;
         font-size: 12px;
+        border-radius: 4px;
         font-family: inherit;
       }
       button:hover {
-        background: rgba(74, 158, 255, 0.3);
+        background: rgba(74, 158, 255, 0.22);
       }
       button.active {
-        background: rgba(255, 215, 0, 0.25);
-        border-color: rgba(255, 215, 0, 0.6);
+        background: rgba(255, 215, 0, 0.22);
         color: #ffd700;
+        border-color: #ffd700;
       }
-      nav {
-        position: fixed;
-        top: 12px;
-        right: 12px;
-        display: flex;
-        gap: 6px;
-        background: rgba(10, 14, 30, 0.7);
-        border: 1px solid rgba(74, 158, 255, 0.4);
-        border-radius: 8px;
-        padding: 8px 10px;
-        backdrop-filter: blur(6px);
-        z-index: 10;
+      .slider-row {
+        margin: 8px 0;
       }
-      nav a {
-        color: #cfd8ff;
-        text-decoration: none;
-        font-size: 12px;
-        padding: 4px 10px;
-        border-radius: 4px;
-        border: 1px solid transparent;
-      }
-      nav a:hover {
-        background: rgba(74, 158, 255, 0.18);
-      }
-      nav a.current {
-        color: #ffd700;
-        border-color: rgba(255, 215, 0, 0.5);
-        background: rgba(255, 215, 0, 0.12);
-      }
-      .legend {
+      .slider-row label {
+        display: block;
         font-size: 11px;
-        opacity: 0.75;
-        margin-top: 10px;
+        margin-bottom: 4px;
+        opacity: 0.85;
+      }
+      .slider-row input[type='range'] {
+        width: 100%;
+      }
+      select {
+        background: rgba(74, 158, 255, 0.12);
+        color: #cfd8ff;
+        border: 1px solid rgba(74, 158, 255, 0.35);
+        padding: 4px 6px;
+        font-family: inherit;
+        font-size: 12px;
+        border-radius: 4px;
+        width: 100%;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid rgba(74, 158, 255, 0.18);
+        margin: 12px 0;
+      }
+      code {
+        background: rgba(74, 158, 255, 0.12);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 11px;
       }
     </style>
   </head>
   <body>
     <div id="app"></div>
-
-    <nav>
-      <a href="/">Kinds</a>
-      <a href="/charts.html" class="current">Charts</a>
+    <div class="nav">
+      <a href="/">Index</a>
       <a href="/heatmap.html">Heatmap</a>
-    </nav>
+    </div>
 
     <div class="panel">
-      <h1>Data Charts</h1>
-      <p>Bars + extruded countries — same dataset, two visual presentations. Switch the kind to see how each decoration restyles them.</p>
+      <h1>Charts data layer</h1>
+      <p class="hint">Multi-series charts anchored at country centroids — switch chart type / dataset / animation timing live. Built on <code>ChartsDataLayer</code>.</p>
 
-      <h2>Kind</h2>
-      <div class="row" id="kind-row">
-        <button data-kind="outline" class="active">Outline</button>
-        <button data-kind="dotted">Dotted</button>
-      </div>
-
-      <h2>Layer</h2>
-      <div class="row" id="layer-row">
-        <button data-layer="bars" class="active">Bars</button>
-        <button data-layer="extruded">Extruded</button>
-        <button data-layer="none">None</button>
+      <h2>Chart type</h2>
+      <div class="row" id="type-row">
+        <button data-type="bars-grouped" class="active">Grouped bars</button>
+        <button data-type="bars-stacked">Stacked bars</button>
+        <button data-type="pie">Pie</button>
+        <button data-type="donut">Donut</button>
+        <button data-type="radial">Radial</button>
       </div>
 
       <h2>Dataset</h2>
       <div class="row" id="data-row">
-        <button data-set="population" class="active">Population (top 30)</button>
-        <button data-set="gdp">GDP per capita</button>
+        <button data-set="energy" class="active">Energy mix (G7)</button>
+        <button data-set="population" >Pop. by age (top 12)</button>
+        <button data-set="quarterly">Quarterly sales (top 8)</button>
       </div>
 
-      <p class="legend">Top countries highlighted, others fall back to the kind's neutral fallback color.</p>
+      <h2>Layout</h2>
+      <div class="slider-row">
+        <label>Chart size: <span id="size-value">0.060</span></label>
+        <input type="range" id="size" min="0.02" max="0.12" step="0.005" value="0.06" />
+      </div>
+      <div class="slider-row">
+        <label>Bar / radial height: <span id="height-value">0.10</span></label>
+        <input type="range" id="height" min="0.02" max="0.20" step="0.005" value="0.10" />
+      </div>
+      <div class="slider-row">
+        <label>Donut inner radius: <span id="inner-value">0.45</span></label>
+        <input type="range" id="inner" min="0" max="0.92" step="0.02" value="0.45" />
+      </div>
+      <div class="slider-row">
+        <label>Pie / donut pad angle: <span id="pad-value">0.02</span> rad</label>
+        <input type="range" id="pad" min="0" max="0.10" step="0.005" value="0.02" />
+      </div>
+
+      <h2>
+        Animation
+        <button id="anim-replay" type="button" style="float:right;font-size:10px;padding:2px 6px">↻ Replay</button>
+      </h2>
+      <div class="slider-row">
+        <label>Easing: <span id="easing-value">ease-out-back</span></label>
+        <select id="easing">
+          <option value="linear">linear</option>
+          <option value="ease-out-cubic">ease-out-cubic</option>
+          <option value="ease-out-quart">ease-out-quart</option>
+          <option value="ease-out-back" selected>ease-out-back</option>
+          <option value="ease-out-elastic">ease-out-elastic</option>
+          <option value="ease-out-bounce">ease-out-bounce</option>
+          <option value="ease-in-out-cubic">ease-in-out-cubic</option>
+        </select>
+      </div>
+      <div class="slider-row">
+        <label>Duration: <span id="duration-value">900</span> ms</label>
+        <input type="range" id="duration" min="100" max="4000" step="50" value="900" />
+      </div>
+      <div class="slider-row">
+        <label>Stagger: <span id="stagger-value">35</span> ms / chart</label>
+        <input type="range" id="stagger" min="0" max="200" step="5" value="35" />
+      </div>
+
+      <hr />
+      <div id="stats" style="font-size:11px;opacity:0.7">—</div>
     </div>
 
     <script type="module" src="/src/charts.ts"></script>
