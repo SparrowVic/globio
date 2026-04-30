@@ -35,6 +35,7 @@ import {
   stashOriginalColor,
   type ResolvedHighlight,
 } from './hover-highlight';
+import { computeEntryStartRanks } from './entry-ordering';
 
 /**
  * Per-entry runtime state — one per chart instance. The orchestrator
@@ -343,8 +344,27 @@ export class ChartsLayer {
       layer.chartType === 'sunburst';
     const faceCamera = layer.faceCamera ?? faceCameraDefault;
 
+    // Per-entry stagger ranks — sequential by default, but can be radial
+    // / value-ordered / random / reverse-value when the user wants a
+    // specific bloom shape (matches the hex-bin `animation.order` API).
+    const entryRanks = computeEntryStartRanks(
+      anchorList,
+      layer.series,
+      this.animConfig.order,
+      this.animConfig.origin
+    );
+
     for (const { entry, anchor, index } of anchorList) {
-      const instance = this.buildOneChart(entry, anchor, index, layer, stackedPeak, faceCamera);
+      const rank = entryRanks[index] ?? index;
+      const instance = this.buildOneChart(
+        entry,
+        anchor,
+        index,
+        rank,
+        layer,
+        stackedPeak,
+        faceCamera
+      );
       if (!instance) continue;
       this.group.add(instance.group);
       this.instances.push(instance);
@@ -429,6 +449,7 @@ export class ChartsLayer {
     entry: ChartsDataEntry,
     anchor: ChartAnchor,
     index: number,
+    rank: number,
     layer: ChartsDataLayer,
     stackedPeak: number,
     faceCamera: boolean
@@ -438,13 +459,14 @@ export class ChartsLayer {
     const { group, bars, segments } = built;
     group.position.copy(anchor.surface);
     group.quaternion.copy(anchor.quaternion);
-    // Per-entry override composes with the layer-level stagger (matches
-    // the heatmap pattern). `enabled: false` on an entry effectively
-    // pushes its start time past the animation window so it never plays.
+    // Per-entry override composes with the layer-level stagger via the
+    // entry's RANK (sequential / radial / value-ordered etc.), not its
+    // raw input index. `enabled: false` on an entry pushes its start
+    // time past the animation window so it never plays.
     const entryDelay = entryAnimationDelaySec(
       entry.animation,
       this.animConfig.stagger,
-      index
+      rank
     );
     const startSec = entryDelay.enabled
       ? this.animConfig.delay + entryDelay.delay
