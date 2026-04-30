@@ -6,11 +6,17 @@ import {
   type ChartSeries,
   type DataLayer,
 } from '@your-globe/core';
+import {
+  CO2_SERIES,
+  GDP_SERIES,
+  WORLD_CO2_EMISSIONS,
+  WORLD_GDP_NOMINAL,
+} from './charts-data';
 
 const container = document.getElementById('app');
 if (!container) throw new Error('#app not found');
 
-type DataSet = 'energy' | 'population' | 'quarterly' | 'kpi';
+type DataSet = 'energy' | 'population' | 'quarterly' | 'kpi' | 'world-gdp' | 'world-co2';
 
 type LabelsMode = 'off' | 'hover' | 'always' | 'occlusion';
 type AnimOrder = 'sequential' | 'radial' | 'value' | 'reverse-value' | 'random';
@@ -137,6 +143,8 @@ const datasetSeries: Record<DataSet, ReadonlyArray<ChartSeries>> = {
   population: POPULATION_SERIES,
   quarterly: QUARTERLY_SERIES,
   kpi: KPI_SERIES,
+  'world-gdp': GDP_SERIES,
+  'world-co2': CO2_SERIES,
 };
 
 const datasetData: Record<DataSet, ReadonlyArray<ChartsDataEntry>> = {
@@ -144,6 +152,8 @@ const datasetData: Record<DataSet, ReadonlyArray<ChartsDataEntry>> = {
   population: POPULATION_DATA,
   quarterly: QUARTERLY_DATA,
   kpi: KPI_DATA,
+  'world-gdp': WORLD_GDP_NOMINAL,
+  'world-co2': WORLD_CO2_EMISSIONS,
 };
 
 // ---------------------------------------------------------------------------
@@ -172,20 +182,27 @@ applyLayer();
 
 bindRowToggle('type-row', 'type', (value) => {
   settings.chartType = value as ChartType;
-  // Auto-swap to a sensible dataset when picking a single-value chart
-  // (gauge needs ~one number per country, not a multi-series array).
-  // Extruded works best with population-by-age (height = total population
-  // = sum of brackets, single colour per country via scale).
+  // Auto-swap to a sensible dataset for the chosen chart-type.
+  // - gauge: needs single value 0..max per country → 'kpi'
+  // - extruded: needs whole-globe coverage so colour spreads across
+  //   countries, not just G7 → 'world-gdp' (~70 economies with ISO ids)
+  // - rest: multi-series default → 'energy'
   if (settings.chartType === 'gauge' && settings.dataset !== 'kpi') {
     settings.dataset = 'kpi';
     setActiveButton('data-row', 'set', 'kpi');
-  } else if (settings.chartType === 'extruded' && settings.dataset === 'kpi') {
-    settings.dataset = 'population';
-    setActiveButton('data-row', 'set', 'population');
+  } else if (
+    settings.chartType === 'extruded' &&
+    settings.dataset !== 'world-gdp' &&
+    settings.dataset !== 'world-co2'
+  ) {
+    settings.dataset = 'world-gdp';
+    setActiveButton('data-row', 'set', 'world-gdp');
   } else if (
     settings.chartType !== 'gauge' &&
     settings.chartType !== 'extruded' &&
-    settings.dataset === 'kpi'
+    (settings.dataset === 'kpi' ||
+      settings.dataset === 'world-gdp' ||
+      settings.dataset === 'world-co2')
   ) {
     settings.dataset = 'energy';
     setActiveButton('data-row', 'set', 'energy');
@@ -275,6 +292,12 @@ if (replayBtn) {
 function applyLayer(): void {
   const series = datasetSeries[settings.dataset];
   const data = datasetData[settings.dataset];
+  // Whole-globe datasets (world-gdp, world-co2) drive `extruded` mode
+  // visibly across the map — use a sequential scale so the value range
+  // produces a clear gradient. Single-colour series fallback would
+  // collapse every country to the same shade.
+  const isWholeGlobe =
+    settings.dataset === 'world-gdp' || settings.dataset === 'world-co2';
   const layer: ChartsDataLayer = {
     type: 'charts',
     chartType: settings.chartType,
@@ -285,6 +308,16 @@ function applyLayer(): void {
     innerRadius: settings.innerRadius,
     padAngle: settings.padAngle,
     ...(settings.chartType === 'gauge' ? { gaugeMax: 100 } : {}),
+    ...(isWholeGlobe
+      ? {
+          scale: {
+            type: 'sequential',
+            // Custom 5-stop gradient: dark teal → orange → bright yellow
+            // (same palette as hexbin; reads cleanly on outline-dark).
+            palette: ['#1d3a4f', '#3d8eb9', '#f4a261', '#ffd700', '#fff5b1'],
+          },
+        }
+      : {}),
     animation: {
       duration: settings.durationMs,
       stagger: settings.staggerMs,
