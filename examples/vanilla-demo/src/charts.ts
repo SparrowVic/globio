@@ -12,6 +12,8 @@ if (!container) throw new Error('#app not found');
 
 type DataSet = 'energy' | 'population' | 'quarterly';
 
+type LabelsMode = 'off' | 'hover' | 'always' | 'occlusion';
+
 interface Settings {
   chartType: ChartType;
   dataset: DataSet;
@@ -23,6 +25,7 @@ interface Settings {
   durationMs: number;
   staggerMs: number;
   segmentStaggerMs: number;
+  labels: LabelsMode;
 }
 
 const settings: Settings = {
@@ -36,6 +39,7 @@ const settings: Settings = {
   durationMs: 900,
   staggerMs: 35,
   segmentStaggerMs: 60,
+  labels: 'hover',
 };
 
 // ---------------------------------------------------------------------------
@@ -176,6 +180,11 @@ bindSlider('seg-stagger', 'seg-stagger-value', 0, (v) => {
   applyLayer();
 });
 
+bindRowToggle('labels-row', 'labels', (v) => {
+  settings.labels = v as LabelsMode;
+  applyLayer();
+});
+
 const easingSelect = document.getElementById('easing') as HTMLSelectElement | null;
 if (easingSelect) {
   easingSelect.addEventListener('change', () => {
@@ -213,6 +222,10 @@ function applyLayer(): void {
       easing: settings.easing as never,
     },
     segmentStagger: settings.segmentStaggerMs,
+    labels:
+      settings.labels === 'off'
+        ? false
+        : { mode: settings.labels, fontSize: 11 },
     events: {
       onHover: (payload) => {
         if (!payload) {

@@ -23,6 +23,7 @@ import {
   disposePieSegments,
   type PieSegmentHandle,
 } from './pie-builder';
+import { ChartsLabelsOverlay, resolveLabelsConfig } from './labels-overlay';
 
 /**
  * Per-entry runtime state — one per chart instance. The orchestrator
@@ -90,6 +91,7 @@ export class ChartsLayer {
   private readonly raycaster: Raycaster;
   private readonly pointer: Vector2;
   private pointerAttached = false;
+  private labelsOverlay: ChartsLabelsOverlay | null = null;
   /** Maps a chart's mesh.uuid → instance index for fast raycast lookups. */
   private readonly meshIndex = new Map<string, { instance: ChartInstance; segmentIndex: number }>();
 
@@ -132,6 +134,9 @@ export class ChartsLayer {
       this.applyAnimation();
     }
     if (this.camera) this.applyBillboard();
+    if (this.labelsOverlay && this.camera) {
+      this.labelsOverlay.update(this.camera);
+    }
   }
 
   /** Restart the mount animation from `t=0`. Story-engine bridge hook. */
@@ -143,6 +148,10 @@ export class ChartsLayer {
 
   public dispose(): void {
     this.detachPointer();
+    if (this.labelsOverlay) {
+      this.labelsOverlay.dispose();
+      this.labelsOverlay = null;
+    }
     this.disposeInstances();
   }
 
@@ -173,6 +182,9 @@ export class ChartsLayer {
   private readonly onPointerMove = (event: PointerEvent): void => {
     const hit = this.raycastSegment(event);
     this.layer.events?.onHover?.(hit);
+    if (this.labelsOverlay) {
+      this.labelsOverlay.setHoveredEntry(hit?.entryIndex ?? -1);
+    }
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
@@ -246,6 +258,27 @@ export class ChartsLayer {
     this.animElapsedSec = 0;
     if (this.animConfig.enabled) this.applyAnimation();
     this.rebuildMeshIndex();
+    this.applyLabels();
+  }
+
+  private applyLabels(): void {
+    const resolved = resolveLabelsConfig(this.layer.labels);
+    if (!resolved.enabled) {
+      if (this.labelsOverlay) {
+        this.labelsOverlay.dispose();
+        this.labelsOverlay = null;
+      }
+      return;
+    }
+    if (!this.domElement) return;
+    if (!this.labelsOverlay) {
+      this.labelsOverlay = new ChartsLabelsOverlay(this.domElement, resolved);
+    } else {
+      this.labelsOverlay.updateConfig(resolved);
+    }
+    this.labelsOverlay.setLabels(
+      this.instances.map((i) => ({ entry: i.entry, anchor: i.group }))
+    );
   }
 
   private buildOneChart(

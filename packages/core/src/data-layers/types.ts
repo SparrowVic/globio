@@ -743,6 +743,34 @@ export interface ChartsHoverPayload {
   readonly value: number;
 }
 
+/**
+ * Labels overlay anchored above each chart. Renders as DOM nodes (CSS
+ * positioned, projected per frame from the 3D anchor) so labels stay
+ * crisp at any zoom and respect device pixel ratio without GPU text.
+ */
+export interface ChartsLabelsConfig {
+  readonly enabled?: boolean;
+  /** Label text. Default: `entry.label ?? entry.id ?? ''`. */
+  readonly format?: (entry: ChartsDataEntry) => string;
+  /** Pixel size. Default 12. */
+  readonly fontSize?: number;
+  /** Text colour. Default '#ffd700'. */
+  readonly color?: string;
+  /** Background pill colour. Default 'rgba(8,12,24,0.78)'. */
+  readonly backgroundColor?: string;
+  /**
+   * Visibility:
+   *  - 'always' — every chart's label is on screen all the time (legible
+   *    at low entry counts; clutters fast above ~20 charts)
+   *  - 'hover'  — hidden until the chart is hovered (default; dense)
+   *  - 'occlusion' — visible only when the chart's anchor is on the visible
+   *    hemisphere (occluded by the globe → hidden)
+   */
+  readonly mode?: 'always' | 'hover' | 'occlusion';
+  /** Vertical offset in pixels above the projected chart centre. Default -28. */
+  readonly offsetPx?: number;
+}
+
 export interface ChartsDataLayer {
   readonly type: 'charts';
   readonly data: ReadonlyArray<ChartsDataEntry>;
@@ -758,6 +786,8 @@ export interface ChartsDataLayer {
   readonly borderColor?: string;
   readonly borderWidth?: number;
   readonly showValues?: boolean;
+  /** HTML label overlay anchored above each chart. */
+  readonly labels?: boolean | ChartsLabelsConfig;
   readonly opacity?: number;
   /** Mount/init animation. Reuses {@link HeatmapAnimationConfig}; set `false` to mount instantly. */
   readonly animation?: boolean | HeatmapAnimationConfig;
