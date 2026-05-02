@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { GroupedSelectField, type GroupedSelectGroup } from '@/components/controls';
 import { configuratorPresets } from '@/configurator/defaults';
+import type { CustomTheme } from '@/lib/custom-themes';
 import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
 
 const kindLabels: ReadonlyArray<{ readonly value: GlobeKind; readonly label: string }> = [
@@ -46,6 +47,7 @@ const themeCatalog: ReadonlyArray<{
  */
 export function TopCommandBar({
   state,
+  customThemes,
   onGlobeChange,
   onPreset,
   onCreateTheme,
@@ -55,6 +57,7 @@ export function TopCommandBar({
   onReset,
 }: {
   readonly state: ConfiguratorState;
+  readonly customThemes: ReadonlyArray<CustomTheme>;
   readonly onGlobeChange: (patch: Partial<GlobeSettings>) => void;
   readonly onPreset: (id: string) => void;
   readonly onCreateTheme: () => void;
@@ -67,10 +70,18 @@ export function TopCommandBar({
     .filter((t) => t.kind === state.globe.kind)
     .map((t) => ({ value: t.value, label: t.label }));
 
+  // User-created themes appear at the top of the dropdown — they're the
+  // most "yours" content. The Create button sits as the group footer so
+  // it's discoverable in the same place where you pick existing customs.
+  const customThemeOptions = customThemes.map((theme) => ({
+    value: theme.id as ThemePresetName,
+    label: `${theme.name} ✦`,
+  }));
+
   const themeGroups: ReadonlyArray<GroupedSelectGroup<ThemePresetName>> = [
     {
-      label: 'Custom',
-      options: [],
+      label: customThemeOptions.length > 0 ? 'Custom' : 'Custom (none yet)',
+      options: customThemeOptions,
       footer: {
         content: <CreateCustomThemeButton />,
         onClick: onCreateTheme,

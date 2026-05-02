@@ -9,7 +9,9 @@ import { StageSections } from '@/components/sections/StageSections';
 import { DataSections, dataBadgeForState } from '@/components/sections/DataSections';
 import { StatusDock } from '@/components/panels/StatusDock';
 import { TopCommandBar } from '@/components/panels/TopCommandBar';
+import { CustomThemeModal } from '@/components/CustomThemeModal';
 import { resetAllPanelState } from '@/hooks/usePanelState';
+import { bootstrapCustomThemes, type CustomTheme } from '@/lib/custom-themes';
 import {
   buildDataLayer,
   buildGlobeConfig,
@@ -34,6 +36,13 @@ const initialState = (): ConfiguratorState => initialStateForPath(window.locatio
 
 export default function App() {
   const [state, setState] = useState<ConfiguratorState>(initialState);
+  // User-created themes — bootstrapped from localStorage on first paint
+  // and registered with core's theme system synchronously so themed
+  // selectors can resolve them on the very first render.
+  const [customThemes, setCustomThemes] = useState<ReadonlyArray<CustomTheme>>(() =>
+    bootstrapCustomThemes(),
+  );
+  const [themeModalOpen, setThemeModalOpen] = useState(false);
   const [heatmapDataset, setHeatmapDataset] = useState<HeatmapDatasetState>({
     id: state.heatmap.dataset,
     data: [],
@@ -259,18 +268,27 @@ export default function App() {
         />
         <TopCommandBar
           state={state}
+          customThemes={customThemes}
           onGlobeChange={updateGlobe}
           onPreset={applyPreset}
-          onCreateTheme={() => {
-            // Stub: the actual builder modal lives behind path A in the
-            // redesign plan. For now, surface the intent in the runtime
-            // status so the click is discoverable but does no harm.
-            setRuntimeMessage('Custom theme builder — coming soon');
-          }}
+          onCreateTheme={() => setThemeModalOpen(true)}
           onReplay={() => sendCommand('replay')}
           onHome={() => sendCommand('home')}
           onExport={copyJson}
           onReset={reset}
+        />
+        <CustomThemeModal
+          open={themeModalOpen}
+          onOpenChange={setThemeModalOpen}
+          defaultBase={state.globe.theme}
+          onSaved={(theme) => {
+            // Add to local list (already persisted + registered with core
+            // by saveCustomTheme inside the modal) and apply it as the
+            // active theme so the user sees their creation immediately.
+            setCustomThemes((current) => [theme, ...current.filter((t) => t.id !== theme.id)]);
+            updateGlobe({ theme: theme.id as never });
+            setRuntimeMessage(`Saved custom theme: ${theme.name}`);
+          }}
         />
         <Panel
           id="stage"
