@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { useMemo, useRef, useState, useEffect, type ReactNode } from 'react';
 import { Palette, Sparkles } from 'lucide-react';
 import { resolveTheme, type PartialTokenSet, type ThemePresetName } from '@your-globe/core';
 
@@ -74,6 +74,24 @@ export interface CustomThemeModalProps {
   readonly onOpenChange: (open: boolean) => void;
   /** Defaults for the form (kind-aware: pre-pick the matching base). */
   readonly defaultBase?: ThemePresetName;
+  /**
+   * If supplied, the modal opens in EDIT mode — the form is pre-filled
+   * with this theme's name + base + tokens, and Save updates the existing
+   * entry (keeps the same id). When undefined the modal is in CREATE mode.
+   */
+  readonly editing?: CustomTheme | undefined;
+  /**
+   * Called on every token / base change while the modal is open. Use this
+   * to live-preview the draft theme on the globe via `registerThemePreset`
+   * + theme swap. Modal does not directly touch the globe.
+   */
+  readonly onPreview?: (draft: { extends: ThemePresetName; tokens: PartialTokenSet }) => void;
+  /**
+   * Called when the modal closes WITHOUT saving (Cancel / Esc / outside
+   * click). The host should restore whatever theme was active before the
+   * modal opened. Not called after `onSaved`.
+   */
+  readonly onPreviewEnd?: () => void;
   /** Called after the theme is persisted; caller refreshes its list. */
   readonly onSaved: (theme: CustomTheme) => void;
 }
@@ -93,22 +111,49 @@ export function CustomThemeModal({
   open,
   onOpenChange,
   defaultBase = 'outline-dark',
+  editing,
+  onPreview,
+  onPreviewEnd,
   onSaved,
 }: CustomThemeModalProps) {
   const [name, setName] = useState('');
   const [base, setBase] = useState<ThemePresetName>(defaultBase);
   const [tokens, setTokens] = useState<PartialTokenSet>(() => initialDraftFromBase(defaultBase));
+  // Track whether the close was a save vs a cancel so the parent can
+  // distinguish "user kept the changes" from "restore previous theme".
+  const wasSavedRef = useRef(false);
 
-  // Re-seed the draft when the modal re-opens with a (possibly
-  // different) defaultBase — fresh form on every open, no leakage from
-  // the previous session.
+  // Re-seed the draft when the modal opens. Edit mode pre-fills from
+  // the supplied theme; create mode resets to a clean draft from the
+  // chosen base preset.
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    wasSavedRef.current = false;
+    if (editing) {
+      setName(editing.name);
+      setBase(editing.extends);
+      setTokens({ ...initialDraftFromBase(editing.extends), ...editing.tokens });
+    } else {
       setName('');
       setBase(defaultBase);
       setTokens(initialDraftFromBase(defaultBase));
     }
-  }, [open, defaultBase]);
+  }, [open, defaultBase, editing]);
+
+  // Emit live preview whenever the draft changes (every keystroke / slider
+  // tick) so the globe reflects the user's edits in real time. Only fires
+  // while the modal is open.
+  useEffect(() => {
+    if (!open) return;
+    onPreview?.({ extends: base, tokens });
+  }, [open, base, tokens, onPreview]);
+
+  // On close: if it wasn't a Save, tell the host to restore the previous
+  // theme. Save flow is responsible for unregistering the preview itself.
+  useEffect(() => {
+    if (open) return;
+    if (!wasSavedRef.current) onPreviewEnd?.();
+  }, [open, onPreviewEnd]);
 
   const onTokenChange = <T,>(key: string, value: T): void => {
     setTokens((current) => ({ ...current, [key]: value } as PartialTokenSet));
@@ -127,13 +172,16 @@ export function CustomThemeModal({
   const handleSave = (): void => {
     if (!canSave) return;
     const theme: CustomTheme = {
-      id: idFromName(name),
+      // Edit mode: keep the existing id so the entry doesn't duplicate.
+      // Create mode: derive a fresh slug from the name.
+      id: editing?.id ?? idFromName(name),
       name: name.trim(),
       extends: base,
       tokens,
-      createdAt: Date.now(),
+      createdAt: editing?.createdAt ?? Date.now(),
     };
     saveCustomTheme(theme);
+    wasSavedRef.current = true;
     onSaved(theme);
     onOpenChange(false);
   };
@@ -173,11 +221,12 @@ export function CustomThemeModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="size-4 text-amber-200" />
-            <span>Create custom theme</span>
+            <span>{editing ? 'Edit custom theme' : 'Create custom theme'}</span>
           </DialogTitle>
           <DialogDescription>
-            Pick a base preset, override the tokens you care about. The result lives in your
-            browser via localStorage and shows up in the Theme dropdown's "Custom" group.
+            {editing
+              ? "Tweak this theme's tokens — saving updates the existing entry. Changes preview live on the globe."
+              : 'Pick a base preset, override the tokens you care about. Changes preview live on the globe; saving persists to localStorage.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -239,7 +288,7 @@ export function CustomThemeModal({
             disabled={!canSave}
             className="h-8 bg-amber-300 text-slate-900 hover:bg-amber-200 disabled:opacity-40"
           >
-            Save theme
+            {editing ? 'Save changes' : 'Save theme'}
           </Button>
         </DialogFooter>
       </DialogContent>

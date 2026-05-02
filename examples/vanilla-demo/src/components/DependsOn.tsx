@@ -20,6 +20,14 @@ import { cn } from '@/lib/utils';
  *   - 'hidden'        — removes from DOM. Reserve for "this control
  *     doesn't apply to the current chart-type" semantics where keeping
  *     it would be misleading rather than just inactive.
+ *
+ * **Sticky values are intentional.** A disabled field's value stays put
+ * in the underlying state — when the prereq comes back, the field reads
+ * the value the user last set, not a "neutral" reset. This matches the
+ * standard form-control mental model: turning auto-rotate off and on
+ * again should restore your prior speed, not snap to zero. If a specific
+ * field needs reset-on-disable semantics, the caller does that explicitly
+ * in its onChange handler, not via this wrapper.
  */
 export interface DependsOnProps {
   readonly when: boolean;

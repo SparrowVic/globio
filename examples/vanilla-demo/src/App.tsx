@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Database, Globe2 } from 'lucide-react';
+import {
+  registerThemePreset,
+  resolveTheme,
+  unregisterThemePreset,
+  type PartialTokenSet,
+  type ThemePresetName,
+} from '@your-globe/core';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { GlobePreview } from '@/components/GlobePreview';
@@ -10,10 +17,11 @@ import { DataSections, dataBadgeForState } from '@/components/sections/DataSecti
 import { StatusDock } from '@/components/panels/StatusDock';
 import { TopCommandBar } from '@/components/panels/TopCommandBar';
 import { CustomThemeModal } from '@/components/CustomThemeModal';
+import { ManageSavedModal } from '@/components/ManageSavedModal';
 import { SavePresetModal } from '@/components/SavePresetModal';
 import { resetAllPanelState } from '@/hooks/usePanelState';
-import { bootstrapCustomThemes, type CustomTheme } from '@/lib/custom-themes';
-import { loadCustomPresets, type CustomPreset } from '@/lib/custom-presets';
+import { bootstrapCustomThemes, deleteCustomTheme, type CustomTheme } from '@/lib/custom-themes';
+import { deleteCustomPreset, loadCustomPresets, type CustomPreset } from '@/lib/custom-presets';
 import {
   buildDataLayer,
   buildGlobeConfig,
@@ -48,7 +56,12 @@ export default function App() {
     loadCustomPresets(),
   );
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<CustomTheme | undefined>(undefined);
   const [savePresetModalOpen, setSavePresetModalOpen] = useState(false);
+  const [manageModalOpen, setManageModalOpen] = useState(false);
+  // Theme that was active when the user opened the theme modal — used to
+  // restore on Cancel after live-preview swapped the globe to '__preview__'.
+  const previewPreviousThemeRef = useRef<ThemePresetName | null>(null);
   const [heatmapDataset, setHeatmapDataset] = useState<HeatmapDatasetState>({
     id: state.heatmap.dataset,
     data: [],
@@ -296,6 +309,7 @@ export default function App() {
           onPreset={applyPreset}
           onCreateTheme={() => setThemeModalOpen(true)}
           onSavePreset={() => setSavePresetModalOpen(true)}
+          onManageSaved={() => setManageModalOpen(true)}
           onReplay={() => sendCommand('replay')}
           onHome={() => sendCommand('home')}
           onExport={copyJson}
@@ -303,15 +317,83 @@ export default function App() {
         />
         <CustomThemeModal
           open={themeModalOpen}
-          onOpenChange={setThemeModalOpen}
+          onOpenChange={(next) => {
+            setThemeModalOpen(next);
+            if (!next) setEditingTheme(undefined);
+          }}
           defaultBase={state.globe.theme}
+          editing={editingTheme}
+          onPreview={({ extends: base, tokens }) => {
+            // Live preview: register a sentinel '__preview__' theme with
+            // the draft tokens layered on the chosen base, swap the globe
+            // to it. Remember the original theme on the first preview tick
+            // so Cancel can restore. We bypass updateGlobe() so the
+            // dirtySincePreset flag isn't toggled by preview alone.
+            if (previewPreviousThemeRef.current === null) {
+              previewPreviousThemeRef.current = state.globe.theme;
+            }
+            // Layer base resolution into a single token set so the preview
+            // matches what `registerThemePreset` would produce on Save.
+            const baseResolved = resolveTheme(base);
+            const merged: PartialTokenSet = { ...baseResolved, ...tokens };
+            registerThemePreset('__preview__', merged);
+            setState((current) => ({
+              ...current,
+              globe: { ...current.globe, theme: '__preview__' as ThemePresetName },
+            }));
+          }}
+          onPreviewEnd={() => {
+            // Cancel path: restore the theme that was active before the
+            // modal opened, drop the '__preview__' registration.
+            const previous = previewPreviousThemeRef.current;
+            previewPreviousThemeRef.current = null;
+            unregisterThemePreset('__preview__');
+            if (previous !== null) {
+              setState((current) => ({
+                ...current,
+                globe: { ...current.globe, theme: previous },
+              }));
+            }
+          }}
           onSaved={(theme) => {
-            // Add to local list (already persisted + registered with core
-            // by saveCustomTheme inside the modal) and apply it as the
-            // active theme so the user sees their creation immediately.
+            // Save path: drop the preview, theme is already registered
+            // under its real id by saveCustomTheme. Apply it as the new
+            // active theme + flag dirty so the preset selector knows.
+            unregisterThemePreset('__preview__');
+            previewPreviousThemeRef.current = null;
             setCustomThemes((current) => [theme, ...current.filter((t) => t.id !== theme.id)]);
             updateGlobe({ theme: theme.id as never });
-            setRuntimeMessage(`Saved custom theme: ${theme.name}`);
+            setRuntimeMessage(
+              editingTheme ? `Updated custom theme: ${theme.name}` : `Saved custom theme: ${theme.name}`,
+            );
+          }}
+        />
+        <ManageSavedModal
+          open={manageModalOpen}
+          onOpenChange={setManageModalOpen}
+          themes={customThemes}
+          presets={customPresets}
+          onEditTheme={(theme) => {
+            // Open the editor pre-filled. ManageModal closes itself on
+            // edit-click, so the user lands directly in the builder.
+            setEditingTheme(theme);
+            setThemeModalOpen(true);
+          }}
+          onDeleteTheme={(id) => {
+            const next = deleteCustomTheme(id);
+            setCustomThemes(next);
+            // If the deleted theme was active, fall back to the matching
+            // built-in for the current kind so the globe doesn't render
+            // a now-unregistered preset name.
+            if (state.globe.theme === (id as ThemePresetName)) {
+              updateGlobe({ theme: 'outline-dark' });
+            }
+            setRuntimeMessage('Custom theme deleted');
+          }}
+          onDeletePreset={(id) => {
+            const next = deleteCustomPreset(id);
+            setCustomPresets(next);
+            setRuntimeMessage('Custom preset deleted');
           }}
         />
         <SavePresetModal

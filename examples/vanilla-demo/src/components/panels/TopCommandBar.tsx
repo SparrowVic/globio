@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Bookmark, Download, Home, Play, Plus, RotateCcw, Settings2 } from 'lucide-react';
+import { Bookmark, Download, FolderOpen, Home, Play, Plus, RotateCcw, Settings2 } from 'lucide-react';
 import type { GlobeKind, ThemePresetName } from '@your-globe/core';
 
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,7 @@ export function TopCommandBar({
   onPreset,
   onCreateTheme,
   onSavePreset,
+  onManageSaved,
   onReplay,
   onHome,
   onExport,
@@ -66,6 +67,7 @@ export function TopCommandBar({
   readonly onPreset: (id: string) => void;
   readonly onCreateTheme: () => void;
   readonly onSavePreset: () => void;
+  readonly onManageSaved: () => void;
   readonly onReplay: () => void;
   readonly onHome: () => void;
   readonly onExport: () => void;
@@ -78,10 +80,23 @@ export function TopCommandBar({
   // User-created themes appear at the top of the dropdown — they're the
   // most "yours" content. The Create button sits as the group footer so
   // it's discoverable in the same place where you pick existing customs.
-  const customThemeOptions = customThemes.map((theme) => ({
-    value: theme.id as ThemePresetName,
-    label: `${theme.name} ✦`,
-  }));
+  //
+  // Each custom is tagged with the kind its base preset maps to. When
+  // that kind doesn't match the active globe kind we surface a small
+  // ⚠ glyph in the label — the theme will still apply, but kind-specific
+  // tokens (paper.*, hologram.*, wireframe.*) won't render meaningfully
+  // on a globe of a different kind.
+  const customThemeOptions = customThemes.map((theme) => {
+    const baseKind = themeCatalog.find((t) => t.value === theme.extends)?.kind;
+    const compatible = baseKind === state.globe.kind;
+    const suffix = compatible
+      ? ' ✦'
+      : ` ✦ ⚠ for ${baseKind ?? 'unknown'}`;
+    return {
+      value: theme.id as ThemePresetName,
+      label: `${theme.name}${suffix}`,
+    };
+  });
 
   const themeGroups: ReadonlyArray<GroupedSelectGroup<ThemePresetName>> = [
     {
@@ -192,13 +207,16 @@ export function TopCommandBar({
         />
       </div>
 
-      {/* Action buttons — replay anim, fly home, export JSON, reset all. */}
+      {/* Action buttons — replay anim, home, manage saved, export, reset. */}
       <div className="flex shrink-0 items-center gap-1">
         <IconButton label="Replay animation" onClick={onReplay}>
           <Play className="size-3.5" />
         </IconButton>
         <IconButton label="Reset camera" onClick={onHome}>
           <Home className="size-3.5" />
+        </IconButton>
+        <IconButton label="Manage saved themes & presets" onClick={onManageSaved}>
+          <FolderOpen className="size-3.5" />
         </IconButton>
         <IconButton label="Export JSON" onClick={onExport}>
           <Download className="size-3.5" />
