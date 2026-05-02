@@ -10,8 +10,10 @@ import { DataSections, dataBadgeForState } from '@/components/sections/DataSecti
 import { StatusDock } from '@/components/panels/StatusDock';
 import { TopCommandBar } from '@/components/panels/TopCommandBar';
 import { CustomThemeModal } from '@/components/CustomThemeModal';
+import { SavePresetModal } from '@/components/SavePresetModal';
 import { resetAllPanelState } from '@/hooks/usePanelState';
 import { bootstrapCustomThemes, type CustomTheme } from '@/lib/custom-themes';
+import { loadCustomPresets, type CustomPreset } from '@/lib/custom-presets';
 import {
   buildDataLayer,
   buildGlobeConfig,
@@ -42,7 +44,11 @@ export default function App() {
   const [customThemes, setCustomThemes] = useState<ReadonlyArray<CustomTheme>>(() =>
     bootstrapCustomThemes(),
   );
+  const [customPresets, setCustomPresets] = useState<ReadonlyArray<CustomPreset>>(() =>
+    loadCustomPresets(),
+  );
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [savePresetModalOpen, setSavePresetModalOpen] = useState(false);
   const [heatmapDataset, setHeatmapDataset] = useState<HeatmapDatasetState>({
     id: state.heatmap.dataset,
     data: [],
@@ -213,21 +219,37 @@ export default function App() {
     setState((current) => ({ ...current, ...markDirty(current), activeLayer }));
   }, []);
 
-  const applyPreset = useCallback((id: string) => {
-    const preset = configuratorPresets.find((entry) => entry.id === id);
-    if (!preset) return;
-    setState((current) => ({
-      ...current,
-      activeLayer: preset.patch.activeLayer ?? current.activeLayer,
-      globe: preset.patch.globe ? { ...current.globe, ...preset.patch.globe } : current.globe,
-      heatmap: preset.patch.heatmap ? { ...current.heatmap, ...preset.patch.heatmap } : current.heatmap,
-      hexbin: preset.patch.hexbin ? { ...current.hexbin, ...preset.patch.hexbin } : current.hexbin,
-      charts: preset.patch.charts ? { ...current.charts, ...preset.patch.charts } : current.charts,
-      lastPresetId: id,
-      dirtySincePreset: false,
-    }));
-    setRuntimeMessage(`Preset applied: ${preset.label}`);
-  }, [setRuntimeMessage]);
+  const applyPreset = useCallback(
+    (id: string) => {
+      // Built-in preset (partial patch onto current state).
+      const builtIn = configuratorPresets.find((entry) => entry.id === id);
+      if (builtIn) {
+        setState((current) => ({
+          ...current,
+          activeLayer: builtIn.patch.activeLayer ?? current.activeLayer,
+          globe: builtIn.patch.globe ? { ...current.globe, ...builtIn.patch.globe } : current.globe,
+          heatmap: builtIn.patch.heatmap ? { ...current.heatmap, ...builtIn.patch.heatmap } : current.heatmap,
+          hexbin: builtIn.patch.hexbin ? { ...current.hexbin, ...builtIn.patch.hexbin } : current.hexbin,
+          charts: builtIn.patch.charts ? { ...current.charts, ...builtIn.patch.charts } : current.charts,
+          lastPresetId: id,
+          dirtySincePreset: false,
+        }));
+        setRuntimeMessage(`Preset applied: ${builtIn.label}`);
+        return;
+      }
+      // User preset (full snapshot — replace state wholesale).
+      const custom = customPresets.find((entry) => entry.id === id);
+      if (custom) {
+        setState({
+          ...custom.state,
+          lastPresetId: id,
+          dirtySincePreset: false,
+        });
+        setRuntimeMessage(`Preset applied: ${custom.name}`);
+      }
+    },
+    [customPresets, setRuntimeMessage],
+  );
 
   const sendCommand = useCallback((type: 'replay' | 'home') => {
     setCommand((current) => ({ type, nonce: current.nonce + 1 }));
@@ -269,9 +291,11 @@ export default function App() {
         <TopCommandBar
           state={state}
           customThemes={customThemes}
+          customPresets={customPresets}
           onGlobeChange={updateGlobe}
           onPreset={applyPreset}
           onCreateTheme={() => setThemeModalOpen(true)}
+          onSavePreset={() => setSavePresetModalOpen(true)}
           onReplay={() => sendCommand('replay')}
           onHome={() => sendCommand('home')}
           onExport={copyJson}
@@ -288,6 +312,25 @@ export default function App() {
             setCustomThemes((current) => [theme, ...current.filter((t) => t.id !== theme.id)]);
             updateGlobe({ theme: theme.id as never });
             setRuntimeMessage(`Saved custom theme: ${theme.name}`);
+          }}
+        />
+        <SavePresetModal
+          open={savePresetModalOpen}
+          onOpenChange={setSavePresetModalOpen}
+          state={state}
+          onSaved={(preset) => {
+            setCustomPresets((current) => [
+              preset,
+              ...current.filter((p) => p.id !== preset.id),
+            ]);
+            // Mark this preset as the active one so the top-bar select
+            // reads the user's new save instead of the previous active.
+            setState((current) => ({
+              ...current,
+              lastPresetId: preset.id,
+              dirtySincePreset: false,
+            }));
+            setRuntimeMessage(`Saved preset: ${preset.name}`);
           }}
         />
         <Panel

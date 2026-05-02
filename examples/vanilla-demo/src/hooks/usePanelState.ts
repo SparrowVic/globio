@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
 
 /**
+ * Build a route-aware storage key — `/heatmap.html` and `/charts.html`
+ * shouldn't share collapse states, otherwise opening the heatmap demo
+ * inherits whatever sections the user fiddled with on the charts page.
+ * Strips trailing `.html` so route names read naturally in the inspector.
+ */
+const routePrefix = (): string => {
+  if (typeof window === 'undefined') return 'global';
+  const path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '');
+  return path === '' || path === '/' ? 'index' : path.replace(/^\//, '').replace(/\//g, '-');
+};
+
+/**
  * Boolean state for a UI affordance (panel collapsed / section open / etc.)
- * persisted in localStorage so panel layout survives reloads. The key is
- * always namespaced with `globio-` so it doesn't collide with anything
- * else the demo might cache.
+ * persisted in localStorage so panel layout survives reloads. Keys are
+ * namespaced as `globio-<route>-<key>` — every demo page (`/`,
+ * `/charts.html`, `/heatmap.html`, `/hexbin.html`) gets its own panel
+ * state so opening a different route doesn't inherit unrelated tweaks.
  *
  * SSR-safe: the initial render returns `defaultValue` regardless of what
  * localStorage holds, then a `useEffect` reconciles after mount. The
@@ -15,7 +28,7 @@ export const usePanelState = (
   key: string,
   defaultValue: boolean
 ): readonly [boolean, (next: boolean) => void, () => void] => {
-  const storageKey = `globio-${key}`;
+  const storageKey = `globio-${routePrefix()}-${key}`;
   const [value, setValue] = useState(defaultValue);
 
   // Hydrate from localStorage after first paint.

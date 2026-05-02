@@ -98,6 +98,16 @@ export function Panel({
       className={cn('panel-surface', positionClass[position], className)}
       style={style}
       data-panel-id={id}
+      // Esc collapses the panel when focus lives inside it. Saves a
+      // mouse trip to the chevron when the user just wants to dismiss.
+      // We intercept only Esc; all other keys bubble to native handlers
+      // (e.g. Tab navigation between fields).
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          setCollapsed(true);
+        }
+      }}
     >
       <header className="panel-header">
         <div className="panel-title-row">

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Download, Home, Play, Plus, RotateCcw, Settings2 } from 'lucide-react';
+import { Bookmark, Download, Home, Play, Plus, RotateCcw, Settings2 } from 'lucide-react';
 import type { GlobeKind, ThemePresetName } from '@your-globe/core';
 
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { GroupedSelectField, type GroupedSelectGroup } from '@/components/controls';
 import { configuratorPresets } from '@/configurator/defaults';
 import type { CustomTheme } from '@/lib/custom-themes';
+import type { CustomPreset } from '@/lib/custom-presets';
 import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
 
 const kindLabels: ReadonlyArray<{ readonly value: GlobeKind; readonly label: string }> = [
@@ -48,9 +49,11 @@ const themeCatalog: ReadonlyArray<{
 export function TopCommandBar({
   state,
   customThemes,
+  customPresets,
   onGlobeChange,
   onPreset,
   onCreateTheme,
+  onSavePreset,
   onReplay,
   onHome,
   onExport,
@@ -58,9 +61,11 @@ export function TopCommandBar({
 }: {
   readonly state: ConfiguratorState;
   readonly customThemes: ReadonlyArray<CustomTheme>;
+  readonly customPresets: ReadonlyArray<CustomPreset>;
   readonly onGlobeChange: (patch: Partial<GlobeSettings>) => void;
   readonly onPreset: (id: string) => void;
   readonly onCreateTheme: () => void;
+  readonly onSavePreset: () => void;
   readonly onReplay: () => void;
   readonly onHome: () => void;
   readonly onExport: () => void;
@@ -97,23 +102,40 @@ export function TopCommandBar({
     { label: '', options: kindLabels },
   ];
 
+  const userPresetOptions = customPresets.map((preset) => ({
+    value: preset.id,
+    label: `${preset.name} ✦`,
+  }));
   const presetGroups: ReadonlyArray<GroupedSelectGroup<string>> = [
     {
-      label: 'Built-in presets',
-      options: configuratorPresets.map((preset) => ({ value: preset.id, label: preset.label })),
+      label: userPresetOptions.length > 0 ? 'Your presets' : 'Your presets (none yet)',
+      options: userPresetOptions,
+      footer: {
+        content: <SavePresetFooterButton />,
+        onClick: onSavePreset,
+      },
+    },
+    {
+      label: 'Built-in',
+      options: configuratorPresets.map((preset) => ({
+        value: preset.id,
+        label: preset.label,
+      })),
     },
   ];
 
   // Build a meaningful trigger label so the user always sees what
   // preset (if any) is currently in effect — including a "(modified)"
-  // hint when they've tweaked anything since the last apply.
-  const activePreset = state.lastPresetId
-    ? configuratorPresets.find((p) => p.id === state.lastPresetId)
+  // hint when they've tweaked anything since the last apply. Look up
+  // both built-in and user presets so saved presets show their own name.
+  const activePresetLabel = state.lastPresetId
+    ? configuratorPresets.find((p) => p.id === state.lastPresetId)?.label ??
+      customPresets.find((p) => p.id === state.lastPresetId)?.name
     : undefined;
-  const presetTriggerLabel = activePreset
+  const presetTriggerLabel = activePresetLabel
     ? state.dirtySincePreset
-      ? `${activePreset.label} · modified`
-      : activePreset.label
+      ? `${activePresetLabel} · modified`
+      : activePresetLabel
     : 'Apply preset…';
 
   return (
@@ -190,10 +212,9 @@ export function TopCommandBar({
 }
 
 /**
- * The "+ Create custom theme" footer item rendered inside the Theme
- * dropdown's Custom group. Styled like an upload-zone — dashed border,
- * centred plus icon — so it reads as "drop in something new" affordance
- * rather than another regular menu item.
+ * Footer affordance for the Theme dropdown's Custom group. Styled like
+ * an upload-zone — dashed border, centred plus icon — so it reads as
+ * "drop in something new" rather than another menu item.
  */
 function CreateCustomThemeButton() {
   return (
@@ -204,6 +225,24 @@ function CreateCustomThemeButton() {
     >
       <Plus className="size-3.5" />
       <span>Create custom theme</span>
+    </div>
+  );
+}
+
+/**
+ * Footer affordance for the Preset dropdown's "Your presets" group.
+ * Same dashed-zone pattern as the theme one — different icon + label so
+ * users can read the action at a glance.
+ */
+function SavePresetFooterButton() {
+  return (
+    <div
+      className={
+        'flex items-center justify-center gap-2 rounded-md border border-dashed border-amber-300/40 bg-amber-300/[0.04] py-2 px-3 text-[12px] text-amber-200 transition-colors hover:border-amber-300/70 hover:bg-amber-300/[0.08]'
+      }
+    >
+      <Bookmark className="size-3.5" />
+      <span>Save current as preset…</span>
     </div>
   );
 }
