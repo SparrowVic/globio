@@ -1,0 +1,511 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #03050d;
+  }
+}
+
+@layer components {
+  .top-command {
+    position: fixed;
+    z-index: 30;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid rgb(255 255 255 / 0.10);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgb(15 23 35 / 0.55), rgb(7 11 18 / 0.45));
+    padding: 6px 12px;
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.04),
+      0 12px 30px rgb(0 0 0 / 0.34);
+    backdrop-filter: blur(24px) saturate(180%);
+  }
+
+  /* Bottom status dock — slim 36px line by default, click to expand. */
+  .status-dock {
+    position: fixed;
+    z-index: 28;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    border: 1px solid rgb(255 255 255 / 0.10);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgb(15 23 35 / 0.55), rgb(7 11 18 / 0.45));
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.04),
+      0 12px 28px rgb(0 0 0 / 0.34);
+    backdrop-filter: blur(24px) saturate(180%);
+    overflow: hidden;
+    transition: width 200ms ease;
+  }
+
+  .status-dock-slim {
+    width: min(720px, calc(100vw - 24px));
+  }
+
+  .status-dock-expanded {
+    width: min(820px, calc(100vw - 24px));
+  }
+
+  .status-dock-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: background 120ms ease;
+  }
+  .status-dock-line:hover {
+    background: rgb(255 255 255 / 0.04);
+  }
+
+  .status-dock-pulse {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .status-dock-message {
+    font-size: 12px;
+    color: rgb(248 250 252);
+    flex-shrink: 0;
+    max-width: 200px;
+  }
+
+  .status-dock-hover {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: rgb(203 213 225);
+  }
+
+  .status-dock-summary {
+    flex-shrink: 0;
+    max-width: 220px;
+  }
+
+  .status-dock-divider {
+    width: 1px;
+    height: 14px;
+    background: rgb(255 255 255 / 0.10);
+    flex-shrink: 0;
+  }
+
+  .status-dock-chevron {
+    transition: transform 200ms ease;
+  }
+
+  .status-dock-details {
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+    padding: 12px 16px 14px;
+    background: rgb(0 0 0 / 0.18);
+  }
+
+  /* Floating glassmorphism panel — see-through enough for the globe to
+     show behind it; blur + saturate raise contrast so text stays legible. */
+  .panel-surface {
+    position: fixed;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    width: min(360px, calc(100vw - 20px));
+    max-height: calc(100dvh - 220px);
+    border: 1px solid rgb(255 255 255 / 0.10);
+    border-radius: 12px;
+    background:
+      linear-gradient(180deg, rgb(15 23 35 / 0.55), rgb(7 11 18 / 0.45));
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.04),
+      0 18px 38px rgb(0 0 0 / 0.42),
+      0 2px 6px rgb(0 0 0 / 0.18);
+    backdrop-filter: blur(24px) saturate(180%);
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .panel-surface:hover {
+    border-color: rgb(255 255 255 / 0.14);
+  }
+
+  /* Panel positioning — explicit class per anchor so React picks one
+     by `position` prop; no inline-style positioning. Top bar offsets
+     baked in (44px header + 14px gap). */
+  .panel-left {
+    top: 66px;
+    left: 12px;
+  }
+  .panel-right {
+    top: 66px;
+    right: 12px;
+    width: min(380px, calc(100vw - 20px));
+  }
+  .panel-top {
+    top: 66px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .panel-bottom {
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-height: 50dvh;
+  }
+  .panel-bottom-left {
+    bottom: 12px;
+    left: 12px;
+  }
+  .panel-bottom-right {
+    bottom: 12px;
+    right: 12px;
+  }
+
+  /* Collapsed panel — 36×36 icon-only button at the same anchor. */
+  .panel-collapsed-icon {
+    position: fixed;
+    z-index: 25;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgb(255 255 255 / 0.10);
+    border-radius: 10px;
+    background: rgb(15 23 35 / 0.55);
+    color: rgb(248 250 252);
+    box-shadow:
+      0 8px 20px rgb(0 0 0 / 0.3),
+      inset 0 0 0 1px rgb(255 255 255 / 0.04);
+    backdrop-filter: blur(20px) saturate(180%);
+    cursor: pointer;
+    transition: background 140ms ease, transform 140ms ease;
+  }
+  .panel-collapsed-icon:hover {
+    background: rgb(20 30 45 / 0.7);
+    transform: scale(1.05);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  }
+
+  .panel-title-icon {
+    display: inline-flex;
+    color: rgb(252 211 77);
+  }
+
+  .panel-title-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgb(248 250 252);
+  }
+
+  .panel-title-badge {
+    border: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 6px;
+    background: rgb(255 255 255 / 0.04);
+    padding: 2px 7px;
+    font-size: 10px;
+    text-transform: lowercase;
+    color: rgb(148 163 184);
+  }
+
+  .panel-collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    color: rgb(148 163 184);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .panel-collapse-btn:hover {
+    background: rgb(255 255 255 / 0.06);
+    color: rgb(248 250 252);
+  }
+
+  /* Body scrolls; padding lives here so the header stays fixed-top. */
+  .panel-body {
+    overflow-y: auto;
+    padding: 10px 12px 12px;
+    scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+    scrollbar-width: thin;
+  }
+
+  /* Accordion sections — chevron-driven collapse, no measured-height JS.
+     We use `grid-template-rows` 0fr ↔ 1fr animation trick. */
+  .panel-section {
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  .panel-section + .panel-section {
+    border-top: 1px solid rgb(255 255 255 / 0.05);
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+
+  .panel-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    transition: background 120ms ease;
+  }
+  .panel-section-header:hover {
+    background: rgb(255 255 255 / 0.04);
+  }
+
+  .panel-section-icon {
+    display: inline-flex;
+    color: rgb(96 165 250);
+  }
+
+  .panel-section-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgb(226 232 240);
+  }
+
+  .panel-section-meta {
+    font-size: 10px;
+    color: rgb(148 163 184);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .panel-section-chevron {
+    color: rgb(148 163 184);
+    transition: transform 180ms ease;
+  }
+
+  .panel-section-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 220ms ease;
+  }
+  .panel-section[data-open='false'] > .panel-section-body {
+    grid-template-rows: 0fr;
+  }
+
+  .panel-section-body-inner {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 4px 8px;
+  }
+  .panel-section[data-open='false'] > .panel-section-body > .panel-section-body-inner {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+}
+
+/* Mid-width: keep both side panels but lower their top so they don't
+   collide with a wrapped TopCommandBar. */
+@media (max-width: 1180px) {
+  .panel-left,
+  .panel-right {
+    max-height: calc(100dvh - 180px);
+  }
+}
+
+/* Narrow viewport: panels collapse to icons by default. The user can
+   still expand any panel — `usePanelState` persists the choice — but
+   first paint stays uncluttered. */
+@media (max-width: 760px) {
+  .top-command {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 6px 10px;
+  }
+
+  .panel-left,
+  .panel-right {
+    width: min(320px, calc(100vw - 20px));
+    max-height: calc(50dvh - 60px);
+  }
+
+  .panel-right {
+    top: auto;
+    bottom: calc(60px + 12px);
+  }
+
+  .status-dock-slim,
+  .status-dock-expanded {
+    width: calc(100vw - 20px);
+  }
+
+  .status-dock-summary {
+    display: none;
+  }
+}
