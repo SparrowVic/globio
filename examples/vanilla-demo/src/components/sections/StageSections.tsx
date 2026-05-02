@@ -1,46 +1,9 @@
-import {
-  Compass,
-  Gauge,
-  Layers,
-  MousePointer,
-  Palette,
-  Sparkles,
-} from 'lucide-react';
+import { Compass, Gauge, Layers, MousePointer, Sparkles } from 'lucide-react';
 
 import { DependsOn } from '@/components/DependsOn';
 import { PanelSection } from '@/components/panels/PanelSection';
 import { SelectField, SliderField, SwitchField, ToggleField } from '@/components/controls';
 import type { GlobeSettings, PixelRatioSetting } from '@/configurator/types';
-import type { GlobeKind, ThemePresetName } from '@your-globe/core';
-
-const kindOptions = [
-  { value: 'outline', label: 'Outline' },
-  { value: 'dotted', label: 'Dotted' },
-  { value: 'wireframe', label: 'Wire' },
-  { value: 'paper', label: 'Paper' },
-  { value: 'hologram', label: 'Holo' },
-] as const;
-
-/**
- * Theme catalog tagged with the kind each theme renders best on. The
- * Theme picker filters this set by the currently-active kind so users
- * don't see "Paper atlas" while running an outline globe.
- */
-const themeCatalog: ReadonlyArray<{
-  readonly value: ThemePresetName;
-  readonly label: string;
-  readonly kind: GlobeKind;
-}> = [
-  { value: 'outline-dark', label: 'Outline dark', kind: 'outline' },
-  { value: 'outline-light', label: 'Outline light', kind: 'outline' },
-  { value: 'outline-sunset', label: 'Sunset', kind: 'outline' },
-  { value: 'outline-cyber', label: 'Cyber', kind: 'outline' },
-  { value: 'outline-monochrome', label: 'Mono', kind: 'outline' },
-  { value: 'dotted-dark', label: 'Dotted dark', kind: 'dotted' },
-  { value: 'wireframe-tron', label: 'Tron wire', kind: 'wireframe' },
-  { value: 'paper-default', label: 'Paper atlas', kind: 'paper' },
-  { value: 'hologram-cyan', label: 'Hologram cyan', kind: 'hologram' },
-];
 
 const resolutionOptions = [
   { value: 'low', label: 'Low' },
@@ -81,41 +44,27 @@ export interface StageSectionsProps {
  *   autoRotateSpeed ← autoRotate
  */
 export function StageSections({ settings, onChange }: StageSectionsProps) {
-  const themeOptions = themeCatalog
-    .filter((t) => t.kind === settings.kind)
-    .map((t) => ({ value: t.value, label: t.label }));
-
   return (
     <>
-      <PanelSection id="stage-kind-theme" title="Kind & Theme" icon={<Palette className="size-3.5" />} defaultOpen>
-        <ToggleField
-          label="Kind"
-          value={settings.kind}
-          options={kindOptions}
-          onChange={(kind) => {
-            // Switching kind: also pick the first compatible theme so
-            // the user doesn't end up with a stale theme name that maps
-            // to nothing (e.g. paper-default while kind=outline).
-            const fallbackTheme =
-              themeCatalog.find((t) => t.kind === kind)?.value ?? 'outline-dark';
-            onChange({ kind, theme: fallbackTheme });
-          }}
-        />
-        <SelectField
-          label="Theme"
-          value={settings.theme}
-          options={themeOptions}
-          onChange={(theme) => onChange({ theme })}
-        />
+      <PanelSection
+        id="stage-surface"
+        title="Surface"
+        icon={<Layers className="size-3.5" />}
+        meta={[
+          settings.atmosphere ? 'atmo' : null,
+          settings.starfield ? 'stars' : null,
+          settings.countryLabels ? 'labels' : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'minimal'}
+        defaultOpen
+      >
         <ToggleField
           label="Country resolution"
           value={settings.countryResolution}
           options={resolutionOptions}
           onChange={(countryResolution) => onChange({ countryResolution })}
         />
-      </PanelSection>
-
-      <PanelSection id="stage-surface" title="Surface" icon={<Layers className="size-3.5" />}>
         <SwitchField
           label="Country labels"
           checked={settings.countryLabels}
@@ -151,7 +100,16 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
         />
       </PanelSection>
 
-      <PanelSection id="stage-camera" title="Camera" icon={<Compass className="size-3.5" />}>
+      <PanelSection
+        id="stage-camera"
+        title="Camera"
+        icon={<Compass className="size-3.5" />}
+        meta={
+          settings.autoRotate
+            ? `auto-rotate · ${settings.zoomMode}`
+            : `static · ${settings.zoomMode}`
+        }
+      >
         <SliderField
           label="Axis tilt"
           value={settings.axisTilt}
@@ -201,7 +159,12 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
         />
       </PanelSection>
 
-      <PanelSection id="stage-interaction" title="Interaction" icon={<MousePointer className="size-3.5" />}>
+      <PanelSection
+        id="stage-interaction"
+        title="Interaction"
+        icon={<MousePointer className="size-3.5" />}
+        meta={settings.hoverEnabled ? 'hover on' : 'hover off'}
+      >
         <SwitchField
           label="Hover detection"
           checked={settings.hoverEnabled}

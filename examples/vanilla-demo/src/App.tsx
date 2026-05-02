@@ -161,24 +161,47 @@ export default function App() {
     }));
   }, [heatmapDataset.data, state]);
 
+  // Every direct configurator update marks the state as "dirty since
+  // last preset" so the top-bar preset selector can show a "(modified)"
+  // hint. Applying a preset is the only path that resets dirty back to
+  // false (see applyPreset below).
+  const markDirty = (current: ConfiguratorState): Pick<ConfiguratorState, 'dirtySincePreset'> =>
+    current.lastPresetId ? { dirtySincePreset: true } : { dirtySincePreset: false };
+
   const updateGlobe = useCallback((patch: Partial<GlobeSettings>) => {
-    setState((current) => ({ ...current, globe: { ...current.globe, ...patch } }));
+    setState((current) => ({
+      ...current,
+      ...markDirty(current),
+      globe: { ...current.globe, ...patch },
+    }));
   }, []);
 
   const updateHeatmap = useCallback((patch: Partial<HeatmapSettings>) => {
-    setState((current) => ({ ...current, heatmap: { ...current.heatmap, ...patch } }));
+    setState((current) => ({
+      ...current,
+      ...markDirty(current),
+      heatmap: { ...current.heatmap, ...patch },
+    }));
   }, []);
 
   const updateHexbin = useCallback((patch: Partial<HexbinSettings>) => {
-    setState((current) => ({ ...current, hexbin: { ...current.hexbin, ...patch } }));
+    setState((current) => ({
+      ...current,
+      ...markDirty(current),
+      hexbin: { ...current.hexbin, ...patch },
+    }));
   }, []);
 
   const updateCharts = useCallback((patch: Partial<ChartsSettings>) => {
-    setState((current) => ({ ...current, charts: { ...current.charts, ...patch } }));
+    setState((current) => ({
+      ...current,
+      ...markDirty(current),
+      charts: { ...current.charts, ...patch },
+    }));
   }, []);
 
   const updateLayer = useCallback((activeLayer: ActiveLayer) => {
-    setState((current) => ({ ...current, activeLayer }));
+    setState((current) => ({ ...current, ...markDirty(current), activeLayer }));
   }, []);
 
   const applyPreset = useCallback((id: string) => {
@@ -191,6 +214,8 @@ export default function App() {
       heatmap: preset.patch.heatmap ? { ...current.heatmap, ...preset.patch.heatmap } : current.heatmap,
       hexbin: preset.patch.hexbin ? { ...current.hexbin, ...preset.patch.hexbin } : current.hexbin,
       charts: preset.patch.charts ? { ...current.charts, ...preset.patch.charts } : current.charts,
+      lastPresetId: id,
+      dirtySincePreset: false,
     }));
     setRuntimeMessage(`Preset applied: ${preset.label}`);
   }, [setRuntimeMessage]);
@@ -234,7 +259,14 @@ export default function App() {
         />
         <TopCommandBar
           state={state}
+          onGlobeChange={updateGlobe}
           onPreset={applyPreset}
+          onCreateTheme={() => {
+            // Stub: the actual builder modal lives behind path A in the
+            // redesign plan. For now, surface the intent in the runtime
+            // status so the click is discoverable but does no harm.
+            setRuntimeMessage('Custom theme builder — coming soon');
+          }}
           onReplay={() => sendCommand('replay')}
           onHome={() => sendCommand('home')}
           onExport={copyJson}
@@ -246,7 +278,8 @@ export default function App() {
           title="Stage"
           icon={<Globe2 className="size-4" />}
           badge={`${state.globe.kind} · ${state.globe.theme.split('-').slice(-1)[0]}`}
-          width={360}
+          defaultCollapsed
+          width={340}
         >
           <StageSections settings={state.globe} onChange={updateGlobe} />
         </Panel>

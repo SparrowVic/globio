@@ -33,7 +33,12 @@ export interface PanelProps {
   readonly defaultCollapsed?: boolean;
   /** Width when expanded. Default `'auto'` — falls back to CSS class. */
   readonly width?: number | 'auto';
-  /** Maximum body height as fraction of viewport. Default `0.78`. */
+  /**
+   * Cap body height as fraction of viewport (0..1). Omit to use the CSS
+   * default (`100dvh - 116px` — full available space minus top bar +
+   * status dock + gaps). Pass a smaller value to constrain a panel that
+   * shouldn't dominate the viewport (e.g. on tall screens).
+   */
   readonly maxHeightFraction?: number;
   readonly children: ReactNode;
   readonly className?: string;
@@ -56,7 +61,7 @@ export function Panel({
   badge,
   defaultCollapsed = false,
   width,
-  maxHeightFraction = 0.78,
+  maxHeightFraction,
   children,
   className,
 }: PanelProps) {
@@ -80,13 +85,13 @@ export function Panel({
     );
   }
 
-  const style =
-    typeof width === 'number'
-      ? {
-          width: `${width}px`,
-          maxHeight: `calc(${(maxHeightFraction * 100).toFixed(0)}dvh)`,
-        }
-      : { maxHeight: `calc(${(maxHeightFraction * 100).toFixed(0)}dvh)` };
+  // Build inline style: width override (when given) + max-height override
+  // (only when caller passed maxHeightFraction; otherwise CSS rule wins).
+  const style: Record<string, string> = {};
+  if (typeof width === 'number') style['width'] = `${width}px`;
+  if (typeof maxHeightFraction === 'number') {
+    style['maxHeight'] = `calc(${(maxHeightFraction * 100).toFixed(0)}dvh)`;
+  }
 
   return (
     <aside

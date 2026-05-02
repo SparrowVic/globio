@@ -1,8 +1,17 @@
 import { Info } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -180,6 +189,138 @@ export function SliderField({
         onValueChange={(next) => onChange(next[0] ?? value)}
         className="[&_[data-slot=slider-range]]:bg-amber-300 [&_[data-slot=slider-thumb]]:border-amber-200 [&_[data-slot=slider-thumb]]:bg-amber-100"
       />
+    </Field>
+  );
+}
+
+/**
+ * Optgroup-style select used for Theme + Preset pickers — categories with
+ * a label header, dividers between groups, and an optional footer slot per
+ * group for action items (e.g. "+ Create custom theme"). The footer's
+ * onClick gets a `closeMenu` callback so the action can dismiss the
+ * dropdown after triggering the modal / handler.
+ *
+ * Two-level nesting (groups → items) maps to Radix Select's
+ * `<SelectGroup><SelectLabel/>…<SelectItem/></SelectGroup>` tree without
+ * any custom slots — we just add the footer below the items inside the
+ * same group.
+ */
+export interface GroupedSelectGroup<T extends string = string> {
+  readonly label: string;
+  readonly options: ReadonlyArray<SelectOption<T>>;
+  readonly footer?: {
+    readonly content: ReactNode;
+    readonly onClick: () => void;
+  };
+}
+
+export function GroupedSelectField<T extends string>({
+  label,
+  value,
+  groups,
+  placeholder,
+  onChange,
+  className,
+  triggerClassName,
+  contentClassName,
+  hideLabel = false,
+  disabled,
+  disabledReason,
+}: {
+  readonly label: string;
+  readonly value?: T | undefined;
+  readonly groups: ReadonlyArray<GroupedSelectGroup<T>>;
+  readonly placeholder?: string;
+  readonly onChange: (value: T) => void;
+  readonly className?: string | undefined;
+  readonly triggerClassName?: string | undefined;
+  readonly contentClassName?: string | undefined;
+  readonly hideLabel?: boolean;
+} & DisableProps) {
+  const [open, setOpen] = useState(false);
+  const trigger = (
+    <Select
+      open={open}
+      onOpenChange={setOpen}
+      {...(value !== undefined ? { value } : {})}
+      onValueChange={(next) => onChange(next as T)}
+    >
+      <SelectTrigger
+        className={cn(
+          'h-8 w-full border-white/10 bg-white/[0.04] text-slate-100',
+          triggerClassName,
+        )}
+      >
+        <SelectValue placeholder={placeholder ?? label} />
+      </SelectTrigger>
+      <SelectContent className={cn('border-white/10 bg-slate-950 text-slate-100', contentClassName)}>
+        {groups.map((group, idx) => {
+          const hasItems = group.options.length > 0;
+          const hasFooter = Boolean(group.footer);
+          if (!hasItems && !hasFooter) return null;
+          return (
+            <div key={`${group.label}-${idx}`}>
+              {idx > 0 ? <SelectSeparator /> : null}
+              <SelectGroup>
+                {group.label ? (
+                  <SelectLabel className="text-[10px] uppercase tracking-wide text-slate-400">
+                    {group.label}
+                  </SelectLabel>
+                ) : null}
+                {group.options.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+                {group.footer ? (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onPointerDown={(event) => {
+                      // Don't let Radix treat this as a SelectItem click.
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setOpen(false);
+                      group.footer?.onClick();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setOpen(false);
+                        group.footer?.onClick();
+                      }
+                    }}
+                    className="mx-1 mt-1 cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+                  >
+                    {group.footer.content}
+                  </div>
+                ) : null}
+              </SelectGroup>
+            </div>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+
+  if (hideLabel) {
+    if (disabled && disabledReason) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={cn('pointer-events-none opacity-50', className)}>{trigger}</div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={4} className="text-xs">
+            {disabledReason}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+    return <div className={className}>{trigger}</div>;
+  }
+  return (
+    <Field label={label} className={className} disabled={disabled} disabledReason={disabledReason}>
+      {trigger}
     </Field>
   );
 }

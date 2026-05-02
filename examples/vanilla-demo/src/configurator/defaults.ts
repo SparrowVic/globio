@@ -128,6 +128,8 @@ export const heatmapSurfacePresets: Readonly<Record<HeatmapSurfaceMode, Partial<
 
 export const defaultState: ConfiguratorState = {
   activeLayer: 'hexbin',
+  lastPresetId: null,
+  dirtySincePreset: false,
   globe: defaultGlobeSettings,
   heatmap: defaultHeatmapSettings,
   hexbin: {

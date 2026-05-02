@@ -255,7 +255,10 @@
     display: flex;
     flex-direction: column;
     width: min(360px, calc(100vw - 20px));
-    max-height: calc(100dvh - 220px);
+    /* Headroom = top bar (44px) + slim status dock (36px) + 12px top gap +
+       12px bottom gap + 12px breathing room = 116px. Anything taller
+       starts scrolling inside the panel body. */
+    max-height: calc(100dvh - 116px);
     border: 1px solid rgb(255 255 255 / 0.10);
     border-radius: 12px;
     background:
@@ -475,7 +478,7 @@
 @media (max-width: 1180px) {
   .panel-left,
   .panel-right {
-    max-height: calc(100dvh - 180px);
+    max-height: calc(100dvh - 116px);
   }
 }
 

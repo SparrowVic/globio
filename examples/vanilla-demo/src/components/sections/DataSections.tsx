@@ -265,6 +265,7 @@ function HexbinSections({
         id="hexbin-visual"
         title="Visual"
         icon={<Palette className="size-3.5" />}
+        meta={`R${settings.resolution} · ${20 * 4 ** settings.resolution} cells`}
         defaultOpen
       >
         <SliderField
@@ -426,6 +427,7 @@ function HeatmapSections({
         id="heatmap-visual"
         title="Visual"
         icon={<Palette className="size-3.5" />}
+        meta={`${settings.kernel} · ${settings.normalize}`}
         defaultOpen
       >
         <SelectField
@@ -687,6 +689,7 @@ function ChartsSections({
         id="charts-visual"
         title="Visual"
         icon={<Palette className="size-3.5" />}
+        meta={`${settings.chartType} · ${settings.size.toFixed(2)}`}
         defaultOpen
       >
         <div className="grid grid-cols-2 gap-3">
@@ -830,11 +833,17 @@ function AnimationSection({
   readonly extras?: React.ReactNode;
   readonly onChange: (patch: AnimationPatch) => void;
 }) {
+  // Compact summary so the section header tells you what's going on
+  // before you click to expand. `off` short-circuits the rest.
+  const meta = enabled
+    ? [hideStyle ? null : style, order, `${duration}ms`].filter(Boolean).join(' · ')
+    : 'off';
   return (
     <PanelSection
       id={`${idPrefix}-animation`}
       title="Animation"
       icon={<Sparkles className="size-3.5" />}
+      meta={meta}
     >
       <SwitchField
         label="Animate on mount"

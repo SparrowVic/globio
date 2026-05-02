@@ -138,6 +138,10 @@ export interface ConfiguratorState {
   readonly heatmap: HeatmapSettings;
   readonly hexbin: HexbinSettings;
   readonly charts: ChartsSettings;
+  /** Id of the last preset applied via `applyPreset`, or null. */
+  readonly lastPresetId: string | null;
+  /** True when any setting changed since `lastPresetId` was applied. */
+  readonly dirtySincePreset: boolean;
 }
 
 export interface HeatmapDatasetState {
