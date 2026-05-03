@@ -1,0 +1,8 @@
+# Copy this file to .npmrc (gitignored) and replace the placeholder tokens
+# with real values from your account. Never commit `.npmrc` itself — it is
+# present in `.gitignore` for that reason.
+#
+# FontAwesome Pro — required to install @fortawesome/pro-* packages.
+# Token is per-account. Get yours at https://fontawesome.com/account
+@fortawesome:registry=https://npm.fontawesome.com/
+//npm.fontawesome.com/:_authToken=YOUR_FONTAWESOME_PRO_TOKEN

@@ -26,6 +26,30 @@ importers:
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.8
+      '@fortawesome/fontawesome-svg-core':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@fortawesome/pro-duotone-svg-icons':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@fortawesome/pro-light-svg-icons':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@fortawesome/pro-regular-svg-icons':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@fortawesome/pro-solid-svg-icons':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@fortawesome/react-fontawesome':
+        specifier: ^3.3.1
+        version: 3.3.1(@fortawesome/fontawesome-svg-core@7.2.0)(react@18.3.1)
+      '@fortawesome/sharp-duotone-solid-svg-icons':
+        specifier: ^7.2.0
+        version: 7.2.0
+      '@fortawesome/sharp-solid-svg-icons':
+        specifier: ^7.2.0
+        version: 7.2.0
       '@your-globe/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -38,6 +62,9 @@ importers:
       lucide-react:
         specifier: ^1.14.0
         version: 1.14.0(react@18.3.1)
+      motion:
+        specifier: ^12.23.12
+        version: 12.38.0(react-dom@18.3.1)(react@18.3.1)
       radix-ui:
         specifier: ^1.4.3
         version: 1.4.3(@types/react-dom@18.3.7)(@types/react@18.3.28)(react-dom@18.3.1)(react@18.3.1)
@@ -1185,6 +1212,71 @@ packages:
 
   /@fontsource-variable/geist@5.2.8:
     resolution: {integrity: sha512-cJ6m9e+8MQ5dCYJsLylfZrgBh6KkG4bOLckB35Tr9J/EqdkEM6QllH5PxqP1dhTvFup+HtMRPuz9xOjxXJggxw==}
+    dev: false
+
+  /@fortawesome/fontawesome-common-types@7.2.0:
+    resolution: {integrity: sha512-IpR0bER9FY25p+e7BmFH25MZKEwFHTfRAfhOyJubgiDnoJNsSvJ7nigLraHtp4VOG/cy8D7uiV0dLkHOne5Fhw==}
+    engines: {node: '>=6'}
+    dev: false
+
+  /@fortawesome/fontawesome-svg-core@7.2.0:
+    resolution: {integrity: sha512-6639htZMjEkwskf3J+e6/iar+4cTNM9qhoWuRfj9F3eJD6r7iCzV1SWnQr2Mdv0QT0suuqU8BoJCZUyCtP9R4Q==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.2.0
+    dev: false
+
+  /@fortawesome/pro-duotone-svg-icons@7.2.0:
+    resolution: {integrity: sha512-G0oZPLWrOjodNsKEzjnmZ/wzXCQhyXHsscIuCsRwPr42N0zgMmVvClZuEq6eqiBiyo1qhm3RnN6xNLddJh9z7A==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.2.0
+    dev: false
+
+  /@fortawesome/pro-light-svg-icons@7.2.0:
+    resolution: {integrity: sha512-0SZf+Lu4DoolJelZi9Cc1Ta2VqUGkvV6BPxCb22mV16GQhqGa2VuLkqAn7zur0Sy8Cinu6MyPRfndHSe72zYyQ==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.2.0
+    dev: false
+
+  /@fortawesome/pro-regular-svg-icons@7.2.0:
+    resolution: {integrity: sha512-FU6amNj6Dbsb2m19T8ABiL8HoImIGm8AhxnPAgQDDZcslGezu6R7HrDicBPJuVTNFSxFGRRAXIRs/z44xg7ftA==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.2.0
+    dev: false
+
+  /@fortawesome/pro-solid-svg-icons@7.2.0:
+    resolution: {integrity: sha512-r+YsuG1B+iYcCXNS82bfvRnGJtlRhVI5Xk7vVJ9+ymJU5u4UGGGOSFRV5kRWH2zFItH9PKaIjnN1cXMcgOM/+g==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.2.0
+    dev: false
+
+  /@fortawesome/react-fontawesome@3.3.1(@fortawesome/fontawesome-svg-core@7.2.0)(react@18.3.1):
+    resolution: {integrity: sha512-wGnAPhfzivDwBWYmEG8MSrEXPruoiMMo48NnsRkj1NZkoaawgOijPNAiSHKMYEoCsqTBSgLTzL6EqTTWGaUR4w==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@fortawesome/fontawesome-svg-core': ~6 || ~7
+      react: ^18.0.0 || ^19.0.0
+    dependencies:
+      '@fortawesome/fontawesome-svg-core': 7.2.0
+      react: 18.3.1
+    dev: false
+
+  /@fortawesome/sharp-duotone-solid-svg-icons@7.2.0:
+    resolution: {integrity: sha512-lhk4wen6fmHuxDgOkcfTWXNXGdKDThR7EJtTrBtyd/pjXuDzOUmlO95CMCZMHOaqo/Xxa7hyl32Pep171DN0vQ==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.2.0
+    dev: false
+
+  /@fortawesome/sharp-solid-svg-icons@7.2.0:
+    resolution: {integrity: sha512-suIIkT36ipgRO2xvaft9xAHJDa8K3vUSpP3YTH1fxJHkTUWILnvH7NNFvS6OQVBB8B6j0YpthO4tOyA/IMzlew==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.2.0
     dev: false
 
   /@hono/node-server@1.19.14(hono@4.12.16):
@@ -4278,6 +4370,27 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
+  /framer-motion@12.38.0(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-rFYkY/pigbcswl1XQSb7q424kSTQ8q6eAC+YUsSKooHQYuLdzdHjrt6uxUC+PRAO++q5IS7+TamgIw1AphxR+g==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+    dependencies:
+      motion-dom: 12.38.0
+      motion-utils: 12.36.0
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tslib: 2.8.1
+    dev: false
+
   /fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
     engines: {node: '>= 0.8'}
@@ -5000,6 +5113,36 @@ packages:
       pkg-types: 1.3.1
       ufo: 1.6.3
     dev: true
+
+  /motion-dom@12.38.0:
+    resolution: {integrity: sha512-pdkHLD8QYRp8VfiNLb8xIBJis1byQ9gPT3Jnh2jqfFtAsWUA3dEepDlsWe/xMpO8McV+VdpKVcp+E+TGJEtOoA==}
+    dependencies:
+      motion-utils: 12.36.0
+    dev: false
+
+  /motion-utils@12.36.0:
+    resolution: {integrity: sha512-eHWisygbiwVvf6PZ1vhaHCLamvkSbPIeAYxWUuL3a2PD/TROgE7FvfHWTIH4vMl798QLfMw15nRqIaRDXTlYRg==}
+    dev: false
+
+  /motion@12.38.0(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-uYfXzeHlgThchzwz5Te47dlv5JOUC7OB4rjJ/7XTUgtBZD8CchMN8qEJ4ZVsUmTyYA44zjV0fBwsiktRuFnn+w==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+    dependencies:
+      framer-motion: 12.38.0(react-dom@18.3.1)(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tslib: 2.8.1
+    dev: false
 
   /mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}

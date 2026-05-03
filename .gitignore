@@ -30,6 +30,9 @@ coverage/
 .env
 .env.*.local
 .env.local
+# Per-project npmrc with private-registry auth tokens. The committed
+# .npmrc.example shows the required structure; real tokens stay local.
+.npmrc
 
 # Logs
 *.log
