@@ -112,16 +112,20 @@ export class FocusPulseBand {
   public readonly group: Group;
   private readonly slots: Array<PulseSlot> = [];
   private readonly indexBuffer: Uint16Array;
-  private readonly defaultDuration: number;
-  private readonly angularRadiusBase: number;
-  private readonly angularBand: number;
-  private readonly scaleMin: number;
-  private readonly scaleMax: number;
-  private readonly peakOpacity: number;
-  private readonly radius: number;
-  private readonly segments: number;
-  private readonly segCos: Float32Array;
-  private readonly segSin: Float32Array;
+  // Mutable so live setters can mutate without rebuilding the layer.
+  // Segments stays effectively immutable (geometry-baked); changing it
+  // would require resampling every slot — supported via `setSegments`
+  // which does an in-place layer rebuild.
+  private defaultDuration: number;
+  private angularRadiusBase: number;
+  private angularBand: number;
+  private scaleMin: number;
+  private scaleMax: number;
+  private peakOpacity: number;
+  private radius: number;
+  private segments: number;
+  private segCos: Float32Array;
+  private segSin: Float32Array;
 
   public constructor(options: FocusPulseBandOptions) {
     this.group = new Group();
@@ -235,6 +239,89 @@ export class FocusPulseBand {
     }
     this.slots.length = 0;
     this.group.clear();
+  }
+
+  /**
+   * Live update for scalar fields. Each is mutated in place and the
+   * existing render loop picks up the new value on the next frame —
+   * no geometry rebuild, no slot reset, in-flight pulses keep their
+   * current age but interpolate against the new bounds.
+   *
+   * Note: `segments` is geometry-baked. Pass it here and we'll do an
+   * in-place slot rebuild (cheap — single-digit ms — but it does
+   * cancel any in-flight pulses).
+   */
+  public setOptions(partial: {
+    readonly durationSeconds?: number;
+    readonly angularRadiusBase?: number;
+    readonly angularBand?: number;
+    readonly scaleMin?: number;
+    readonly scaleMax?: number;
+    readonly peakOpacity?: number;
+    readonly radiusFactor?: number;
+    readonly segments?: number;
+    readonly color?: string;
+  }): void {
+    if (partial.durationSeconds !== undefined) this.defaultDuration = partial.durationSeconds;
+    if (partial.angularRadiusBase !== undefined) this.angularRadiusBase = partial.angularRadiusBase;
+    if (partial.angularBand !== undefined) this.angularBand = partial.angularBand;
+    if (partial.scaleMin !== undefined) this.scaleMin = partial.scaleMin;
+    if (partial.scaleMax !== undefined) this.scaleMax = partial.scaleMax;
+    if (partial.peakOpacity !== undefined) this.peakOpacity = partial.peakOpacity;
+    if (partial.radiusFactor !== undefined) this.radius = GLOBE_RADIUS * partial.radiusFactor;
+    if (partial.color !== undefined) {
+      const next = new Color(partial.color);
+      for (const slot of this.slots) slot.material.color.copy(next);
+    }
+    if (partial.segments !== undefined && partial.segments !== this.segments) {
+      this.rebuildGeometry(partial.segments);
+    }
+  }
+
+  /**
+   * Rebuild every slot's geometry for a new segment count. Cancels any
+   * in-flight pulses (they restart cleanly on the next spawn). Cheap
+   * because the slot pool is small (3 by default).
+   */
+  private rebuildGeometry(segments: number): void {
+    this.segments = segments;
+    this.segCos = new Float32Array(segments);
+    this.segSin = new Float32Array(segments);
+    for (let i = 0; i < segments; i++) {
+      const theta = (2 * Math.PI * i) / segments;
+      this.segCos[i] = Math.cos(theta);
+      this.segSin[i] = Math.sin(theta);
+    }
+    const newIndex = new Uint16Array(segments * 6);
+    for (let i = 0; i < segments; i++) {
+      const next = (i + 1) % segments;
+      const a = i * 2;
+      const b = i * 2 + 1;
+      const c = next * 2;
+      const d = next * 2 + 1;
+      newIndex[i * 6 + 0] = a;
+      newIndex[i * 6 + 1] = b;
+      newIndex[i * 6 + 2] = c;
+      newIndex[i * 6 + 3] = c;
+      newIndex[i * 6 + 4] = b;
+      newIndex[i * 6 + 5] = d;
+    }
+    for (const slot of this.slots) {
+      slot.geometry.dispose();
+      const positions = new Float32Array(segments * 2 * 3);
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new BufferAttribute(positions, 3));
+      geometry.setIndex(new BufferAttribute(newIndex.slice(), 1));
+      slot.mesh.geometry = geometry;
+      // Replace the slot's positions reference + geometry while keeping
+      // the same slot identity (so in-flight pulses don't crash). They
+      // get cancelled here.
+      (slot as { positions: Float32Array }).positions = positions;
+      (slot as { geometry: BufferGeometry }).geometry = geometry;
+      slot.active = false;
+      slot.mesh.visible = false;
+      slot.material.opacity = 0;
+    }
   }
 
   private writeBand(slot: PulseSlot, alpha: number): void {

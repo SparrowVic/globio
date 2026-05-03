@@ -91,6 +91,13 @@ const withOutlineHeatmapDefaults = (
 export interface OutlineKindHandle extends KindHandle {
   setHoveredCountry?(id: string | null): void;
   setPointerPixel?(x: number, y: number): void;
+  /**
+   * Live-update the outline-kind decoration knobs that aren't geometry
+   * baked: hoverGlow toggle, hoverCrosshair toggle, continentDim
+   * enabled + amount. Other outline knobs (hover.lift, glowLift) bake
+   * into geometry and still require a rebuild upstream.
+   */
+  setOutlineConfig?(next: NonNullable<import('../../types').GlobeConfig['outline']>): void;
 }
 
 /**
@@ -308,11 +315,14 @@ export const outlineKind: KindModule = {
     };
 
     const outlineConfig = config.outline;
-    const glowEnabled = outlineConfig?.hoverGlow?.enabled ?? true;
+    // Mutable so `setOutlineConfig` can flip them at runtime — the
+    // hover / setVisible / setHoveredCountry handlers all read the
+    // latest value each tick rather than capturing once.
+    let glowEnabled = outlineConfig?.hoverGlow?.enabled ?? true;
     const pulseEnabled = outlineConfig?.focusPulse?.enabled ?? true;
-    const crosshairEnabled = outlineConfig?.hoverCrosshair?.enabled ?? true;
-    const dimEnabled = outlineConfig?.continentDim?.enabled ?? true;
-    const dimAmount = outlineConfig?.continentDim?.amount ?? DEFAULT_DIM_AMOUNT;
+    let crosshairEnabledNow = outlineConfig?.hoverCrosshair?.enabled ?? true;
+    let dimEnabled = outlineConfig?.continentDim?.enabled ?? true;
+    let dimAmount = outlineConfig?.continentDim?.amount ?? DEFAULT_DIM_AMOUNT;
 
     // Glow keeps its 0.35% lift by default — that's the soft halo "behind"
     // the highlight. Caller can dial it through OutlineConfig.hover.glowLift
@@ -352,13 +362,15 @@ export const outlineKind: KindModule = {
       },
     });
 
-    const crosshair: HoverCrosshairLayer | null = crosshairEnabled
-      ? new HoverCrosshairLayer({
-          container: config.container,
-          color: tokens['countries.borderHover.color'],
-        })
-      : null;
-    if (crosshair) globeGroup.add(crosshair.object);
+    // Always construct the layer so we can toggle visibility live —
+    // creating the layer is cheap, and skipping the build means a
+    // later setEnabled(true) wouldn't have anywhere to mount.
+    const crosshair: HoverCrosshairLayer = new HoverCrosshairLayer({
+      container: config.container,
+      color: tokens['countries.borderHover.color'],
+    });
+    crosshair.setEnabled(crosshairEnabledNow);
+    globeGroup.add(crosshair.object);
 
     // Memoize per-id continent so we never lookup twice during a hover stream.
     const continentCache = new Map<string, Continent | null>();
@@ -394,20 +406,18 @@ export const outlineKind: KindModule = {
           globeGroup.remove(glow.object);
         }
         focusPulse.dispose();
-        if (crosshair) {
-          crosshair.dispose();
-          globeGroup.remove(crosshair.object);
-        }
+        crosshair.dispose();
+        globeGroup.remove(crosshair.object);
       },
       setVisible(visible: boolean) {
         layer.setVisible(visible);
-        if (glow) glow.object.visible = visible && glow.object.visible;
-        if (crosshair) crosshair.setEnabled(visible);
+        if (glow) glow.object.visible = visible && glowEnabled;
+        crosshair.setEnabled(visible && crosshairEnabledNow);
         fill.group.visible = visible && fill.group.visible;
       },
       update(delta: number) {
-        glow?.update(delta);
-        crosshair?.update(delta);
+        if (glow && glowEnabled) glow.update(delta);
+        if (crosshairEnabledNow) crosshair.update(delta);
         fill.update(delta);
         if (dimEnabled || dimDirty) {
           const moved = layer.tickOpacity(delta, DEFAULT_DIM_TAU);
@@ -415,11 +425,50 @@ export const outlineKind: KindModule = {
         }
       },
       onPointerMove(point3D: Vector3 | null, latLng: LatLng | null) {
-        if (!crosshair) return;
+        if (!crosshairEnabledNow) {
+          crosshair.hide();
+          return;
+        }
         if (point3D && latLng) {
           crosshair.showAt(point3D, latLng, lastPixelX, lastPixelY);
         } else {
           crosshair.hide();
+        }
+      },
+      /**
+       * Live update for outline-kind extras. Each field maps to the
+       * relevant closure / layer setter; the next render frame picks up
+       * the change. Hover lift / glowLift are geometry-baked (surface
+       * radius bakes into the line geometry) and require a rebuild —
+       * they're handled by the workshop's `rebuildKeys` path.
+       */
+      setOutlineConfig(next: NonNullable<typeof config.outline>) {
+        if (next.hoverGlow !== undefined) {
+          const enabled = next.hoverGlow.enabled ?? glowEnabled;
+          glowEnabled = enabled;
+          if (glow) {
+            glow.object.visible = enabled;
+            if (!enabled) glow.clear();
+          }
+        }
+        if (next.hoverCrosshair !== undefined) {
+          const enabled = next.hoverCrosshair.enabled ?? crosshairEnabledNow;
+          crosshairEnabledNow = enabled;
+          crosshair.setEnabled(enabled);
+          if (!enabled) crosshair.hide();
+        }
+        if (next.continentDim !== undefined) {
+          const enabled = next.continentDim.enabled ?? dimEnabled;
+          if (next.continentDim.amount !== undefined) dimAmount = next.continentDim.amount;
+          if (enabled !== dimEnabled) {
+            dimEnabled = enabled;
+            if (!enabled) {
+              // Restore every country's opacity target back to 1 so the
+              // dim effect releases immediately.
+              layer.resetAllOpacityTargets();
+              dimDirty = true;
+            }
+          }
         }
       },
       setPointerPixel(x: number, y: number) {

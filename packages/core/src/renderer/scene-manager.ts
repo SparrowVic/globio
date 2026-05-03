@@ -19,6 +19,12 @@ export interface SceneManagerOptions {
   readonly backgroundColor: string | null;
   readonly performance: Required<PerformanceConfig>;
   readonly onRender: (deltaSeconds: number) => void;
+  /**
+   * Optional resize hook — fires after the renderer / camera have been
+   * updated. Used by layers that need to keep screen-space resolution
+   * uniforms in sync (e.g. `LineMaterial` for thick lines).
+   */
+  readonly onResize?: (width: number, height: number) => void;
 }
 
 export class SceneManager {
@@ -124,6 +130,7 @@ export class SceneManager {
     this.camera.aspect = clientWidth / clientHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(clientWidth, clientHeight, false);
+    this.options.onResize?.(clientWidth, clientHeight);
   }
 
   private resolvePixelRatio(value: number | 'auto'): number {

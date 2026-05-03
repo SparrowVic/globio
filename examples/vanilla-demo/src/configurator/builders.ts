@@ -46,24 +46,40 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       minScreenSize: state.globe.labelMinScreenSize,
       sizeFadeRange: state.globe.labelSizeFadeRange,
       transitionMs: state.globe.labelTransitionMs,
-      ...(state.globe.labelHaloEnabled
-        ? { halo: { color: 'rgba(0, 0, 0, 0.7)', radius: state.globe.labelHaloRadius, steps: 6 } }
-        : {}),
+      ...(state.globe.labelColor !== '' && { color: state.globe.labelColor }),
+      ...(state.globe.labelFontSize > 0 && { fontSize: state.globe.labelFontSize }),
+      ...(state.globe.labelFontWeight !== '' && { fontWeight: state.globe.labelFontWeight }),
+      // Always pass halo so a toggle off → null is propagated through
+      // globe.update() and the running layer drops its text-shadow.
+      // Omitting the field would mean "leave halo as previously set"
+      // and the change wouldn't take effect live.
+      halo: state.globe.labelHaloEnabled
+        ? {
+            color: state.globe.labelHaloColor,
+            radius: state.globe.labelHaloRadius,
+            steps: state.globe.labelHaloSteps,
+          }
+        : null,
     },
     autoRotate: {
       enabled: state.globe.autoRotate,
       speed: state.globe.autoRotateSpeed,
     },
-    atmosphere: { enabled: state.globe.atmosphere },
+    atmosphere: {
+      enabled: state.globe.atmosphere,
+      ...(state.globe.atmosphereColor !== '' && { color: state.globe.atmosphereColor }),
+      ...(state.globe.atmosphereIntensity > 0 && { intensity: state.globe.atmosphereIntensity }),
+    },
     starfield: {
       enabled: state.globe.starfield,
       density: state.globe.starfieldDensity,
       size: state.globe.starfieldSize,
       sizeVariety: state.globe.starfieldSizeVariety,
-      // Curated mixed-color palette mimicking real-sky color temperature
-      // distribution (white-dominant with warm + cool accents).
-      ...(state.globe.starfieldMultiColor
-        ? { palette: ['#ffffff', '#fff4d6', '#ffe4b3', '#cfdcff', '#b9c8ff'] }
+      // User-editable mixed-color palette (workshop's stars preset
+      // exposes a per-swatch editor). Empty palette + multi off = use
+      // theme-driven single color.
+      ...(state.globe.starfieldMultiColor && state.globe.starfieldPalette.length > 0
+        ? { palette: state.globe.starfieldPalette }
         : {}),
       twinkle: {
         enabled: state.globe.starfieldTwinkle,
@@ -99,6 +115,8 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         scaleMax: state.globe.outlinePulseScaleMax,
         peakOpacity: state.globe.outlinePulseOpacity,
         segments: state.globe.outlinePulseSegments,
+        radiusFactor: state.globe.outlinePulseRadiusFactor,
+        ...(state.globe.outlinePulseColor !== '' && { color: state.globe.outlinePulseColor }),
       },
     },
     axisTilt: state.globe.axisTilt,

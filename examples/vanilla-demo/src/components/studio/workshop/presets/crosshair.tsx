@@ -59,10 +59,8 @@ const preset: PresetModule = {
   },
   KnobsComponent,
   watchedKeys: ['outlineHoverCrosshair'],
-  // Toggle is on the outline kindHandle; the layer has setEnabled() but
-  // it's not yet routed through globe.update(). Until it is, this
-  // rebuilds. Cheap (just remounts the kindHandle).
-  rebuildKeys: ['outlineHoverCrosshair'],
+  // Toggle is now live via outline kindHandle.setOutlineConfig +
+  // crosshair.setEnabled. Zero rebuild.
 };
 
 export default preset;

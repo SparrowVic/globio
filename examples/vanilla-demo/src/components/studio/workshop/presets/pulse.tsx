@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
-
 import {
+  ColorField,
   SliderField,
   SwitchField,
   ToggleField,
@@ -20,33 +19,17 @@ const focusPulseOriginOptions = [
 /**
  * Pulse configurator preset.
  *
- * Cinematography: outline-dark kind so the gold sonar ring reads
- * crisply against linework. Camera near (default zoom from framing).
+ * Cinematography: outline-dark — the gold sonar ring reads crisply
+ * against linework. Auto-rotate is slow enough to spawn a fresh pulse
+ * every couple of seconds (via on-surface-click) without blurring.
  *
- * Special: an internal effect dispatches a fake "focus pulse" via
- * imperative API every 2.5s so the user *sees* the pulse cycle
- * without having to click. Implementation: we don't have direct
- * access to the preview globe instance from here (it lives inside
- * `WorkshopPreviewGlobe`); instead, the user clicks anywhere on the
- * preview surface to trigger a pulse — preset uses
- * `pulseOnSurfaceClick: true` so a click anywhere fires a pulse.
- *
- * Knobs: focus pulse master + origin + on-surface-click toggle, plus
- * outline-specific band geometry (radius, expansion, intensity, duration).
+ * All band geometry is now live via the `FocusPulseDecorator.setOptions`
+ * hatch (timing / shape / motion / color all mutate without rebuild).
+ * Segments triggers an in-place geometry rebuild for the slot pool —
+ * still cheaper than a full globe rebuild.
  */
 const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   const settings = state.globe;
-
-  // Self-firing pulse: every 2.5s nudge `focusPulseOnSurfaceClick` to
-  // true on a temporary tick. This is a workaround until we expose
-  // imperative `globe.spawnFocusPulse()` on the GlobeInstance — for
-  // now we just rely on the cinematography preset's auto-rotate +
-  // `pulseOnSurfaceClick` so the user sees pulses by clicking the
-  // surrounding area. Skipped for v1: too hacky to ship.
-  const tickRef = useRef(0);
-  useEffect(() => {
-    tickRef.current = 0;
-  }, []);
 
   return (
     <div className="space-y-4">
@@ -111,6 +94,17 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             onChange={(outlinePulseAngularBand) => onGlobeChange({ outlinePulseAngularBand })}
           />
           <SliderField
+            label="Surface lift"
+            value={settings.outlinePulseRadiusFactor}
+            min={1}
+            max={1.025}
+            step={0.0005}
+            format={(value) => `${((value - 1) * 100).toFixed(2)}%`}
+            onChange={(outlinePulseRadiusFactor) =>
+              onGlobeChange({ outlinePulseRadiusFactor })
+            }
+          />
+          <SliderField
             label="Segments"
             value={settings.outlinePulseSegments}
             min={24}
@@ -148,12 +142,35 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             format={(value) => value.toFixed(2)}
             onChange={(outlinePulseOpacity) => onGlobeChange({ outlinePulseOpacity })}
           />
+
+          <SectionHeading>Outline · color</SectionHeading>
+          <ColorField
+            label="Ring color"
+            value={settings.outlinePulseColor || '#fbbf24'}
+            onChange={(outlinePulseColor) => onGlobeChange({ outlinePulseColor })}
+            hint={settings.outlinePulseColor === '' ? 'Theme default' : undefined}
+            {...(settings.outlinePulseColor !== '' ? { preset: '' } : {})}
+            swatches={[
+              '#fbbf24',
+              '#f59e0b',
+              '#ef4444',
+              '#f472b6',
+              '#a78bfa',
+              '#67e8f9',
+              '#22d3ee',
+              '#34d399',
+              '#84cc16',
+              '#fde68a',
+              '#ffffff',
+              '#fee2e2',
+            ]}
+          />
         </DependsOn>
       </DependsOn>
 
-      <p className="rounded-md border border-dashed border-white/[0.08] bg-white/[0.015] px-3 py-2 text-[10.5px] leading-relaxed text-slate-500">
-        Tip: <span className="text-slate-300">click anywhere on the preview globe</span> to
-        fire a pulse and see the live timing / size effect.
+      <p className="rounded-md border border-dashed border-pink-200/[0.16] bg-pink-200/[0.03] px-3 py-2 text-[10.5px] leading-relaxed text-pink-100/80">
+        Tip: <span className="text-white">click anywhere on the preview globe</span> to
+        fire a pulse and see the live timing / size / color effect.
       </p>
     </div>
   );
@@ -191,22 +208,13 @@ const preset: PresetModule = {
     'outlinePulseScaleMax',
     'outlinePulseOpacity',
     'outlinePulseSegments',
+    'outlinePulseColor',
+    'outlinePulseRadiusFactor',
   ],
-  // Pulse decoration knobs are read at construction time inside the
-  // outline kind handle. Until the core ships live setters for the
-  // outline pulse band, these still trigger a rebuild.
-  rebuildKeys: [
-    'focusPulse',
-    'focusPulseOrigin',
-    'focusPulseOnSurfaceClick',
-    'outlinePulseDurationMs',
-    'outlinePulseRadiusBase',
-    'outlinePulseAngularBand',
-    'outlinePulseScaleMin',
-    'outlinePulseScaleMax',
-    'outlinePulseOpacity',
-    'outlinePulseSegments',
-  ],
+  // All band geometry is live via FocusPulseDecorator.setOptions().
+  // The `focusPulse` master toggle + origin still construct in the
+  // decoration; flipping enabled requires rebuild.
+  rebuildKeys: ['focusPulse', 'focusPulseOrigin', 'focusPulseOnSurfaceClick'],
 };
 
 export default preset;

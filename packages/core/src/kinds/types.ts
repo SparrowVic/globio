@@ -109,6 +109,23 @@ export interface FocusPulseDecorator {
    */
   spawn(latLng: LatLng, source: 'focus' | 'click'): void;
   update?(delta: number): void;
+  /**
+   * Live update for the pulse band's scalar config. Implemented by the
+   * shared `FocusPulseBand` underneath — kind-specific decorators
+   * forward every field as-is. Optional so decorators that don't
+   * support live updates can omit it (the disabled stub does).
+   */
+  setOptions?(partial: {
+    readonly durationSeconds?: number;
+    readonly angularRadiusBase?: number;
+    readonly angularBand?: number;
+    readonly scaleMin?: number;
+    readonly scaleMax?: number;
+    readonly peakOpacity?: number;
+    readonly radiusFactor?: number;
+    readonly segments?: number;
+    readonly color?: string;
+  }): void;
   dispose(): void;
 }
 

@@ -71,6 +71,9 @@ const makeBandDecorator = (
     update(delta: number) {
       band.update(delta);
     },
+    setOptions(partial) {
+      band.setOptions(partial);
+    },
     dispose() {
       band.dispose();
       opts.globeGroup.remove(band.group);

@@ -4,6 +4,7 @@
 // `<DependsOn>` for prerequisite-driven disabling.
 
 export { Field, type FieldProps, type DisableProps, type SelectOption } from './Field';
+export { ColorField, type ColorFieldProps } from './ColorField';
 export { SelectField, type SelectFieldProps } from './SelectField';
 export { ToggleField, type ToggleFieldProps } from './ToggleField';
 export { SliderField, type SliderFieldProps } from './SliderField';

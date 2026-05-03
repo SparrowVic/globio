@@ -39,7 +39,7 @@ export interface CountryLabelsLayerOptions {
     readonly color?: string;
     readonly radius?: number;
     readonly steps?: number;
-  };
+  } | null;
   /** Per-label inner padding in CSS pixels. Default 0. */
   readonly padding?: number;
   /**
@@ -95,7 +95,7 @@ export class CountryLabelsLayer {
     this.sizeFadeRange = options.sizeFadeRange ?? 0.4;
     this.occlusionFade = options.occlusionFade ?? [-0.05, 0.15];
     this.transitionMs = options.transitionMs ?? 200;
-    this.halo = options.halo;
+    this.halo = options.halo ?? undefined;
     this.labels = options.labels ?? {};
     this.host = document.createElement('div');
     Object.assign(this.host.style, {
@@ -155,6 +155,28 @@ export class CountryLabelsLayer {
     const textShadow = this.resolveTextShadow();
     this.entries.forEach((entry) => {
       entry.element.style.textShadow = textShadow;
+    });
+  }
+
+  /** Live update for the label text color — mutates every existing element. */
+  public setColor(color: string): void {
+    this.entries.forEach((entry) => {
+      entry.element.style.color = color;
+    });
+  }
+
+  /** Live update for the font size in CSS pixels. */
+  public setFontSize(px: number): void {
+    const css = `${px}px`;
+    this.entries.forEach((entry) => {
+      entry.element.style.fontSize = css;
+    });
+  }
+
+  /** Live update for font weight (e.g. '500', 'bold'). */
+  public setFontWeight(weight: string): void {
+    this.entries.forEach((entry) => {
+      entry.element.style.fontWeight = weight;
     });
   }
 

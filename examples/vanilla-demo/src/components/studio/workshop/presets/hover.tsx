@@ -141,18 +141,12 @@ const preset: PresetModule = {
     'outlineContinentDim',
     'outlineContinentDimAmount',
   ],
-  // Hover gating + outline lift / glow / continent dim are construction-
-  // time fields in the core today. `hoverOccludeBackSide` is now live
-  // (depthTest flip on the highlight material). Until we ship the rest,
-  // these still rebuild.
-  rebuildKeys: [
-    'hoverEnabled',
-    'outlineHoverLift',
-    'outlineHoverGlowLift',
-    'outlineHoverGlowEnabled',
-    'outlineContinentDim',
-    'outlineContinentDimAmount',
-  ],
+  // Live now: hoverOccludeBackSide (highlight material depthTest flip),
+  // outlineHoverGlowEnabled / outlineContinentDim / amount via the new
+  // outline kindHandle.setOutlineConfig hatch. Hover lift / glow lift
+  // bake into geometry surface radius so they still rebuild — same for
+  // hoverEnabled (gate is read once at build time).
+  rebuildKeys: ['hoverEnabled', 'outlineHoverLift', 'outlineHoverGlowLift'],
 };
 
 export default preset;

@@ -71,6 +71,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryLabelsLayer?.update();
       starfieldLayer?.update(delta);
     },
+    onResize: (width, height) => {
+      // Keep LineMaterial resolution uniforms in sync so screen-space
+      // pixel widths stay accurate after a viewport / panel resize.
+      arcsLayer.setResolution(width, height);
+    },
   });
 
   // Camera framing — pull the camera back so the globe + atmosphere fits
@@ -130,17 +135,22 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     defaultOpacity: tokens['arcs.opacity'],
     headColor: tokens['arcs.headColor'],
     headSize: tokens['arcs.headSize'],
+    resolution: new Vector2(
+      config.container.clientWidth || window.innerWidth,
+      config.container.clientHeight || window.innerHeight,
+    ),
   });
   globeGroup.add(arcsLayer.group);
   if (config.arcs && config.arcs.length > 0) arcsLayer.setArcs(config.arcs);
 
-  const atmosphereLayer = config.atmosphere?.enabled
-    ? new AtmosphereLayer({
-        color: tokens['atmosphere.color'],
-        intensity: tokens['atmosphere.intensity'],
-      })
-    : null;
-  if (atmosphereLayer) globeGroup.add(atmosphereLayer.mesh);
+  // Always construct so live setters can flip enabled / color / intensity
+  // without rebuilding. `enabled: false` just hides the mesh.
+  const atmosphereLayer = new AtmosphereLayer({
+    color: config.atmosphere?.color ?? tokens['atmosphere.color'],
+    intensity: config.atmosphere?.intensity ?? tokens['atmosphere.intensity'],
+  });
+  atmosphereLayer.setVisible(config.atmosphere?.enabled !== false);
+  globeGroup.add(atmosphereLayer.mesh);
 
   // The active globe kind (outline / dotted / wireframe / future). Each kind
   // owns its visible country/grid pipeline; built later in `initCountries`
@@ -482,10 +492,10 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         camera: scene.camera,
         globeGroup,
         features: features as ReadonlyArray<CountryFeature>,
-        color: tokens['countries.label.color'],
-        fontSize: tokens['countries.label.fontSize'],
+        color: labelsConfig?.color ?? tokens['countries.label.color'],
+        fontSize: labelsConfig?.fontSize ?? tokens['countries.label.fontSize'],
         fontFamily: tokens['countries.label.fontFamily'],
-        fontWeight: tokens['countries.label.fontWeight'],
+        fontWeight: labelsConfig?.fontWeight ?? tokens['countries.label.fontWeight'],
         textShadow: tokens['countries.label.textShadow'],
         ...(labelsConfig?.minScreenSize !== undefined && {
           minScreenSize: labelsConfig.minScreenSize,
@@ -499,7 +509,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         ...(labelsConfig?.transitionMs !== undefined && {
           transitionMs: labelsConfig.transitionMs,
         }),
-        ...(labelsConfig?.halo !== undefined && { halo: labelsConfig.halo }),
+        ...(labelsConfig?.halo !== undefined && labelsConfig.halo !== null
+          ? { halo: labelsConfig.halo }
+          : {}),
         ...(labelsConfig?.padding !== undefined && { padding: labelsConfig.padding }),
         ...(labelsConfig?.labels !== undefined && { labels: labelsConfig.labels }),
       });
@@ -628,6 +640,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (next.occlusionFade !== undefined) layer.setOcclusionFade(next.occlusionFade);
           if (next.transitionMs !== undefined) layer.setTransitionMs(next.transitionMs);
           if (next.halo !== undefined) layer.setHalo(next.halo);
+          if (next.color !== undefined) layer.setColor(next.color);
+          if (next.fontSize !== undefined) layer.setFontSize(next.fontSize);
+          if (next.fontWeight !== undefined) layer.setFontWeight(next.fontWeight);
           if (next.labels !== undefined) layer.setLabels(next.labels);
         }
       }
@@ -672,11 +687,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         }
       }
 
-      // Atmosphere — single boolean, mesh.visible flip. The intensity /
-      // color come from theme tokens, not per-call config, so we only
-      // wire the toggle here.
+      // Atmosphere — visibility flip + (live) color / intensity uniforms.
       if (partial.atmosphere !== undefined) {
-        atmosphereLayer?.setVisible(partial.atmosphere.enabled !== false);
+        const a = partial.atmosphere;
+        if (a.enabled !== undefined) atmosphereLayer?.setVisible(a.enabled);
+        if (a.color !== undefined) atmosphereLayer?.setColor(a.color);
+        if (a.intensity !== undefined) atmosphereLayer?.setIntensity(a.intensity);
       }
 
       // Country hover — the back-side occlusion flag is the only field
@@ -688,6 +704,35 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         if (occ !== undefined) {
           state.countryHighlightLayer?.setOccludeBackSide(occ);
           state.countryActiveLayer?.setOccludeBackSide(occ);
+        }
+      }
+
+      // Outline-kind decorations — focus pulse band geometry / timing
+      // / color is now live via the FocusPulseDecorator.setOptions()
+      // hatch. Other outline extras (hover lift, glow, continentDim,
+      // crosshair) live on the kindHandle and are routed below.
+      if (partial.outline !== undefined) {
+        const outlineHandle = state.kindHandle as
+          | { readonly setOutlineConfig?: (next: NonNullable<GlobeConfig['outline']>) => void }
+          | null;
+        outlineHandle?.setOutlineConfig?.(partial.outline);
+        if (partial.outline.focusPulse) {
+          const pulse = partial.outline.focusPulse;
+          state.kindHandle?.decorations?.focusPulse?.setOptions?.({
+            ...(pulse.durationMs !== undefined
+              ? { durationSeconds: pulse.durationMs / 1000 }
+              : {}),
+            ...(pulse.angularRadiusBase !== undefined && {
+              angularRadiusBase: pulse.angularRadiusBase,
+            }),
+            ...(pulse.angularBand !== undefined && { angularBand: pulse.angularBand }),
+            ...(pulse.scaleMin !== undefined && { scaleMin: pulse.scaleMin }),
+            ...(pulse.scaleMax !== undefined && { scaleMax: pulse.scaleMax }),
+            ...(pulse.peakOpacity !== undefined && { peakOpacity: pulse.peakOpacity }),
+            ...(pulse.radiusFactor !== undefined && { radiusFactor: pulse.radiusFactor }),
+            ...(pulse.segments !== undefined && { segments: pulse.segments }),
+            ...(pulse.color !== undefined && { color: pulse.color }),
+          });
         }
       }
     },

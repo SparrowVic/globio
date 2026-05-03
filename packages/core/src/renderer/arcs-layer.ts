@@ -1,16 +1,15 @@
 import {
-  BufferGeometry,
   Color,
-  Float32BufferAttribute,
   Group,
-  Line,
-  LineBasicMaterial,
-  LineDashedMaterial,
   Mesh,
   MeshBasicMaterial,
   SphereGeometry,
+  Vector2,
   Vector3,
 } from 'three';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
 import { easeInOutCubic } from '../utils/easing';
 import type { ArcConfig, LatLng } from '../types';
@@ -21,11 +20,18 @@ export interface ArcsLayerOptions {
   readonly defaultOpacity: number;
   readonly headColor: string;
   readonly headSize: number;
+  /**
+   * Initial pixel resolution for screen-space line widths. The layer
+   * keeps each arc's `LineMaterial.resolution` uniform in sync via
+   * `setResolution` from the scene manager on resize.
+   */
+  readonly resolution?: Vector2;
 }
 
 interface ArcEntry {
   readonly config: ArcConfig;
-  readonly line: Line;
+  readonly line: Line2;
+  readonly material: LineMaterial;
   readonly head: Mesh | null;
   readonly samplePoints: Vector3[];
 }
@@ -47,6 +53,9 @@ export class ArcsLayer {
   private readonly headColor: string;
   private readonly headSize: number;
   private readonly entries = new Map<string, ArcEntry>();
+  // Mutable so resize handlers can keep all arcs in sync without
+  // walking the entries from outside.
+  private resolution: Vector2;
 
   public constructor(options: ArcsLayerOptions) {
     this.group = new Group();
@@ -56,6 +65,17 @@ export class ArcsLayer {
     this.defaultOpacity = options.defaultOpacity;
     this.headColor = options.headColor;
     this.headSize = options.headSize;
+    this.resolution = options.resolution ?? new Vector2(window.innerWidth, window.innerHeight);
+  }
+
+  /**
+   * Sync the screen-space resolution used by `LineMaterial` for pixel
+   * widths. SceneManager calls this on every resize. Each arc's
+   * material is mutated in-place — no rebuild.
+   */
+  public setResolution(width: number, height: number): void {
+    this.resolution.set(width, height);
+    this.entries.forEach((entry) => entry.material.resolution.set(width, height));
   }
 
   public setArcs(arcs: ReadonlyArray<ArcConfig>): void {
@@ -73,37 +93,36 @@ export class ArcsLayer {
     if (this.entries.has(config.id)) this.removeArc(config.id);
     const heightValue = resolveHeight(config);
     const points = sampleArc(config.from, config.to, heightValue);
-    const positions = new Float32Array(points.length * 3);
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      if (!p) continue;
-      positions[i * 3] = p.x;
-      positions[i * 3 + 1] = p.y;
-      positions[i * 3 + 2] = p.z;
+
+    // Line2 + LineMaterial use a screen-space pixel pipeline (instanced
+    // segments rendered as quads) so `linewidth` is actually honoured —
+    // unlike LineBasicMaterial which on WebGL2 always draws at 1px.
+    const positions: number[] = [];
+    for (const p of points) {
+      positions.push(p.x, p.y, p.z);
     }
-    const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    const geometry = new LineGeometry();
+    geometry.setPositions(positions);
 
     const color = new Color(config.color ?? this.defaultColor);
     const lineWidth = config.width ?? this.defaultWidth;
     const isDashed = config.style === 'dashed';
-    const material = isDashed
-      ? new LineDashedMaterial({
-          color,
-          transparent: true,
-          opacity: this.defaultOpacity,
-          linewidth: lineWidth,
-          dashSize: config.dashSize ?? 0.04,
-          gapSize: config.dashGap ?? 0.02,
-        })
-      : new LineBasicMaterial({
-          color,
-          transparent: true,
-          opacity: this.defaultOpacity,
-          linewidth: lineWidth,
-        });
+    const material = new LineMaterial({
+      color: color.getHex(),
+      linewidth: lineWidth,
+      worldUnits: false, // pixel widths
+      transparent: true,
+      opacity: this.defaultOpacity,
+      dashed: isDashed,
+      ...(isDashed
+        ? { dashSize: config.dashSize ?? 0.04, gapSize: config.dashGap ?? 0.02 }
+        : {}),
+      resolution: this.resolution.clone(),
+    });
+    if (isDashed) material.defines.USE_DASH = '';
+    material.needsUpdate = true;
 
-    const line = new Line(geometry, material);
+    const line = new Line2(geometry, material);
     if (isDashed) line.computeLineDistances();
     this.group.add(line);
 
@@ -119,14 +138,14 @@ export class ArcsLayer {
       this.group.add(head);
     }
 
-    this.entries.set(config.id, { config, line, head, samplePoints: points });
+    this.entries.set(config.id, { config, line, material, head, samplePoints: points });
   }
 
   public removeArc(id: string): void {
     const entry = this.entries.get(id);
     if (!entry) return;
     entry.line.geometry.dispose();
-    (entry.line.material as LineBasicMaterial | LineDashedMaterial).dispose();
+    entry.material.dispose();
     this.group.remove(entry.line);
     if (entry.head) {
       entry.head.geometry.dispose();

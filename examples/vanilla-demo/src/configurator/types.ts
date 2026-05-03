@@ -34,15 +34,26 @@ export interface GlobeSettings {
   readonly labelTransitionMs: number;
   readonly labelHaloEnabled: boolean;
   readonly labelHaloRadius: number;
+  readonly labelHaloColor: string;
+  readonly labelHaloSteps: number;
+  /** Empty string = use theme default; otherwise hex override. */
+  readonly labelColor: string;
+  readonly labelFontSize: number;
+  readonly labelFontWeight: string;
   readonly autoRotate: boolean;
   readonly autoRotateSpeed: number;
   readonly axisTilt: number;
   readonly atmosphere: boolean;
+  /** Empty string = use theme default; otherwise hex override. */
+  readonly atmosphereColor: string;
+  /** 0 = use theme default. */
+  readonly atmosphereIntensity: number;
   readonly starfield: boolean;
   readonly starfieldDensity: number;
   readonly starfieldSize: number;
   readonly starfieldSizeVariety: number;
   readonly starfieldMultiColor: boolean;
+  readonly starfieldPalette: ReadonlyArray<string>;
   readonly starfieldTwinkle: boolean;
   readonly starfieldTwinkleIntensity: number;
   readonly starfieldTwinkleSpeed: number;
@@ -60,6 +71,10 @@ export interface GlobeSettings {
   readonly outlinePulseOpacity: number;
   /** Polygon resolution around the ring. Higher = smoother circle. */
   readonly outlinePulseSegments: number;
+  /** Empty string = use theme active-border color. */
+  readonly outlinePulseColor: string;
+  /** Lift above globe surface as multiplier of GLOBE_RADIUS. */
+  readonly outlinePulseRadiusFactor: number;
   /** Outline-only hover decoration. */
   readonly outlineHoverLift: number;
   readonly outlineHoverGlowLift: number;

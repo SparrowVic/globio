@@ -46,6 +46,21 @@ export interface CountriesConfig {
  */
 export interface CountryLabelsConfig {
   readonly enabled?: boolean;
+  /**
+   * Override the theme-driven label text color. CSS-style hex / rgb /
+   * rgba string. Falls back to `tokens['countries.label.color']`.
+   */
+  readonly color?: string;
+  /**
+   * Override the theme-driven font size (CSS pixels). Falls back to
+   * `tokens['countries.label.fontSize']`.
+   */
+  readonly fontSize?: number;
+  /**
+   * Override the theme-driven font weight (e.g. `'500'`, `'700'`,
+   * `'bold'`). Falls back to `tokens['countries.label.fontWeight']`.
+   */
+  readonly fontWeight?: string;
   /** Per-id override map; missing ids fall back to the source `feature.name`. */
   readonly labels?: Readonly<Record<string, string>>;
   /**
@@ -85,7 +100,7 @@ export interface CountryLabelsConfig {
     readonly radius?: number;
     /** Number of stacked shadow copies (more = denser halo). Default 4. */
     readonly steps?: number;
-  };
+  } | null;
   /**
    * Inner padding applied to each label element in CSS pixels — useful
    * when you want a larger hit-test area, breathing room behind a halo,

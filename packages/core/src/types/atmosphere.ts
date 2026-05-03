@@ -1,5 +1,17 @@
 export interface AtmosphereConfig {
   readonly enabled?: boolean;
+  /**
+   * Override the theme-driven Fresnel halo color. Any CSS-style hex /
+   * rgb / rgba string. Falls back to `tokens['atmosphere.color']`.
+   */
+  readonly color?: string;
+  /**
+   * Override the theme-driven halo intensity multiplier. 0 = invisible
+   * (same as `enabled: false` but keeps the layer mounted); 1 = theme
+   * default; higher values brighten / widen the rim. Falls back to
+   * `tokens['atmosphere.intensity']`.
+   */
+  readonly intensity?: number;
 }
 
 export interface StarfieldConfig {
