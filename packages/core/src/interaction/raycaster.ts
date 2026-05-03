@@ -54,6 +54,14 @@ export class PointerRaycaster {
     el.removeEventListener('pointerdown', this.onPointerDown);
     el.removeEventListener('pointerup', this.onPointerUp);
     el.removeEventListener('pointermove', this.onPointerMove);
+    el.removeEventListener('pointerleave', this.clearHover);
+    el.removeEventListener('pointercancel', this.clearHover);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('blur', this.clearHover);
+    }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
   }
 
   private attach(): void {
@@ -61,7 +69,34 @@ export class PointerRaycaster {
     el.addEventListener('pointerdown', this.onPointerDown);
     el.addEventListener('pointerup', this.onPointerUp);
     el.addEventListener('pointermove', this.onPointerMove);
+    // Hover state can otherwise go stale: a fast mouse-off the canvas
+    // produces no `pointermove` for the void area, the window can lose
+    // focus while a hover is active, or the user can switch tabs. In
+    // each case the highlight stays "armed" with no event to clear it,
+    // and the next time the cursor returns the previous hit-key still
+    // matches, so no re-fire happens. Force-dispatching an `onHover(null)`
+    // on these signals resets the state machine cleanly.
+    el.addEventListener('pointerleave', this.clearHover);
+    el.addEventListener('pointercancel', this.clearHover);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('blur', this.clearHover);
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
   }
+
+  private clearHover = (): void => {
+    if (this.lastHoverKey === null) return;
+    this.lastHoverKey = null;
+    this.options.onHover(null);
+  };
+
+  private onVisibilityChange = (): void => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      this.clearHover();
+    }
+  };
 
   private updatePointer(event: PointerEvent): void {
     const rect = this.options.domElement.getBoundingClientRect();
