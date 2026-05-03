@@ -1,5 +1,6 @@
 export { createGlobe } from './globe/index';
 export type {
+  ArcConfig,
   AtmosphereConfig,
   AutoRotateConfig,
   CountriesConfig,
@@ -7,7 +8,13 @@ export type {
   CountryDataEntry,
   CountryDataMap,
   CountryEvent,
+  CountryLabelsConfig,
   DottedConfig,
+  EasingFunction,
+  EasingName,
+  FlyToOptions,
+  FocusOptions,
+  FramingConfig,
   GlobeConfig,
   GlobeKind,
   GlobeEventName,
@@ -16,6 +23,7 @@ export type {
   GlobeInstance,
   GlobeMode,
   HologramConfig,
+  HtmlMarkerConfig,
   LatLng,
   MarkerConfig,
   MarkerEvent,
@@ -23,12 +31,11 @@ export type {
   PaperConfig,
   PerformanceConfig,
   ResolutionLevel,
+  StarfieldConfig,
+  SurfaceClickEvent,
   WireframeConfig,
   ZoomConfig,
   ZoomMode,
-  EasingFunction,
-  FlyToOptions,
-  FocusOptions,
 } from './types';
 export { linear, easeOutCubic, easeInOutCubic } from './utils/easing';
 export {

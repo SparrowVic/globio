@@ -20,12 +20,9 @@ import {
   faTreeDeciduous,
   faWandMagicSparkles,
   faCircleSmall,
-  faTags,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
-import { HeroGlobe } from '@/components/home/HeroGlobe';
 import { Nav } from '@/components/home/Nav';
-import { KindCard } from '@/components/home/KindCard';
 import {
   DottedPreview,
   HologramPreview,
@@ -33,6 +30,14 @@ import {
   PaperPreview,
   WireframePreview,
 } from '@/components/home/KindPreviews';
+import {
+  DecorationGlobe,
+  InteractiveCard,
+  Kbd,
+  NoiseOverlay,
+  ScrollProgress,
+  SectionHeader,
+} from '@/components/shared';
 import Aurora from '@/components/Aurora';
 import BlurText from '@/components/BlurText';
 import ClickSpark from '@/components/ClickSpark';
@@ -94,7 +99,7 @@ function Hero() {
       <div className="absolute inset-0 -z-20 bg-[radial-gradient(ellipse_at_center,rgba(3,5,13,0)_0%,#03050d_70%)]" />
       {/* Layer 2 — decoration globe (real renderer, no interaction) */}
       <div className="absolute inset-0 -z-10 flex items-center justify-center">
-        <HeroGlobe className="size-[min(95vmin,1100px)]" kind="dotted" theme="dotted-dark" />
+        <DecorationGlobe className="size-[min(95vmin,1100px)]" kind="dotted" theme="dotted-dark" />
       </div>
       {/* Layer 3 — vignette to keep edges clean */}
       <div className="pointer-events-none absolute inset-0 -z-[5] [background:radial-gradient(circle_at_50%_30%,transparent_0%,#03050d_85%)]" />
@@ -283,14 +288,35 @@ function KindsShowcase() {
 
         <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {kinds.map((kind, idx) => (
-            <FadeContent key={kind.id} duration={700} delay={idx * 70}>
-              <KindCard
-                index={idx + 1}
-                id={kind.id}
-                name={kind.name}
+            <FadeContent
+              key={kind.id}
+              duration={700}
+              delay={idx * 70}
+              className={'featured' in kind && kind.featured ? 'lg:col-span-2' : undefined}
+            >
+              <InteractiveCard
+                to={`/studio?kind=${kind.id}`}
+                title={kind.name}
                 tagline={kind.tagline}
                 accent={kind.accent}
                 preview={kind.preview}
+                footerText="Open in Studio"
+                leadingBadge={
+                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] tracking-[0.2em] text-slate-400">
+                    {String(idx + 1).padStart(2, '0')}
+                  </span>
+                }
+                trailingBadge={
+                  <span
+                    className="rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em]"
+                    style={{
+                      borderColor: `${kind.accent}33`,
+                      color: `${kind.accent}cc`,
+                    }}
+                  >
+                    kind
+                  </span>
+                }
                 {...('featured' in kind && kind.featured ? { featured: true } : {})}
               />
             </FadeContent>
@@ -823,11 +849,11 @@ function CtaSection() {
     <section className="relative overflow-hidden py-32">
       {/* Decoration globe right side */}
       <div className="absolute inset-y-0 right-0 -z-10 hidden w-[55%] opacity-50 lg:block">
-        <HeroGlobe
+        <DecorationGlobe
           kind="outline"
           theme="outline-dark"
           speed={0.025}
-          stars={false}
+          starfield={false}
           atmosphere
           className="size-[min(80vmin,900px)] translate-x-[18%]"
         />
@@ -927,69 +953,6 @@ function Footer() {
   );
 }
 
-/* ───────────────────────── SCROLL PROGRESS / NOISE / SHARED ───────────────────────── */
-
-function ScrollProgress() {
-  const [progress, setProgress] = useState(0);
-  useEffect(() => {
-    const onScroll = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const next = max > 0 ? window.scrollY / max : 0;
-      setProgress(Math.min(1, Math.max(0, next)));
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[2px]">
-      <div
-        className="h-full origin-left bg-gradient-to-r from-amber-200 via-orange-200 to-amber-200 shadow-[0_0_18px_rgba(255,200,90,0.6)] transition-[width] duration-150 ease-out"
-        style={{ width: `${progress * 100}%` }}
-      />
-    </div>
-  );
-}
-
-function NoiseOverlay() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[1] opacity-[0.035] mix-blend-overlay"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-      }}
-    />
-  );
-}
-
-function SectionHeader({
-  eyebrow,
-  title,
-  sub,
-  align = 'center',
-}: {
-  readonly eyebrow: string;
-  readonly title: string;
-  readonly sub: string;
-  readonly align?: 'left' | 'center';
-}) {
-  return (
-    <div className={cn('flex flex-col gap-4', align === 'center' && 'items-center text-center')}>
-      <span className="inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.28em] text-amber-200/70">
-        <FontAwesomeIcon icon={faTags} className="size-2.5" />
-        {eyebrow}
-      </span>
-      <h2 className="max-w-2xl text-balance text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
-        {title}
-      </h2>
-      <p className="max-w-xl text-balance text-sm leading-relaxed text-slate-400 sm:text-base">
-        {sub}
-      </p>
-    </div>
-  );
-}
-
 /* Tiny syntax-highlight helpers for the code block. Keep them inline so
    the section file stays self-contained (no external highlighter dep). */
 function Code({ k, children }: { readonly k?: 'kw' | 'fn' | 'str' | 'punct' | 'prop' | 'ident' | 'tag' | 'bool'; readonly children: ReactNode }) {
@@ -1004,14 +967,6 @@ function Code({ k, children }: { readonly k?: 'kw' | 'fn' | 'str' | 'punct' | 'p
     bool: 'text-orange-300',
   };
   return <span className={k ? color[k] : 'text-slate-200'}>{children}</span>;
-}
-
-function Kbd({ children }: { readonly children: ReactNode }) {
-  return (
-    <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-white/10 bg-white/[0.04] px-1 font-mono text-[10px] tabular-nums text-slate-300">
-      {children}
-    </span>
-  );
 }
 
 const hexToRgb = (hex: string): string => {
