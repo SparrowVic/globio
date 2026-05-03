@@ -609,6 +609,24 @@ export interface GlobeConfig {
    * to clip the visual as a square. Default `false`.
    */
   readonly transparent?: boolean;
+  /**
+   * How the globe is framed inside its container. The atmosphere shell
+   * extends ~15% beyond the globe's surface and its Fresnel halo fades
+   * even further out — without breathing room those edges visibly clip
+   * against the canvas, especially in transparent / decoration mode.
+   *
+   * - `padding` (0..0.5): fraction of the viewport reserved as margin
+   *   around the visible globe + atmosphere extent. 0 lets the renderer
+   *   fill the canvas (legacy behaviour); 0.15–0.25 leaves room for the
+   *   atmosphere halo to fade smoothly. Default 0.
+   * - `lockZoom`: when true, also clamps `minZoom` / `maxZoom` to the
+   *   computed framing distance so users can't zoom out of the frame.
+   *   Useful for purely decorative embeds. Default false.
+   */
+  readonly framing?: {
+    readonly padding?: number;
+    readonly lockZoom?: boolean;
+  };
 }
 
 export interface SurfaceClickEvent {

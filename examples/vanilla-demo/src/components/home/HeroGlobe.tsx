@@ -62,6 +62,11 @@ export function HeroGlobe({
       // Transparent canvas — the homepage gradient + aurora bleed through
       // instead of being clipped by the theme's solid background colour.
       transparent: true,
+      // Framing: pull the camera back so the atmosphere halo has room to
+      // fade out before hitting the canvas edge (no more "globe in a
+      // square" clipping). Lock zoom so this stays composed regardless
+      // of accidental scroll-wheel input.
+      framing: { padding: 0.18, lockZoom: true },
       countries: { hoverEnabled: false },
       autoRotate: { enabled: true, speed },
       atmosphere: { enabled: atmosphere },
@@ -74,8 +79,6 @@ export function HeroGlobe({
       focusPulse: { enabled: false },
       axisTilt,
       initialPosition: [initialLat, initialLng],
-      minZoom: 2.6,
-      maxZoom: 2.6, // freeze zoom — purely decorative
       performance: {
         antialias: true,
         adaptiveQuality: true,

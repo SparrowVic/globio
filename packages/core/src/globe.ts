@@ -200,6 +200,24 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
   });
 
+  // Camera framing — pull the camera back so the globe + atmosphere fits
+  // comfortably inside the canvas rather than clipping against the edge.
+  // The visible halo extent is ~1.25 × GLOBE_RADIUS in screen space
+  // (atmosphere mesh @ 1.15 + Fresnel falloff). Solve the perspective
+  // equation `half_height = distance * tan(fov/2)` for distance:
+  //   distance = (1.25 * (1 + padding)) / tan(fov/2)
+  // and assign before GlobeControls reads `camera.position` to seed its
+  // spherical coordinates.
+  const framingPadding = config.framing?.padding;
+  let framedDistance: number | null = null;
+  if (framingPadding !== undefined && framingPadding >= 0) {
+    const HALO_RADIUS = GLOBE_RADIUS * 1.25;
+    const fovRad = (scene.camera.fov * Math.PI) / 180;
+    framedDistance = (HALO_RADIUS * (1 + framingPadding)) / Math.tan(fovRad / 2);
+    scene.camera.position.set(0, 0, framedDistance);
+    scene.camera.lookAt(0, 0, 0);
+  }
+
   scene.scene.add(
     new AmbientLight(tokens['lights.ambient.color'], tokens['lights.ambient.intensity'])
   );
@@ -296,12 +314,20 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     borderRadius: tokens['tooltip.borderRadius'],
   });
 
+  // When framing.lockZoom is on, force min/max zoom to the framed distance
+  // so the user can't zoom out of (or further into) the carefully framed
+  // composition. The caller's own minZoom/maxZoom take precedence if set.
+  const lockedDistance =
+    config.framing?.lockZoom && framedDistance !== null ? framedDistance : null;
+  const minDistance = config.minZoom ?? lockedDistance ?? undefined;
+  const maxDistance = config.maxZoom ?? lockedDistance ?? undefined;
+
   const controls = new GlobeControls({
     camera: scene.camera,
     domElement: scene.renderer.domElement,
     ...(config.autoRotate?.speed !== undefined && { autoRotateSpeed: config.autoRotate.speed }),
-    ...(config.minZoom !== undefined && { minDistance: config.minZoom }),
-    ...(config.maxZoom !== undefined && { maxDistance: config.maxZoom }),
+    ...(minDistance !== undefined && { minDistance }),
+    ...(maxDistance !== undefined && { maxDistance }),
     ...(config.zoom !== undefined && { zoom: config.zoom }),
   });
   if (config.autoRotate?.enabled) controls.setAutoRotate(true, config.autoRotate.speed);
