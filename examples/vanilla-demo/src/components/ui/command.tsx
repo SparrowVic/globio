@@ -57,7 +57,14 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        {/* The cmdk primitives (Input / List / Group / Item / etc.) all
+            read state via React context provided by `<Command>` (aka
+            CommandPrimitive root). Without this wrapper their internal
+            `subscribe(...)` call lands on `undefined` and tears the tree
+            down. The shadcn-installed CommandDialog ships *without* the
+            wrapper — likely targeting React 19's auto-context — which
+            crashes on React 18. Wrap explicitly. */}
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )
