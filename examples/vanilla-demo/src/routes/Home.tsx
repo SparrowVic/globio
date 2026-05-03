@@ -38,17 +38,19 @@ import {
   ScrollProgress,
   SectionHeader,
 } from '@/components/shared';
-import Aurora from '@/components/Aurora';
-import BlurText from '@/components/BlurText';
-import ClickSpark from '@/components/ClickSpark';
-import CountUp from '@/components/CountUp';
-import DotGrid from '@/components/DotGrid';
-import FadeContent from '@/components/FadeContent';
-import GradientText from '@/components/GradientText';
-import Magnet from '@/components/Magnet';
-import ScrollVelocity from '@/components/ScrollVelocity';
-import SpotlightCard from '@/components/SpotlightCard';
-import StarBorder from '@/components/StarBorder';
+import {
+  Aurora,
+  BlurText,
+  ClickSpark,
+  CountUp,
+  DotGrid,
+  FadeContent,
+  GradientText,
+  Magnet,
+  ScrollVelocity,
+  SpotlightCard,
+  StarBorder,
+} from '@/components/reactbits';
 import { cn } from '@/lib/utils';
 
 export default function Home() {

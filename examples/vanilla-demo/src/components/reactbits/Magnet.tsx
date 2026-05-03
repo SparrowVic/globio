@@ -1,3 +1,4 @@
+// @ts-nocheck — third-party ReactBits copy-and-own primitives, ship as-is
 import React, { useState, useEffect, useRef, ReactNode, HTMLAttributes } from 'react';
 
 interface MagnetProps extends HTMLAttributes<HTMLDivElement> {

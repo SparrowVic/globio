@@ -14,9 +14,14 @@ import type {
 } from '@your-globe/core';
 
 import { Badge } from '@/components/ui/badge';
-import { DependsOn } from '@/components/DependsOn';
-import { PanelSection } from '@/components/panels/PanelSection';
-import { SelectField, SliderField, SwitchField, ToggleField } from '@/components/controls';
+import { DependsOn } from '@/components/shared/components/DependsOn';
+import { PanelSection } from '@/components/studio/panels/PanelSection';
+import {
+  SelectField,
+  SliderField,
+  SwitchField,
+  ToggleField,
+} from '@/components/shared/controls';
 import {
   chartDatasetOptions,
   heatmapDatasetOptions,

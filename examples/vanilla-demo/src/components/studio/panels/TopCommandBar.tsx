@@ -4,7 +4,10 @@ import type { GlobeKind, ThemePresetName } from '@your-globe/core';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { GroupedSelectField, type GroupedSelectGroup } from '@/components/controls';
+import {
+  GroupedSelectField,
+  type GroupedSelectGroup,
+} from '@/components/shared/controls';
 import { configuratorPresets } from '@/configurator/defaults';
 import type { CustomTheme } from '@/lib/custom-themes';
 import type { CustomPreset } from '@/lib/custom-presets';

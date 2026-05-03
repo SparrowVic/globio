@@ -1,3 +1,4 @@
+// @ts-nocheck — third-party ReactBits copy-and-own primitives, ship as-is
 import React from 'react';
 
 type StarBorderProps<T extends React.ElementType> = React.ComponentPropsWithoutRef<T> & {

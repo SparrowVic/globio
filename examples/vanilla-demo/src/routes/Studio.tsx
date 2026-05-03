@@ -11,15 +11,18 @@ import {
 } from '@your-globe/core';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { GlobePreview } from '@/components/GlobePreview';
-import { Panel } from '@/components/panels/Panel';
-import { StageSections } from '@/components/sections/StageSections';
-import { DataSections, dataBadgeForState } from '@/components/sections/DataSections';
-import { StatusDock } from '@/components/panels/StatusDock';
-import { TopCommandBar } from '@/components/panels/TopCommandBar';
-import { CustomThemeModal } from '@/components/CustomThemeModal';
-import { ManageSavedModal } from '@/components/ManageSavedModal';
-import { SavePresetModal } from '@/components/SavePresetModal';
+import { GlobePreview } from '@/components/studio/GlobePreview';
+import { Panel } from '@/components/studio/panels/Panel';
+import { StageSections } from '@/components/studio/sections/StageSections';
+import {
+  DataSections,
+  dataBadgeForState,
+} from '@/components/studio/sections/DataSections';
+import { StatusDock } from '@/components/studio/panels/StatusDock';
+import { TopCommandBar } from '@/components/studio/panels/TopCommandBar';
+import { CustomThemeModal } from '@/components/studio/modals/CustomThemeModal';
+import { ManageSavedModal } from '@/components/studio/modals/ManageSavedModal';
+import { SavePresetModal } from '@/components/studio/modals/SavePresetModal';
 import { resetAllPanelState } from '@/hooks/usePanelState';
 import { bootstrapCustomThemes, deleteCustomTheme, type CustomTheme } from '@/lib/custom-themes';
 import { deleteCustomPreset, loadCustomPresets, type CustomPreset } from '@/lib/custom-presets';

@@ -1,3 +1,4 @@
+// @ts-nocheck — third-party ReactBits copy-and-own primitives, ship as-is
 'use client';
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';

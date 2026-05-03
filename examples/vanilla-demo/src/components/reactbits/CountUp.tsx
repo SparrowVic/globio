@@ -1,3 +1,4 @@
+// @ts-nocheck — third-party ReactBits copy-and-own primitives, ship as-is
 import { useInView, useMotionValue, useSpring } from 'motion/react';
 import { useCallback, useEffect, useRef } from 'react';
 

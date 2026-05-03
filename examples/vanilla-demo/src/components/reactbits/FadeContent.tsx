@@ -1,3 +1,4 @@
+// @ts-nocheck — third-party ReactBits copy-and-own primitives, ship as-is
 import * as React from 'react';
 import { useRef, useEffect } from 'react';
 import { gsap } from 'gsap';

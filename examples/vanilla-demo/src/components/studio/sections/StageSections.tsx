@@ -1,8 +1,13 @@
 import { Compass, Crosshair, Gauge, Layers, MousePointer, Sparkles } from 'lucide-react';
 
-import { DependsOn } from '@/components/DependsOn';
-import { PanelSection } from '@/components/panels/PanelSection';
-import { SelectField, SliderField, SwitchField, ToggleField } from '@/components/controls';
+import { DependsOn } from '@/components/shared/components/DependsOn';
+import { PanelSection } from '@/components/studio/panels/PanelSection';
+import {
+  SelectField,
+  SliderField,
+  SwitchField,
+  ToggleField,
+} from '@/components/shared/controls';
 import type { GlobeSettings, PixelRatioSetting } from '@/configurator/types';
 
 const resolutionOptions = [

@@ -1,10 +1,7 @@
-// Reusable atoms / molecules built on top of the ReactBits primitives.
-// Anything in here is meant to outlive the marketing home page — drop
-// into the studio, future docs pages, embed previews, etc.
+// Re-exports both `components` (visual / behavioural blocks) and
+// `controls` (form-control molecules) under one namespace so callers
+// can import either flat. For tighter scoping, import directly from
+// the subfolder — `from '@/components/shared/controls'`.
 
-export { DecorationGlobe, type DecorationGlobeProps } from './DecorationGlobe';
-export { InteractiveCard, type InteractiveCardProps } from './InteractiveCard';
-export { SectionHeader, type SectionHeaderProps } from './SectionHeader';
-export { ScrollProgress } from './ScrollProgress';
-export { NoiseOverlay } from './NoiseOverlay';
-export { Kbd, type KbdProps } from './Kbd';
+export * from './components';
+export * from './controls';

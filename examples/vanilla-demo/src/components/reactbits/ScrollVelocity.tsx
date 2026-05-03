@@ -1,3 +1,4 @@
+// @ts-nocheck — third-party ReactBits copy-and-own primitives, ship as-is
 import React, { useRef, useLayoutEffect, useState } from 'react';
 import {
   motion,
