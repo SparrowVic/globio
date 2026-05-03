@@ -23,5 +23,11 @@
   "packageManager": "pnpm@8.15.0",
   "engines": {
     "node": ">=18"
+  },
+  "pnpm": {
+    "overrides": {
+      "three": "0.167.1",
+      "@types/three": "0.167.0"
+    }
   }
 }

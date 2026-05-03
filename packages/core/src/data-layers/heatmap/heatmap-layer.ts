@@ -254,7 +254,9 @@ export class HeatmapLayer {
       transparent: true,
       depthWrite: false,
       blending: blending === CustomBlending ? NormalBlending : blending,
-      extensions: { derivatives: true },
+      // `derivatives` was removed from `WebGLShaderExtensions` in three
+      // 0.158 — `OES_standard_derivatives` is part of WebGL2 core now,
+      // so the shader's `dFdx`/`dFdy` work without an explicit extension.
       uniforms: this.buildUniforms(layer, options.opacity ?? 1, blendMode),
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
