@@ -9,7 +9,13 @@
 
 export { default as AnimatedContent } from './AnimatedContent';
 export { default as Aurora } from './Aurora';
-export { default as Beams } from './Beams';
+export { default as AuroraBlur } from './AuroraBlur';
+// `Beams` deliberately omitted — its only consumer is `@react-three/fiber@9`
+// + `@react-three/drei@10`, which require React 19. We're on React 18, and
+// the version mismatch crashes the React reconciler at module-eval time
+// (the barrel evaluates every re-exported file even if unused). Re-add the
+// component via the shadcn CLI when we either upgrade React or downgrade
+// the @react-three packages — see git blame for context.
 export { default as BlurText } from './BlurText';
 export { default as ClickSpark } from './ClickSpark';
 export { default as CountUp } from './CountUp';
