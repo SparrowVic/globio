@@ -196,6 +196,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryHighlightLayer?.update(delta);
       state.countryActiveLayer?.update(delta);
       state.countryLabelsLayer?.update();
+      starfieldLayer?.update(delta);
     },
   });
 
@@ -218,9 +219,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   const starfieldLayer = config.starfield?.enabled
     ? new StarfieldLayer({
-        count: tokens['starfield.density'],
+        count: config.starfield?.density ?? tokens['starfield.density'],
         color: tokens['starfield.color'],
-        size: tokens['starfield.size'],
+        size: config.starfield?.size ?? tokens['starfield.size'],
+        ...(config.starfield?.palette !== undefined && { palette: config.starfield.palette }),
+        ...(config.starfield?.sizeVariety !== undefined && {
+          sizeVariety: config.starfield.sizeVariety,
+        }),
+        ...(config.starfield?.twinkle !== undefined && { twinkle: config.starfield.twinkle }),
       })
     : null;
   if (starfieldLayer) scene.scene.add(starfieldLayer.object);

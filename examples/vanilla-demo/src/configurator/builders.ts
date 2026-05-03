@@ -55,7 +55,22 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       speed: state.globe.autoRotateSpeed,
     },
     atmosphere: { enabled: state.globe.atmosphere },
-    starfield: { enabled: state.globe.starfield },
+    starfield: {
+      enabled: state.globe.starfield,
+      density: state.globe.starfieldDensity,
+      size: state.globe.starfieldSize,
+      sizeVariety: state.globe.starfieldSizeVariety,
+      // Curated mixed-color palette mimicking real-sky color temperature
+      // distribution (white-dominant with warm + cool accents).
+      ...(state.globe.starfieldMultiColor
+        ? { palette: ['#ffffff', '#fff4d6', '#ffe4b3', '#cfdcff', '#b9c8ff'] }
+        : {}),
+      twinkle: {
+        enabled: state.globe.starfieldTwinkle,
+        intensity: state.globe.starfieldTwinkleIntensity,
+        speed: state.globe.starfieldTwinkleSpeed,
+      },
+    },
     focusPulse: {
       enabled: state.globe.focusPulse,
       origin: state.globe.focusPulseOrigin,

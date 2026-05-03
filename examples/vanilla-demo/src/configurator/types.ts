@@ -39,6 +39,13 @@ export interface GlobeSettings {
   readonly axisTilt: number;
   readonly atmosphere: boolean;
   readonly starfield: boolean;
+  readonly starfieldDensity: number;
+  readonly starfieldSize: number;
+  readonly starfieldSizeVariety: number;
+  readonly starfieldMultiColor: boolean;
+  readonly starfieldTwinkle: boolean;
+  readonly starfieldTwinkleIntensity: number;
+  readonly starfieldTwinkleSpeed: number;
   readonly focusPulse: boolean;
   readonly focusPulseOrigin: FocusPulseOrigin;
   readonly focusPulseOnSurfaceClick: boolean;

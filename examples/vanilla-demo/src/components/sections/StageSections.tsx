@@ -132,6 +132,67 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
             onChange={(starfield) => onChange({ starfield })}
           />
         </div>
+        <DependsOn when={settings.starfield} because="Enable Stars first">
+          <SliderField
+            label="Star count"
+            value={settings.starfieldDensity}
+            min={300}
+            max={6000}
+            step={100}
+            format={(value) => value.toLocaleString()}
+            onChange={(starfieldDensity) => onChange({ starfieldDensity })}
+          />
+          <SliderField
+            label="Star size"
+            value={settings.starfieldSize}
+            min={0.5}
+            max={4}
+            step={0.1}
+            format={(value) => `${value.toFixed(1)} px`}
+            onChange={(starfieldSize) => onChange({ starfieldSize })}
+          />
+          <SliderField
+            label="Size variety"
+            value={settings.starfieldSizeVariety}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(starfieldSizeVariety) => onChange({ starfieldSizeVariety })}
+          />
+          <SwitchField
+            label="Mixed colors"
+            checked={settings.starfieldMultiColor}
+            onChange={(starfieldMultiColor) => onChange({ starfieldMultiColor })}
+          />
+          <SwitchField
+            label="Twinkle"
+            checked={settings.starfieldTwinkle}
+            onChange={(starfieldTwinkle) => onChange({ starfieldTwinkle })}
+          />
+          <SliderField
+            label="Twinkle intensity"
+            value={settings.starfieldTwinkleIntensity}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(starfieldTwinkleIntensity) => onChange({ starfieldTwinkleIntensity })}
+            disabled={!settings.starfieldTwinkle}
+            disabledReason="Enable Twinkle first"
+          />
+          <SliderField
+            label="Twinkle speed"
+            value={settings.starfieldTwinkleSpeed}
+            min={0.1}
+            max={2}
+            step={0.05}
+            format={(value) => `${value.toFixed(2)} Hz`}
+            onChange={(starfieldTwinkleSpeed) => onChange({ starfieldTwinkleSpeed })}
+            disabled={!settings.starfieldTwinkle}
+            disabledReason="Enable Twinkle first"
+          />
+        </DependsOn>
         <SwitchField
           label="Focus pulse"
           checked={settings.focusPulse}
