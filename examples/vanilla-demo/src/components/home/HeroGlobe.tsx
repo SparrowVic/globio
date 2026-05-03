@@ -59,6 +59,9 @@ export function HeroGlobe({
       container,
       kind,
       theme,
+      // Transparent canvas — the homepage gradient + aurora bleed through
+      // instead of being clipped by the theme's solid background colour.
+      transparent: true,
       countries: { hoverEnabled: false },
       autoRotate: { enabled: true, speed },
       atmosphere: { enabled: atmosphere },

@@ -182,7 +182,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   const scene = new SceneManager({
     container: config.container,
-    backgroundColor: tokens['background.color'],
+    backgroundColor: config.transparent ? null : tokens['background.color'],
     performance,
     onRender: (delta) => {
       state.controls.update(delta);

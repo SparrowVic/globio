@@ -602,6 +602,13 @@ export interface GlobeConfig {
   readonly minZoom?: number;
   readonly maxZoom?: number;
   readonly zoom?: ZoomConfig;
+  /**
+   * Render with a transparent canvas — the host page bleeds through.
+   * Useful when the globe is decoration on top of a page gradient or
+   * background image and you don't want the theme's `background.color`
+   * to clip the visual as a square. Default `false`.
+   */
+  readonly transparent?: boolean;
 }
 
 export interface SurfaceClickEvent {

@@ -11,7 +11,12 @@ import type { PerformanceConfig } from '../types';
 
 export interface SceneManagerOptions {
   readonly container: HTMLElement;
-  readonly backgroundColor: string;
+  /**
+   * Solid background colour, OR `null` for a transparent canvas.
+   * Transparent mode lets the host page bleed through the globe (useful
+   * when the globe is decoration on top of a page gradient / image).
+   */
+  readonly backgroundColor: string | null;
   readonly performance: Required<PerformanceConfig>;
   readonly onRender: (deltaSeconds: number) => void;
 }
@@ -29,7 +34,11 @@ export class SceneManager {
 
   public constructor(private readonly options: SceneManagerOptions) {
     this.scene = new Scene();
-    this.scene.background = new Color(options.backgroundColor);
+    // null background ⇒ transparent canvas. We leave scene.background
+    // unset (Three's default) so the renderer's clear-alpha=0 takes over.
+    if (options.backgroundColor !== null) {
+      this.scene.background = new Color(options.backgroundColor);
+    }
 
     const { clientWidth, clientHeight } = options.container;
     const aspect = clientHeight > 0 ? clientWidth / clientHeight : 1;
@@ -37,12 +46,14 @@ export class SceneManager {
     this.camera.position.set(0, 0, 3);
     this.camera.lookAt(new Vector3(0, 0, 0));
 
+    const transparent = options.backgroundColor === null;
     const rendererParams: WebGLRendererParameters = {
       antialias: options.performance.antialias,
-      alpha: false,
+      alpha: transparent,
       powerPreference: 'high-performance',
     };
     this.renderer = new WebGLRenderer(rendererParams);
+    if (transparent) this.renderer.setClearAlpha(0);
     this.renderer.setSize(clientWidth, clientHeight, false);
     this.renderer.setPixelRatio(this.resolvePixelRatio(options.performance.pixelRatio));
 
