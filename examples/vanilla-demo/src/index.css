@@ -194,6 +194,19 @@
   animation: pill-shimmer 4s ease-in-out infinite;
 }
 
+/* One-shot amber halo + ring used when the user jumps from Browse mode
+   back to Quick. The animation auto-cleans (forwards is intentionally
+   omitted so the box-shadow returns to none and the section sits at rest). */
+@keyframes section-arrival-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55), inset 0 0 0 1px rgba(251, 191, 36, 0.4); background-color: rgba(251, 191, 36, 0.08); }
+  50%  { box-shadow: 0 0 32px 4px rgba(251, 191, 36, 0.18), inset 0 0 0 1px rgba(251, 191, 36, 0.25); background-color: rgba(251, 191, 36, 0.04); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); background-color: transparent; }
+}
+.section-arrival-pulse {
+  animation: section-arrival-pulse 1.4s ease-out;
+  border-radius: 8px;
+}
+
 /* Slow ambient orbit for the CTA section's particle ring. */
 @keyframes orbit-slow {
   from { transform: rotate(0deg) translateX(var(--orbit-radius, 220px)) rotate(0deg); }

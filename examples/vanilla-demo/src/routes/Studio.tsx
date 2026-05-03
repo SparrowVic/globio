@@ -13,7 +13,7 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { GlobePreview } from '@/components/studio/GlobePreview';
 import { Panel } from '@/components/studio/panels/Panel';
-import { StageSections } from '@/components/studio/sections/StageSections';
+import { StagePanel } from '@/components/studio/panels/StagePanel';
 import {
   DataSections,
   dataBadgeForState,
@@ -473,7 +473,7 @@ export default function Studio() {
           defaultCollapsed
           width={340}
         >
-          <StageSections settings={state.globe} onChange={updateGlobe} />
+          <StagePanel settings={state.globe} onChange={updateGlobe} />
         </Panel>
         <Panel
           id="data"
