@@ -73,27 +73,24 @@ export function WorkshopPreviewGlobe({
     const globe = createGlobe({
       ...baseConfig,
       container,
+      // Cinematography wins on visual identity — kind / theme / framing
+      // / initial position keep the preview composed regardless of what
+      // the user has set in main.
       kind: cinematography.kind,
       theme: cinematography.theme,
       transparent: true,
       framing: { padding: cinematography.framingPadding ?? 0.18, lockZoom: true },
       atmosphere: { enabled: cinematography.atmosphere ?? true },
-      starfield: cinematography.starfield === false
-        ? { enabled: false }
-        : (baseConfig.starfield ?? { enabled: true }),
+      starfield:
+        cinematography.starfield === false
+          ? { enabled: false }
+          : (baseConfig.starfield ?? { enabled: true }),
       autoRotate: { enabled: true, speed: cinematography.speed ?? 0.04 },
       initialPosition: [cinematography.initialLat, cinematography.initialLng],
-      countries: { hoverEnabled: false },
-      // Click-to-focus disabled — preview is for visual editing, not
-      // interaction. Focus pulse spawning still respects the user's
-      // settings since the configurator might be Pulse itself.
-      focusPulse: cinematography.kind
-        ? {
-            ...baseConfig.focusPulse,
-            origin: state.globe.focusPulseOrigin,
-            pulseOnSurfaceClick: false,
-          }
-        : { enabled: false },
+      // Everything else flows through from the user's settings — that's
+      // what the user is editing. Hover, focus-pulse origin, surface-
+      // click pulse spawning, etc. all reflect their current choices.
+      countries: { ...baseConfig.countries, hoverOccludeBackSide: state.globe.hoverOccludeBackSide },
     });
     instanceRef.current = globe;
     globe.mount();
@@ -123,10 +120,12 @@ export function WorkshopPreviewGlobe({
     <div
       ref={containerRef}
       className={className}
-      // Decoration semantics — preview canvas never absorbs pointer
-      // events (the surrounding chrome handles them).
-      style={{ pointerEvents: 'none' }}
-      aria-hidden="true"
+      // Pointer events stay enabled so the user's hover / surface-click
+      // settings can fire (Hover preset needs hover, Pulse preset wants
+      // click → spawn pulse). Click-to-focus stays disabled because the
+      // preview's `WorkshopPreviewGlobe` doesn't register a countryClick
+      // handler — that's a feature of the demo's main `GlobePreview`,
+      // not a property of `createGlobe` itself.
     />
   );
 }
