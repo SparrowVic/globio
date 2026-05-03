@@ -1,5 +1,9 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faChevronLeft,
+  faChevronRight,
+} from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -77,7 +81,7 @@ export function Panel({
             onClick={() => setCollapsed(false)}
             className={cn('panel-collapsed-icon', positionClass[position], className)}
           >
-            {icon ?? <ChevronRight className="size-4" />}
+            {icon ?? <FontAwesomeIcon icon={faChevronRight} className="size-3.5" />}
           </button>
         </TooltipTrigger>
         <TooltipContent sideOffset={6}>{title}</TooltipContent>
@@ -121,11 +125,14 @@ export function Panel({
           onClick={() => setCollapsed(true)}
           className="panel-collapse-btn"
         >
-          {position === 'right' || position === 'bottom-right' ? (
-            <ChevronRight className="size-3.5" />
-          ) : (
-            <ChevronLeft className="size-3.5" />
-          )}
+          <FontAwesomeIcon
+            icon={
+              position === 'right' || position === 'bottom-right'
+                ? faChevronRight
+                : faChevronLeft
+            }
+            className="size-3"
+          />
         </button>
       </header>
       <div className="panel-body">{children}</div>

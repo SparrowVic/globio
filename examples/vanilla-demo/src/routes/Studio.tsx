@@ -336,6 +336,7 @@ export default function Studio() {
           state={state}
           customThemes={customThemes}
           customPresets={customPresets}
+          ready={status.ready}
           onGlobeChange={updateGlobe}
           onPreset={applyPreset}
           onCreateTheme={() => setThemeModalOpen(true)}
@@ -345,6 +346,11 @@ export default function Studio() {
           onHome={() => sendCommand('home')}
           onExport={copyJson}
           onReset={reset}
+          onCommandPalette={() => {
+            // Wired up in Wave 2 — for now toggle a stub state.
+            // eslint-disable-next-line no-console
+            console.info('⌘K palette wired in Wave 2');
+          }}
         />
         <CustomThemeModal
           open={themeModalOpen}
