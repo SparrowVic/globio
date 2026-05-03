@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { Bookmark, Pencil, Sparkles, Trash2 } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faBookmark,
+  faPenToSquare,
+  faSparkles,
+  faTrash,
+} from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -60,12 +66,12 @@ export function ManageSavedModal({
         <Tabs value={tab} onValueChange={(next) => setTab(next as 'themes' | 'presets')} className="px-5 py-3">
           <TabsList className="bg-white/[0.04]">
             <TabsTrigger value="themes" className="gap-1.5 text-xs">
-              <Sparkles className="size-3.5" />
+              <FontAwesomeIcon icon={faSparkles} className="size-3" />
               <span>Themes</span>
               <span className="ml-1 rounded-full bg-white/10 px-1.5 text-[10px] tabular-nums">{themes.length}</span>
             </TabsTrigger>
             <TabsTrigger value="presets" className="gap-1.5 text-xs">
-              <Bookmark className="size-3.5" />
+              <FontAwesomeIcon icon={faBookmark} className="size-3" />
               <span>Presets</span>
               <span className="ml-1 rounded-full bg-white/10 px-1.5 text-[10px] tabular-nums">{presets.length}</span>
             </TabsTrigger>
@@ -101,7 +107,7 @@ export function ManageSavedModal({
                             }}
                             aria-label={`Edit ${theme.name}`}
                           >
-                            <Pencil className="size-3.5" />
+                            <FontAwesomeIcon icon={faPenToSquare} className="size-3" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Edit</TooltipContent>
@@ -194,7 +200,7 @@ function DeleteButton({ label, onConfirm }: { readonly label: string; readonly o
           }}
           aria-label={armed ? `Confirm delete ${label}` : `Delete ${label}`}
         >
-          <Trash2 className="size-3.5" />
+          <FontAwesomeIcon icon={faTrash} className="size-3" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>{armed ? 'Click again to confirm' : 'Delete'}</TooltipContent>

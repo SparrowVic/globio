@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Bookmark } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBookmark } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -75,7 +76,7 @@ export function SavePresetModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bookmark className="size-4 text-amber-200" />
+            <FontAwesomeIcon icon={faBookmark} className="size-3.5 text-amber-200" />
             <span>Save current as preset</span>
           </DialogTitle>
           <DialogDescription>

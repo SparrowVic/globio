@@ -1,12 +1,13 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  BarChart3,
-  Database,
-  Flame,
-  Hand,
-  Layers3,
-  Palette,
-  Sparkles,
-} from 'lucide-react';
+  faChartColumn,
+  faDatabase,
+  faFire,
+  faHand,
+  faLayerGroup,
+  faPalette,
+  faSparkles,
+} from '@fortawesome/sharp-duotone-solid-svg-icons';
 import type {
   HeatmapAnimationOrder,
   HeatmapAnimationStyle,
@@ -204,7 +205,7 @@ export function DataSections({
       <PanelSection
         id="data-active-layer"
         title="Active Layer"
-        icon={<Layers3 className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faLayerGroup} className="size-3" />}
         defaultOpen
       >
         <ToggleField
@@ -251,7 +252,7 @@ function HexbinSections({
 }) {
   return (
     <>
-      <PanelSection id="hexbin-dataset" title="Dataset" icon={<Database className="size-3.5" />} defaultOpen>
+      <PanelSection id="hexbin-dataset" title="Dataset" icon={<FontAwesomeIcon icon={faDatabase} className="size-3" />} defaultOpen>
         <SelectField
           label="Dataset"
           value={settings.dataset}
@@ -269,7 +270,7 @@ function HexbinSections({
       <PanelSection
         id="hexbin-visual"
         title="Visual"
-        icon={<Palette className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
         meta={`R${settings.resolution} · ${20 * 4 ** settings.resolution} cells`}
         defaultOpen
       >
@@ -338,7 +339,7 @@ function HexbinSections({
       <PanelSection
         id="hexbin-interaction"
         title="Interaction"
-        icon={<Hand className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faHand} className="size-3" />}
       >
         <div className="grid grid-cols-2 gap-2">
           <SwitchField
@@ -390,7 +391,7 @@ function HeatmapSections({
       <PanelSection
         id="heatmap-dataset"
         title="Dataset"
-        icon={<Flame className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faFire} className="size-3" />}
         meta={loading ? <Badge className="bg-amber-300/15 text-amber-100 text-[10px]">loading</Badge> : null}
         defaultOpen
       >
@@ -431,7 +432,7 @@ function HeatmapSections({
       <PanelSection
         id="heatmap-visual"
         title="Visual"
-        icon={<Palette className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
         meta={`${settings.kernel} · ${settings.normalize}`}
         defaultOpen
       >
@@ -563,7 +564,7 @@ function HeatmapSections({
       <PanelSection
         id="heatmap-dome"
         title="Country domes"
-        icon={<Sparkles className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faSparkles} className="size-3" />}
         hidden={!isCountrySurface}
       >
         <div className="grid grid-cols-2 gap-3">
@@ -673,7 +674,7 @@ function ChartsSections({
       <PanelSection
         id="charts-dataset"
         title="Dataset & Type"
-        icon={<BarChart3 className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faChartColumn} className="size-3" />}
         defaultOpen
       >
         <SelectField
@@ -693,7 +694,7 @@ function ChartsSections({
       <PanelSection
         id="charts-visual"
         title="Visual"
-        icon={<Palette className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
         meta={`${settings.chartType} · ${settings.size.toFixed(2)}`}
         defaultOpen
       >
@@ -777,7 +778,7 @@ function ChartsSections({
       <PanelSection
         id="charts-interaction"
         title="Interaction"
-        icon={<Hand className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faHand} className="size-3" />}
       >
         <ToggleField
           label="Labels"
@@ -847,7 +848,7 @@ function AnimationSection({
     <PanelSection
       id={`${idPrefix}-animation`}
       title="Animation"
-      icon={<Sparkles className="size-3.5" />}
+      icon={<FontAwesomeIcon icon={faSparkles} className="size-3" />}
       meta={meta}
     >
       <SwitchField

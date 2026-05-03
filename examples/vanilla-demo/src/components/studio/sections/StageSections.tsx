@@ -1,4 +1,12 @@
-import { Compass, Crosshair, Gauge, Layers, MousePointer, Sparkles } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faCompass,
+  faCrosshairs,
+  faGauge,
+  faLayerGroup,
+  faMousePointer,
+  faSparkles,
+} from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import { DependsOn } from '@/components/shared/components/DependsOn';
 import { PanelSection } from '@/components/studio/panels/PanelSection';
@@ -59,7 +67,7 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
       <PanelSection
         id="stage-surface"
         title="Surface"
-        icon={<Layers className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faLayerGroup} className="size-3" />}
         meta={[
           settings.atmosphere ? 'atmo' : null,
           settings.starfield ? 'stars' : null,
@@ -261,7 +269,7 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
       <PanelSection
         id="stage-camera"
         title="Camera"
-        icon={<Compass className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faCompass} className="size-3" />}
         meta={
           settings.autoRotate
             ? `auto-rotate · ${settings.zoomMode}`
@@ -366,7 +374,7 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
       <PanelSection
         id="stage-interaction"
         title="Interaction"
-        icon={<MousePointer className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faMousePointer} className="size-3" />}
         meta={settings.hoverEnabled ? 'hover on' : 'hover off'}
       >
         <SwitchField
@@ -386,7 +394,7 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
       <PanelSection
         id="stage-focus"
         title="Focus"
-        icon={<Crosshair className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faCrosshairs} className="size-3" />}
         meta={settings.clickToFocus ? `${(settings.focusPadding * 100).toFixed(0)}% pad` : 'off'}
       >
         <SwitchField
@@ -433,10 +441,11 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
       <PanelSection
         id="stage-perf"
         title="Performance"
-        icon={<Gauge className="size-3.5" />}
+        icon={<FontAwesomeIcon icon={faGauge} className="size-3" />}
         meta={
           <span className="inline-flex items-center gap-1">
-            <Sparkles className="size-3" /> {settings.adaptiveQuality ? 'auto' : 'manual'}
+            <FontAwesomeIcon icon={faSparkles} className="size-2.5" />
+            {settings.adaptiveQuality ? 'auto' : 'manual'}
           </span>
         }
       >

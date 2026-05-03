@@ -1,5 +1,9 @@
 import { useMemo, useRef, useState, useEffect, type ReactNode } from 'react';
-import { Palette, Sparkles } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faPalette,
+  faSparkles,
+} from '@fortawesome/sharp-duotone-solid-svg-icons';
 import { resolveTheme, type PartialTokenSet, type ThemePresetName } from '@your-globe/core';
 
 import { Button } from '@/components/ui/button';
@@ -220,7 +224,7 @@ export function CustomThemeModal({
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-4 text-amber-200" />
+            <FontAwesomeIcon icon={faSparkles} className="size-3.5 text-amber-200" />
             <span>{editing ? 'Edit custom theme' : 'Create custom theme'}</span>
           </DialogTitle>
           <DialogDescription>
@@ -262,11 +266,17 @@ export function CustomThemeModal({
             </div>
           </div>
 
-          <FieldGroup title="Colors" icon={<Palette className="size-3.5 text-cyan-200" />}>
+          <FieldGroup
+            title="Colors"
+            icon={<FontAwesomeIcon icon={faPalette} className="size-3 text-cyan-200" />}
+          >
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">{colorRows}</div>
           </FieldGroup>
 
-          <FieldGroup title="Intensity & density" icon={<Sparkles className="size-3.5 text-rose-200" />}>
+          <FieldGroup
+            title="Intensity & density"
+            icon={<FontAwesomeIcon icon={faSparkles} className="size-3 text-rose-200" />}
+          >
             <div className="grid grid-cols-1 gap-3">{numberRows}</div>
           </FieldGroup>
         </div>

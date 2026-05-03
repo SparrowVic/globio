@@ -1,5 +1,6 @@
-import { ChevronDown } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronDown } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import { cn } from '@/lib/utils';
 import { usePanelState } from '@/hooks/usePanelState';
@@ -48,8 +49,9 @@ export function PanelSection({
         {icon ? <span className="panel-section-icon">{icon}</span> : null}
         <span className="panel-section-title">{title}</span>
         {meta ? <span className="panel-section-meta">{meta}</span> : null}
-        <ChevronDown
-          className={cn('panel-section-chevron size-3.5', open ? '' : '-rotate-90')}
+        <FontAwesomeIcon
+          icon={faChevronDown}
+          className={cn('panel-section-chevron size-3', open ? '' : '-rotate-90')}
         />
       </button>
       <div className="panel-section-body" aria-hidden={!open}>
