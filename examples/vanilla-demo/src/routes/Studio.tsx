@@ -59,6 +59,14 @@ const initialState = (search: URLSearchParams): ConfiguratorState => {
 export default function Studio() {
   const [searchParams] = useSearchParams();
   const [state, setState] = useState<ConfiguratorState>(() => initialState(searchParams));
+
+  // Lock the page to a fixed-viewport mode while the configurator is
+  // mounted; remove on unmount so the marketing home / other routes can
+  // scroll normally again.
+  useEffect(() => {
+    document.body.classList.add('studio-mode');
+    return () => document.body.classList.remove('studio-mode');
+  }, []);
   // User-created themes — bootstrapped from localStorage on first paint
   // and registered with core's theme system synchronously so themed
   // selectors can resolve them on the very first render.

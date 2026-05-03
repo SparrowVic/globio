@@ -131,10 +131,22 @@
   body,
   #root {
     width: 100%;
-    height: 100%;
     margin: 0;
-    overflow: hidden;
     background: #03050d;
+  }
+
+  /* Studio (configurator) is a fixed full-viewport canvas + floating
+     panels — it must NOT scroll the page. Home is a standard scroll
+     document. The route adds .studio-mode to <body> on mount so this
+     rule scopes the lock to the right route only. */
+  body.studio-mode,
+  body.studio-mode #root {
+    height: 100%;
+    overflow: hidden;
+  }
+  html:has(body.studio-mode) {
+    height: 100%;
+    overflow: hidden;
   }
 }
 
