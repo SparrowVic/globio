@@ -46,7 +46,10 @@ const DialogOverlay = React.forwardRef<
       ref={ref}
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // Stronger frosted overlay so the dialog reads as a focused
+        // surface rather than floating awkwardly over a flat dim. Matches
+        // the home page's blurred backdrop pattern.
+        "fixed inset-0 isolate z-50 bg-black/40 duration-200 supports-backdrop-filter:backdrop-blur-md supports-backdrop-filter:backdrop-saturate-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -70,7 +73,20 @@ const DialogContent = React.forwardRef<
         ref={ref}
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Glassmorphic surface — matches the studio top bar / panels.
+          // `bg-[#0c1018]/75` is a near-black slate at 75% so blurred
+          // content beneath shows through at low contrast (legible text
+          // on top, but the dialog still reads as floating glass).
+          // `ring-` is replaced with a hairline white border so the edge
+          // doesn't compete with the iridescent ::before sheen below.
+          "group/dialog fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-white/10 bg-[#0c1018]/75 p-4 text-sm text-popover-foreground duration-200 outline-none sm:max-w-sm",
+          "shadow-[0_28px_80px_-20px_rgba(0,0,0,0.7),inset_0_1px_0_0_rgba(255,255,255,0.06)]",
+          "supports-backdrop-filter:backdrop-blur-2xl supports-backdrop-filter:backdrop-saturate-150",
+          "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Iridescent edge sheen via a layered conic-ish gradient — same
+          // recipe as the panel-surface ::before, inlined here so we
+          // don't need a sibling element.
+          "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:opacity-50 before:[mask:linear-gradient(white,transparent_70%)] before:[background:linear-gradient(120deg,rgba(255,200,90,0.10)_0%,rgba(255,255,255,0)_35%,rgba(120,180,255,0.10)_70%,rgba(255,255,255,0)_100%)]",
           className
         )}
         {...props}
