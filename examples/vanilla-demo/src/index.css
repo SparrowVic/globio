@@ -150,6 +150,59 @@
   }
 }
 
+/* StarBorder needs these two keyframes — comet-style sparks that orbit
+   the rounded button. Defined here because the Tailwind extend block
+   would have to live in a config file we don't ship. */
+@keyframes star-movement-bottom {
+  0%   { transform: translate(0%, 0%);    opacity: 1; }
+  100% { transform: translate(-100%, 0%); opacity: 0; }
+}
+@keyframes star-movement-top {
+  0%   { transform: translate(0%, 0%);   opacity: 1; }
+  100% { transform: translate(100%, 0%); opacity: 0; }
+}
+.animate-star-movement-bottom {
+  animation: star-movement-bottom linear infinite alternate;
+}
+.animate-star-movement-top {
+  animation: star-movement-top linear infinite alternate;
+}
+
+/* Conic-gradient rotating border used by KindCard / FeatureCell. Uses a
+   CSS @property so the angle is animatable across all browsers that
+   support Houdini (Chrome 85+, Safari 16.4+, Firefox 128+). */
+@property --border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes border-spin {
+  from { --border-angle: 0deg; }
+  to   { --border-angle: 360deg; }
+}
+.animate-border-spin {
+  animation: border-spin 6s linear infinite;
+}
+
+/* Shimmer used on the segmented nav active indicator. */
+@keyframes pill-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.animate-pill-shimmer {
+  background-size: 200% 200%;
+  animation: pill-shimmer 4s ease-in-out infinite;
+}
+
+/* Slow ambient orbit for the CTA section's particle ring. */
+@keyframes orbit-slow {
+  from { transform: rotate(0deg) translateX(var(--orbit-radius, 220px)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--orbit-radius, 220px)) rotate(-360deg); }
+}
+.animate-orbit-slow {
+  animation: orbit-slow var(--orbit-duration, 18s) linear infinite;
+}
+
 @layer components {
   .top-command {
     position: fixed;
