@@ -23,7 +23,10 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground",
+        // `bg-transparent` so the parent `<DialogContent>`'s frosted-
+        // glass surface shows through. Original shadcn baked
+        // `bg-popover` (solid) here which painted over the glass.
+        "flex size-full flex-col overflow-hidden rounded-2xl bg-transparent p-1 text-popover-foreground",
         className
       )}
       {...props}
