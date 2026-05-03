@@ -12,6 +12,18 @@ import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
 import { CardPicker } from './CardPicker';
 import { DetailView } from './DetailView';
 import { configuratorMeta, type ConfiguratorId } from './configurators';
+import {
+  SnapshotBridge,
+  captureMainGlobe,
+  workshopThumbnailRect,
+} from './SnapshotBridge';
+
+interface SnapshotState {
+  readonly src: string;
+  readonly fromRect: { left: number; top: number; width: number; height: number };
+  readonly toRect: { left: number; top: number; width: number; height: number };
+  readonly phase: 'opening' | 'parked' | 'closing';
+}
 
 export interface WorkshopProps {
   readonly open: boolean;
@@ -42,30 +54,52 @@ export interface WorkshopProps {
  */
 export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopProps) {
   const [selected, setSelected] = useState<ConfiguratorId | null>(null);
-  // Tracks the open animation phase so we can layer entrance effects
-  // (letterbox + stagger) without tying them to React keys.
   const [intro, setIntro] = useState(false);
+  // Snapshot lifecycle — capture on open, animate to corner, hold while
+  // workshop is up, animate back on close. `null` = no snapshot active.
+  const [snapshot, setSnapshot] = useState<SnapshotState | null>(null);
+  // Workshop stays mounted during the closing animation so the snapshot
+  // can travel back. `mounted` lags `open` going false until the
+  // closing animation completes (or 800ms timeout for safety).
+  const [mounted, setMounted] = useState(open);
 
-  // Reset selection whenever Workshop is dismissed — the user shouldn't
-  // re-enter into a stale detail view.
+  // Reset selection whenever Workshop is dismissed.
   useEffect(() => {
     if (!open) setSelected(null);
   }, [open]);
 
-  // Letterbox + stagger trigger. Runs once on `open` going false→true.
+  // Open transition: capture snapshot + mount + start opening anim.
   useEffect(() => {
-    if (!open) {
-      setIntro(false);
-      return undefined;
+    if (open) {
+      setMounted(true);
+      const captured = captureMainGlobe();
+      if (captured) {
+        setSnapshot({
+          src: captured.src,
+          fromRect: captured.rect,
+          toRect: workshopThumbnailRect(),
+          phase: 'opening',
+        });
+      }
+      setIntro(true);
+      const t = window.setTimeout(() => setIntro(false), 600);
+      return () => window.clearTimeout(t);
     }
-    setIntro(true);
-    const t = window.setTimeout(() => setIntro(false), 600);
-    return () => window.clearTimeout(t);
+    // Closing: flip phase if snapshot exists; keep mounted until anim
+    // ends. If no snapshot (e.g. capture failed), unmount immediately.
+    setIntro(false);
+    if (snapshot) {
+      setSnapshot({ ...snapshot, phase: 'closing' });
+    } else {
+      setMounted(false);
+    }
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Esc handler — drill out one level (detail → picker → close).
   useEffect(() => {
-    if (!open) return undefined;
+    if (!mounted) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.stopPropagation();
@@ -77,25 +111,45 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, selected, onOpenChange]);
+  }, [mounted, selected, onOpenChange]);
 
-  // Lock body scroll while Workshop is up — page chrome (top bar, panels,
-  // status dock) is rendered behind the backdrop and shouldn't bleed
-  // pointer events through the focus trap.
+  // Lock body scroll while mounted (covers both open + closing phase).
   useEffect(() => {
-    if (!open) return undefined;
+    if (!mounted) return undefined;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previous;
     };
-  }, [open]);
+  }, [mounted]);
 
-  if (!open) return null;
+  // Bridge phase callbacks — drive the snapshot state machine forward.
+  const onBridgePhaseEnd = (phase: 'opening' | 'closing') => {
+    if (phase === 'opening') {
+      setSnapshot((s) => (s ? { ...s, phase: 'parked' } : null));
+    } else {
+      // Closing finished — unmount snapshot and the whole workshop.
+      setSnapshot(null);
+      setMounted(false);
+    }
+  };
+
+  if (!mounted) return null;
 
   const activeConfig = selected
     ? configuratorMeta.find((c) => c.id === selected) ?? null
     : null;
+
+  // While the snapshot is mid-flight (opening or closing), the body
+  // stays muted so the eye follows the moving thumbnail rather than
+  // competing with cards / hero content. When parked, full opacity.
+  const bodyOpacity = snapshot && snapshot.phase !== 'parked' ? 0 : 1;
+
+  // Drive the close handler — if the parent flipped `open` to false,
+  // the closing animation is in flight; clicking the close button
+  // again triggers `onOpenChange(false)` which is a no-op if already
+  // closing. Either way the user sees the bridge complete.
+  const isClosing = snapshot?.phase === 'closing';
 
   return (
     <div
@@ -104,30 +158,32 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
       aria-label="Workshop"
       className="fixed inset-0 z-[60]"
     >
-      {/* Backdrop — strong frosted blur over the studio chrome so the
-          workshop reads as its own focused mode rather than an overlay
-          on top of work-in-progress. */}
-      <Backdrop />
+      {/* Backdrop — frosted blur over the studio chrome. Fades opposite
+          the snapshot bridge so the transition reads as one continuous
+          beat (snapshot moves out → backdrop comes in, and vice versa). */}
+      <Backdrop closing={isClosing} />
 
       {/* Letterbox bars — 32px black bars top/bottom that ease in then
-          retract over 600ms. Cinematic transition cue, not a permanent
-          framing. */}
+          retract over 600ms. Cinematic transition cue, not permanent. */}
       <Letterbox active={intro} />
 
-      {/* Topbar inside the workshop — minimal: brand-mark + view crumb +
-          Esc hint + close button. Doesn't try to replicate the studio
-          topbar; this is its own focused surface. */}
-      <WorkshopHeader
-        active={activeConfig?.name ?? null}
-        onBackToPicker={() => setSelected(null)}
-        onClose={() => onOpenChange(false)}
-      />
+      {/* Topbar — minimal brand-mark + crumb + Esc hint + close. */}
+      <div
+        className="transition-opacity duration-500 ease-out"
+        style={{ opacity: bodyOpacity }}
+      >
+        <WorkshopHeader
+          active={activeConfig?.name ?? null}
+          onBackToPicker={() => setSelected(null)}
+          onClose={() => onOpenChange(false)}
+        />
+      </div>
 
-      {/* Body — picker or detail, fades on view change so the user
-          notices they navigated. */}
+      {/* Body — picker or detail. Faded out during snapshot transit. */}
       <div
         key={selected ?? 'picker'}
-        className="absolute inset-0 overflow-y-auto pt-16 pb-10 [animation:workshopFadeIn_260ms_ease-out]"
+        className="absolute inset-0 overflow-y-auto pt-16 pb-10 transition-opacity duration-500 ease-out [animation:workshopFadeIn_260ms_ease-out]"
+        style={{ opacity: bodyOpacity }}
       >
         {activeConfig ? (
           <DetailView
@@ -140,6 +196,19 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
           <CardPicker state={state} onPick={setSelected} />
         )}
       </div>
+
+      {/* Snapshot bridge — sits above everything (z-70). Opens with a
+          translate+scale from the studio's main globe rect to the
+          corner thumbnail, then parks; closing reverses. */}
+      {snapshot ? (
+        <SnapshotBridge
+          src={snapshot.src}
+          fromRect={snapshot.fromRect}
+          toRect={snapshot.toRect}
+          phase={snapshot.phase}
+          onPhaseEnd={onBridgePhaseEnd}
+        />
+      ) : null}
 
       <style>{`
         @keyframes workshopFadeIn {
@@ -161,13 +230,14 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
 
 /* ───────────────────────── BACKDROP ───────────────────────── */
 
-function Backdrop() {
+function Backdrop({ closing = false }: { readonly closing?: boolean }) {
   return (
     <>
       <div
         className={cn(
-          'absolute inset-0 bg-[#03050d]/80 backdrop-blur-2xl backdrop-saturate-150',
+          'absolute inset-0 bg-[#03050d]/80 backdrop-blur-2xl backdrop-saturate-150 transition-opacity duration-500 ease-out',
           '[animation:backdropFadeIn_260ms_ease-out]',
+          closing && 'opacity-0',
         )}
       />
       {/* Animated noise / aurora shimmer behind everything for atmosphere */}

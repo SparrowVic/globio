@@ -122,7 +122,10 @@ export function GlobePreview({
   }, [command, onMessage]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[#03050d]">
+    <div
+      className="absolute inset-0 overflow-hidden bg-[#03050d]"
+      data-studio-globe-host
+    >
       <div ref={containerRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(19,75,104,0)_0%,rgba(4,8,18,0.18)_55%,rgba(2,5,12,0.66)_100%)]" />
     </div>
