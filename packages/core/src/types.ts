@@ -193,6 +193,27 @@ export interface AtmosphereConfig {
  * All default-on; disable per feature.
  */
 export interface OutlineConfig {
+  /**
+   * Hover-stroke geometry knobs specific to outline. Outline is pure linework
+   * so the default "lift the highlight a hair above the base border" trick
+   * other kinds use produces a visible duplicate-stroke ghost. These knobs
+   * let callers tune (or zero out) the lift to taste.
+   *
+   * - `lift` — multiplier added to the surface radius for the *crisp*
+   *   highlight stroke (the recoloured border). 0 (default) means draw at
+   *   the same radius as the base border, so the highlight just recolors
+   *   the existing line. Values like 0.0025 reproduce the legacy lifted
+   *   look used by other kinds.
+   * - `glowLift` — multiplier for the additive halo behind the highlight.
+   *   Default 0.0035 — keeps the soft aura noticeably above the surface
+   *   without competing with the crisp stroke.
+   *
+   * Both are *relative to* the globe radius, so 0.001 = 0.1% above surface.
+   */
+  readonly hover?: {
+    readonly lift?: number;
+    readonly glowLift?: number;
+  };
   readonly hoverGlow?: { readonly enabled?: boolean };
   readonly focusPulse?: {
     readonly enabled?: boolean;

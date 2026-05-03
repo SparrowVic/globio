@@ -531,11 +531,25 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           { type: 'surface', object: globeMesh.mesh },
         ]);
 
+        // Outline kind is pure linework — the legacy 1.0025 default lift
+        // shows up as a duplicated stroke. Default outline lift to 0 so the
+        // highlight redraws the existing border rather than stacking above
+        // it; expose the knob via OutlineConfig.hover.lift if a caller
+        // wants the lifted look back. Other kinds keep the default since
+        // their fills mask any z-fight on the same radius.
+        const highlightSurfaceRadius =
+          resolvedKind === 'outline'
+            ? GLOBE_RADIUS * (1 + (config.outline?.hover?.lift ?? 0))
+            : undefined;
+
         const highlight = new CountryHighlightLayer({
           hoverColor: tokens['countries.borderHover.color'],
           hoverWidth: tokens['countries.borderHover.width'],
           hoverOpacity: tokens['countries.borderHover.opacity'],
           occludeBackSide: countries.hoverOccludeBackSide,
+          ...(highlightSurfaceRadius !== undefined
+            ? { surfaceRadius: highlightSurfaceRadius }
+            : {}),
         });
         highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
         globeGroup.add(highlight.object);
@@ -546,6 +560,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           hoverWidth: tokens['countries.borderActive.width'],
           hoverOpacity: tokens['countries.borderActive.opacity'],
           occludeBackSide: countries.hoverOccludeBackSide,
+          ...(highlightSurfaceRadius !== undefined
+            ? { surfaceRadius: highlightSurfaceRadius }
+            : {}),
         });
         activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
         activeLayer.object.renderOrder = 11;

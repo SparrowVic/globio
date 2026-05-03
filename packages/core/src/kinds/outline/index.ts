@@ -10,6 +10,7 @@ import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-laye
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
 import { HexBinLayer } from '../../data-layers/hexbin/hexbin-layer';
 import { DoubleSide, MeshBasicMaterial } from 'three';
+import { GLOBE_RADIUS } from '../../utils/coordinates';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type {
   BarsDataLayer,
@@ -313,11 +314,16 @@ export const outlineKind: KindModule = {
     const dimEnabled = outlineConfig?.continentDim?.enabled ?? true;
     const dimAmount = outlineConfig?.continentDim?.amount ?? DEFAULT_DIM_AMOUNT;
 
+    // Glow keeps its 0.35% lift by default — that's the soft halo "behind"
+    // the highlight. Caller can dial it through OutlineConfig.hover.glowLift
+    // (e.g. 0 = glow flat on the surface, 0.006 = pulled further out).
+    const glowLift = outlineConfig?.hover?.glowLift ?? 0.0035;
     const glow: HoverGlowLayer | null = glowEnabled
       ? new HoverGlowLayer({
           color: tokens['countries.borderHover.glowColor'],
           width: tokens['countries.borderHover.glowWidth'],
           opacity: tokens['countries.borderHover.glowOpacity'],
+          surfaceRadius: GLOBE_RADIUS * (1 + glowLift),
         })
       : null;
     if (glow) {

@@ -24,6 +24,18 @@ export interface CountryHighlightLayerOptions {
    * smoothing the transition between hover targets.
    */
   readonly fadeDuration?: number;
+  /**
+   * World-space radius at which the highlight geometry is rebuilt. Default
+   * `GLOBE_RADIUS * 1.0025` — sits ~0.25% above the base border layer to
+   * avoid z-fighting on filled kinds (paper, hologram).
+   *
+   * For pure-line kinds like `outline`, that gap reads as a visible "ghost
+   * duplicate" border floating above the real one. Pass a value equal to
+   * the base border radius (or very close to it) to draw the highlight at
+   * the same surface, recoloring the existing line instead of stacking a
+   * second one above it.
+   */
+  readonly surfaceRadius?: number;
 }
 
 /**
@@ -40,6 +52,7 @@ export class CountryHighlightLayer {
   private readonly featuresById = new Map<string, CountryFeature>();
   private readonly baseOpacity: number;
   private readonly fadeDuration: number;
+  private readonly surfaceRadius: number;
   private currentId: string | null = null;
   private targetT = 0; // 0 → hidden, 1 → fully visible
   private currentT = 0;
@@ -47,6 +60,7 @@ export class CountryHighlightLayer {
   public constructor(options: CountryHighlightLayerOptions) {
     this.baseOpacity = options.hoverOpacity;
     this.fadeDuration = options.fadeDuration ?? 0.18;
+    this.surfaceRadius = options.surfaceRadius ?? GLOBE_RADIUS * 1.0025;
     this.material = new LineBasicMaterial({
       color: new Color(options.hoverColor),
       linewidth: options.hoverWidth,
@@ -108,7 +122,6 @@ export class CountryHighlightLayer {
   }
 
   private rebuildGeometry(feature: CountryFeature): void {
-    const surfaceRadius = GLOBE_RADIUS * 1.0025;
     const positions: Array<number> = [];
 
     feature.coordinates.forEach((ring) => {
@@ -117,8 +130,8 @@ export class CountryHighlightLayer {
         const a = ring[i];
         const b = ring[i + 1];
         if (!a || !b) continue;
-        const v1 = latLngToVector3([a[1], a[0]], surfaceRadius);
-        const v2 = latLngToVector3([b[1], b[0]], surfaceRadius);
+        const v1 = latLngToVector3([a[1], a[0]], this.surfaceRadius);
+        const v2 = latLngToVector3([b[1], b[0]], this.surfaceRadius);
         positions.push(v1.x, v1.y, v1.z, v2.x, v2.y, v2.z);
       }
     });

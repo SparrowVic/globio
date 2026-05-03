@@ -15,10 +15,16 @@ export interface HoverGlowLayerOptions {
   readonly opacity: number;
   /** Fade-in / fade-out duration in seconds. Default 0.2. */
   readonly fadeDuration?: number;
+  /**
+   * World-space radius the additive halo is rendered at. Default
+   * `GLOBE_RADIUS * 1.0035` — ~0.35% above the surface so the glow
+   * floats subtly behind the crisp highlight.
+   */
+  readonly surfaceRadius?: number;
 }
 
 const DEFAULT_FADE = 0.2;
-const GLOW_RADIUS = GLOBE_RADIUS * 1.0035;
+const DEFAULT_GLOW_RADIUS = GLOBE_RADIUS * 1.0035;
 
 /**
  * Soft additive halo around the hovered country's borders. Sits below the
@@ -32,6 +38,7 @@ export class HoverGlowLayer {
   private readonly featuresById = new Map<string, CountryFeature>();
   private readonly baseOpacity: number;
   private readonly fadeDuration: number;
+  private readonly surfaceRadius: number;
   private currentId: string | null = null;
   private targetT = 0;
   private currentT = 0;
@@ -39,6 +46,7 @@ export class HoverGlowLayer {
   public constructor(options: HoverGlowLayerOptions) {
     this.baseOpacity = options.opacity;
     this.fadeDuration = options.fadeDuration ?? DEFAULT_FADE;
+    this.surfaceRadius = options.surfaceRadius ?? DEFAULT_GLOW_RADIUS;
     this.material = new LineBasicMaterial({
       color: new Color(options.color),
       linewidth: options.width,
@@ -107,8 +115,8 @@ export class HoverGlowLayer {
         const a = ring[i];
         const b = ring[i + 1];
         if (!a || !b) continue;
-        const v1 = latLngToVector3([a[1], a[0]], GLOW_RADIUS);
-        const v2 = latLngToVector3([b[1], b[0]], GLOW_RADIUS);
+        const v1 = latLngToVector3([a[1], a[0]], this.surfaceRadius);
+        const v2 = latLngToVector3([b[1], b[0]], this.surfaceRadius);
         positions.push(v1.x, v1.y, v1.z, v2.x, v2.y, v2.z);
       }
     });
