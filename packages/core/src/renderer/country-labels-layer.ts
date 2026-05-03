@@ -73,10 +73,18 @@ export class CountryLabelsLayer {
   public readonly host: HTMLDivElement;
   private readonly entries = new Map<string, LabelEntry>();
   private readonly tempScreen = new Vector3();
-  private readonly minScreenSize: number;
-  private readonly sizeFadeRange: number;
-  private readonly occlusionFade: readonly [number, number];
+  // Mutable so live config updates (workshop / runtime) can mutate the
+  // values that the per-frame render loop reads. No need to rebuild the
+  // layer for these — `update()` reads the latest values each frame.
+  private minScreenSize: number;
+  private sizeFadeRange: number;
+  private occlusionFade: readonly [number, number];
   private labels: Readonly<Record<string, string>>;
+  // Halo + transition affect per-element CSS (text-shadow / opacity
+  // transition timing). We keep the current values so a live update can
+  // walk every entry and patch its DOM style in one pass.
+  private transitionMs: number;
+  private halo: CountryLabelsLayerOptions['halo'];
   // Field must match the host's `display` state we set below — otherwise the
   // first `setEnabled(true)` no-ops via the equality guard and the labels
   // never appear (you'd have to toggle off→on again to "unstick" them).
@@ -86,6 +94,8 @@ export class CountryLabelsLayer {
     this.minScreenSize = options.minScreenSize ?? 60;
     this.sizeFadeRange = options.sizeFadeRange ?? 0.4;
     this.occlusionFade = options.occlusionFade ?? [-0.05, 0.15];
+    this.transitionMs = options.transitionMs ?? 200;
+    this.halo = options.halo;
     this.labels = options.labels ?? {};
     this.host = document.createElement('div');
     Object.assign(this.host.style, {
@@ -103,6 +113,49 @@ export class CountryLabelsLayer {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
     this.host.style.display = enabled ? 'block' : 'none';
+  }
+
+  /**
+   * Live update for the per-frame fade thresholds. The render loop reads
+   * these on every frame so the next paint reflects the new value — no
+   * layer rebuild needed.
+   */
+  public setMinScreenSize(value: number): void {
+    this.minScreenSize = value;
+  }
+
+  public setSizeFadeRange(value: number): void {
+    this.sizeFadeRange = value;
+  }
+
+  public setOcclusionFade(edges: readonly [number, number]): void {
+    this.occlusionFade = edges;
+  }
+
+  /**
+   * Update the CSS opacity-transition duration on every existing label
+   * element. Future labels (built lazily via `buildLabels`) read from
+   * the field too, so the value sticks.
+   */
+  public setTransitionMs(ms: number): void {
+    this.transitionMs = ms;
+    const transition = `opacity ${ms}ms ease-out`;
+    this.entries.forEach((entry) => {
+      entry.element.style.transition = transition;
+    });
+  }
+
+  /**
+   * Replace the halo configuration (or remove it with `null` / `undefined`).
+   * Walks every label and rewrites `text-shadow` so the change is visible
+   * on the next render — DOM-only, no Three.js work.
+   */
+  public setHalo(halo: CountryLabelsLayerOptions['halo'] | null): void {
+    this.halo = halo ?? undefined;
+    const textShadow = this.resolveTextShadow();
+    this.entries.forEach((entry) => {
+      entry.element.style.textShadow = textShadow;
+    });
   }
 
   public setLabels(labels: Readonly<Record<string, string>>): void {
@@ -174,7 +227,7 @@ export class CountryLabelsLayer {
   }
 
   private buildLabels(features: ReadonlyArray<CountryFeature>): void {
-    const transitionMs = this.options.transitionMs ?? 200;
+    const transitionMs = this.transitionMs;
     const padding = this.options.padding ?? 0;
     const textShadow = this.resolveTextShadow();
 
@@ -227,7 +280,7 @@ export class CountryLabelsLayer {
    * Without halo, fall through to the theme-supplied value.
    */
   private resolveTextShadow(): string {
-    const halo = this.options.halo;
+    const halo = this.halo;
     if (!halo) return this.options.textShadow;
     const color = halo.color ?? 'rgba(0, 0, 0, 0.65)';
     const radius = halo.radius ?? 2;

@@ -97,7 +97,10 @@ export class StarfieldLayer {
   public readonly object: Points;
   private readonly geometry: BufferGeometry;
   private readonly material: ShaderMaterial;
-  private readonly twinkleEnabled: boolean;
+  // Mutable so setTwinkle() can flip it live — drives the time-uniform
+  // accumulation in update() and the intensity-zeroing trick that
+  // freezes the field when twinkle is off.
+  private twinkleEnabled: boolean;
 
   public constructor(options: StarfieldLayerOptions) {
     const radius = options.radius ?? 30;
@@ -179,6 +182,44 @@ export class StarfieldLayer {
     if (!this.twinkleEnabled) return;
     const uniform = this.material.uniforms['uTime'];
     if (uniform) uniform.value += delta;
+  }
+
+  /**
+   * Toggle visibility without rebuilding. Cheap (Object3D.visible flip).
+   */
+  public setVisible(visible: boolean): void {
+    this.object.visible = visible;
+  }
+
+  /**
+   * Live update for the base star size uniform. Each star's final size is
+   * still per-vertex `uBaseSize * aSizeScale`, so per-star variety is
+   * preserved — only the global multiplier shifts.
+   */
+  public setSize(size: number): void {
+    const uniform = this.material.uniforms['uBaseSize'];
+    if (uniform) uniform.value = size;
+  }
+
+  /**
+   * Live update for the twinkle config. Toggling `enabled` drives both the
+   * RAF skip in `update()` and the intensity uniform — when disabled we set
+   * intensity to 0 so the shader produces a constant brightness wave (i.e.
+   * static stars). When re-enabled we restore the requested intensity.
+   *
+   * Pass `null` to switch back to defaults (intensity 0.45, speed 0.55).
+   */
+  public setTwinkle(twinkle: StarfieldTwinkleOptions | null): void {
+    const enabled = twinkle?.enabled ?? false;
+    this.twinkleEnabled = enabled;
+    const intensityUniform = this.material.uniforms['uTwinkleIntensity'];
+    const speedUniform = this.material.uniforms['uTwinkleSpeed'];
+    if (intensityUniform) {
+      intensityUniform.value = enabled ? clamp01(twinkle?.intensity ?? 0.45) : 0;
+    }
+    if (speedUniform) {
+      speedUniform.value = twinkle?.speed ?? 0.55;
+    }
   }
 
   public dispose(): void {

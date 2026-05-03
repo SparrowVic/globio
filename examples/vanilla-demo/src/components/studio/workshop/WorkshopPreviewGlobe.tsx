@@ -16,15 +16,22 @@ export interface WorkshopPreviewGlobeProps {
    */
   readonly state: ConfiguratorState;
   /**
-   * Subset of GlobeSettings keys the active configurator owns. Changes to
-   * these keys re-create the preview globe instance (most globe config
-   * fields aren't live-updatable). Changes outside this set are ignored
-   * — keeps the preview from thrashing on unrelated state mutations.
+   * GlobeSettings keys whose changes should be pushed to the *running*
+   * globe instance via `globe.update()` — the engine mutates relevant
+   * layers in place (label thresholds, starfield uniforms, …). No
+   * destroy + create, no flash. Most knobs sit here.
    *
-   * Pass an empty array to never re-create after mount (useful for
-   * coming-soon presets that just want a static cinematic).
+   * Pass an empty array to never react to state changes after mount.
    */
   readonly watchedKeys: ReadonlyArray<keyof GlobeSettings>;
+  /**
+   * Subset of watchedKeys that the core engine *cannot yet* live-update,
+   * so changes to these still require a full rebuild (destroy + create).
+   * Use sparingly — every entry here is a moment of preview flicker for
+   * the user. Empty by default. Add a knob when its live setter doesn't
+   * exist yet, remove it once the core lands the setter.
+   */
+  readonly rebuildKeys?: ReadonlyArray<keyof GlobeSettings>;
   readonly className?: string;
 }
 
@@ -35,70 +42,63 @@ export interface WorkshopPreviewGlobeProps {
  * position swapped in so the preview frames the configurator's effect
  * for clarity.
  *
- * Re-creates the underlying globe whenever any field in `watchedKeys`
- * changes — most `createGlobe` config is read once at construction. The
- * preset declares which keys it cares about (e.g. labels preset watches
- * `countryLabels`, `labelMinScreenSize`, `labelHaloEnabled`, …).
+ * Two effects:
+ *  - Mount effect rebuilds the globe instance only when *cinematography*
+ *    or a `rebuildKeys` field changes. These are the bits that the core
+ *    engine reads at construction time.
+ *  - Live-update effect calls `globe.update(buildGlobeConfig(state))`
+ *    on every `watchSignature` change. The engine mutates the relevant
+ *    layers in place — labels move/fade/halo without a single flash.
  *
  * Decoration semantics: country hover / clicks disabled, no data layer,
- * no focus-pulse-from-click. The user is editing here, not interacting
- * with the preview.
+ * no focus-pulse-from-click. The user is editing here, not interacting.
  */
 export function WorkshopPreviewGlobe({
   cinematography,
   state,
   watchedKeys,
+  rebuildKeys,
   className,
 }: WorkshopPreviewGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<GlobeInstance | null>(null);
 
-  // Build the watch signature from the keys this preset cares about.
-  // Stringifying gives a stable dep that React can compare reliably,
-  // even when a key holds an object (label halo, etc.).
+  // Stable signature for any *live-updatable* key. Whenever this string
+  // changes we push the new config into the running globe via update().
   const watchSignature = watchedKeys
     .map((key) => `${String(key)}=${JSON.stringify(state.globe[key])}`)
     .join('|');
 
-  // Debounce the rebuild signature: rapid successive changes (e.g. a
-  // user dragging a slider) shouldn't tear down + recreate the globe
-  // instance on every frame. We hold the last *settled* signature for
-  // 200ms; only when it stops changing do we rebuild.
-  const [debouncedSignature, setDebouncedSignature] = useState(watchSignature);
-  useEffect(() => {
-    if (debouncedSignature === watchSignature) return undefined;
-    const t = window.setTimeout(() => setDebouncedSignature(watchSignature), 200);
-    return () => window.clearTimeout(t);
-  }, [watchSignature, debouncedSignature]);
+  // Stable signature for the *rebuild* subset only — destroying and
+  // recreating the globe is expensive, so we limit rebuilds to fields
+  // the engine can't live-update yet.
+  const rebuildSignature = (rebuildKeys ?? [])
+    .map((key) => `${String(key)}=${JSON.stringify(state.globe[key])}`)
+    .join('|');
 
-  // Briefly dim the container during a rebuild so the destroy + create
-  // flash doesn't read as a hard "pop". The dip is centred on the
-  // moment debouncedSignature settles (which is when the rebuild
-  // useEffect actually fires) — opacity drops to ~0.45 over 120ms,
-  // rebuild happens, then fades back to 1 over 220ms.
-  const [rebuildPulse, setRebuildPulse] = useState(false);
+  // Debounce *only* the rebuild path — dragging a slider that triggers
+  // a rebuild key would otherwise destroy + create the globe on every
+  // tick. Live updates run undebounced (they're cheap field/uniform
+  // mutations).
+  const [debouncedRebuildSignature, setDebouncedRebuildSignature] = useState(rebuildSignature);
   useEffect(() => {
-    setRebuildPulse(true);
-    const t = window.setTimeout(() => setRebuildPulse(false), 240);
+    if (debouncedRebuildSignature === rebuildSignature) return undefined;
+    const t = window.setTimeout(() => setDebouncedRebuildSignature(rebuildSignature), 200);
     return () => window.clearTimeout(t);
-  }, [debouncedSignature]);
+  }, [rebuildSignature, debouncedRebuildSignature]);
 
+  // ── Mount effect ──────────────────────────────────────────
+  // Builds the globe instance. Re-runs only when cinematography or a
+  // rebuild-required field changes. Everything else flows through the
+  // live-update effect below.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
-    // Build a full GlobeConfig from current state (so labels / pulse /
-    // hover / etc. settings flow through) then layer the cinematography
-    // overrides on top — cinematography always wins on visual identity
-    // (kind / theme / framing / initial position) so the preview stays
-    // composed regardless of what the user has set in main.
     const baseConfig = buildGlobeConfig(state);
     const globe = createGlobe({
       ...baseConfig,
       container,
-      // Cinematography wins on visual identity — kind / theme / framing
-      // / initial position keep the preview composed regardless of what
-      // the user has set in main.
       kind: cinematography.kind,
       theme: cinematography.theme,
       transparent: true,
@@ -110,9 +110,6 @@ export function WorkshopPreviewGlobe({
           : (baseConfig.starfield ?? { enabled: true }),
       autoRotate: { enabled: true, speed: cinematography.speed ?? 0.04 },
       initialPosition: [cinematography.initialLat, cinematography.initialLng],
-      // Everything else flows through from the user's settings — that's
-      // what the user is editing. Hover, focus-pulse origin, surface-
-      // click pulse spawning, etc. all reflect their current choices.
       countries: { ...baseConfig.countries, hoverOccludeBackSide: state.globe.hoverOccludeBackSide },
     });
     instanceRef.current = globe;
@@ -122,10 +119,6 @@ export function WorkshopPreviewGlobe({
       globe.destroy();
       if (instanceRef.current === globe) instanceRef.current = null;
     };
-    // We rebuild the instance only when the cinematography preset itself
-    // changes or one of the watched keys does. Other state mutations
-    // (e.g. user toggling a control unrelated to this configurator) are
-    // intentionally ignored.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     cinematography.kind,
@@ -136,20 +129,32 @@ export function WorkshopPreviewGlobe({
     cinematography.framingPadding,
     cinematography.atmosphere,
     cinematography.starfield,
-    debouncedSignature,
+    debouncedRebuildSignature,
   ]);
+
+  // ── Live update effect ───────────────────────────────────
+  // Pushes the latest config into the running globe whenever a watched
+  // key changes. The engine handles the diff per layer (labels mutate
+  // thresholds, starfield mutates uniforms or rebuilds the points
+  // cloud in-place — see core's `update()` switch).
+  useEffect(() => {
+    const globe = instanceRef.current;
+    if (!globe) return;
+    const baseConfig = buildGlobeConfig(state);
+    globe.update({
+      ...(baseConfig.countryLabels !== undefined
+        ? { countryLabels: baseConfig.countryLabels }
+        : {}),
+      ...(baseConfig.starfield !== undefined ? { starfield: baseConfig.starfield } : {}),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchSignature]);
 
   return (
     <div
       ref={containerRef}
       data-workshop-preview-host=""
       className={className}
-      style={{
-        opacity: rebuildPulse ? 0.45 : 1,
-        transition: rebuildPulse
-          ? 'opacity 120ms ease-out'
-          : 'opacity 220ms ease-out',
-      }}
       // Pointer events stay enabled so the user's hover / surface-click
       // settings can fire (Hover preset needs hover, Pulse preset wants
       // click → spawn pulse). Click-to-focus stays disabled because the

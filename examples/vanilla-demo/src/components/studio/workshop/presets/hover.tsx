@@ -65,6 +65,9 @@ const preset: PresetModule = {
   },
   KnobsComponent,
   watchedKeys: ['hoverEnabled', 'hoverOccludeBackSide'],
+  // Hover gating + back-side occlusion are construction-time fields in
+  // the core today. Until we ship live setters, these still rebuild.
+  rebuildKeys: ['hoverEnabled', 'hoverOccludeBackSide'],
 };
 
 export default preset;

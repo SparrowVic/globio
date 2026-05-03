@@ -72,14 +72,23 @@ export interface PresetModule {
   readonly cinematography: PreviewCinematography;
   readonly KnobsComponent: ComponentType<KnobsComponentProps>;
   /**
-   * GlobeSettings keys that this configurator owns. The WorkshopPreview
-   * globe rebuilds when any of these mutate — most `createGlobe` config
-   * isn't live-updatable, so we accept the cost of a re-create. Keys
-   * outside this set don't trigger rebuilds, which keeps the preview
-   * from thrashing on unrelated state changes (e.g. user toggling a
-   * panel section).
+   * GlobeSettings keys this configurator owns. Changes get pushed into
+   * the running preview via `globe.update()` — the engine mutates
+   * relevant layers in place (label thresholds, starfield uniforms, …).
+   * No destroy + create, no flash. Most knobs sit here.
+   *
+   * Keys outside this set don't fire any preview reaction, which keeps
+   * the preview from thrashing on unrelated state changes.
    */
   readonly watchedKeys: ReadonlyArray<keyof GlobeSettings>;
+  /**
+   * Subset of `watchedKeys` that the core engine *cannot yet* live-
+   * update — changes to these still rebuild the preview (destroy +
+   * create). Use sparingly; every entry here is a frame of flicker.
+   * Add a knob when its live setter doesn't exist yet, remove it once
+   * the core lands the setter.
+   */
+  readonly rebuildKeys?: ReadonlyArray<keyof GlobeSettings>;
   /** Optional override for the detail-view hero contents. */
   readonly heroExtra?: ReactNode;
 }

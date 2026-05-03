@@ -177,6 +177,7 @@ function PreviewBody({
         cinematography={preset.cinematography}
         state={state}
         watchedKeys={preset.watchedKeys}
+        {...(preset.rebuildKeys !== undefined && { rebuildKeys: preset.rebuildKeys })}
         className="size-[min(60vmin,520px)]"
       />
       {preset.heroExtra}

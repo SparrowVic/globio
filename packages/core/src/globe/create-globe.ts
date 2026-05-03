@@ -35,7 +35,9 @@ import type {
   GlobeInstance,
   LatLng,
   MarkerConfig,
+  StarfieldConfig,
 } from '../types';
+import type { ResolvedTokens } from '../theme';
 import type { Object3D, Vector3 } from 'three';
 import { DEFAULT_COUNTRIES, DEFAULT_PERFORMANCE, resolveActiveKind } from './defaults';
 import { canUpdateInPlace } from './data-layer-diff';
@@ -102,17 +104,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   globeGroup.rotation.z = (-(config.axisTilt ?? 0) * Math.PI) / 180;
   scene.scene.add(globeGroup);
 
-  const starfieldLayer = config.starfield?.enabled
-    ? new StarfieldLayer({
-        count: config.starfield?.density ?? tokens['starfield.density'],
-        color: tokens['starfield.color'],
-        size: config.starfield?.size ?? tokens['starfield.size'],
-        ...(config.starfield?.palette !== undefined && { palette: config.starfield.palette }),
-        ...(config.starfield?.sizeVariety !== undefined && {
-          sizeVariety: config.starfield.sizeVariety,
-        }),
-        ...(config.starfield?.twinkle !== undefined && { twinkle: config.starfield.twinkle }),
-      })
+  // `let` so `update({ starfield })` can swap the layer in-place when a
+  // geometry-baked field changes (density, palette, sizeVariety) — the
+  // rest of the scene keeps rendering uninterrupted, only the points
+  // cloud blinks for one frame.
+  let starfieldLayer: StarfieldLayer | null = config.starfield?.enabled
+    ? buildStarfieldLayer(config.starfield, tokens)
     : null;
   if (starfieldLayer) scene.scene.add(starfieldLayer.object);
 
@@ -604,6 +601,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       emitter.clear();
     },
     update: (partial) => {
+      const prev = state.config;
       state.config = { ...state.config, ...partial };
       if (partial.markers) markersLayer.setMarkers(partial.markers);
       if (partial.autoRotate) {
@@ -614,6 +612,64 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       }
       if (partial.countryData !== undefined) {
         instance.setCountryData(partial.countryData);
+      }
+
+      // Country labels — every field is live-updatable because the
+      // labels layer reads thresholds per-frame and per-element CSS is
+      // walkable. setEnabled toggles host visibility, the rest just
+      // mutate state used by the existing render path.
+      if (partial.countryLabels !== undefined) {
+        const next = partial.countryLabels;
+        const layer = state.countryLabelsLayer;
+        if (layer) {
+          if (next.enabled !== undefined) layer.setEnabled(next.enabled);
+          if (next.minScreenSize !== undefined) layer.setMinScreenSize(next.minScreenSize);
+          if (next.sizeFadeRange !== undefined) layer.setSizeFadeRange(next.sizeFadeRange);
+          if (next.occlusionFade !== undefined) layer.setOcclusionFade(next.occlusionFade);
+          if (next.transitionMs !== undefined) layer.setTransitionMs(next.transitionMs);
+          if (next.halo !== undefined) layer.setHalo(next.halo);
+          if (next.labels !== undefined) layer.setLabels(next.labels);
+        }
+      }
+
+      // Starfield — split between uniform-friendly fields (size,
+      // twinkle, master toggle) which mutate live, and geometry-baked
+      // fields (density, palette, sizeVariety) which need the layer
+      // rebuilt in-place. We compare against the previous config so
+      // the workshop / studio can pass a full StarfieldConfig and the
+      // engine decides what's cheap vs what needs a swap.
+      if (partial.starfield !== undefined) {
+        const next = partial.starfield;
+        const prevStars = prev.starfield;
+        const enabledNow = next.enabled !== undefined ? next.enabled : prevStars?.enabled === true;
+        const wantRebuild =
+          enabledNow &&
+          (next.density !== prevStars?.density ||
+            next.palette !== prevStars?.palette ||
+            next.sizeVariety !== prevStars?.sizeVariety);
+
+        if (!enabledNow) {
+          // Toggle off → keep the layer mounted but hide it. setVisible
+          // is a flag flip on Three.Object3D.visible, no GPU work.
+          starfieldLayer?.setVisible(false);
+        } else if (!starfieldLayer) {
+          // Toggle on for the first time → build the layer fresh.
+          starfieldLayer = buildStarfieldLayer(next, tokens);
+          scene.scene.add(starfieldLayer.object);
+        } else if (wantRebuild) {
+          // Geometry-baked field changed → swap the layer atomically.
+          // Only the points cloud blinks for one frame; rest of the
+          // scene keeps rendering uninterrupted.
+          scene.scene.remove(starfieldLayer.object);
+          starfieldLayer.dispose();
+          starfieldLayer = buildStarfieldLayer(next, tokens);
+          scene.scene.add(starfieldLayer.object);
+        } else {
+          // Live uniform updates — no rebuild, no blink.
+          starfieldLayer.setVisible(true);
+          if (next.size !== undefined) starfieldLayer.setSize(next.size);
+          if (next.twinkle !== undefined) starfieldLayer.setTwinkle(next.twinkle);
+        }
       }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
@@ -825,4 +881,24 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   };
 
   return instance;
+};
+
+/**
+ * Construct a StarfieldLayer from a StarfieldConfig + theme tokens.
+ * Extracted so `update({ starfield })` can rebuild the layer in-place
+ * when geometry-baked fields change (density / palette / sizeVariety)
+ * — the rest of the scene keeps rendering uninterrupted.
+ */
+const buildStarfieldLayer = (
+  starfield: StarfieldConfig,
+  tokens: ResolvedTokens,
+): StarfieldLayer => {
+  return new StarfieldLayer({
+    count: starfield.density ?? tokens['starfield.density'],
+    color: tokens['starfield.color'],
+    size: starfield.size ?? tokens['starfield.size'],
+    ...(starfield.palette !== undefined && { palette: starfield.palette }),
+    ...(starfield.sizeVariety !== undefined && { sizeVariety: starfield.sizeVariety }),
+    ...(starfield.twinkle !== undefined && { twinkle: starfield.twinkle }),
+  });
 };

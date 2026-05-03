@@ -158,6 +158,18 @@ const preset: PresetModule = {
     'outlinePulseScaleMax',
     'outlinePulseOpacity',
   ],
+  // Pulse decoration knobs are read at construction time inside the
+  // outline kind handle. Until the core ships live setters for the
+  // outline pulse band, these still trigger a rebuild.
+  rebuildKeys: [
+    'focusPulse',
+    'focusPulseOrigin',
+    'focusPulseOnSurfaceClick',
+    'outlinePulseDurationMs',
+    'outlinePulseRadiusBase',
+    'outlinePulseScaleMax',
+    'outlinePulseOpacity',
+  ],
 };
 
 export default preset;
