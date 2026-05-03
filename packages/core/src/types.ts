@@ -254,10 +254,31 @@ export interface OutlineConfig {
     readonly glowLift?: number;
   };
   readonly hoverGlow?: { readonly enabled?: boolean };
+  /**
+   * Sci-fi sonar pulse fired from a focused country's centroid (or click
+   * point, depending on `focusPulse.origin` at the top level). Outline's
+   * defaults produce a crisp gold ring with quadratic fade — knobs let
+   * callers thicken / slow / brighten it without re-styling the whole
+   * preset.
+   */
   readonly focusPulse?: {
     readonly enabled?: boolean;
     readonly durationMs?: number;
     readonly color?: string;
+    /** Ring radius at scale=1 in radians on the sphere. Default 0.06 (~3.4°). */
+    readonly angularRadiusBase?: number;
+    /** Band thickness in radians. Default 0.013 (~0.7°). */
+    readonly angularBand?: number;
+    /** Linear scale of the ring at t=0. Default 0.4. */
+    readonly scaleMin?: number;
+    /** Linear scale of the ring at t=1 (peak expansion). Default 2.5. */
+    readonly scaleMax?: number;
+    /** Initial alpha at t=0. Default 1.0. */
+    readonly peakOpacity?: number;
+    /** Polygon resolution around the ring. Default 96. */
+    readonly segments?: number;
+    /** Lift above the globe surface as a multiplier of GLOBE_RADIUS. Default 1.0045. */
+    readonly radiusFactor?: number;
   };
   readonly hoverCrosshair?: { readonly enabled?: boolean };
   readonly continentDim?: { readonly enabled?: boolean; readonly amount?: number };

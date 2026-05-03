@@ -9,6 +9,20 @@ export interface FocusPulseDecoratorBuildOptions {
   readonly enabled: boolean;
   readonly color: string;
   readonly durationSeconds: number;
+  /**
+   * Optional band-geometry overrides forwarded to `FocusPulseBand`. Each
+   * kind's `build*FocusPulse` function still applies its own defaults
+   * underneath; values passed here take precedence when defined.
+   */
+  readonly overrides?: {
+    readonly angularRadiusBase?: number;
+    readonly angularBand?: number;
+    readonly scaleMin?: number;
+    readonly scaleMax?: number;
+    readonly peakOpacity?: number;
+    readonly segments?: number;
+    readonly radiusFactor?: number;
+  };
 }
 
 /**
@@ -35,10 +49,19 @@ const makeBandDecorator = (
       dispose: () => undefined,
     };
   }
+  // Caller-supplied overrides win over the kind's defaults. Strip undefined
+  // entries so `?? DEFAULT` paths inside FocusPulseBand still kick in for
+  // values the caller didn't specify.
+  const userOverrides = opts.overrides
+    ? Object.fromEntries(
+        Object.entries(opts.overrides).filter(([, value]) => value !== undefined),
+      )
+    : {};
   const band = new FocusPulseBand({
     color: opts.color,
     durationSeconds: opts.durationSeconds,
     ...bandOverrides,
+    ...userOverrides,
   });
   opts.globeGroup.add(band.group);
   return {

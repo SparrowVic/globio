@@ -149,6 +149,46 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
             checked={settings.focusPulseOnSurfaceClick}
             onChange={(focusPulseOnSurfaceClick) => onChange({ focusPulseOnSurfaceClick })}
           />
+          {/* Outline-specific band geometry knobs. Hidden for other kinds
+              since each kind's pulse will eventually grow its own knob set. */}
+          <DependsOn when={settings.kind === 'outline'} variant="hidden">
+            <SliderField
+              label="Pulse duration"
+              value={settings.outlinePulseDurationMs}
+              min={300}
+              max={3500}
+              step={50}
+              format={(value) => `${(value / 1000).toFixed(2)} s`}
+              onChange={(outlinePulseDurationMs) => onChange({ outlinePulseDurationMs })}
+            />
+            <SliderField
+              label="Pulse start size"
+              value={settings.outlinePulseRadiusBase}
+              min={0.01}
+              max={0.2}
+              step={0.005}
+              format={(value) => `${(value * (180 / Math.PI)).toFixed(1)}°`}
+              onChange={(outlinePulseRadiusBase) => onChange({ outlinePulseRadiusBase })}
+            />
+            <SliderField
+              label="Pulse expansion"
+              value={settings.outlinePulseScaleMax}
+              min={1.2}
+              max={5}
+              step={0.1}
+              format={(value) => `×${value.toFixed(1)}`}
+              onChange={(outlinePulseScaleMax) => onChange({ outlinePulseScaleMax })}
+            />
+            <SliderField
+              label="Pulse intensity"
+              value={settings.outlinePulseOpacity}
+              min={0.2}
+              max={2}
+              step={0.05}
+              format={(value) => value.toFixed(2)}
+              onChange={(outlinePulseOpacity) => onChange({ outlinePulseOpacity })}
+            />
+          </DependsOn>
         </DependsOn>
       </PanelSection>
 

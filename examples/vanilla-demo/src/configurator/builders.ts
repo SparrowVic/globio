@@ -61,6 +61,18 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       origin: state.globe.focusPulseOrigin,
       pulseOnSurfaceClick: state.globe.focusPulseOnSurfaceClick,
     },
+    // Outline-only fine-tune knobs. We always pass the structure so the
+    // configurator preset/save round-trip keeps them; core ignores the
+    // outline section for non-outline kinds.
+    outline: {
+      focusPulse: {
+        enabled: state.globe.focusPulse,
+        durationMs: state.globe.outlinePulseDurationMs,
+        angularRadiusBase: state.globe.outlinePulseRadiusBase,
+        scaleMax: state.globe.outlinePulseScaleMax,
+        peakOpacity: state.globe.outlinePulseOpacity,
+      },
+    },
     axisTilt: state.globe.axisTilt,
     zoom: {
       mode: state.globe.zoomMode,
@@ -88,6 +100,10 @@ export const structuralGlobeKey = (config: GlobeRuntimeConfig): string =>
     atmosphere: config.atmosphere,
     starfield: config.starfield,
     focusPulse: config.focusPulse,
+    // Per-kind sections own decorators that are constructed once at build
+    // time (focus pulse band, hover glow, etc.) — changing any of these
+    // means we need to rebuild rather than live-update.
+    outline: config.outline,
     axisTilt: config.axisTilt,
     performance: config.performance,
   });

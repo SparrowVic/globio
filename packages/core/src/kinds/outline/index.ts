@@ -331,13 +331,25 @@ export const outlineKind: KindModule = {
       globeGroup.add(glow.object);
     }
 
-    const pulseDurationMs = outlineConfig?.focusPulse?.durationMs ?? DEFAULT_PULSE_DURATION_MS;
-    const pulseColor = outlineConfig?.focusPulse?.color ?? tokens['countries.borderActive.color'];
+    const pulseConfig = outlineConfig?.focusPulse;
+    const pulseDurationMs = pulseConfig?.durationMs ?? DEFAULT_PULSE_DURATION_MS;
+    const pulseColor = pulseConfig?.color ?? tokens['countries.borderActive.color'];
     const focusPulse: FocusPulseDecorator = buildOutlineFocusPulse({
       globeGroup,
       enabled: pulseEnabled,
       color: pulseColor,
       durationSeconds: pulseDurationMs / 1000,
+      overrides: {
+        ...(pulseConfig?.angularRadiusBase !== undefined && {
+          angularRadiusBase: pulseConfig.angularRadiusBase,
+        }),
+        ...(pulseConfig?.angularBand !== undefined && { angularBand: pulseConfig.angularBand }),
+        ...(pulseConfig?.scaleMin !== undefined && { scaleMin: pulseConfig.scaleMin }),
+        ...(pulseConfig?.scaleMax !== undefined && { scaleMax: pulseConfig.scaleMax }),
+        ...(pulseConfig?.peakOpacity !== undefined && { peakOpacity: pulseConfig.peakOpacity }),
+        ...(pulseConfig?.segments !== undefined && { segments: pulseConfig.segments }),
+        ...(pulseConfig?.radiusFactor !== undefined && { radiusFactor: pulseConfig.radiusFactor }),
+      },
     });
 
     const crosshair: HoverCrosshairLayer | null = crosshairEnabled

@@ -42,6 +42,11 @@ export interface GlobeSettings {
   readonly focusPulse: boolean;
   readonly focusPulseOrigin: FocusPulseOrigin;
   readonly focusPulseOnSurfaceClick: boolean;
+  /** Outline-only band knobs — read by builders.ts iff kind === 'outline'. */
+  readonly outlinePulseDurationMs: number;
+  readonly outlinePulseRadiusBase: number;
+  readonly outlinePulseScaleMax: number;
+  readonly outlinePulseOpacity: number;
   readonly clickToFocus: boolean;
   readonly focusPadding: number;
   readonly focusDurationMs: number;
