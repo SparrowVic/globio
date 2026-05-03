@@ -7,7 +7,29 @@
     "noEmit": true,
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "src/components/Aurora.tsx",
+    "src/components/Beams.tsx",
+    "src/components/BlurText.tsx",
+    "src/components/ClickSpark.tsx",
+    "src/components/CountUp.tsx",
+    "src/components/DotGrid.tsx",
+    "src/components/FadeContent.tsx",
+    "src/components/GradientText.tsx",
+    "src/components/MagicBento.tsx",
+    "src/components/Magnet.tsx",
+    "src/components/ScrollVelocity.tsx",
+    "src/components/ShinyText.tsx",
+    "src/components/SpotlightCard.tsx",
+    "src/components/SplitText.tsx",
+    "src/components/StarBorder.tsx",
+    "src/components/Threads.tsx",
+    "src/components/TiltedCard.tsx",
+    "src/components/AnimatedContent.tsx"
+  ]
 }

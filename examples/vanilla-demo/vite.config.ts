@@ -14,14 +14,4 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
   },
-  build: {
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        charts: resolve(__dirname, 'charts.html'),
-        heatmap: resolve(__dirname, 'heatmap.html'),
-        hexbin: resolve(__dirname, 'hexbin.html'),
-      },
-    },
-  },
 });
