@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -48,6 +48,7 @@ import {
   GradientText,
   Magnet,
   ScrollVelocity,
+  ShinyText,
   SpotlightCard,
   StarBorder,
 } from '@/components/reactbits';
@@ -662,10 +663,8 @@ function FrameworksMarquee() {
   return (
     <section className="relative border-y border-white/[0.05] bg-gradient-to-b from-white/[0.01] to-transparent py-12">
       <div className="mx-auto max-w-7xl">
-        <div className="px-6 pb-6 text-center">
-          <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">
-            Same engine, every framework
-          </span>
+        <div className="px-6 pb-6 text-center text-[10px] uppercase tracking-[0.28em] text-slate-500">
+          <ShinyText text="Same engine, every framework" speed={5} />
         </div>
         <ScrollVelocity
           texts={[renderItems(false), renderItems(true)]}
@@ -774,40 +773,21 @@ function FeatureCell({
   readonly accent: string;
   readonly big?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [coords, setCoords] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
-  const [hover, setHover] = useState(false);
-
+  // Cursor spotlight is provided by `SpotlightCard` from ReactBits — its
+  // own onMouseMove + position state + radial-gradient overlay. We wrap
+  // it and add the cell's icon / title / desc + big-cell extras.
   return (
-    <div
-      ref={ref}
-      onMouseMove={(e) => {
-        const rect = ref.current?.getBoundingClientRect();
-        if (!rect) return;
-        setCoords({
-          x: ((e.clientX - rect.left) / rect.width) * 100,
-          y: ((e.clientY - rect.top) / rect.height) * 100,
-        });
-      }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <SpotlightCard
+      spotlightColor={`rgba(${hexToRgb(accent)}, 0.12)` as `rgba(${number}, ${number}, ${number}, ${number})`}
       className={cn(
-        'group relative flex h-full min-h-[180px] flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-[#06080f]/85 p-6',
-        'transition-[border-color,transform] duration-500 hover:border-white/[0.16]',
-        big && 'min-h-[220px]',
+        'group !rounded-2xl !border-white/[0.06] !bg-[#06080f]/85 !p-6',
+        'transition-[border-color] duration-500 hover:!border-white/[0.16]',
+        big ? 'min-h-[220px]' : 'min-h-[180px]',
       )}
     >
-      {/* Cursor spotlight */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 transition-opacity duration-500"
-        style={{
-          opacity: hover ? 1 : 0,
-          background: `radial-gradient(360px circle at ${coords.x}% ${coords.y}%, ${accent}1f, transparent 55%)`,
-        }}
-      />
-
-      {/* Corner sparkle on big cells */}
+      {/* Corner halo on big cells — purely decorative blur, kept outside
+          the spotlight wrapper because we want it to *show* without the
+          cursor needing to be there. */}
       {big && (
         <span
           aria-hidden="true"
@@ -838,17 +818,18 @@ function FeatureCell({
         {desc}
       </p>
 
-      {/* Bottom border accent that grows on hover */}
+      {/* Bottom border accent that grows on hover. Group-hover via the
+          parent SpotlightCard so we stay synced with its hover state
+          rather than tracking it ourselves. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-px transition-all duration-500"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px scale-x-0 transition-transform duration-500 group-hover:scale-x-100"
         style={{
           background: `linear-gradient(90deg, transparent 0%, ${accent}88 50%, transparent 100%)`,
-          transform: hover ? 'scaleX(1)' : 'scaleX(0)',
           transformOrigin: 'center',
         }}
       />
-    </div>
+    </SpotlightCard>
   );
 }
 
