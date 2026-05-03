@@ -64,6 +64,14 @@ export class AtmosphereLayer {
     }
   }
 
+  /**
+   * Toggle visibility — `Object3D.visible` flip, no GPU work. Live-
+   * updates the master atmosphere on/off without rebuilding.
+   */
+  public setVisible(visible: boolean): void {
+    this.mesh.visible = visible;
+  }
+
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();

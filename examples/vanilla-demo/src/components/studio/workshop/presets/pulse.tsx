@@ -80,7 +80,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           because="Outline-specific band geometry. Switch the main globe to outline kind to tune."
           className="space-y-4"
         >
-          <SectionHeading>Outline band</SectionHeading>
+          <SectionHeading>Outline · timing</SectionHeading>
           <SliderField
             label="Duration"
             value={settings.outlinePulseDurationMs}
@@ -90,8 +90,10 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             format={(value) => `${(value / 1000).toFixed(2)} s`}
             onChange={(outlinePulseDurationMs) => onGlobeChange({ outlinePulseDurationMs })}
           />
+
+          <SectionHeading>Outline · shape</SectionHeading>
           <SliderField
-            label="Start size"
+            label="Start radius"
             value={settings.outlinePulseRadiusBase}
             min={0.01}
             max={0.2}
@@ -100,7 +102,36 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             onChange={(outlinePulseRadiusBase) => onGlobeChange({ outlinePulseRadiusBase })}
           />
           <SliderField
-            label="Expansion"
+            label="Band thickness"
+            value={settings.outlinePulseAngularBand}
+            min={0.003}
+            max={0.05}
+            step={0.001}
+            format={(value) => `${(value * (180 / Math.PI)).toFixed(2)}°`}
+            onChange={(outlinePulseAngularBand) => onGlobeChange({ outlinePulseAngularBand })}
+          />
+          <SliderField
+            label="Segments"
+            value={settings.outlinePulseSegments}
+            min={24}
+            max={192}
+            step={4}
+            format={(value) => `${value}`}
+            onChange={(outlinePulseSegments) => onGlobeChange({ outlinePulseSegments })}
+          />
+
+          <SectionHeading>Outline · motion</SectionHeading>
+          <SliderField
+            label="Start scale"
+            value={settings.outlinePulseScaleMin}
+            min={0.1}
+            max={1.5}
+            step={0.05}
+            format={(value) => `×${value.toFixed(2)}`}
+            onChange={(outlinePulseScaleMin) => onGlobeChange({ outlinePulseScaleMin })}
+          />
+          <SliderField
+            label="Peak scale"
             value={settings.outlinePulseScaleMax}
             min={1.2}
             max={5}
@@ -109,7 +140,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             onChange={(outlinePulseScaleMax) => onGlobeChange({ outlinePulseScaleMax })}
           />
           <SliderField
-            label="Intensity"
+            label="Peak intensity"
             value={settings.outlinePulseOpacity}
             min={0.2}
             max={2}
@@ -155,8 +186,11 @@ const preset: PresetModule = {
     'focusPulseOnSurfaceClick',
     'outlinePulseDurationMs',
     'outlinePulseRadiusBase',
+    'outlinePulseAngularBand',
+    'outlinePulseScaleMin',
     'outlinePulseScaleMax',
     'outlinePulseOpacity',
+    'outlinePulseSegments',
   ],
   // Pulse decoration knobs are read at construction time inside the
   // outline kind handle. Until the core ships live setters for the
@@ -167,8 +201,11 @@ const preset: PresetModule = {
     'focusPulseOnSurfaceClick',
     'outlinePulseDurationMs',
     'outlinePulseRadiusBase',
+    'outlinePulseAngularBand',
+    'outlinePulseScaleMin',
     'outlinePulseScaleMax',
     'outlinePulseOpacity',
+    'outlinePulseSegments',
   ],
 };
 

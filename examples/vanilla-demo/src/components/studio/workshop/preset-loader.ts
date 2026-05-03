@@ -27,11 +27,18 @@ export const loadPreset = async (id: ConfiguratorId): Promise<PresetModule | nul
       case 'hover':
         // @ts-ignore -- Wave D
         return ((await import('./presets/hover')) as { default: PresetModule }).default;
-      case 'arcs':
-      case 'markers':
       case 'atmosphere':
+        // @ts-ignore -- Wave F
+        return ((await import('./presets/atmosphere')) as { default: PresetModule }).default;
       case 'crosshair':
-        return null;
+        // @ts-ignore -- Wave F
+        return ((await import('./presets/crosshair')) as { default: PresetModule }).default;
+      case 'arcs':
+        // @ts-ignore -- Wave F
+        return ((await import('./presets/arcs')) as { default: PresetModule }).default;
+      case 'markers':
+        // @ts-ignore -- Wave F
+        return ((await import('./presets/markers')) as { default: PresetModule }).default;
       default:
         return null;
     }

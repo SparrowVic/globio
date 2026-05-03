@@ -671,6 +671,25 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (next.twinkle !== undefined) starfieldLayer.setTwinkle(next.twinkle);
         }
       }
+
+      // Atmosphere — single boolean, mesh.visible flip. The intensity /
+      // color come from theme tokens, not per-call config, so we only
+      // wire the toggle here.
+      if (partial.atmosphere !== undefined) {
+        atmosphereLayer?.setVisible(partial.atmosphere.enabled !== false);
+      }
+
+      // Country hover — the back-side occlusion flag is the only field
+      // we can flip live today (depthTest on the highlight material).
+      // The hoverEnabled flag only gates the dotted kind currently;
+      // outline + others always run hover, so we leave it as a no-op.
+      if (partial.countries !== undefined) {
+        const occ = partial.countries.hoverOccludeBackSide;
+        if (occ !== undefined) {
+          state.countryHighlightLayer?.setOccludeBackSide(occ);
+          state.countryActiveLayer?.setOccludeBackSide(occ);
+        }
+      }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
     off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.off(event, handler),

@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
+import type { GlobeInstance } from '@your-globe/core';
 import {
   faCircleSmall,
   faCrosshairs,
@@ -89,6 +90,20 @@ export interface PresetModule {
    * the core lands the setter.
    */
   readonly rebuildKeys?: ReadonlyArray<keyof GlobeSettings>;
+  /**
+   * Imperative mount hook — fires once each time the preview globe is
+   * built (after `globe.mount()`). Used by presets that drive the
+   * preview through imperative API rather than config (arcs, markers,
+   * etc.) — drop a fixture dataset onto the freshly-mounted instance.
+   */
+  readonly onMount?: (globe: GlobeInstance, state: ConfiguratorState) => void;
+  /**
+   * Imperative live-update hook — fires whenever a watched key changes.
+   * Used by arcs / markers presets to re-push the dataset with the
+   * latest styling (width, color, animation flags, etc.) without
+   * rebuilding the globe.
+   */
+  readonly onLiveUpdate?: (globe: GlobeInstance, state: ConfiguratorState) => void;
   /** Optional override for the detail-view hero contents. */
   readonly heroExtra?: ReactNode;
 }

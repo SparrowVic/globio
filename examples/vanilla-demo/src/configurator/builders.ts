@@ -80,12 +80,25 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
     // configurator preset/save round-trip keeps them; core ignores the
     // outline section for non-outline kinds.
     outline: {
+      hover: {
+        lift: state.globe.outlineHoverLift,
+        glowLift: state.globe.outlineHoverGlowLift,
+      },
+      hoverGlow: { enabled: state.globe.outlineHoverGlowEnabled },
+      hoverCrosshair: { enabled: state.globe.outlineHoverCrosshair },
+      continentDim: {
+        enabled: state.globe.outlineContinentDim,
+        amount: state.globe.outlineContinentDimAmount,
+      },
       focusPulse: {
         enabled: state.globe.focusPulse,
         durationMs: state.globe.outlinePulseDurationMs,
         angularRadiusBase: state.globe.outlinePulseRadiusBase,
+        angularBand: state.globe.outlinePulseAngularBand,
+        scaleMin: state.globe.outlinePulseScaleMin,
         scaleMax: state.globe.outlinePulseScaleMax,
         peakOpacity: state.globe.outlinePulseOpacity,
+        segments: state.globe.outlinePulseSegments,
       },
     },
     axisTilt: state.globe.axisTilt,

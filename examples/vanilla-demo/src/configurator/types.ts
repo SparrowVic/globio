@@ -52,8 +52,23 @@ export interface GlobeSettings {
   /** Outline-only band knobs — read by builders.ts iff kind === 'outline'. */
   readonly outlinePulseDurationMs: number;
   readonly outlinePulseRadiusBase: number;
+  /** Band thickness in radians — fine-tunes the visual weight of the ring. */
+  readonly outlinePulseAngularBand: number;
+  /** Initial scale at t=0 (smaller = ring spawns tighter on the centroid). */
+  readonly outlinePulseScaleMin: number;
   readonly outlinePulseScaleMax: number;
   readonly outlinePulseOpacity: number;
+  /** Polygon resolution around the ring. Higher = smoother circle. */
+  readonly outlinePulseSegments: number;
+  /** Outline-only hover decoration. */
+  readonly outlineHoverLift: number;
+  readonly outlineHoverGlowLift: number;
+  readonly outlineHoverGlowEnabled: boolean;
+  /** Outline-only — when hovering a country, fade other-continent borders. */
+  readonly outlineContinentDim: boolean;
+  readonly outlineContinentDimAmount: number;
+  /** Outline-only — Tron-style targeting reticle that tracks the cursor. */
+  readonly outlineHoverCrosshair: boolean;
   readonly clickToFocus: boolean;
   readonly focusPadding: number;
   readonly focusDurationMs: number;

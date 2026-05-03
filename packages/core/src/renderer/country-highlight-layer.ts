@@ -101,6 +101,18 @@ export class CountryHighlightLayer {
     this.currentId = null;
   }
 
+  /**
+   * Live-toggle whether the highlight stroke is masked by the globe
+   * sphere when the country rotates to the far hemisphere. `true` =
+   * occlude (strict z-test against the sphere, hidden on far side);
+   * `false` = always visible (stroke draws through). Mutates the
+   * existing material — no rebuild.
+   */
+  public setOccludeBackSide(occlude: boolean): void {
+    this.material.depthTest = occlude;
+    this.material.needsUpdate = true;
+  }
+
   /** Step the fade tween. Should be called once per render frame. */
   public update(delta: number): void {
     if (this.currentT === this.targetT) return;

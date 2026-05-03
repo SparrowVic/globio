@@ -32,6 +32,18 @@ export interface WorkshopPreviewGlobeProps {
    * exist yet, remove it once the core lands the setter.
    */
   readonly rebuildKeys?: ReadonlyArray<keyof GlobeSettings>;
+  /**
+   * Optional imperative mount hook — fires once per (re)build, after
+   * `globe.mount()`. Used by arcs / markers presets to drop a fixture
+   * dataset onto the fresh instance via `globe.setArcs / setMarkers`.
+   */
+  readonly onMount?: (globe: GlobeInstance, state: ConfiguratorState) => void;
+  /**
+   * Optional imperative live-update hook — fires on every watched-key
+   * change *after* `globe.update()`. Used by arcs / markers presets to
+   * push the dataset back through with the latest styling.
+   */
+  readonly onLiveUpdate?: (globe: GlobeInstance, state: ConfiguratorState) => void;
   readonly className?: string;
 }
 
@@ -58,6 +70,8 @@ export function WorkshopPreviewGlobe({
   state,
   watchedKeys,
   rebuildKeys,
+  onMount,
+  onLiveUpdate,
   className,
 }: WorkshopPreviewGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -115,6 +129,10 @@ export function WorkshopPreviewGlobe({
     instanceRef.current = globe;
     globe.mount();
 
+    // Imperative drop — presets that drive the preview through API
+    // (arcs / markers / etc.) seed their fixture dataset here.
+    onMount?.(globe, state);
+
     return () => {
       globe.destroy();
       if (instanceRef.current === globe) instanceRef.current = null;
@@ -146,7 +164,13 @@ export function WorkshopPreviewGlobe({
         ? { countryLabels: baseConfig.countryLabels }
         : {}),
       ...(baseConfig.starfield !== undefined ? { starfield: baseConfig.starfield } : {}),
+      ...(baseConfig.atmosphere !== undefined ? { atmosphere: baseConfig.atmosphere } : {}),
+      ...(baseConfig.countries !== undefined ? { countries: baseConfig.countries } : {}),
     });
+    // Imperative live update — arcs / markers presets re-push their
+    // fixture dataset with the latest styling so changes (width,
+    // animation, etc.) propagate without rebuilding the globe.
+    onLiveUpdate?.(globe, state);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchSignature]);
 

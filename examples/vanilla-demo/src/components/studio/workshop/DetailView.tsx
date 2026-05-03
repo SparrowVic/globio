@@ -178,6 +178,8 @@ function PreviewBody({
         state={state}
         watchedKeys={preset.watchedKeys}
         {...(preset.rebuildKeys !== undefined && { rebuildKeys: preset.rebuildKeys })}
+        {...(preset.onMount !== undefined && { onMount: preset.onMount })}
+        {...(preset.onLiveUpdate !== undefined && { onLiveUpdate: preset.onLiveUpdate })}
         className="size-[min(60vmin,520px)]"
       />
       {preset.heroExtra}
