@@ -6,7 +6,6 @@ import {
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import { cn } from '@/lib/utils';
-import { DecorationGlobe } from '@/components/shared/components/DecorationGlobe';
 import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
 
 import {
@@ -14,6 +13,7 @@ import {
   type PresetModule,
 } from './configurators';
 import { loadPreset } from './preset-loader';
+import { WorkshopPreviewGlobe } from './WorkshopPreviewGlobe';
 
 export interface DetailViewProps {
   readonly configurator: ConfiguratorMeta;
@@ -49,7 +49,7 @@ export function DetailView({ configurator, state, onGlobeChange, onBack }: Detai
 
   return (
     <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 sm:px-10 lg:grid-cols-[3fr_2fr]">
-      <PreviewPane configurator={configurator} preset={preset} onBack={onBack} />
+      <PreviewPane configurator={configurator} preset={preset} state={state} onBack={onBack} />
       <KnobsPane
         configurator={configurator}
         preset={preset}
@@ -65,10 +65,12 @@ export function DetailView({ configurator, state, onGlobeChange, onBack }: Detai
 function PreviewPane({
   configurator,
   preset,
+  state,
   onBack,
 }: {
   readonly configurator: ConfiguratorMeta;
   readonly preset: PresetModule | null | 'loading';
+  readonly state: ConfiguratorState;
   readonly onBack: () => void;
 }) {
   return (
@@ -85,7 +87,7 @@ function PreviewPane({
 
       {/* Preview globe area */}
       <div className="relative flex flex-1 items-center justify-center">
-        <PreviewBody configurator={configurator} preset={preset} />
+        <PreviewBody configurator={configurator} preset={preset} state={state} />
       </div>
 
       {/* Footer caption — back + name */}
@@ -120,9 +122,11 @@ function PreviewPane({
 function PreviewBody({
   configurator,
   preset,
+  state,
 }: {
   readonly configurator: ConfiguratorMeta;
   readonly preset: PresetModule | null | 'loading';
+  readonly state: ConfiguratorState;
 }) {
   if (preset === 'loading') {
     return (
@@ -169,15 +173,10 @@ function PreviewBody({
           {preset.cinematography.tagline}
         </p>
       ) : null}
-      <DecorationGlobe
-        kind={preset.cinematography.kind}
-        theme={preset.cinematography.theme}
-        initialLat={preset.cinematography.initialLat}
-        initialLng={preset.cinematography.initialLng}
-        speed={preset.cinematography.speed ?? 0.04}
-        framingPadding={preset.cinematography.framingPadding ?? 0.18}
-        atmosphere={preset.cinematography.atmosphere ?? true}
-        starfield={preset.cinematography.starfield ?? true}
+      <WorkshopPreviewGlobe
+        cinematography={preset.cinematography}
+        state={state}
+        watchedKeys={preset.watchedKeys}
         className="size-[min(60vmin,520px)]"
       />
       {preset.heroExtra}

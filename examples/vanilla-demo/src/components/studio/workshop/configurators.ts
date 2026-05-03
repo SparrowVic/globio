@@ -71,6 +71,15 @@ export interface KnobsComponentProps {
 export interface PresetModule {
   readonly cinematography: PreviewCinematography;
   readonly KnobsComponent: ComponentType<KnobsComponentProps>;
+  /**
+   * GlobeSettings keys that this configurator owns. The WorkshopPreview
+   * globe rebuilds when any of these mutate — most `createGlobe` config
+   * isn't live-updatable, so we accept the cost of a re-create. Keys
+   * outside this set don't trigger rebuilds, which keeps the preview
+   * from thrashing on unrelated state changes (e.g. user toggling a
+   * panel section).
+   */
+  readonly watchedKeys: ReadonlyArray<keyof GlobeSettings>;
   /** Optional override for the detail-view hero contents. */
   readonly heroExtra?: ReactNode;
 }

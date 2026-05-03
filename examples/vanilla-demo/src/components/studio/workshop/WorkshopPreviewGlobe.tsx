@@ -1,0 +1,132 @@
+import { useEffect, useRef } from 'react';
+import { createGlobe, type GlobeInstance } from '@your-globe/core';
+
+import { buildGlobeConfig } from '@/configurator/builders';
+import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
+import type { PreviewCinematography } from './configurators';
+
+export interface WorkshopPreviewGlobeProps {
+  /** Cinematography preset — kind, theme, framing, initial position, etc. */
+  readonly cinematography: PreviewCinematography;
+  /**
+   * The current full configurator state. We pull the user's actual
+   * `state.globe` settings (labels, pulse, hover, etc.) and merge them
+   * with the cinematography so the preview reflects what they're tuning
+   * right now — that's the whole point of Workshop's deep-dive mode.
+   */
+  readonly state: ConfiguratorState;
+  /**
+   * Subset of GlobeSettings keys the active configurator owns. Changes to
+   * these keys re-create the preview globe instance (most globe config
+   * fields aren't live-updatable). Changes outside this set are ignored
+   * — keeps the preview from thrashing on unrelated state mutations.
+   *
+   * Pass an empty array to never re-create after mount (useful for
+   * coming-soon presets that just want a static cinematic).
+   */
+  readonly watchedKeys: ReadonlyArray<keyof GlobeSettings>;
+  readonly className?: string;
+}
+
+/**
+ * Globe instance built from the *user's* `state.globe` (so it shows
+ * exactly what Labels / Pulse / Stars / etc. settings produce) but with
+ * the **cinematography preset's** kind / theme / framing / initial
+ * position swapped in so the preview frames the configurator's effect
+ * for clarity.
+ *
+ * Re-creates the underlying globe whenever any field in `watchedKeys`
+ * changes — most `createGlobe` config is read once at construction. The
+ * preset declares which keys it cares about (e.g. labels preset watches
+ * `countryLabels`, `labelMinScreenSize`, `labelHaloEnabled`, …).
+ *
+ * Decoration semantics: country hover / clicks disabled, no data layer,
+ * no focus-pulse-from-click. The user is editing here, not interacting
+ * with the preview.
+ */
+export function WorkshopPreviewGlobe({
+  cinematography,
+  state,
+  watchedKeys,
+  className,
+}: WorkshopPreviewGlobeProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const instanceRef = useRef<GlobeInstance | null>(null);
+
+  // Build the watch signature from the keys this preset cares about.
+  // Stringifying gives a stable dep that React can compare reliably,
+  // even when a key holds an object (label halo, etc.).
+  const watchSignature = watchedKeys
+    .map((key) => `${String(key)}=${JSON.stringify(state.globe[key])}`)
+    .join('|');
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    // Build a full GlobeConfig from current state (so labels / pulse /
+    // hover / etc. settings flow through) then layer the cinematography
+    // overrides on top — cinematography always wins on visual identity
+    // (kind / theme / framing / initial position) so the preview stays
+    // composed regardless of what the user has set in main.
+    const baseConfig = buildGlobeConfig(state);
+    const globe = createGlobe({
+      ...baseConfig,
+      container,
+      kind: cinematography.kind,
+      theme: cinematography.theme,
+      transparent: true,
+      framing: { padding: cinematography.framingPadding ?? 0.18, lockZoom: true },
+      atmosphere: { enabled: cinematography.atmosphere ?? true },
+      starfield: cinematography.starfield === false
+        ? { enabled: false }
+        : (baseConfig.starfield ?? { enabled: true }),
+      autoRotate: { enabled: true, speed: cinematography.speed ?? 0.04 },
+      initialPosition: [cinematography.initialLat, cinematography.initialLng],
+      countries: { hoverEnabled: false },
+      // Click-to-focus disabled — preview is for visual editing, not
+      // interaction. Focus pulse spawning still respects the user's
+      // settings since the configurator might be Pulse itself.
+      focusPulse: cinematography.kind
+        ? {
+            ...baseConfig.focusPulse,
+            origin: state.globe.focusPulseOrigin,
+            pulseOnSurfaceClick: false,
+          }
+        : { enabled: false },
+    });
+    instanceRef.current = globe;
+    globe.mount();
+
+    return () => {
+      globe.destroy();
+      if (instanceRef.current === globe) instanceRef.current = null;
+    };
+    // We rebuild the instance only when the cinematography preset itself
+    // changes or one of the watched keys does. Other state mutations
+    // (e.g. user toggling a control unrelated to this configurator) are
+    // intentionally ignored.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    cinematography.kind,
+    cinematography.theme,
+    cinematography.initialLat,
+    cinematography.initialLng,
+    cinematography.speed,
+    cinematography.framingPadding,
+    cinematography.atmosphere,
+    cinematography.starfield,
+    watchSignature,
+  ]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      // Decoration semantics — preview canvas never absorbs pointer
+      // events (the surrounding chrome handles them).
+      style={{ pointerEvents: 'none' }}
+      aria-hidden="true"
+    />
+  );
+}
