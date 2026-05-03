@@ -23,6 +23,7 @@ import { TopCommandBar } from '@/components/studio/panels/TopCommandBar';
 import { CustomThemeModal } from '@/components/studio/modals/CustomThemeModal';
 import { ManageSavedModal } from '@/components/studio/modals/ManageSavedModal';
 import { SavePresetModal } from '@/components/studio/modals/SavePresetModal';
+import { CommandPalette } from '@/components/studio/CommandPalette';
 import { resetAllPanelState } from '@/hooks/usePanelState';
 import { bootstrapCustomThemes, deleteCustomTheme, type CustomTheme } from '@/lib/custom-themes';
 import { deleteCustomPreset, loadCustomPresets, type CustomPreset } from '@/lib/custom-presets';
@@ -83,6 +84,7 @@ export default function Studio() {
   const [editingTheme, setEditingTheme] = useState<CustomTheme | undefined>(undefined);
   const [savePresetModalOpen, setSavePresetModalOpen] = useState(false);
   const [manageModalOpen, setManageModalOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   // Theme that was active when the user opened the theme modal — used to
   // restore on Cancel after live-preview swapped the globe to '__preview__'.
   const previewPreviousThemeRef = useRef<ThemePresetName | null>(null);
@@ -346,11 +348,21 @@ export default function Studio() {
           onHome={() => sendCommand('home')}
           onExport={copyJson}
           onReset={reset}
-          onCommandPalette={() => {
-            // Wired up in Wave 2 — for now toggle a stub state.
-            // eslint-disable-next-line no-console
-            console.info('⌘K palette wired in Wave 2');
-          }}
+          onCommandPalette={() => setCommandPaletteOpen(true)}
+        />
+        <CommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          state={state}
+          customThemes={customThemes}
+          customPresets={customPresets}
+          onGlobeChange={updateGlobe}
+          onPreset={applyPreset}
+          onReplay={() => sendCommand('replay')}
+          onHome={() => sendCommand('home')}
+          onManageSaved={() => setManageModalOpen(true)}
+          onExport={copyJson}
+          onReset={reset}
         />
         <CustomThemeModal
           open={themeModalOpen}
