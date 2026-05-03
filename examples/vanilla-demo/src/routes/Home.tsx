@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -566,7 +566,15 @@ function CodeSection() {
                 key={active.id}
                 className="overflow-x-auto p-5 font-mono text-[12.5px] leading-relaxed [animation:codeFadeIn_500ms_ease-out]"
               >
-                <code className="block">{active.lines}</code>
+                <code className="block">
+                  {active.lines.map((line, i) => (
+                    // Index key is fine here: `lines` is a fixed-length
+                    // const array per variant, never reordered. The key
+                    // is just to silence React's list warning when the
+                    // children are a mix of <Code> tokens and <br>.
+                    <Fragment key={i}>{line}</Fragment>
+                  ))}
+                </code>
               </pre>
             </div>
             <style>{`@keyframes codeFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>

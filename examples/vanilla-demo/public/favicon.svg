@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <radialGradient id="g" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fff5d4"/>
+      <stop offset="55%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </radialGradient>
+  </defs>
+  <!-- Glow halo so the icon reads at 16px even on dark Safari toolbars. -->
+  <circle cx="16" cy="16" r="15" fill="url(#g)" opacity="0.18"/>
+  <!-- Body -->
+  <circle cx="16" cy="16" r="11" fill="url(#g)"/>
+  <!-- Stylised meridians/parallels — three short arcs to read as a globe at tiny sizes. -->
+  <path
+    d="M5 16 H27 M16 5 V27 M16 5 Q24 16 16 27 M16 5 Q8 16 16 27"
+    stroke="#03050d"
+    stroke-width="0.9"
+    stroke-linecap="round"
+    fill="none"
+    opacity="0.55"
+  />
+</svg>
