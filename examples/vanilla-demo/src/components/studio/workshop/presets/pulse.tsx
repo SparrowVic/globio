@@ -211,10 +211,12 @@ const preset: PresetModule = {
     'outlinePulseColor',
     'outlinePulseRadiusFactor',
   ],
-  // All band geometry is live via FocusPulseDecorator.setOptions().
-  // The `focusPulse` master toggle + origin still construct in the
-  // decoration; flipping enabled requires rebuild.
-  rebuildKeys: ['focusPulse', 'focusPulseOrigin', 'focusPulseOnSurfaceClick'],
+  // All band geometry + color / radius factor are live via
+  // FocusPulseDecorator.setOptions(). Origin + on-surface-click flip
+  // live too — they're read from state.config at click time, no
+  // rebuild needed. Only the master `enabled` toggle rebuilds, since
+  // the decoration returns a no-op stub when disabled.
+  rebuildKeys: ['focusPulse'],
 };
 
 export default preset;

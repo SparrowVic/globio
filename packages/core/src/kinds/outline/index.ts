@@ -343,7 +343,12 @@ export const outlineKind: KindModule = {
 
     const pulseConfig = outlineConfig?.focusPulse;
     const pulseDurationMs = pulseConfig?.durationMs ?? DEFAULT_PULSE_DURATION_MS;
-    const pulseColor = pulseConfig?.color ?? tokens['countries.borderActive.color'];
+    // Empty-string color = "use theme default" sentinel (mirrors the
+    // live-update path's reset semantic).
+    const pulseColor =
+      pulseConfig?.color && pulseConfig.color !== ''
+        ? pulseConfig.color
+        : tokens['countries.borderActive.color'];
     const focusPulse: FocusPulseDecorator = buildOutlineFocusPulse({
       globeGroup,
       enabled: pulseEnabled,

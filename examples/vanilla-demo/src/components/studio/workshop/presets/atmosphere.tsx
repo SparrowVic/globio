@@ -63,12 +63,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
 
         <SectionHeading>Intensity</SectionHeading>
         <SliderField
-          label="Multiplier"
+          label="Halo brightness"
           value={settings.atmosphereIntensity}
           min={0}
           max={3}
           step={0.05}
-          format={(value) => (value === 0 ? 'theme default' : `×${value.toFixed(2)}`)}
+          format={(value) =>
+            value === 0 ? 'theme default' : `${value.toFixed(2)}`
+          }
           onChange={(atmosphereIntensity) => onGlobeChange({ atmosphereIntensity })}
         />
       </DependsOn>

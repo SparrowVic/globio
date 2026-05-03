@@ -35,8 +35,14 @@ export class AtmosphereLayer {
   public readonly mesh: Mesh;
   private readonly geometry: SphereGeometry;
   private readonly material: ShaderMaterial;
+  // Remember the construction-time values so callers can revert to
+  // "theme default" without needing to know what the theme picked.
+  private readonly defaultColor: string;
+  private readonly defaultIntensity: number;
 
   public constructor(options: AtmosphereOptions) {
+    this.defaultColor = options.color;
+    this.defaultIntensity = options.intensity;
     this.geometry = new SphereGeometry(GLOBE_RADIUS * 1.15, 64, 64);
     this.material = new ShaderMaterial({
       uniforms: {
@@ -70,6 +76,16 @@ export class AtmosphereLayer {
    */
   public setVisible(visible: boolean): void {
     this.mesh.visible = visible;
+  }
+
+  /** Restore the construction-time (theme-driven) color. */
+  public resetColor(): void {
+    this.setColor(this.defaultColor);
+  }
+
+  /** Restore the construction-time (theme-driven) intensity. */
+  public resetIntensity(): void {
+    this.setIntensity(this.defaultIntensity);
   }
 
   public dispose(): void {

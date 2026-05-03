@@ -180,6 +180,21 @@ export class CountryLabelsLayer {
     });
   }
 
+  /** Restore the construction-time (theme-driven) text color. */
+  public resetColor(): void {
+    this.setColor(this.options.color);
+  }
+
+  /** Restore the construction-time font size. */
+  public resetFontSize(): void {
+    this.setFontSize(this.options.fontSize);
+  }
+
+  /** Restore the construction-time font weight. */
+  public resetFontWeight(): void {
+    this.setFontWeight(this.options.fontWeight);
+  }
+
   public setLabels(labels: Readonly<Record<string, string>>): void {
     this.labels = labels;
     this.entries.forEach((entry) => {

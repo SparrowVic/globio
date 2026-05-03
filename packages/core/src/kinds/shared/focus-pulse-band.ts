@@ -126,10 +126,14 @@ export class FocusPulseBand {
   private segments: number;
   private segCos: Float32Array;
   private segSin: Float32Array;
+  // Construction-time color cached so callers can revert via
+  // `setOptions({ color: '' })` without knowing what the theme picked.
+  private readonly defaultColor: string;
 
   public constructor(options: FocusPulseBandOptions) {
     this.group = new Group();
     this.defaultDuration = options.durationSeconds;
+    this.defaultColor = options.color;
     this.angularRadiusBase = options.angularRadiusBase ?? DEFAULTS.angularRadiusBase;
     this.angularBand = options.angularBand ?? DEFAULTS.angularBand;
     this.scaleMin = options.scaleMin ?? DEFAULTS.scaleMin;
@@ -270,7 +274,9 @@ export class FocusPulseBand {
     if (partial.peakOpacity !== undefined) this.peakOpacity = partial.peakOpacity;
     if (partial.radiusFactor !== undefined) this.radius = GLOBE_RADIUS * partial.radiusFactor;
     if (partial.color !== undefined) {
-      const next = new Color(partial.color);
+      // Empty string = reset to construction-time (theme) color.
+      const target = partial.color === '' ? this.defaultColor : partial.color;
+      const next = new Color(target);
       for (const slot of this.slots) slot.material.color.copy(next);
     }
     if (partial.segments !== undefined && partial.segments !== this.segments) {

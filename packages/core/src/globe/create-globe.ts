@@ -144,10 +144,18 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   if (config.arcs && config.arcs.length > 0) arcsLayer.setArcs(config.arcs);
 
   // Always construct so live setters can flip enabled / color / intensity
-  // without rebuilding. `enabled: false` just hides the mesh.
+  // without rebuilding. `enabled: false` just hides the mesh. Empty-
+  // string color / 0 intensity → fall back to theme tokens (same
+  // sentinel as the live update path).
   const atmosphereLayer = new AtmosphereLayer({
-    color: config.atmosphere?.color ?? tokens['atmosphere.color'],
-    intensity: config.atmosphere?.intensity ?? tokens['atmosphere.intensity'],
+    color:
+      config.atmosphere?.color && config.atmosphere.color !== ''
+        ? config.atmosphere.color
+        : tokens['atmosphere.color'],
+    intensity:
+      config.atmosphere?.intensity && config.atmosphere.intensity > 0
+        ? config.atmosphere.intensity
+        : tokens['atmosphere.intensity'],
   });
   atmosphereLayer.setVisible(config.atmosphere?.enabled !== false);
   globeGroup.add(atmosphereLayer.mesh);
@@ -492,10 +500,23 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         camera: scene.camera,
         globeGroup,
         features: features as ReadonlyArray<CountryFeature>,
-        color: labelsConfig?.color ?? tokens['countries.label.color'],
-        fontSize: labelsConfig?.fontSize ?? tokens['countries.label.fontSize'],
+        // Empty-string color / non-positive size / empty-string weight
+        // mean "use the theme default" — same sentinel semantics as
+        // the live update path so the construction + update share a
+        // single mental model.
+        color:
+          labelsConfig?.color && labelsConfig.color !== ''
+            ? labelsConfig.color
+            : tokens['countries.label.color'],
+        fontSize:
+          labelsConfig?.fontSize && labelsConfig.fontSize > 0
+            ? labelsConfig.fontSize
+            : tokens['countries.label.fontSize'],
         fontFamily: tokens['countries.label.fontFamily'],
-        fontWeight: labelsConfig?.fontWeight ?? tokens['countries.label.fontWeight'],
+        fontWeight:
+          labelsConfig?.fontWeight && labelsConfig.fontWeight !== ''
+            ? labelsConfig.fontWeight
+            : tokens['countries.label.fontWeight'],
         textShadow: tokens['countries.label.textShadow'],
         ...(labelsConfig?.minScreenSize !== undefined && {
           minScreenSize: labelsConfig.minScreenSize,
@@ -640,9 +661,22 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (next.occlusionFade !== undefined) layer.setOcclusionFade(next.occlusionFade);
           if (next.transitionMs !== undefined) layer.setTransitionMs(next.transitionMs);
           if (next.halo !== undefined) layer.setHalo(next.halo);
-          if (next.color !== undefined) layer.setColor(next.color);
-          if (next.fontSize !== undefined) layer.setFontSize(next.fontSize);
-          if (next.fontWeight !== undefined) layer.setFontWeight(next.fontWeight);
+          // Color / font: an empty-string color or non-positive size /
+          // empty-string weight means "reset to theme default" so the
+          // workshop's clear-override flow restores the layer state.
+          // Otherwise the literal value is applied.
+          if (next.color !== undefined) {
+            if (next.color === '') layer.resetColor();
+            else layer.setColor(next.color);
+          }
+          if (next.fontSize !== undefined) {
+            if (next.fontSize <= 0) layer.resetFontSize();
+            else layer.setFontSize(next.fontSize);
+          }
+          if (next.fontWeight !== undefined) {
+            if (next.fontWeight === '') layer.resetFontWeight();
+            else layer.setFontWeight(next.fontWeight);
+          }
           if (next.labels !== undefined) layer.setLabels(next.labels);
         }
       }
@@ -657,10 +691,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         const next = partial.starfield;
         const prevStars = prev.starfield;
         const enabledNow = next.enabled !== undefined ? next.enabled : prevStars?.enabled === true;
+        // Geometry-baked fields → in-place layer swap. Compare palette
+        // by *content* not reference (callers usually rebuild the
+        // array each render, so reference comparison would flag every
+        // tick as a change and thrash the GPU).
         const wantRebuild =
           enabledNow &&
           (next.density !== prevStars?.density ||
-            next.palette !== prevStars?.palette ||
+            !palettesEqual(next.palette, prevStars?.palette) ||
             next.sizeVariety !== prevStars?.sizeVariety);
 
         if (!enabledNow) {
@@ -687,12 +725,27 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         }
       }
 
-      // Atmosphere — visibility flip + (live) color / intensity uniforms.
+      // Top-level focus pulse — origin / pulseOnSurfaceClick are read
+      // from `state.config.focusPulse` at click time, so spreading the
+      // partial into `state.config` (above) is enough. The kind-specific
+      // band geometry is handled by `partial.outline.focusPulse` below.
+      // No-op here, kept as a placeholder + comment for clarity.
+
+      // Atmosphere — visibility flip + (live) color / intensity
+      // uniforms. Empty-string color / intensity ≤ 0 mean "reset to
+      // theme default", so workshop's clear-override flow restores
+      // construction-time values.
       if (partial.atmosphere !== undefined) {
         const a = partial.atmosphere;
         if (a.enabled !== undefined) atmosphereLayer?.setVisible(a.enabled);
-        if (a.color !== undefined) atmosphereLayer?.setColor(a.color);
-        if (a.intensity !== undefined) atmosphereLayer?.setIntensity(a.intensity);
+        if (a.color !== undefined) {
+          if (a.color === '') atmosphereLayer?.resetColor();
+          else atmosphereLayer?.setColor(a.color);
+        }
+        if (a.intensity !== undefined) {
+          if (a.intensity <= 0) atmosphereLayer?.resetIntensity();
+          else atmosphereLayer?.setIntensity(a.intensity);
+        }
       }
 
       // Country hover — the back-side occlusion flag is the only field
@@ -945,6 +998,24 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   };
 
   return instance;
+};
+
+/**
+ * Shallow content equality for palette arrays. Used to skip
+ * starfield-layer rebuilds when the array's contents are unchanged
+ * even though callers may pass a fresh reference each render.
+ */
+const palettesEqual = (
+  a: ReadonlyArray<string> | undefined,
+  b: ReadonlyArray<string> | undefined,
+): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return a === b;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 };
 
 /**

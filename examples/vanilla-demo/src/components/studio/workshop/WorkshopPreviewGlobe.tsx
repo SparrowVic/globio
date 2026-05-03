@@ -167,6 +167,9 @@ export function WorkshopPreviewGlobe({
       ...(baseConfig.atmosphere !== undefined ? { atmosphere: baseConfig.atmosphere } : {}),
       ...(baseConfig.countries !== undefined ? { countries: baseConfig.countries } : {}),
       ...(baseConfig.outline !== undefined ? { outline: baseConfig.outline } : {}),
+      ...(baseConfig.focusPulse !== undefined
+        ? { focusPulse: baseConfig.focusPulse }
+        : {}),
     });
     // Imperative live update — arcs / markers presets re-push their
     // fixture dataset with the latest styling so changes (width,

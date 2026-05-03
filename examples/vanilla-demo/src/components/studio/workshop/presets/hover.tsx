@@ -144,9 +144,10 @@ const preset: PresetModule = {
   // Live now: hoverOccludeBackSide (highlight material depthTest flip),
   // outlineHoverGlowEnabled / outlineContinentDim / amount via the new
   // outline kindHandle.setOutlineConfig hatch. Hover lift / glow lift
-  // bake into geometry surface radius so they still rebuild — same for
-  // hoverEnabled (gate is read once at build time).
-  rebuildKeys: ['hoverEnabled', 'outlineHoverLift', 'outlineHoverGlowLift'],
+  // bake into geometry surface radius so they still rebuild.
+  // `hoverEnabled` only gates the dotted kind today; flipping it on
+  // the outline preview is a visual no-op so we skip the rebuild.
+  rebuildKeys: ['outlineHoverLift', 'outlineHoverGlowLift'],
 };
 
 export default preset;

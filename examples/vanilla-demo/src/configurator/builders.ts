@@ -46,9 +46,12 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       minScreenSize: state.globe.labelMinScreenSize,
       sizeFadeRange: state.globe.labelSizeFadeRange,
       transitionMs: state.globe.labelTransitionMs,
-      ...(state.globe.labelColor !== '' && { color: state.globe.labelColor }),
-      ...(state.globe.labelFontSize > 0 && { fontSize: state.globe.labelFontSize }),
-      ...(state.globe.labelFontWeight !== '' && { fontWeight: state.globe.labelFontWeight }),
+      // Always send so the live update path in core can either apply
+      // the override or reset to theme default. Empty string / 0 value
+      // are interpreted in core as "reset" sentinels.
+      color: state.globe.labelColor,
+      fontSize: state.globe.labelFontSize,
+      fontWeight: state.globe.labelFontWeight,
       // Always pass halo so a toggle off → null is propagated through
       // globe.update() and the running layer drops its text-shadow.
       // Omitting the field would mean "leave halo as previously set"
@@ -67,8 +70,11 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
     },
     atmosphere: {
       enabled: state.globe.atmosphere,
-      ...(state.globe.atmosphereColor !== '' && { color: state.globe.atmosphereColor }),
-      ...(state.globe.atmosphereIntensity > 0 && { intensity: state.globe.atmosphereIntensity }),
+      // Always send — empty string / 0 are interpreted in core as
+      // "reset to theme default" sentinels so the workshop's clear-
+      // override flow actually restores the layer's initial uniforms.
+      color: state.globe.atmosphereColor,
+      intensity: state.globe.atmosphereIntensity,
     },
     starfield: {
       enabled: state.globe.starfield,
@@ -116,7 +122,10 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         peakOpacity: state.globe.outlinePulseOpacity,
         segments: state.globe.outlinePulseSegments,
         radiusFactor: state.globe.outlinePulseRadiusFactor,
-        ...(state.globe.outlinePulseColor !== '' && { color: state.globe.outlinePulseColor }),
+        // Always send — empty string is interpreted in core as
+        // "reset to theme default" so the workshop's clear-override
+        // flow restores the construction-time color.
+        color: state.globe.outlinePulseColor,
       },
     },
     axisTilt: state.globe.axisTilt,
