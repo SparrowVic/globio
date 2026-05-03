@@ -30,6 +30,10 @@ export interface GlobeSettings {
   readonly hoverOccludeBackSide: boolean;
   readonly countryLabels: boolean;
   readonly labelMinScreenSize: number;
+  readonly labelSizeFadeRange: number;
+  readonly labelTransitionMs: number;
+  readonly labelHaloEnabled: boolean;
+  readonly labelHaloRadius: number;
   readonly autoRotate: boolean;
   readonly autoRotateSpeed: number;
   readonly axisTilt: number;

@@ -594,6 +594,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         ...(labelsConfig?.minScreenSize !== undefined && {
           minScreenSize: labelsConfig.minScreenSize,
         }),
+        ...(labelsConfig?.sizeFadeRange !== undefined && {
+          sizeFadeRange: labelsConfig.sizeFadeRange,
+        }),
+        ...(labelsConfig?.occlusionFade !== undefined && {
+          occlusionFade: labelsConfig.occlusionFade,
+        }),
+        ...(labelsConfig?.transitionMs !== undefined && {
+          transitionMs: labelsConfig.transitionMs,
+        }),
+        ...(labelsConfig?.halo !== undefined && { halo: labelsConfig.halo }),
+        ...(labelsConfig?.padding !== undefined && { padding: labelsConfig.padding }),
         ...(labelsConfig?.labels !== undefined && { labels: labelsConfig.labels }),
       });
       if (labelsConfig?.enabled) labelsLayer.setEnabled(true);

@@ -44,6 +44,11 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
     countryLabels: {
       enabled: state.globe.countryLabels,
       minScreenSize: state.globe.labelMinScreenSize,
+      sizeFadeRange: state.globe.labelSizeFadeRange,
+      transitionMs: state.globe.labelTransitionMs,
+      ...(state.globe.labelHaloEnabled
+        ? { halo: { color: 'rgba(0, 0, 0, 0.7)', radius: state.globe.labelHaloRadius, steps: 6 } }
+        : {}),
     },
     autoRotate: {
       enabled: state.globe.autoRotate,

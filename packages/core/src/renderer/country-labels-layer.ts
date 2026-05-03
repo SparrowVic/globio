@@ -20,6 +20,29 @@ export interface CountryLabelsLayerOptions {
    */
   readonly minScreenSize?: number;
   /**
+   * Smoothstep range as a fraction of `minScreenSize` (default 0.4 ⇒ band
+   * runs from `minScreenSize * 0.6` to `minScreenSize`). 0 = hard cutoff.
+   */
+  readonly sizeFadeRange?: number;
+  /**
+   * Smoothstep edges for the back-side occlusion fade. `facing` is the
+   * dot product of country normal vs camera direction. Default `[-0.05, 0.15]`.
+   */
+  readonly occlusionFade?: readonly [number, number];
+  /** Opacity transition in milliseconds. Default 200. */
+  readonly transitionMs?: number;
+  /**
+   * Optional halo: stacked `text-shadow` blurs around each label. When set,
+   * REPLACES the `textShadow` token rather than adding to it.
+   */
+  readonly halo?: {
+    readonly color?: string;
+    readonly radius?: number;
+    readonly steps?: number;
+  };
+  /** Per-label inner padding in CSS pixels. Default 0. */
+  readonly padding?: number;
+  /**
    * Optional per-id label override. Falls back to `feature.name` when missing.
    * Useful for localisation or custom names.
    */
@@ -51,6 +74,8 @@ export class CountryLabelsLayer {
   private readonly entries = new Map<string, LabelEntry>();
   private readonly tempScreen = new Vector3();
   private readonly minScreenSize: number;
+  private readonly sizeFadeRange: number;
+  private readonly occlusionFade: readonly [number, number];
   private labels: Readonly<Record<string, string>>;
   // Field must match the host's `display` state we set below — otherwise the
   // first `setEnabled(true)` no-ops via the equality guard and the labels
@@ -59,6 +84,8 @@ export class CountryLabelsLayer {
 
   public constructor(private readonly options: CountryLabelsLayerOptions) {
     this.minScreenSize = options.minScreenSize ?? 60;
+    this.sizeFadeRange = options.sizeFadeRange ?? 0.4;
+    this.occlusionFade = options.occlusionFade ?? [-0.05, 0.15];
     this.labels = options.labels ?? {};
     this.host = document.createElement('div');
     Object.assign(this.host.style, {
@@ -128,12 +155,13 @@ export class CountryLabelsLayer {
       // distance, mapped to screen via FOV. Cheap heuristic — good enough
       // to fade out tiny countries when zoomed out.
       const apparentPx = (entry.angularExtent * GLOBE_RADIUS / cameraDistanceToCentre) * px2tan;
-      const sizeFade = smoothstep(this.minScreenSize * 0.6, this.minScreenSize, apparentPx);
+      const fadeStart = this.minScreenSize * Math.max(0, 1 - this.sizeFadeRange);
+      const sizeFade = smoothstep(fadeStart, this.minScreenSize, apparentPx);
 
       // Occlusion fade — same band as HTML markers so labels disappear at
       // the same time the markers/atmosphere do as the country rotates away.
       const facing = worldNormal.dot(cameraDir);
-      const occFade = smoothstep(-0.05, 0.15, facing);
+      const occFade = smoothstep(this.occlusionFade[0], this.occlusionFade[1], facing);
 
       entry.element.style.opacity = String(sizeFade * occFade);
     });
@@ -146,6 +174,10 @@ export class CountryLabelsLayer {
   }
 
   private buildLabels(features: ReadonlyArray<CountryFeature>): void {
+    const transitionMs = this.options.transitionMs ?? 200;
+    const padding = this.options.padding ?? 0;
+    const textShadow = this.resolveTextShadow();
+
     for (const feature of features) {
       const bounds = computeMainRingBounds(feature.coordinates);
       // Skip features whose main ring degenerated (tiny atolls etc.)
@@ -168,10 +200,11 @@ export class CountryLabelsLayer {
         fontSize: `${this.options.fontSize}px`,
         fontFamily: this.options.fontFamily,
         fontWeight: this.options.fontWeight,
-        textShadow: this.options.textShadow,
+        textShadow,
+        ...(padding > 0 ? { padding: `${padding}px` } : {}),
         opacity: '0',
         willChange: 'transform, opacity',
-        transition: 'opacity 200ms ease-out',
+        transition: `opacity ${transitionMs}ms ease-out`,
         backfaceVisibility: 'hidden',
         transformStyle: 'preserve-3d',
       } satisfies Partial<CSSStyleDeclaration>);
@@ -185,6 +218,28 @@ export class CountryLabelsLayer {
         text,
       });
     }
+  }
+
+  /**
+   * Build the CSS `text-shadow` value. With `halo` set, we synthesise a
+   * stack of N evenly-rotated shadows of `radius` blur — that produces a
+   * uniform glowing outline around the glyphs without canvas tricks.
+   * Without halo, fall through to the theme-supplied value.
+   */
+  private resolveTextShadow(): string {
+    const halo = this.options.halo;
+    if (!halo) return this.options.textShadow;
+    const color = halo.color ?? 'rgba(0, 0, 0, 0.65)';
+    const radius = halo.radius ?? 2;
+    const steps = Math.max(2, halo.steps ?? 4);
+    const parts: Array<string> = [];
+    for (let i = 0; i < steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      const dx = Math.cos(angle) * radius;
+      const dy = Math.sin(angle) * radius;
+      parts.push(`${dx.toFixed(2)}px ${dy.toFixed(2)}px ${radius}px ${color}`);
+    }
+    return parts.join(', ');
   }
 }
 

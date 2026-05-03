@@ -85,6 +85,40 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
             format={(value) => `${value.toFixed(0)} px`}
             onChange={(labelMinScreenSize) => onChange({ labelMinScreenSize })}
           />
+          <SliderField
+            label="Fade range"
+            value={settings.labelSizeFadeRange}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(labelSizeFadeRange) => onChange({ labelSizeFadeRange })}
+          />
+          <SliderField
+            label="Transition"
+            value={settings.labelTransitionMs}
+            min={0}
+            max={800}
+            step={20}
+            format={(value) => `${value.toFixed(0)} ms`}
+            onChange={(labelTransitionMs) => onChange({ labelTransitionMs })}
+          />
+          <SwitchField
+            label="Halo"
+            checked={settings.labelHaloEnabled}
+            onChange={(labelHaloEnabled) => onChange({ labelHaloEnabled })}
+          />
+          <SliderField
+            label="Halo radius"
+            value={settings.labelHaloRadius}
+            min={0.5}
+            max={6}
+            step={0.5}
+            format={(value) => `${value.toFixed(1)} px`}
+            onChange={(labelHaloRadius) => onChange({ labelHaloRadius })}
+            disabled={!settings.labelHaloEnabled}
+            disabledReason="Enable Halo first"
+          />
         </DependsOn>
         <div className="grid grid-cols-2 gap-2">
           <SwitchField

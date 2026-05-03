@@ -175,6 +175,45 @@ export interface CountryLabelsConfig {
    * appears. Higher = stricter (fewer labels at any given zoom). Default 60.
    */
   readonly minScreenSize?: number;
+  /**
+   * Width of the smoothstep band (as a fraction of `minScreenSize`) over
+   * which the label fades from invisible to fully visible. 0 = hard cutoff,
+   * 1 = fades start at zero size. Default 0.4 (label is fully on by
+   * `minScreenSize`, fully off below `minScreenSize * 0.6`).
+   */
+  readonly sizeFadeRange?: number;
+  /**
+   * Occlusion smoothstep edges (`facing` = dot product of country normal
+   * with camera direction). Defaults `[-0.05, 0.15]` — labels remain visible
+   * just past the silhouette and fade in fully once the country has rotated
+   * a hair toward the camera. Pass `[0, 0]` for a hard cutoff at the
+   * silhouette.
+   */
+  readonly occlusionFade?: readonly [edge0: number, edge1: number];
+  /**
+   * Fade-in / fade-out duration in milliseconds, applied as a CSS
+   * `transition: opacity Xms ease-out`. Default 200. Set to 0 to snap.
+   */
+  readonly transitionMs?: number;
+  /**
+   * Optional CSS halo around each label (a thicker, blurred outline that
+   * keeps the text legible against any base color). Drawn via stacked
+   * `text-shadow` calls so it works without a canvas pass. When provided,
+   * **replaces** the theme `countries.label.textShadow` token.
+   */
+  readonly halo?: {
+    readonly color?: string;
+    /** Halo radius in CSS pixels. Default 2. */
+    readonly radius?: number;
+    /** Number of stacked shadow copies (more = denser halo). Default 4. */
+    readonly steps?: number;
+  };
+  /**
+   * Inner padding applied to each label element in CSS pixels — useful
+   * when you want a larger hit-test area, breathing room behind a halo,
+   * or to offset the label from a halo background. Default 0.
+   */
+  readonly padding?: number;
 }
 
 export interface AtmosphereConfig {
