@@ -1,4 +1,4 @@
-import { Compass, Gauge, Layers, MousePointer, Sparkles } from 'lucide-react';
+import { Compass, Crosshair, Gauge, Layers, MousePointer, Sparkles } from 'lucide-react';
 
 import { DependsOn } from '@/components/DependsOn';
 import { PanelSection } from '@/components/panels/PanelSection';
@@ -15,6 +15,11 @@ const zoomOptions = [
   { value: 'classic', label: 'Classic' },
   { value: 'attract', label: 'Attract' },
   { value: 'repel', label: 'Repel' },
+] as const;
+
+const focusPulseOriginOptions = [
+  { value: 'click', label: 'Click point' },
+  { value: 'centroid', label: 'Centroid' },
 ] as const;
 
 const pixelRatioOptions: ReadonlyArray<{ readonly value: PixelRatioSetting; readonly label: string }> = [
@@ -98,6 +103,19 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           checked={settings.focusPulse}
           onChange={(focusPulse) => onChange({ focusPulse })}
         />
+        <DependsOn when={settings.focusPulse} because="Enable Focus pulse first">
+          <ToggleField
+            label="Pulse origin"
+            value={settings.focusPulseOrigin}
+            options={focusPulseOriginOptions}
+            onChange={(focusPulseOrigin) => onChange({ focusPulseOrigin })}
+          />
+          <SwitchField
+            label="Pulse on ocean click"
+            checked={settings.focusPulseOnSurfaceClick}
+            onChange={(focusPulseOnSurfaceClick) => onChange({ focusPulseOnSurfaceClick })}
+          />
+        </DependsOn>
       </PanelSection>
 
       <PanelSection
@@ -157,6 +175,52 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           disabled={!settings.autoRotate}
           disabledReason="Enable Auto rotate first"
         />
+        <SliderField
+          label="Min zoom"
+          value={settings.minZoom}
+          min={1}
+          max={3}
+          step={0.05}
+          format={(value) => value.toFixed(2)}
+          onChange={(minZoom) => {
+            // Keep min strictly below max to avoid the camera locking up.
+            const safe = Math.min(minZoom, settings.maxZoom - 0.1);
+            onChange({ minZoom: safe });
+          }}
+        />
+        <SliderField
+          label="Max zoom"
+          value={settings.maxZoom}
+          min={3}
+          max={15}
+          step={0.25}
+          format={(value) => value.toFixed(2)}
+          onChange={(maxZoom) => {
+            const safe = Math.max(maxZoom, settings.minZoom + 0.1);
+            onChange({ maxZoom: safe });
+          }}
+        />
+        {/* Initial camera position — read at boot. Editing these shifts
+            where the globe parks itself on next mount and where the Home
+            button flies to. Doesn't snap the live camera. */}
+        <SliderField
+          label="Initial latitude"
+          value={settings.initialLat}
+          min={-90}
+          max={90}
+          step={1}
+          format={(value) => `${value.toFixed(0)}°`}
+          onChange={(initialLat) => onChange({ initialLat })}
+        />
+        <SliderField
+          label="Initial longitude"
+          value={settings.initialLng}
+          min={-180}
+          max={180}
+          step={1}
+          format={(value) => `${value.toFixed(0)}°`}
+          onChange={(initialLng) => onChange({ initialLng })}
+        />
       </PanelSection>
 
       <PanelSection
@@ -177,6 +241,53 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           disabled={!settings.hoverEnabled}
           disabledReason="Enable Hover detection first"
         />
+      </PanelSection>
+
+      <PanelSection
+        id="stage-focus"
+        title="Focus"
+        icon={<Crosshair className="size-3.5" />}
+        meta={settings.clickToFocus ? `${(settings.focusPadding * 100).toFixed(0)}% pad` : 'off'}
+      >
+        <SwitchField
+          label="Click country to focus"
+          checked={settings.clickToFocus}
+          onChange={(clickToFocus) => onChange({ clickToFocus })}
+        />
+        <DependsOn when={settings.clickToFocus} because="Enable Click country to focus first">
+          <SliderField
+            label="Padding"
+            value={settings.focusPadding}
+            min={0}
+            max={0.45}
+            step={0.01}
+            format={(value) => `${(value * 100).toFixed(0)}%`}
+            onChange={(focusPadding) => onChange({ focusPadding })}
+          />
+          <SliderField
+            label="Flight duration"
+            value={settings.focusDurationMs}
+            min={200}
+            max={3500}
+            step={50}
+            format={(value) => `${(value / 1000).toFixed(2)} s`}
+            onChange={(focusDurationMs) => onChange({ focusDurationMs })}
+          />
+          <SliderField
+            label="Arc elevation"
+            value={settings.focusElevation}
+            min={0}
+            max={3}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(focusElevation) => onChange({ focusElevation })}
+          />
+          <SwitchField
+            label="Pause auto-rotate"
+            checked={settings.focusPauseAutoRotate}
+            onChange={(focusPauseAutoRotate) => onChange({ focusPauseAutoRotate })}
+          />
+        </DependsOn>
       </PanelSection>
 
       <PanelSection
@@ -202,6 +313,20 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           checked={settings.adaptiveQuality}
           onChange={(adaptiveQuality) => onChange({ adaptiveQuality })}
           value="60 FPS target"
+        />
+        <SliderField
+          label="Max FPS"
+          value={settings.maxFps}
+          min={15}
+          max={120}
+          step={5}
+          format={(value) => `${value.toFixed(0)} fps`}
+          onChange={(maxFps) => onChange({ maxFps })}
+        />
+        <SwitchField
+          label="Antialiasing"
+          checked={settings.antialias}
+          onChange={(antialias) => onChange({ antialias })}
         />
       </PanelSection>
     </>

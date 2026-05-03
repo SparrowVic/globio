@@ -53,8 +53,8 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
     starfield: { enabled: state.globe.starfield },
     focusPulse: {
       enabled: state.globe.focusPulse,
-      origin: 'click',
-      pulseOnSurfaceClick: true,
+      origin: state.globe.focusPulseOrigin,
+      pulseOnSurfaceClick: state.globe.focusPulseOnSurfaceClick,
     },
     axisTilt: state.globe.axisTilt,
     zoom: {
@@ -63,14 +63,14 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       smooth: state.globe.smoothZoom,
     },
     performance: {
-      antialias: true,
+      antialias: state.globe.antialias,
       pixelRatio,
-      maxFps: 60,
+      maxFps: state.globe.maxFps,
       adaptiveQuality: state.globe.adaptiveQuality,
     },
-    initialPosition: [18, 38],
-    minZoom: 1.25,
-    maxZoom: 7.5,
+    initialPosition: [state.globe.initialLat, state.globe.initialLng],
+    minZoom: state.globe.minZoom,
+    maxZoom: state.globe.maxZoom,
   };
 };
 

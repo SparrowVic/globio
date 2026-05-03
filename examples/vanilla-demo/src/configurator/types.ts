@@ -7,11 +7,14 @@ import type {
   HeatmapDataEntry,
   HeatmapEasingName,
   HexBinAggregateMode,
+  LatLng,
   ResolutionLevel,
   ScalePaletteName,
   ThemePresetName,
   ZoomMode,
 } from '@your-globe/core';
+
+export type FocusPulseOrigin = 'centroid' | 'click';
 
 export type ActiveLayer = 'heatmap' | 'hexbin' | 'charts' | 'none';
 
@@ -33,12 +36,28 @@ export interface GlobeSettings {
   readonly atmosphere: boolean;
   readonly starfield: boolean;
   readonly focusPulse: boolean;
+  readonly focusPulseOrigin: FocusPulseOrigin;
+  readonly focusPulseOnSurfaceClick: boolean;
+  readonly clickToFocus: boolean;
+  readonly focusPadding: number;
+  readonly focusDurationMs: number;
+  readonly focusElevation: number;
+  readonly focusPauseAutoRotate: boolean;
   readonly zoomMode: ZoomMode;
   readonly zoomStrength: number;
   readonly smoothZoom: boolean;
+  readonly minZoom: number;
+  readonly maxZoom: number;
+  readonly initialLat: number;
+  readonly initialLng: number;
   readonly pixelRatio: PixelRatioSetting;
   readonly adaptiveQuality: boolean;
+  readonly antialias: boolean;
+  readonly maxFps: number;
 }
+
+/** A LatLng tuple — re-exported for convenience. */
+export type { LatLng };
 
 export type HeatmapDatasetId =
   | 'countries'

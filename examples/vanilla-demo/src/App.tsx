@@ -297,6 +297,13 @@ export default function App() {
         <GlobePreview
           config={globeConfig}
           dataLayer={dataLayer}
+          focus={{
+            clickToFocus: state.globe.clickToFocus,
+            padding: state.globe.focusPadding,
+            durationMs: state.globe.focusDurationMs,
+            elevation: state.globe.focusElevation,
+            pauseAutoRotate: state.globe.focusPauseAutoRotate,
+          }}
           onReady={setReady}
           onMessage={setRuntimeMessage}
           command={command}
