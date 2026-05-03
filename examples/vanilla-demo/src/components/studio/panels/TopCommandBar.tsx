@@ -11,6 +11,7 @@ import {
   faBookmark,
   faPlus,
   faCircleSmall,
+  faWandMagicSparkles,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 import { faCommand } from '@fortawesome/sharp-solid-svg-icons';
 import type { GlobeKind, ThemePresetName } from '@your-globe/core';
@@ -74,6 +75,7 @@ export interface TopCommandBarProps {
   readonly onReset: () => void;
   /** Open the ⌘K command palette (drives the right-side hint chip + button). */
   readonly onCommandPalette: () => void;
+  readonly onWorkshop: () => void;
 }
 
 /**
@@ -101,6 +103,7 @@ export function TopCommandBar({
   onExport,
   onReset,
   onCommandPalette,
+  onWorkshop,
 }: TopCommandBarProps) {
   const themesForKind = themeCatalog
     .filter((t) => t.kind === state.globe.kind)
@@ -308,6 +311,28 @@ export function TopCommandBar({
             <Kbd className="!h-4 !min-w-[16px] !px-0.5 !text-[9px]">⌘</Kbd>
             <Kbd className="!h-4 !min-w-[16px] !px-0.5 !text-[9px]">K</Kbd>
           </span>
+        </button>
+
+        {/* Workshop trigger — full pill, accent gradient, the headline
+            feature that opens the deep-dive editor. Shadow + hover scale
+            make it feel "important" alongside the more utilitarian icons. */}
+        <button
+          type="button"
+          onClick={onWorkshop}
+          className={cn(
+            'group relative inline-flex h-7 items-center gap-1.5 overflow-hidden rounded-full px-3 text-[11.5px] font-semibold tracking-tight',
+            'border border-amber-200/30 bg-gradient-to-br from-amber-200/[0.14] via-amber-200/[0.08] to-orange-300/[0.10]',
+            'text-amber-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_20px_-6px_rgba(255,200,90,0.5)]',
+            'transition-all duration-300 hover:scale-[1.03] hover:border-amber-200/50 hover:text-white',
+            'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_0_28px_-4px_rgba(255,200,90,0.7)]',
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-white/30 opacity-0 transition-all duration-700 group-hover:translate-x-[300%] group-hover:opacity-100"
+          />
+          <FontAwesomeIcon icon={faWandMagicSparkles} className="relative z-10 size-3 text-amber-200" />
+          <span className="relative z-10">Workshop</span>
         </button>
 
         {/* Divider */}

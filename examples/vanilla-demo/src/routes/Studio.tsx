@@ -24,6 +24,7 @@ import { CustomThemeModal } from '@/components/studio/modals/CustomThemeModal';
 import { ManageSavedModal } from '@/components/studio/modals/ManageSavedModal';
 import { SavePresetModal } from '@/components/studio/modals/SavePresetModal';
 import { CommandPalette } from '@/components/studio/CommandPalette';
+import { Workshop } from '@/components/studio/workshop/Workshop';
 import { resetAllPanelState } from '@/hooks/usePanelState';
 import { bootstrapCustomThemes, deleteCustomTheme, type CustomTheme } from '@/lib/custom-themes';
 import { deleteCustomPreset, loadCustomPresets, type CustomPreset } from '@/lib/custom-presets';
@@ -85,6 +86,7 @@ export default function Studio() {
   const [savePresetModalOpen, setSavePresetModalOpen] = useState(false);
   const [manageModalOpen, setManageModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [workshopOpen, setWorkshopOpen] = useState(false);
   // Theme that was active when the user opened the theme modal — used to
   // restore on Cancel after live-preview swapped the globe to '__preview__'.
   const previewPreviousThemeRef = useRef<ThemePresetName | null>(null);
@@ -349,6 +351,13 @@ export default function Studio() {
           onExport={copyJson}
           onReset={reset}
           onCommandPalette={() => setCommandPaletteOpen(true)}
+          onWorkshop={() => setWorkshopOpen(true)}
+        />
+        <Workshop
+          open={workshopOpen}
+          onOpenChange={setWorkshopOpen}
+          state={state}
+          onGlobeChange={updateGlobe}
         />
         <CommandPalette
           open={commandPaletteOpen}
