@@ -1,176 +1,47 @@
 import { AmbientLight, DirectionalLight, Group, Vector2 } from 'three';
-import { SceneManager } from './renderer/scene-manager';
-import { GlobeMesh } from './renderer/globe-mesh';
-import { MarkersLayer } from './renderer/markers-layer';
-import type { CountryFeature } from './renderer/country-feature';
-import { CountriesPickingLayer } from './renderer/countries-picking-layer';
-import { CountryLabelsLayer } from './renderer/country-labels-layer';
-import { CountryHighlightLayer } from './renderer/country-highlight-layer';
-import { CountryTooltip } from './renderer/country-tooltip';
-import { MarkerTooltip } from './renderer/marker-tooltip';
-import { HtmlMarkersLayer } from './renderer/html-markers-layer';
-import { StarfieldLayer } from './renderer/starfield-layer';
-import { ArcsLayer } from './renderer/arcs-layer';
-import { StoryController } from './story/story-controller';
-import type { SceneConfig, StoryConfig } from './story/types';
-import { AtmosphereLayer } from './renderer/atmosphere-layer';
-import { KIND_MODULES, PRESET_DEFAULT_KIND } from './kinds/registry';
-import type { KindHandle } from './kinds/types';
-import type { GlobeKind } from './kinds/types';
-import type { OutlineKindHandle } from './kinds/outline';
-import type { DottedKindHandle } from './kinds/dotted';
-import type { WireframeKindHandle } from './kinds/wireframe';
-import { GlobeControls } from './interaction/controls';
-import { PointerRaycaster } from './interaction/raycaster';
-import { GlobeEventEmitter } from './interaction/events';
-import { loadCountries } from './data/geo-loader';
-import { createLegend, type LegendInstance, type LegendOptions } from './data/legend';
-import { resolveTheme } from './theme/resolver';
-import { GLOBE_RADIUS, latLngToVector3, vector3ToLatLng } from './utils/coordinates';
-import { angularExtent, boundsCenter, type LatLngBounds } from './utils/country-bounds';
+import { SceneManager } from '../renderer/scene-manager';
+import { GlobeMesh } from '../renderer/globe-mesh';
+import { MarkersLayer } from '../renderer/markers-layer';
+import type { CountryFeature } from '../renderer/country-feature';
+import { CountriesPickingLayer } from '../renderer/countries-picking-layer';
+import { CountryLabelsLayer } from '../renderer/country-labels-layer';
+import { CountryHighlightLayer } from '../renderer/country-highlight-layer';
+import { CountryTooltip } from '../renderer/country-tooltip';
+import { MarkerTooltip } from '../renderer/marker-tooltip';
+import { HtmlMarkersLayer } from '../renderer/html-markers-layer';
+import { StarfieldLayer } from '../renderer/starfield-layer';
+import { ArcsLayer } from '../renderer/arcs-layer';
+import { StoryController } from '../story/story-controller';
+import type { SceneConfig, StoryConfig } from '../story/types';
+import { AtmosphereLayer } from '../renderer/atmosphere-layer';
+import { KIND_MODULES } from '../kinds/registry';
+import type { GlobeKind, KindHandle } from '../kinds/types';
+import type { OutlineKindHandle } from '../kinds/outline';
+import type { DottedKindHandle } from '../kinds/dotted';
+import type { WireframeKindHandle } from '../kinds/wireframe';
+import { GlobeControls } from '../interaction/controls';
+import { PointerRaycaster } from '../interaction/raycaster';
+import { GlobeEventEmitter } from '../interaction/events';
+import { loadCountries } from '../data/geo-loader';
+import { createLegend, type LegendOptions } from '../data/legend';
+import { resolveTheme } from '../theme/resolver';
+import { GLOBE_RADIUS, latLngToVector3, vector3ToLatLng } from '../utils/coordinates';
+import { boundsCenter } from '../utils/country-bounds';
 import type {
-  CountriesConfig,
   CountryData,
-  CountryDataMap,
   GlobeConfig,
   GlobeEventName,
   GlobeEvents,
   GlobeInstance,
   LatLng,
   MarkerConfig,
-  PerformanceConfig,
-} from './types';
+} from '../types';
 import type { Object3D, Vector3 } from 'three';
-
-const DEFAULT_PERFORMANCE: Required<PerformanceConfig> = {
-  antialias: true,
-  pixelRatio: 'auto',
-  maxFps: 60,
-  adaptiveQuality: true,
-};
-
-const DEFAULT_COUNTRIES: Required<CountriesConfig> = {
-  resolution: 'medium',
-  hoverEnabled: true,
-  hoverOccludeBackSide: true,
-};
-
-/**
- * Decide the active globe kind:
- * 1. explicit `config.kind` wins
- * 2. else, look up the active theme preset in `PRESET_DEFAULT_KIND`
- * 3. else, fall back to `'outline'`
- *
- * The preset name is read off `theme: 'name'` shorthand or
- * `theme: { extends: 'name' }`. Pure custom themes with no preset and no
- * explicit kind get `'outline'`.
- */
-const resolveActiveKind = (config: GlobeConfig): GlobeKind => {
-  if (config.kind) return config.kind;
-  const theme = config.theme;
-  let presetName: string | undefined;
-  if (typeof theme === 'string') presetName = theme;
-  else if (theme && typeof theme === 'object' && 'extends' in theme) {
-    presetName = theme.extends as string | undefined;
-  }
-  if (presetName && presetName in PRESET_DEFAULT_KIND) {
-    return PRESET_DEFAULT_KIND[presetName as keyof typeof PRESET_DEFAULT_KIND];
-  }
-  return 'outline';
-};
-
-/**
- * Whether two same-type data-layer configs differ only in fields that the
- * existing handle can swap via `setData()` (samples, kernel, scale, …).
- * Structural fields — texture / mesh resolution — own GPU buffers allocated
- * at construction time, so changes there force a full dispose + rebuild.
- */
-const canUpdateInPlace = (
-  prev: import('./data-layers/types').DataLayer,
-  next: import('./data-layers/types').DataLayer
-): boolean => {
-  if (prev.type !== 'heatmap' || next.type !== 'heatmap') return true;
-  const a = prev.textureResolution;
-  const b = next.textureResolution;
-  if ((a?.width ?? -1) !== (b?.width ?? -1)) return false;
-  if ((a?.height ?? -1) !== (b?.height ?? -1)) return false;
-  const m = prev.meshResolution;
-  const n = next.meshResolution;
-  if ((m?.width ?? -1) !== (n?.width ?? -1)) return false;
-  if ((m?.height ?? -1) !== (n?.height ?? -1)) return false;
-  if (!m && !n) {
-    const prevDisplaced = (prev.maxHeight ?? 0) > 0;
-    const nextDisplaced = (next.maxHeight ?? 0) > 0;
-    if (prevDisplaced !== nextDisplaced) return false;
-  }
-  return true;
-};
-
-/**
- * Compute camera radius such that the angular extent fits inside the
- * limiting field-of-view dimension with the given padding. Exact geometry:
- * tan(theta_screen) = R_g * sin(g/2) / (R - R_g * cos(g/2)).
- */
-const computeFocusDistance = (
-  bounds: LatLngBounds,
-  camera: import('three').PerspectiveCamera,
-  padding: number,
-  globeRadius: number,
-  fallbackRadius: number
-): number => {
-  const gamma = angularExtent(bounds);
-  if (gamma <= 0) return fallbackRadius;
-  const fovV = (camera.fov * Math.PI) / 180;
-  const fovH = 2 * Math.atan(Math.tan(fovV / 2) * camera.aspect);
-  const limitingFov = Math.min(fovV, fovH);
-  const targetScreen = ((1 - 2 * padding) * limitingFov) / 2;
-  const tanT = Math.tan(targetScreen);
-  if (tanT <= 0) return fallbackRadius;
-  return (globeRadius * Math.sin(gamma / 2)) / tanT + globeRadius * Math.cos(gamma / 2);
-};
-
-interface InternalState {
-  config: GlobeConfig;
-  scene: SceneManager;
-  globeMesh: GlobeMesh;
-  markersLayer: MarkersLayer;
-  /**
-   * Active kind module's runtime handle. Built by the dispatcher in
-   * `initCountries` once country features have loaded. Null on a globe
-   * whose kind has no per-feature visual (none ship today, but reserved).
-   */
-  kindHandle: KindHandle | null;
-  resolvedKind: GlobeKind;
-  countriesPickingLayer: CountriesPickingLayer | null;
-  /**
-   * Loaded country features. Set once `initCountries()` resolves; data-layer
-   * builders read this so they can scaffold their geometry without re-loading.
-   */
-  features: ReadonlyArray<CountryFeature> | null;
-  countryLabelsLayer: CountryLabelsLayer | null;
-  countryHighlightLayer: CountryHighlightLayer | null;
-  countryActiveLayer: CountryHighlightLayer | null;
-  countryTooltip: CountryTooltip | null;
-  htmlMarkersLayer: HtmlMarkersLayer;
-  arcsLayer: ArcsLayer;
-  atmosphereLayer: AtmosphereLayer | null;
-  controls: GlobeControls;
-  raycaster: PointerRaycaster;
-  emitter: GlobeEventEmitter;
-  activeCountryId: string | null;
-  countryData: CountryDataMap | null;
-  /**
-   * Active data layer slot. `setDataLayer(...)` replaces the entire pair —
-   * disposes the previous handle, builds a new one via the active kind's
-   * decoration, swaps it in. Null when no data layer is mounted.
-   */
-  dataLayer: { config: import('./data-layers/types').DataLayer; handle: import('./data-layers/types').DataLayerHandle } | null;
-  legend: LegendInstance | null;
-  /** Last surface click in lat/lng. Used for the focus-pulse `origin: 'click'` mode. */
-  lastClickLatLng: LatLng | null;
-  elapsedSeconds: number;
-  destroyed: boolean;
-}
+import { DEFAULT_COUNTRIES, DEFAULT_PERFORMANCE, resolveActiveKind } from './defaults';
+import { canUpdateInPlace } from './data-layer-diff';
+import { computeFocusDistance } from './focus-distance';
+import { computeFramedDistance } from './framing';
+import type { InternalState } from './internal-state';
 
 export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   const emitter = new GlobeEventEmitter();
@@ -208,12 +79,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   //   distance = (1.25 * (1 + padding)) / tan(fov/2)
   // and assign before GlobeControls reads `camera.position` to seed its
   // spherical coordinates.
-  const framingPadding = config.framing?.padding;
-  let framedDistance: number | null = null;
-  if (framingPadding !== undefined && framingPadding >= 0) {
-    const HALO_RADIUS = GLOBE_RADIUS * 1.25;
-    const fovRad = (scene.camera.fov * Math.PI) / 180;
-    framedDistance = (HALO_RADIUS * (1 + framingPadding)) / Math.tan(fovRad / 2);
+  const framedDistance = computeFramedDistance(config.framing, scene.camera);
+  if (framedDistance !== null) {
     scene.camera.position.set(0, 0, framedDistance);
     scene.camera.lookAt(0, 0, 0);
   }
@@ -508,7 +375,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // Queue for `setDataLayer` calls that arrive before features (and the
   // active kind's decorators) have loaded. Drained inside `initCountries`
   // once `state.kindHandle` is built.
-  let pendingDataLayer: import('./data-layers/types').DataLayer | null = null;
+  let pendingDataLayer: import('../data-layers/types').DataLayer | null = null;
 
   const initCountries = async (): Promise<void> => {
     if (!config.countries) return;

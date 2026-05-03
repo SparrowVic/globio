@@ -1,4 +1,4 @@
-export { createGlobe } from './globe';
+export { createGlobe } from './globe/index';
 export type {
   AtmosphereConfig,
   AutoRotateConfig,
