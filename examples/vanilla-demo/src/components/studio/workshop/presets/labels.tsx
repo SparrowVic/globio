@@ -36,6 +36,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <DependsOn
         when={settings.countryLabels}
         because="Enable country labels first to tune their appearance."
+        className="space-y-4"
       >
         <SectionHeading>Density</SectionHeading>
         <SliderField

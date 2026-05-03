@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createGlobe, type GlobeInstance } from '@your-globe/core';
 
 import { buildGlobeConfig } from '@/configurator/builders';
@@ -60,6 +60,29 @@ export function WorkshopPreviewGlobe({
     .map((key) => `${String(key)}=${JSON.stringify(state.globe[key])}`)
     .join('|');
 
+  // Debounce the rebuild signature: rapid successive changes (e.g. a
+  // user dragging a slider) shouldn't tear down + recreate the globe
+  // instance on every frame. We hold the last *settled* signature for
+  // 200ms; only when it stops changing do we rebuild.
+  const [debouncedSignature, setDebouncedSignature] = useState(watchSignature);
+  useEffect(() => {
+    if (debouncedSignature === watchSignature) return undefined;
+    const t = window.setTimeout(() => setDebouncedSignature(watchSignature), 200);
+    return () => window.clearTimeout(t);
+  }, [watchSignature, debouncedSignature]);
+
+  // Briefly dim the container during a rebuild so the destroy + create
+  // flash doesn't read as a hard "pop". The dip is centred on the
+  // moment debouncedSignature settles (which is when the rebuild
+  // useEffect actually fires) — opacity drops to ~0.45 over 120ms,
+  // rebuild happens, then fades back to 1 over 220ms.
+  const [rebuildPulse, setRebuildPulse] = useState(false);
+  useEffect(() => {
+    setRebuildPulse(true);
+    const t = window.setTimeout(() => setRebuildPulse(false), 240);
+    return () => window.clearTimeout(t);
+  }, [debouncedSignature]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
@@ -113,19 +136,31 @@ export function WorkshopPreviewGlobe({
     cinematography.framingPadding,
     cinematography.atmosphere,
     cinematography.starfield,
-    watchSignature,
+    debouncedSignature,
   ]);
 
   return (
     <div
       ref={containerRef}
+      data-workshop-preview-host=""
       className={className}
+      style={{
+        opacity: rebuildPulse ? 0.45 : 1,
+        transition: rebuildPulse
+          ? 'opacity 120ms ease-out'
+          : 'opacity 220ms ease-out',
+      }}
       // Pointer events stay enabled so the user's hover / surface-click
       // settings can fire (Hover preset needs hover, Pulse preset wants
       // click → spawn pulse). Click-to-focus stays disabled because the
       // preview's `WorkshopPreviewGlobe` doesn't register a countryClick
       // handler — that's a feature of the demo's main `GlobePreview`,
       // not a property of `createGlobe` itself.
+      //
+      // The data-attribute lets `capturePreviewGlobe()` find this canvas
+      // without ref-prop-drilling — used to snapshot the preview into
+      // the closing bridge so the workshop collapse reads as a single,
+      // continuous globe travelling back to the main stage.
     />
   );
 }

@@ -88,7 +88,11 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           checked={settings.countryLabels}
           onChange={(countryLabels) => onChange({ countryLabels })}
         />
-        <DependsOn when={settings.countryLabels} because="Enable Country labels first">
+        <DependsOn
+          when={settings.countryLabels}
+          because="Enable Country labels first"
+          className="space-y-3"
+        >
           <SliderField
             label="Label threshold"
             value={settings.labelMinScreenSize}
@@ -145,7 +149,11 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
             onChange={(starfield) => onChange({ starfield })}
           />
         </div>
-        <DependsOn when={settings.starfield} because="Enable Stars first">
+        <DependsOn
+          when={settings.starfield}
+          because="Enable Stars first"
+          className="space-y-3"
+        >
           <SliderField
             label="Star count"
             value={settings.starfieldDensity}
@@ -211,7 +219,11 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           checked={settings.focusPulse}
           onChange={(focusPulse) => onChange({ focusPulse })}
         />
-        <DependsOn when={settings.focusPulse} because="Enable Focus pulse first">
+        <DependsOn
+          when={settings.focusPulse}
+          because="Enable Focus pulse first"
+          className="space-y-3"
+        >
           <ToggleField
             label="Pulse origin"
             value={settings.focusPulseOrigin}
@@ -402,7 +414,11 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           checked={settings.clickToFocus}
           onChange={(clickToFocus) => onChange({ clickToFocus })}
         />
-        <DependsOn when={settings.clickToFocus} because="Enable Click country to focus first">
+        <DependsOn
+          when={settings.clickToFocus}
+          because="Enable Click country to focus first"
+          className="space-y-3"
+        >
           <SliderField
             label="Padding"
             value={settings.focusPadding}

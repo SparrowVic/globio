@@ -74,7 +74,7 @@ function PreviewPane({
   readonly onBack: () => void;
 }) {
   return (
-    <div className="relative flex min-h-[480px] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+    <div className="relative flex min-h-[480px] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#06080f]/85 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7),inset_0_1px_0_0_rgba(255,255,255,0.04)]">
       {/* Iridescent edge — mirrors the panel surfaces */}
       <span
         aria-hidden="true"
@@ -198,7 +198,7 @@ function KnobsPane({
   readonly onGlobeChange: (patch: Partial<GlobeSettings>) => void;
 }) {
   return (
-    <aside className="flex min-h-[480px] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+    <aside className="flex min-h-[480px] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#06080f]/85 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7),inset_0_1px_0_0_rgba(255,255,255,0.04)]">
       <header
         className="flex items-center gap-2 border-b border-white/[0.06] px-5 py-3.5"
         style={{ background: `linear-gradient(180deg, ${configurator.accent}10, transparent)` }}

@@ -856,7 +856,12 @@ function AnimationSection({
         checked={enabled}
         onChange={(next) => onChange({ enabled: next })}
       />
-      <DependsOn when={enabled} because="Toggle Animate on mount on" variant="dim">
+      <DependsOn
+        when={enabled}
+        because="Toggle Animate on mount on"
+        variant="dim"
+        className="space-y-3"
+      >
         {!hideStyle ? (
           <ToggleField
             label="Style"

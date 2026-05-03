@@ -33,6 +33,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <DependsOn
         when={settings.starfield}
         because="Enable the starfield first to tune density and twinkle."
+        className="space-y-4"
       >
         <SectionHeading>Density & size</SectionHeading>
         <SliderField

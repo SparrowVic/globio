@@ -56,7 +56,11 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         onChange={(focusPulse) => onGlobeChange({ focusPulse })}
       />
 
-      <DependsOn when={settings.focusPulse} because="Enable focus pulse first.">
+      <DependsOn
+        when={settings.focusPulse}
+        because="Enable focus pulse first."
+        className="space-y-4"
+      >
         <SectionHeading>Trigger</SectionHeading>
         <ToggleField
           label="Pulse origin"
@@ -74,6 +78,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <DependsOn
           when={settings.kind === 'outline'}
           because="Outline-specific band geometry. Switch the main globe to outline kind to tune."
+          className="space-y-4"
         >
           <SectionHeading>Outline band</SectionHeading>
           <SliderField

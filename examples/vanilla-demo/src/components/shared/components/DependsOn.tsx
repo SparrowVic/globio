@@ -33,15 +33,29 @@ export interface DependsOnProps {
   readonly when: boolean;
   readonly because?: string;
   readonly variant?: 'dim' | 'hidden';
+  /**
+   * Classes applied to the inner wrapper around children when dimmed.
+   * Use this to replicate the parent's vertical spacing (e.g. `space-y-4`)
+   * — without it, dim-mode collapses the children into one DOM element and
+   * any `space-y-*` on the parent stops applying *between* the children,
+   * making the form jump when toggling the master switch on/off.
+   */
+  readonly className?: string;
   readonly children: ReactNode;
 }
 
-export function DependsOn({ when, because, variant = 'dim', children }: DependsOnProps) {
+export function DependsOn({
+  when,
+  because,
+  variant = 'dim',
+  className,
+  children,
+}: DependsOnProps) {
   if (when) return <>{children}</>;
   if (variant === 'hidden') return null;
   return (
     <div className="relative">
-      <div className="pointer-events-none opacity-50">{children}</div>
+      <div className={cn('pointer-events-none opacity-50', className)}>{children}</div>
       {because ? (
         <Tooltip>
           <TooltipTrigger asChild>

@@ -17,6 +17,13 @@ export interface SnapshotBridgeProps {
    *   - `gone`:    component unmounts
    */
   readonly phase: 'opening' | 'parked' | 'closing';
+  /**
+   * Soft visibility — when false, the snapshot fades to opacity 0
+   * (~260ms) without changing position. Used to hide the parked
+   * thumbnail while a Workshop DetailView is active so we never show
+   * two globes at once. Defaults to true.
+   */
+  readonly visible?: boolean;
   /** Fires when the opening or closing animation finishes. */
   readonly onPhaseEnd?: (phase: 'opening' | 'closing') => void;
 }
@@ -39,6 +46,7 @@ export function SnapshotBridge({
   fromRect,
   toRect,
   phase,
+  visible = true,
   onPhaseEnd,
 }: SnapshotBridgeProps) {
   // We render the image at `fromRect` coords + size and animate it to
@@ -49,8 +57,13 @@ export function SnapshotBridge({
   const sx = toRect.width / fromRect.width;
   const sy = toRect.height / fromRect.height;
 
+  // Initial transform must match where the snapshot should *appear*
+  // on first paint — otherwise a fresh-mounted bridge with phase
+  // 'closing' would flash from fromRect for one frame before the
+  // useEffect below corrects it. Both 'parked' and 'closing' need to
+  // start visually at toRect.
   const [transform, setTransform] = useState(
-    phase === 'parked'
+    phase === 'parked' || phase === 'closing'
       ? `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy})`
       : 'translate3d(0, 0, 0) scale(1, 1)',
   );
@@ -87,6 +100,14 @@ export function SnapshotBridge({
     if (phase === 'closing') onPhaseEnd?.('closing');
   };
 
+  // Opacity transitions independently of transform so the parked
+  // thumbnail can soft-hide (e.g. while Workshop is in DetailView) and
+  // soft-reveal without disturbing its position.
+  const opacityTransition = 'opacity 260ms ease-out';
+  const transformTransition =
+    phase === 'parked'
+      ? 'none'
+      : 'transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms ease, box-shadow 700ms ease';
   const style: CSSProperties = {
     position: 'fixed',
     left: fromRect.left,
@@ -95,10 +116,8 @@ export function SnapshotBridge({
     height: fromRect.height,
     transformOrigin: 'top left',
     transform,
-    transition:
-      phase === 'parked'
-        ? 'none'
-        : 'transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms ease, box-shadow 700ms ease',
+    transition: `${transformTransition}, ${opacityTransition}`,
+    opacity: visible ? 1 : 0,
     // Subtle filter shift on the move so the snapshot reads as "frozen"
     // rather than "another live view" — slight desaturation while it's
     // in transit, restored at the corner thumbnail.
@@ -138,7 +157,29 @@ export function captureMainGlobe(): {
   readonly src: string;
   readonly rect: { left: number; top: number; width: number; height: number };
 } | null {
-  const host = document.querySelector<HTMLElement>('[data-studio-globe-host]');
+  return captureCanvasAt('[data-studio-globe-host]');
+}
+
+/**
+ * Capture the workshop's DetailView preview canvas — used to spawn a
+ * cinematic "single-globe" closing bridge: instead of revealing a
+ * stale corner thumbnail and animating *that* back to the main rect,
+ * we freeze the live preview the user was just editing and animate
+ * the preview frame back to where the studio globe lives. Returns
+ * `null` if no preview canvas is currently mounted.
+ */
+export function capturePreviewGlobe(): {
+  readonly src: string;
+  readonly rect: { left: number; top: number; width: number; height: number };
+} | null {
+  return captureCanvasAt('[data-workshop-preview-host]');
+}
+
+function captureCanvasAt(selector: string): {
+  readonly src: string;
+  readonly rect: { left: number; top: number; width: number; height: number };
+} | null {
+  const host = document.querySelector<HTMLElement>(selector);
   if (!host) return null;
   const canvas = host.querySelector<HTMLCanvasElement>('canvas');
   if (!canvas) return null;
@@ -146,8 +187,7 @@ export function captureMainGlobe(): {
   try {
     dataURL = canvas.toDataURL('image/png');
   } catch {
-    // Tainted canvas (cross-origin texture) — bail silently. The
-    // workshop still opens, just without the snapshot bridge.
+    // Tainted canvas (cross-origin texture) — bail silently.
     return null;
   }
   const rect = host.getBoundingClientRect();

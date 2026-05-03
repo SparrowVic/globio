@@ -1,8 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faXmark,
   faGrid2,
+  faCheck,
+  faRotateLeft,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import { cn } from '@/lib/utils';
@@ -15,6 +17,7 @@ import { configuratorMeta, type ConfiguratorId } from './configurators';
 import {
   SnapshotBridge,
   captureMainGlobe,
+  capturePreviewGlobe,
   workshopThumbnailRect,
 } from './SnapshotBridge';
 
@@ -54,19 +57,107 @@ export interface WorkshopProps {
  */
 export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopProps) {
   const [selected, setSelected] = useState<ConfiguratorId | null>(null);
-  const [intro, setIntro] = useState(false);
   // Snapshot lifecycle — capture on open, animate to corner, hold while
   // workshop is up, animate back on close. `null` = no snapshot active.
   const [snapshot, setSnapshot] = useState<SnapshotState | null>(null);
+  // Body fade — runs in parallel with the bridge animation rather than
+  // *after* it, so cards/content appear immediately as the snapshot
+  // moves out of the way. We bump it on the next frame after mount so
+  // the CSS transition has a from-state to interpolate from.
+  const [bodyShown, setBodyShown] = useState(false);
   // Workshop stays mounted during the closing animation so the snapshot
   // can travel back. `mounted` lags `open` going false until the
   // closing animation completes (or 800ms timeout for safety).
   const [mounted, setMounted] = useState(open);
 
+  // Save / Discard model — Workshop is a *deep-dive* editing session.
+  // We snapshot `state.globe` into `draft` on open, route every knob
+  // change to draft instead of the parent state, and only commit on
+  // explicit Apply. The main globe stays still while the user tunes —
+  // it's not a live-tuning panel, it's a workshop.
+  const [draft, setDraft] = useState<GlobeSettings>(state.globe);
+  const [dirty, setDirty] = useState(false);
+  // When the user clicks the close affordance with unsaved changes, we
+  // flip into "asking" mode and surface an Apply / Discard / Keep
+  // editing prompt instead of closing.
+  const [askingClose, setAskingClose] = useState(false);
+
   // Reset selection whenever Workshop is dismissed.
   useEffect(() => {
     if (!open) setSelected(null);
   }, [open]);
+
+  // Sync draft + reset dirty whenever Workshop opens. We capture the
+  // current parent state.globe as the draft baseline.
+  useEffect(() => {
+    if (open) {
+      setDraft(state.globe);
+      setDirty(false);
+      setAskingClose(false);
+    }
+    // Intentionally only on `open` flip — not on every state.globe
+    // mutation, otherwise external updates would clobber the draft
+    // mid-session. The parent shouldn't be mutating state.globe while
+    // the workshop is up anyway (we're the only writer).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Intercept knob changes: route to draft instead of parent. Children
+  // see the draft via `draftState` below and don't know (or care) that
+  // they're editing a session-local copy.
+  const handleDraftChange = (patch: Partial<GlobeSettings>) => {
+    setDraft((d) => ({ ...d, ...patch }));
+    setDirty(true);
+  };
+
+  // The state object children read — `state` with `globe` swapped for
+  // the draft. useMemo so the reference is stable when `draft` doesn't
+  // change (avoids unnecessary re-renders downstream).
+  const draftState: ConfiguratorState = useMemo(
+    () => ({ ...state, globe: draft }),
+    [state, draft],
+  );
+
+  // Single-globe close bridge: if we're in DetailView when the user
+  // closes (Apply / Discard / Esc / X), the live thing they were
+  // looking at was the *preview*. Snapshot that canvas and rewire the
+  // bridge so it animates from the preview's hero rect back to the
+  // main globe — no jarring teleport to a corner thumbnail.
+  const beginClose = (commit: boolean) => {
+    if (selected !== null && snapshot) {
+      const captured = capturePreviewGlobe();
+      if (captured) {
+        setSnapshot({
+          ...snapshot,
+          src: captured.src,
+          toRect: captured.rect,
+          phase: 'closing',
+        });
+      }
+    }
+    if (commit) onGlobeChange(draft);
+    setSelected(null);
+    setDirty(false);
+    setAskingClose(false);
+    onOpenChange(false);
+  };
+
+  const handleApply = () => beginClose(true);
+  const handleDiscard = () => beginClose(false);
+
+  const handleKeepEditing = () => {
+    setAskingClose(false);
+  };
+
+  // Wraps onOpenChange(false). When dirty, we surface the prompt
+  // instead of closing immediately.
+  const requestClose = () => {
+    if (!dirty) {
+      beginClose(false);
+      return;
+    }
+    setAskingClose(true);
+  };
 
   // Open transition: capture snapshot + mount + start opening anim.
   useEffect(() => {
@@ -81,13 +172,15 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
           phase: 'opening',
         });
       }
-      setIntro(true);
-      const t = window.setTimeout(() => setIntro(false), 600);
-      return () => window.clearTimeout(t);
+      // Show body on the next frame so the opacity transition has a
+      // from-state to interpolate from (prevents the "instant pop"
+      // when initial render already has opacity 1).
+      const r = window.requestAnimationFrame(() => setBodyShown(true));
+      return () => window.cancelAnimationFrame(r);
     }
     // Closing: flip phase if snapshot exists; keep mounted until anim
     // ends. If no snapshot (e.g. capture failed), unmount immediately.
-    setIntro(false);
+    setBodyShown(false);
     if (snapshot) {
       setSnapshot({ ...snapshot, phase: 'closing' });
     } else {
@@ -97,21 +190,30 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Esc handler — drill out one level (detail → picker → close).
+  // Esc handler — drill out one level (detail → picker → close-prompt).
+  // Note: even Detail-view Esc only steps back to the picker — Apply /
+  // Discard are explicit. This keeps the dirty contract obvious: the
+  // user always confronts unsaved changes when *closing the workshop*.
   useEffect(() => {
     if (!mounted) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.stopPropagation();
+      if (askingClose) {
+        // Esc inside the close-prompt = "keep editing" (cancel close).
+        setAskingClose(false);
+        return;
+      }
       if (selected !== null) {
         setSelected(null);
       } else {
-        onOpenChange(false);
+        requestClose();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mounted, selected, onOpenChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, selected, askingClose, dirty]);
 
   // Lock body scroll while mounted (covers both open + closing phase).
   useEffect(() => {
@@ -140,10 +242,11 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
     ? configuratorMeta.find((c) => c.id === selected) ?? null
     : null;
 
-  // While the snapshot is mid-flight (opening or closing), the body
-  // stays muted so the eye follows the moving thumbnail rather than
-  // competing with cards / hero content. When parked, full opacity.
-  const bodyOpacity = snapshot && snapshot.phase !== 'parked' ? 0 : 1;
+  // Body fades in/out independently of the bridge phase. Opening: we
+  // run body fade-in *in parallel* with the bridge sweep so cards
+  // appear immediately rather than waiting ~700ms for the snapshot to
+  // finish parking. Closing: body fades out alongside the bridge.
+  const bodyOpacity = bodyShown ? 1 : 0;
 
   // Drive the close handler — if the parent flipped `open` to false,
   // the closing animation is in flight; clicking the close button
@@ -163,67 +266,62 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
           beat (snapshot moves out → backdrop comes in, and vice versa). */}
       <Backdrop closing={isClosing} />
 
-      {/* Letterbox bars — 32px black bars top/bottom that ease in then
-          retract over 600ms. Cinematic transition cue, not permanent. */}
-      <Letterbox active={intro} />
-
-      {/* Topbar — minimal brand-mark + crumb + Esc hint + close. */}
+      {/* Topbar — minimal brand-mark + crumb + Esc/Apply/Discard. */}
       <div
         className="transition-opacity duration-500 ease-out"
         style={{ opacity: bodyOpacity }}
       >
         <WorkshopHeader
           active={activeConfig?.name ?? null}
+          dirty={dirty}
+          askingClose={askingClose}
           onBackToPicker={() => setSelected(null)}
-          onClose={() => onOpenChange(false)}
+          onClose={requestClose}
+          onApply={handleApply}
+          onDiscard={handleDiscard}
+          onKeepEditing={handleKeepEditing}
         />
       </div>
 
-      {/* Body — picker or detail. Faded out during snapshot transit. */}
+      {/* Body — picker or detail. Faded out during snapshot transit.
+          Opacity is driven solely by inline `bodyOpacity` + the 500ms
+          transition; no competing keyframe animation (which previously
+          flashed the body in for 260ms before the bridge even reached
+          the corner). */}
       <div
         key={selected ?? 'picker'}
-        className="absolute inset-0 overflow-y-auto pt-16 pb-10 transition-opacity duration-500 ease-out [animation:workshopFadeIn_260ms_ease-out]"
+        className="absolute inset-0 overflow-y-auto pt-16 pb-10 transition-opacity duration-500 ease-out"
         style={{ opacity: bodyOpacity }}
       >
         {activeConfig ? (
           <DetailView
             configurator={activeConfig}
-            state={state}
-            onGlobeChange={onGlobeChange}
+            state={draftState}
+            onGlobeChange={handleDraftChange}
             onBack={() => setSelected(null)}
           />
         ) : (
-          <CardPicker state={state} onPick={setSelected} />
+          <CardPicker state={draftState} onPick={setSelected} />
         )}
       </div>
 
       {/* Snapshot bridge — sits above everything (z-70). Opens with a
           translate+scale from the studio's main globe rect to the
-          corner thumbnail, then parks; closing reverses. */}
+          corner thumbnail, then parks; closing reverses.
+          Hidden via `visible` while a Workshop DetailView is active —
+          the preview globe takes over visually so we never show two
+          globes at once. */}
       {snapshot ? (
         <SnapshotBridge
           src={snapshot.src}
           fromRect={snapshot.fromRect}
           toRect={snapshot.toRect}
           phase={snapshot.phase}
+          visible={snapshot.phase !== 'parked' || selected === null}
           onPhaseEnd={onBridgePhaseEnd}
         />
       ) : null}
 
-      <style>{`
-        @keyframes workshopFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes letterbox-in {
-          from { transform: translateY(-100%); }
-          to   { transform: translateY(0); }
-        }
-        @keyframes letterbox-in-bottom {
-          from { transform: translateY(100%); }
-          to   { transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -231,15 +329,19 @@ export function Workshop({ open, onOpenChange, state, onGlobeChange }: WorkshopP
 /* ───────────────────────── BACKDROP ───────────────────────── */
 
 function Backdrop({ closing = false }: { readonly closing?: boolean }) {
+  // Wrap all three layers so the closing fade affects them as a unit
+  // — previously only the dark blur layer faded out and the noise +
+  // gradient hung on solid until the whole overlay unmounted, leaving
+  // a "residual texture" flash mid-close.
   return (
-    <>
-      <div
-        className={cn(
-          'absolute inset-0 bg-[#03050d]/80 backdrop-blur-2xl backdrop-saturate-150 transition-opacity duration-500 ease-out',
-          '[animation:backdropFadeIn_260ms_ease-out]',
-          closing && 'opacity-0',
-        )}
-      />
+    <div
+      className={cn(
+        'absolute inset-0 transition-opacity duration-500 ease-out',
+        '[animation:backdropFadeIn_260ms_ease-out]',
+        closing && 'opacity-0',
+      )}
+    >
+      <div className="absolute inset-0 bg-[#03050d]/80 backdrop-blur-2xl backdrop-saturate-150" />
       {/* Animated noise / aurora shimmer behind everything for atmosphere */}
       <div
         aria-hidden="true"
@@ -263,43 +365,31 @@ function Backdrop({ closing = false }: { readonly closing?: boolean }) {
           to   { opacity: 1; }
         }
       `}</style>
-    </>
+    </div>
   );
 }
 
-/* ───────────────────────── LETTERBOX ───────────────────────── */
-
-function Letterbox({ active }: { readonly active: boolean }) {
-  return (
-    <>
-      <div
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute inset-x-0 top-0 z-[5] h-8 origin-top bg-black transition-transform duration-500 ease-out',
-          active ? 'translate-y-0' : '-translate-y-full',
-        )}
-      />
-      <div
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-8 origin-bottom bg-black transition-transform duration-500 ease-out',
-          active ? 'translate-y-0' : 'translate-y-full',
-        )}
-      />
-    </>
-  );
-}
 
 /* ───────────────────────── HEADER ───────────────────────── */
 
 function WorkshopHeader({
   active,
+  dirty,
+  askingClose,
   onBackToPicker,
   onClose,
+  onApply,
+  onDiscard,
+  onKeepEditing,
 }: {
   readonly active: string | null;
+  readonly dirty: boolean;
+  readonly askingClose: boolean;
   readonly onBackToPicker: () => void;
   readonly onClose: () => void;
+  readonly onApply: () => void;
+  readonly onDiscard: () => void;
+  readonly onKeepEditing: () => void;
 }) {
   return (
     <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-5 py-3.5">
@@ -325,26 +415,93 @@ function WorkshopHeader({
             <span className="text-white">{active}</span>
           </>
         ) : null}
+        {dirty && !askingClose ? (
+          <span
+            aria-label="Unsaved changes"
+            title="Unsaved changes"
+            className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-200/[0.06] px-2 py-0.5 text-[10px] tracking-[0.18em] text-amber-200/90"
+          >
+            <span className="size-1.5 animate-pulse rounded-full bg-amber-300" />
+            Modified
+          </span>
+        ) : null}
       </div>
 
-      {/* Right cluster — kbd hint + close */}
-      <div className="flex items-center gap-3">
-        <span className="hidden items-center gap-1.5 text-[11px] text-slate-400 md:inline-flex">
-          <Kbd className="!h-5 !min-w-[20px]">Esc</Kbd>
-          <span>{active ? 'back' : 'close'}</span>
-        </span>
-        <button
-          type="button"
-          aria-label="Close Workshop"
-          onClick={onClose}
-          className={cn(
-            'group flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition-all',
-            'hover:scale-105 hover:border-white/20 hover:bg-white/[0.08] hover:text-white hover:shadow-[0_0_24px_-6px_rgba(255,200,90,0.6)]',
+      {/* Right cluster — Apply / Discard / Esc hint / close.
+          Three modes:
+          1. askingClose — three-button prompt replaces the cluster
+             ("You have unsaved changes — Apply / Discard / Keep editing")
+          2. dirty       — Apply + Discard buttons inline + close X
+          3. clean       — Esc hint + close X */}
+      {askingClose ? (
+        <div className="flex items-center gap-2">
+          <span className="hidden text-[11px] uppercase tracking-[0.16em] text-amber-200/80 md:inline">
+            Unsaved changes —
+          </span>
+          <button
+            type="button"
+            onClick={onKeepEditing}
+            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
+          >
+            Keep editing
+          </button>
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="inline-flex items-center gap-1.5 rounded-full border border-rose-300/30 bg-rose-300/[0.06] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-rose-200 transition-colors hover:border-rose-300/60 hover:bg-rose-300/[0.12] hover:text-white"
+          >
+            <FontAwesomeIcon icon={faRotateLeft} className="size-2.5" />
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={onApply}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-gradient-to-b from-amber-200/30 to-amber-300/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_24px_-6px_rgba(255,200,90,0.7),inset_0_1px_0_0_rgba(255,255,255,0.18)] transition-all hover:from-amber-200/40 hover:to-amber-300/30 hover:shadow-[0_0_36px_-6px_rgba(255,200,90,0.9),inset_0_1px_0_0_rgba(255,255,255,0.24)]"
+          >
+            <FontAwesomeIcon icon={faCheck} className="size-2.5" />
+            Apply
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          {dirty ? (
+            <>
+              <button
+                type="button"
+                onClick={onDiscard}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
+              >
+                <FontAwesomeIcon icon={faRotateLeft} className="size-2.5" />
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={onApply}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-gradient-to-b from-amber-200/30 to-amber-300/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-[0_0_24px_-6px_rgba(255,200,90,0.7),inset_0_1px_0_0_rgba(255,255,255,0.18)] transition-all hover:from-amber-200/40 hover:to-amber-300/30 hover:shadow-[0_0_36px_-6px_rgba(255,200,90,0.9),inset_0_1px_0_0_rgba(255,255,255,0.24)]"
+              >
+                <FontAwesomeIcon icon={faCheck} className="size-2.5" />
+                Apply
+              </button>
+            </>
+          ) : (
+            <span className="hidden items-center gap-1.5 text-[11px] text-slate-400 md:inline-flex">
+              <Kbd className="!h-5 !min-w-[20px]">Esc</Kbd>
+              <span>{active ? 'back' : 'close'}</span>
+            </span>
           )}
-        >
-          <FontAwesomeIcon icon={faXmark} className="size-3.5" />
-        </button>
-      </div>
+          <button
+            type="button"
+            aria-label="Close Workshop"
+            onClick={onClose}
+            className={cn(
+              'group flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition-all',
+              'hover:scale-105 hover:border-white/20 hover:bg-white/[0.08] hover:text-white hover:shadow-[0_0_24px_-6px_rgba(255,200,90,0.6)]',
+            )}
+          >
+            <FontAwesomeIcon icon={faXmark} className="size-3.5" />
+          </button>
+        </div>
+      )}
     </header>
   );
 }
