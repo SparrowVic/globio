@@ -121,15 +121,13 @@ function SectionHeading({ children }: { readonly children: React.ReactNode }) {
 
 const preset: PresetModule = {
   cinematography: {
-    kind: 'outline',
-    theme: 'outline-dark',
     initialLat: 50,
     initialLng: 16,
     speed: 0.018,
     framingPadding: 0.14,
     atmosphere: true,
     starfield: true,
-    tagline: 'Outline · Europe — drag the cursor to see hover transitions',
+    tagline: 'Europe — drag the cursor to see hover transitions',
   },
   KnobsComponent,
   watchedKeys: [

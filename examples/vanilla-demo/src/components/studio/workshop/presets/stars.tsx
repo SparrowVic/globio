@@ -253,15 +253,13 @@ function SectionHeading({ children }: { readonly children: React.ReactNode }) {
 
 const preset: PresetModule = {
   cinematography: {
-    kind: 'hologram',
-    theme: 'hologram-cyan',
     initialLat: 8,
     initialLng: -14,
     speed: 0.02,
     framingPadding: 0.32,
     atmosphere: true,
     starfield: true,
-    tagline: 'Hologram · pulled-back framing — the stars dominate the frame',
+    tagline: 'Pulled-back framing — the stars dominate the frame',
   },
   KnobsComponent,
   watchedKeys: [

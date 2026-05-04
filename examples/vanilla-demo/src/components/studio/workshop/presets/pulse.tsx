@@ -186,15 +186,13 @@ function SectionHeading({ children }: { readonly children: React.ReactNode }) {
 
 const preset: PresetModule = {
   cinematography: {
-    kind: 'outline',
-    theme: 'outline-dark',
     initialLat: 12,
     initialLng: 0,
     speed: 0.03,
     framingPadding: 0.18,
     atmosphere: true,
     starfield: true,
-    tagline: 'Outline · click anywhere on the surface to fire a pulse',
+    tagline: 'Click anywhere on the surface to fire a pulse',
   },
   KnobsComponent,
   watchedKeys: [

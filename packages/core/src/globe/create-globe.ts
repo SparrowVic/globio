@@ -70,6 +70,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryActiveLayer?.update(delta);
       state.countryLabelsLayer?.update();
       starfieldLayer?.update(delta);
+      atmosphereLayer?.update(delta);
     },
     onResize: (width, height) => {
       // Keep LineMaterial resolution uniforms in sync so screen-space
@@ -156,6 +157,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       config.atmosphere?.intensity && config.atmosphere.intensity > 0
         ? config.atmosphere.intensity
         : tokens['atmosphere.intensity'],
+    ...(config.atmosphere?.radiusScale !== undefined && {
+      radiusScale: config.atmosphere.radiusScale,
+    }),
+    ...(config.atmosphere?.power !== undefined && { power: config.atmosphere.power }),
+    ...(config.atmosphere?.threshold !== undefined && {
+      threshold: config.atmosphere.threshold,
+    }),
+    ...(config.atmosphere?.side !== undefined && { side: config.atmosphere.side }),
+    ...(config.atmosphere?.blending !== undefined && { blending: config.atmosphere.blending }),
+    ...(config.atmosphere?.pulse !== undefined && { pulse: config.atmosphere.pulse }),
   });
   atmosphereLayer.setVisible(config.atmosphere?.enabled !== false);
   globeGroup.add(atmosphereLayer.mesh);
@@ -731,10 +742,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // band geometry is handled by `partial.outline.focusPulse` below.
       // No-op here, kept as a placeholder + comment for clarity.
 
-      // Atmosphere — visibility flip + (live) color / intensity
-      // uniforms. Empty-string color / intensity ≤ 0 mean "reset to
-      // theme default", so workshop's clear-override flow restores
-      // construction-time values.
+      // Atmosphere — visibility flip + (live) shader uniforms +
+      // geometry rebuild for radius scale. Empty-string color / non-
+      // positive numerics are reset-to-theme-default sentinels.
       if (partial.atmosphere !== undefined) {
         const a = partial.atmosphere;
         if (a.enabled !== undefined) atmosphereLayer?.setVisible(a.enabled);
@@ -746,6 +756,18 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (a.intensity <= 0) atmosphereLayer?.resetIntensity();
           else atmosphereLayer?.setIntensity(a.intensity);
         }
+        if (a.power !== undefined) {
+          if (a.power <= 0) atmosphereLayer?.resetPower();
+          else atmosphereLayer?.setPower(a.power);
+        }
+        if (a.threshold !== undefined) atmosphereLayer?.setThreshold(a.threshold);
+        if (a.radiusScale !== undefined) {
+          if (a.radiusScale <= 1) atmosphereLayer?.resetRadiusScale();
+          else atmosphereLayer?.setRadiusScale(a.radiusScale);
+        }
+        if (a.side !== undefined) atmosphereLayer?.setSide(a.side);
+        if (a.blending !== undefined) atmosphereLayer?.setBlending(a.blending);
+        if (a.pulse !== undefined) atmosphereLayer?.setPulse(a.pulse);
       }
 
       // Country hover — the back-side occlusion flag is the only field

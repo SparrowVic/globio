@@ -12,6 +12,44 @@ export interface AtmosphereConfig {
    * `tokens['atmosphere.intensity']`.
    */
   readonly intensity?: number;
+  /**
+   * Mesh radius as a multiplier of `GLOBE_RADIUS`. Range 1.01..1.5 —
+   * tight rim ↔ wide aurora. Default 1.15.
+   */
+  readonly radiusScale?: number;
+  /**
+   * Fresnel exponent. 0.5 = soft / diffuse glow filling most of the
+   * silhouette; 4.0 = razor-thin rim hugging the edge. Default 2.0.
+   */
+  readonly power?: number;
+  /**
+   * Fresnel threshold (where the rim starts). 0 = entire sphere shows
+   * tint; 1 = only the silhouette edge. Default 0.6.
+   */
+  readonly threshold?: number;
+  /**
+   * Render side. `'back'` (default) draws on the inside of the
+   * surrounding shell so it reads as a halo behind the globe.
+   * `'front'` drops the rim onto the front-facing portion (haze over
+   * the planet); `'double'` does both for a heavier atmosphere.
+   */
+  readonly side?: 'back' | 'front' | 'double';
+  /**
+   * Blend mode. `'additive'` (default) reads as glow on dark themes;
+   * `'normal'` is a flat overlay that avoids highlight blowouts on
+   * cream / paper themes.
+   */
+  readonly blending?: 'additive' | 'normal';
+  /**
+   * Optional time-driven brightness oscillation (atmospheric "breath").
+   */
+  readonly pulse?: {
+    readonly enabled?: boolean;
+    /** Frequency in Hz. Default 0.25 (slow). */
+    readonly speed?: number;
+    /** Amplitude as a fraction of base intensity. Default 0.25. */
+    readonly amplitude?: number;
+  };
 }
 
 export interface StarfieldConfig {

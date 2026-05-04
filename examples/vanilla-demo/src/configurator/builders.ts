@@ -75,6 +75,16 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       // override flow actually restores the layer's initial uniforms.
       color: state.globe.atmosphereColor,
       intensity: state.globe.atmosphereIntensity,
+      radiusScale: state.globe.atmosphereRadiusScale,
+      power: state.globe.atmospherePower,
+      threshold: state.globe.atmosphereThreshold,
+      side: state.globe.atmosphereSide,
+      blending: state.globe.atmosphereBlending,
+      pulse: {
+        enabled: state.globe.atmospherePulse,
+        speed: state.globe.atmospherePulseSpeed,
+        amplitude: state.globe.atmospherePulseAmplitude,
+      },
     },
     starfield: {
       enabled: state.globe.starfield,
@@ -107,7 +117,16 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         glowLift: state.globe.outlineHoverGlowLift,
       },
       hoverGlow: { enabled: state.globe.outlineHoverGlowEnabled },
-      hoverCrosshair: { enabled: state.globe.outlineHoverCrosshair },
+      hoverCrosshair: {
+        enabled: state.globe.outlineHoverCrosshair,
+        color: state.globe.outlineHoverCrosshairColor,
+        size: state.globe.outlineHoverCrosshairSize,
+        opacity: state.globe.outlineHoverCrosshairOpacity,
+        ringRadiusFactor: state.globe.outlineHoverCrosshairRingRadiusFactor,
+        cardinalTicks: state.globe.outlineHoverCrosshairCardinalTicks,
+        tooltip: state.globe.outlineHoverCrosshairTooltip,
+        tooltipDecimals: state.globe.outlineHoverCrosshairTooltipDecimals,
+      },
       continentDim: {
         enabled: state.globe.outlineContinentDim,
         amount: state.globe.outlineContinentDimAmount,

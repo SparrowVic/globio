@@ -165,15 +165,13 @@ function SectionHeading({ children }: { readonly children: React.ReactNode }) {
 
 const preset: PresetModule = {
   cinematography: {
-    kind: 'outline',
-    theme: 'outline-dark',
     initialLat: 48,
     initialLng: 12,
     speed: 0.025,
     framingPadding: 0.16,
     atmosphere: true,
     starfield: true,
-    tagline: 'Outline · Europe · slow ambient — so labels read as the subject',
+    tagline: 'Europe · slow ambient — so labels read as the subject',
   },
   KnobsComponent,
   // Every label-related GlobeSettings field. The preview live-updates

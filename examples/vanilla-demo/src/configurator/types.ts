@@ -48,6 +48,17 @@ export interface GlobeSettings {
   readonly atmosphereColor: string;
   /** 0 = use theme default. */
   readonly atmosphereIntensity: number;
+  /** Mesh radius scale (≤1 = use default 1.15). */
+  readonly atmosphereRadiusScale: number;
+  /** Fresnel exponent (≤0 = use default 2.0). */
+  readonly atmospherePower: number;
+  /** Fresnel threshold (0..1, 0.6 default). */
+  readonly atmosphereThreshold: number;
+  readonly atmosphereSide: 'back' | 'front' | 'double';
+  readonly atmosphereBlending: 'additive' | 'normal';
+  readonly atmospherePulse: boolean;
+  readonly atmospherePulseSpeed: number;
+  readonly atmospherePulseAmplitude: number;
   readonly starfield: boolean;
   readonly starfieldDensity: number;
   readonly starfieldSize: number;
@@ -84,6 +95,13 @@ export interface GlobeSettings {
   readonly outlineContinentDimAmount: number;
   /** Outline-only — Tron-style targeting reticle that tracks the cursor. */
   readonly outlineHoverCrosshair: boolean;
+  readonly outlineHoverCrosshairColor: string;
+  readonly outlineHoverCrosshairSize: number;
+  readonly outlineHoverCrosshairOpacity: number;
+  readonly outlineHoverCrosshairRingRadiusFactor: number;
+  readonly outlineHoverCrosshairCardinalTicks: boolean;
+  readonly outlineHoverCrosshairTooltip: boolean;
+  readonly outlineHoverCrosshairTooltipDecimals: number;
   readonly clickToFocus: boolean;
   readonly focusPadding: number;
   readonly focusDurationMs: number;

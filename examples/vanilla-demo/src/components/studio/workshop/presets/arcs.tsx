@@ -367,15 +367,13 @@ listeners.add(() => {
 
 const preset: PresetModule = {
   cinematography: {
-    kind: 'outline',
-    theme: 'outline-dark',
     initialLat: 30,
     initialLng: -30,
     speed: 0.014,
     framingPadding: 0.18,
     atmosphere: true,
     starfield: true,
-    tagline: 'Outline · Atlantic — long-haul great circles arc across the globe',
+    tagline: 'Atlantic — long-haul great circles arc across the globe',
   },
   KnobsComponent,
   watchedKeys: [],

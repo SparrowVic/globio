@@ -370,9 +370,25 @@ export const outlineKind: KindModule = {
     // Always construct the layer so we can toggle visibility live —
     // creating the layer is cheap, and skipping the build means a
     // later setEnabled(true) wouldn't have anywhere to mount.
+    const crosshairConfig = outlineConfig?.hoverCrosshair;
     const crosshair: HoverCrosshairLayer = new HoverCrosshairLayer({
       container: config.container,
-      color: tokens['countries.borderHover.color'],
+      color:
+        crosshairConfig?.color && crosshairConfig.color !== ''
+          ? crosshairConfig.color
+          : tokens['countries.borderHover.color'],
+      ...(crosshairConfig?.size !== undefined && { size: crosshairConfig.size }),
+      ...(crosshairConfig?.opacity !== undefined && { opacity: crosshairConfig.opacity }),
+      ...(crosshairConfig?.ringRadiusFactor !== undefined && {
+        ringRadiusFactor: crosshairConfig.ringRadiusFactor,
+      }),
+      ...(crosshairConfig?.cardinalTicks !== undefined && {
+        cardinalTicks: crosshairConfig.cardinalTicks,
+      }),
+      ...(crosshairConfig?.tooltip !== undefined && { tooltip: crosshairConfig.tooltip }),
+      ...(crosshairConfig?.tooltipDecimals !== undefined && {
+        tooltipDecimals: crosshairConfig.tooltipDecimals,
+      }),
     });
     crosshair.setEnabled(crosshairEnabledNow);
     globeGroup.add(crosshair.object);
@@ -457,10 +473,25 @@ export const outlineKind: KindModule = {
           }
         }
         if (next.hoverCrosshair !== undefined) {
-          const enabled = next.hoverCrosshair.enabled ?? crosshairEnabledNow;
-          crosshairEnabledNow = enabled;
-          crosshair.setEnabled(enabled);
-          if (!enabled) crosshair.hide();
+          const c = next.hoverCrosshair;
+          if (c.enabled !== undefined) {
+            crosshairEnabledNow = c.enabled;
+            crosshair.setEnabled(c.enabled);
+            if (!c.enabled) crosshair.hide();
+          }
+          if (c.color !== undefined) {
+            crosshair.setColor(
+              c.color === '' ? tokens['countries.borderHover.color'] : c.color,
+            );
+          }
+          if (c.size !== undefined) crosshair.setSize(c.size);
+          if (c.opacity !== undefined) crosshair.setOpacity(c.opacity);
+          if (c.ringRadiusFactor !== undefined)
+            crosshair.setRingRadiusFactor(c.ringRadiusFactor);
+          if (c.cardinalTicks !== undefined) crosshair.setCardinalTicks(c.cardinalTicks);
+          if (c.tooltip !== undefined) crosshair.setTooltipVisible(c.tooltip);
+          if (c.tooltipDecimals !== undefined)
+            crosshair.setTooltipDecimals(c.tooltipDecimals);
         }
         if (next.continentDim !== undefined) {
           const enabled = next.continentDim.enabled ?? dimEnabled;

@@ -110,11 +110,17 @@ export function WorkshopPreviewGlobe({
     if (!container) return undefined;
 
     const baseConfig = buildGlobeConfig(state);
+    // Kind / theme: prefer the cinematography override (only set on
+    // presets that are truly kind-locked, e.g. an outline-only knob),
+    // otherwise mirror the user's current studio choice so the preview
+    // shows them what they're shipping rather than a different look.
+    const previewKind = cinematography.kind ?? state.globe.kind;
+    const previewTheme = cinematography.theme ?? state.globe.theme;
     const globe = createGlobe({
       ...baseConfig,
       container,
-      kind: cinematography.kind,
-      theme: cinematography.theme,
+      kind: previewKind,
+      theme: previewTheme,
       transparent: true,
       framing: { padding: cinematography.framingPadding ?? 0.18, lockZoom: true },
       atmosphere: { enabled: cinematography.atmosphere ?? true },
@@ -147,6 +153,11 @@ export function WorkshopPreviewGlobe({
     cinematography.framingPadding,
     cinematography.atmosphere,
     cinematography.starfield,
+    // User-driven kind / theme — when the studio top bar swaps either,
+    // the preview rebuilds onto the new pipeline so the workshop keeps
+    // showing what they're actually editing.
+    state.globe.kind,
+    state.globe.theme,
     debouncedRebuildSignature,
   ]);
 

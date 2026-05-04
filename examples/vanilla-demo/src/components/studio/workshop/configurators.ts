@@ -38,8 +38,19 @@ export type ConfiguratorId =
   | 'crosshair';
 
 export interface PreviewCinematography {
-  readonly kind: GlobeKind;
-  readonly theme: ThemePresetName;
+  /**
+   * Optional kind override. When omitted (the default), the preview
+   * mirrors the user's current `state.globe.kind` from the studio so
+   * the workshop shows them what they're actually shipping. Set
+   * explicitly only when the configurator is fundamentally tied to a
+   * specific kind (e.g. `crosshair` is outline-only — though even
+   * then the DependsOn knobs gate properly, so leaving this unset and
+   * letting the preview "go blank" on other kinds is also a valid
+   * teaching moment).
+   */
+  readonly kind?: GlobeKind;
+  /** Optional theme override; otherwise defers to `state.globe.theme`. */
+  readonly theme?: ThemePresetName;
   /** Initial camera lat/lng. */
   readonly initialLat: number;
   readonly initialLng: number;

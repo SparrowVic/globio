@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import type { GlobeInstance, LatLng, MarkerConfig } from '@your-globe/core';
+import type {
+  GlobeInstance,
+  HtmlMarkerConfig,
+  LatLng,
+  MarkerConfig,
+} from '@your-globe/core';
 
 import {
   ColorField,
   SelectField,
   SliderField,
   SwitchField,
+  ToggleField,
 } from '@/components/shared/controls';
 import { DependsOn } from '@/components/shared/components/DependsOn';
 
@@ -17,19 +23,21 @@ import type {
 /**
  * Markers configurator preset.
  *
- * Cinematography: hologram-cyan over the Mediterranean — markers read
- * crisply against the moody silhouette, and the cluster of European
- * capitals + a few transcontinental anchors gives enough pulse / size
- * variety to see knobs land.
+ * The preview drops a fixture marker set onto the user's currently-
+ * configured globe (kind / theme inherited from the studio so the
+ * workshop reflects what they're actually shipping). Two render modes:
  *
- * Architecture mirrors `arcs.tsx`: markers are imperative API, so the
- * preset stashes its styling in a module-scoped store and surfaces it
- * via the workshop preset's `onMount` / `onLiveUpdate` hooks. Knobs-
- * Component subscribes to the same store so sliders stay in sync.
+ *  - `dots` — the classic 3D `globe.setMarkers` instanced sphere mesh.
+ *    Best for hundreds-to-thousands of points, supports per-marker
+ *    pulse animation natively.
+ *  - `cards` — `globe.setHtmlMarkers`, each city becomes a styled DOM
+ *    card pinned to its lat/lng. Higher fidelity (typography, custom
+ *    layouts) but heavier per-marker. Used for capital tours, event
+ *    callouts, anything where the readout is the point.
  *
- * Datasets: 4 variants spanning capitals, mega-cities, capitals + a
- * mid-Pacific anchor (so the user sees the back-side fade in real
- * time), and a "ring of fire" volcanic tour.
+ * Datasets cover capitals, mega-cities, the Pacific rim and a Ring of
+ * Fire volcanic tour — picked for variety in marker spacing + back-
+ * side occlusion behaviour as the globe rotates.
  */
 
 interface MarkerFixture {
@@ -100,27 +108,61 @@ const datasetOptions = [
   { value: 'ringoffire', label: 'Ring of fire' },
 ] as const;
 
+const renderModeOptions = [
+  { value: 'dots', label: '3D dots' },
+  { value: 'cards', label: 'HTML cards' },
+] as const;
+
+const cardStyleOptions = [
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'pill', label: 'Pill' },
+  { value: 'badge', label: 'Badge' },
+  { value: 'callout', label: 'Callout' },
+] as const;
+
+const cardAnchorOptions = [
+  { value: 'top', label: 'Top' },
+  { value: 'center', label: 'Center' },
+  { value: 'bottom', label: 'Bottom' },
+] as const;
+
 interface MarkerSettings {
   readonly dataset: keyof typeof FIXTURES;
+  readonly mode: 'dots' | 'cards';
+  // Dot mode
   readonly size: number;
   readonly color: string;
   readonly perMarkerColor: boolean;
+  readonly hoverScale: number;
   readonly pulse: boolean;
   readonly pulseSpeed: number;
   readonly pulseAmplitude: number;
-  readonly showLabels: boolean;
+  readonly pulsePhaseOffset: boolean;
+  // Card mode
+  readonly cardStyle: 'minimal' | 'pill' | 'badge' | 'callout';
+  readonly cardAnchor: 'top' | 'center' | 'bottom';
+  readonly cardOffsetY: number;
+  readonly cardAccent: string;
+  readonly cardHideOccluded: boolean;
 }
 
 /* ───────── module-scoped store ───────── */
 let liveSettings: MarkerSettings = {
   dataset: 'capitals',
-  size: 0.018,
+  mode: 'dots',
+  size: 1.5,
   color: '#67e8f9',
   perMarkerColor: false,
+  hoverScale: 1.5,
   pulse: true,
   pulseSpeed: 1.5,
   pulseAmplitude: 0.4,
-  showLabels: false,
+  pulsePhaseOffset: true,
+  cardStyle: 'pill',
+  cardAnchor: 'bottom',
+  cardOffsetY: -8,
+  cardAccent: '#67e8f9',
+  cardHideOccluded: true,
 };
 const listeners = new Set<() => void>();
 const setLiveSettings = (next: MarkerSettings) => {
@@ -140,7 +182,7 @@ const useMarkerSettings = (): MarkerSettings => {
   return liveSettings;
 };
 
-/** Per-marker rotating accent palette. */
+/** Six-color rotation for per-marker accent mode. */
 const ACCENT_ROTATION: ReadonlyArray<string> = [
   '#67e8f9',
   '#fbbf24',
@@ -150,19 +192,143 @@ const ACCENT_ROTATION: ReadonlyArray<string> = [
   '#fde68a',
 ];
 
-const buildMarkers = (s: MarkerSettings): ReadonlyArray<MarkerConfig> => {
+const buildDots = (s: MarkerSettings): ReadonlyArray<MarkerConfig> => {
   const fixtures = FIXTURES[s.dataset] ?? FIXTURES.capitals!;
-  return fixtures.map((m, i) => ({
+  return fixtures.map((m, i) => {
+    const phaseShift = s.pulsePhaseOffset ? i * 0.18 : 0;
+    return {
+      id: m.id,
+      position: m.position,
+      color: s.perMarkerColor
+        ? ACCENT_ROTATION[i % ACCENT_ROTATION.length]!
+        : s.color,
+      // marker.size is a *multiplier* of MarkersLayer.defaultSize
+      // (~0.012 in the layer). 1.0 = layer default, 2.0 = double, etc.
+      size: s.size,
+      ...(s.pulse
+        ? {
+            pulse: {
+              speed: s.pulseSpeed,
+              amplitude: s.pulseAmplitude,
+              // phase offset is per-marker but the type doesn't expose
+              // it; we work around by jiggering speed slightly per
+              // index so the field doesn't pulse in unison.
+              ...(phaseShift !== 0
+                ? { speed: s.pulseSpeed * (1 + phaseShift * 0.04) }
+                : {}),
+            },
+          }
+        : {}),
+    };
+  });
+};
+
+const buildCards = (s: MarkerSettings): ReadonlyArray<HtmlMarkerConfig> => {
+  const fixtures = FIXTURES[s.dataset] ?? FIXTURES.capitals!;
+  return fixtures.map((m) => ({
     id: m.id,
     position: m.position,
-    color: s.perMarkerColor
-      ? ACCENT_ROTATION[i % ACCENT_ROTATION.length]!
-      : s.color,
-    size: s.size,
-    ...(s.showLabels && { label: m.label }),
-    ...(s.pulse && { pulse: { speed: s.pulseSpeed, amplitude: s.pulseAmplitude } }),
+    content: () => makeCardElement(m.label, s.cardStyle, s.cardAccent),
+    anchor: s.cardAnchor,
+    offset: [0, s.cardOffsetY] as const,
+    hideWhenOccluded: s.cardHideOccluded,
   }));
 };
+
+/**
+ * Hand-built DOM card variants. Inline-styled to avoid the workshop
+ * preset shipping a CSS module — the fixture is small so the verbosity
+ * stays bounded. Each style is a different visual register so a user
+ * can pick which feels right for their data.
+ */
+function makeCardElement(label: string, style: MarkerSettings['cardStyle'], accent: string): HTMLElement {
+  const el = document.createElement('div');
+  el.style.pointerEvents = 'none';
+  el.style.userSelect = 'none';
+  el.style.fontFamily = 'ui-sans-serif, system-ui, sans-serif';
+  el.style.whiteSpace = 'nowrap';
+  el.style.transformOrigin = 'center bottom';
+  if (style === 'minimal') {
+    el.textContent = label;
+    el.style.color = '#ffffff';
+    el.style.fontSize = '11px';
+    el.style.fontWeight = '500';
+    el.style.letterSpacing = '0.03em';
+    el.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.7)';
+  } else if (style === 'pill') {
+    el.textContent = label;
+    el.style.color = '#0a0d18';
+    el.style.background = accent;
+    el.style.fontSize = '10.5px';
+    el.style.fontWeight = '600';
+    el.style.letterSpacing = '0.04em';
+    el.style.padding = '3px 8px';
+    el.style.borderRadius = '999px';
+    el.style.boxShadow = `0 0 12px ${accent}88, 0 1px 3px rgba(0,0,0,0.4)`;
+  } else if (style === 'badge') {
+    el.style.background = 'rgba(10, 13, 24, 0.9)';
+    el.style.border = `1px solid ${accent}`;
+    el.style.padding = '4px 10px';
+    el.style.borderRadius = '6px';
+    el.style.boxShadow = `0 0 14px ${accent}55`;
+    const dot = document.createElement('span');
+    dot.style.display = 'inline-block';
+    dot.style.width = '6px';
+    dot.style.height = '6px';
+    dot.style.borderRadius = '50%';
+    dot.style.background = accent;
+    dot.style.marginRight = '6px';
+    dot.style.verticalAlign = 'middle';
+    dot.style.boxShadow = `0 0 6px ${accent}`;
+    const text = document.createElement('span');
+    text.textContent = label;
+    text.style.color = '#ffffff';
+    text.style.fontSize = '10.5px';
+    text.style.fontWeight = '500';
+    text.style.letterSpacing = '0.04em';
+    text.style.verticalAlign = 'middle';
+    el.appendChild(dot);
+    el.appendChild(text);
+  } else {
+    // callout
+    el.style.background = 'rgba(10, 13, 24, 0.92)';
+    el.style.border = `1px solid ${accent}66`;
+    el.style.padding = '6px 10px 7px';
+    el.style.borderRadius = '8px';
+    el.style.boxShadow = `0 8px 24px -6px rgba(0,0,0,0.6), 0 0 16px ${accent}33`;
+    el.style.position = 'relative';
+    const tag = document.createElement('div');
+    tag.textContent = 'CITY';
+    tag.style.color = accent;
+    tag.style.fontSize = '8.5px';
+    tag.style.fontWeight = '600';
+    tag.style.letterSpacing = '0.18em';
+    tag.style.marginBottom = '2px';
+    const text = document.createElement('div');
+    text.textContent = label;
+    text.style.color = '#ffffff';
+    text.style.fontSize = '12px';
+    text.style.fontWeight = '600';
+    text.style.letterSpacing = '0.02em';
+    el.appendChild(tag);
+    el.appendChild(text);
+    // little tail
+    const tail = document.createElement('span');
+    tail.style.cssText = [
+      'position:absolute',
+      'left:50%',
+      'bottom:-4px',
+      'transform:translateX(-50%) rotate(45deg)',
+      'width:6px',
+      'height:6px',
+      'background:rgba(10,13,24,0.92)',
+      `border-right:1px solid ${accent}66`,
+      `border-bottom:1px solid ${accent}66`,
+    ].join(';');
+    el.appendChild(tail);
+  }
+  return el;
+}
 
 const KnobsComponent = ({}: KnobsComponentProps) => {
   const settings = useMarkerSettings();
@@ -176,34 +342,125 @@ const KnobsComponent = ({}: KnobsComponentProps) => {
         onChange={(dataset) => setLiveSettings({ ...settings, dataset })}
       />
 
-      <SectionHeading>Style</SectionHeading>
-      <SliderField
-        label="Size"
-        value={settings.size}
-        min={0.004}
-        max={0.05}
-        step={0.001}
-        format={(value) => value.toFixed(3)}
-        onChange={(size) => setLiveSettings({ ...settings, size })}
+      <SectionHeading>Render mode</SectionHeading>
+      <ToggleField
+        label="Mode"
+        value={settings.mode}
+        options={renderModeOptions}
+        onChange={(mode) => setLiveSettings({ ...settings, mode })}
       />
-      <SwitchField
-        label="Per-marker accent palette"
-        checked={settings.perMarkerColor}
-        onChange={(perMarkerColor) => setLiveSettings({ ...settings, perMarkerColor })}
-        value="Rotate through a six-color palette"
-      />
+
       <DependsOn
-        when={!settings.perMarkerColor}
-        because="Disable Per-marker accent palette first."
+        when={settings.mode === 'dots'}
+        because="Switch to 3D dots mode."
         className="space-y-4"
       >
+        <SectionHeading>Dot style</SectionHeading>
+        <SliderField
+          label="Size"
+          value={settings.size}
+          min={0.4}
+          max={6}
+          step={0.1}
+          format={(value) => `×${value.toFixed(1)}`}
+          onChange={(size) => setLiveSettings({ ...settings, size })}
+        />
+        <SliderField
+          label="Hover scale"
+          value={settings.hoverScale}
+          min={1}
+          max={3}
+          step={0.1}
+          format={(value) => `×${value.toFixed(1)}`}
+          onChange={(hoverScale) => setLiveSettings({ ...settings, hoverScale })}
+        />
+        <SwitchField
+          label="Per-marker accent palette"
+          checked={settings.perMarkerColor}
+          onChange={(perMarkerColor) => setLiveSettings({ ...settings, perMarkerColor })}
+          value="Rotate through a six-color palette"
+        />
+        <DependsOn
+          when={!settings.perMarkerColor}
+          because="Disable Per-marker accent palette first."
+          className="space-y-4"
+        >
+          <ColorField
+            label="Color"
+            value={settings.color}
+            onChange={(color) => setLiveSettings({ ...settings, color })}
+            swatches={[
+              '#67e8f9',
+              '#22d3ee',
+              '#fbbf24',
+              '#f472b6',
+              '#34d399',
+              '#a78bfa',
+              '#ef4444',
+              '#84cc16',
+              '#fde68a',
+              '#ffffff',
+            ]}
+          />
+        </DependsOn>
+
+        <SectionHeading>Pulse</SectionHeading>
+        <SwitchField
+          label="Animated pulse"
+          checked={settings.pulse}
+          onChange={(pulse) => setLiveSettings({ ...settings, pulse })}
+          value="Markers oscillate in size to draw attention"
+        />
+        <DependsOn
+          when={settings.pulse}
+          because="Enable pulse first."
+          className="space-y-4"
+        >
+          <SliderField
+            label="Speed"
+            value={settings.pulseSpeed}
+            min={0.2}
+            max={4}
+            step={0.1}
+            format={(value) => `${value.toFixed(1)} Hz`}
+            onChange={(pulseSpeed) => setLiveSettings({ ...settings, pulseSpeed })}
+          />
+          <SliderField
+            label="Amplitude"
+            value={settings.pulseAmplitude}
+            min={0.05}
+            max={1}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(pulseAmplitude) => setLiveSettings({ ...settings, pulseAmplitude })}
+          />
+          <SwitchField
+            label="Per-marker phase offset"
+            checked={settings.pulsePhaseOffset}
+            onChange={(pulsePhaseOffset) => setLiveSettings({ ...settings, pulsePhaseOffset })}
+            value="Stagger pulses so the field doesn't strobe in unison"
+          />
+        </DependsOn>
+      </DependsOn>
+
+      <DependsOn
+        when={settings.mode === 'cards'}
+        because="Switch to HTML cards mode."
+        className="space-y-4"
+      >
+        <SectionHeading>Card style</SectionHeading>
+        <ToggleField
+          label="Variant"
+          value={settings.cardStyle}
+          options={cardStyleOptions}
+          onChange={(cardStyle) => setLiveSettings({ ...settings, cardStyle })}
+        />
         <ColorField
-          label="Color"
-          value={settings.color}
-          onChange={(color) => setLiveSettings({ ...settings, color })}
+          label="Accent color"
+          value={settings.cardAccent}
+          onChange={(cardAccent) => setLiveSettings({ ...settings, cardAccent })}
           swatches={[
             '#67e8f9',
-            '#22d3ee',
             '#fbbf24',
             '#f472b6',
             '#34d399',
@@ -212,45 +469,31 @@ const KnobsComponent = ({}: KnobsComponentProps) => {
             '#84cc16',
             '#fde68a',
             '#ffffff',
+            '#22d3ee',
           ]}
         />
-      </DependsOn>
-      <SwitchField
-        label="Show labels"
-        checked={settings.showLabels}
-        onChange={(showLabels) => setLiveSettings({ ...settings, showLabels })}
-        value="Render the marker's label string above each dot"
-      />
 
-      <SectionHeading>Pulse</SectionHeading>
-      <SwitchField
-        label="Animated pulse"
-        checked={settings.pulse}
-        onChange={(pulse) => setLiveSettings({ ...settings, pulse })}
-        value="Markers oscillate in size to draw attention"
-      />
-      <DependsOn
-        when={settings.pulse}
-        because="Enable pulse first."
-        className="space-y-4"
-      >
-        <SliderField
-          label="Speed"
-          value={settings.pulseSpeed}
-          min={0.2}
-          max={4}
-          step={0.1}
-          format={(value) => `${value.toFixed(1)} Hz`}
-          onChange={(pulseSpeed) => setLiveSettings({ ...settings, pulseSpeed })}
+        <SectionHeading>Position</SectionHeading>
+        <ToggleField
+          label="Anchor"
+          value={settings.cardAnchor}
+          options={cardAnchorOptions}
+          onChange={(cardAnchor) => setLiveSettings({ ...settings, cardAnchor })}
         />
         <SliderField
-          label="Amplitude"
-          value={settings.pulseAmplitude}
-          min={0.05}
-          max={1}
-          step={0.05}
-          format={(value) => value.toFixed(2)}
-          onChange={(pulseAmplitude) => setLiveSettings({ ...settings, pulseAmplitude })}
+          label="Vertical offset"
+          value={settings.cardOffsetY}
+          min={-40}
+          max={40}
+          step={1}
+          format={(value) => `${value} px`}
+          onChange={(cardOffsetY) => setLiveSettings({ ...settings, cardOffsetY })}
+        />
+        <SwitchField
+          label="Hide on far hemisphere"
+          checked={settings.cardHideOccluded}
+          onChange={(cardHideOccluded) => setLiveSettings({ ...settings, cardHideOccluded })}
+          value="Fade out cards rotated to the back of the globe"
         />
       </DependsOn>
     </div>
@@ -266,31 +509,38 @@ function SectionHeading({ children }: { readonly children: React.ReactNode }) {
 }
 
 let activeGlobe: GlobeInstance | null = null;
+const pushDataset = (globe: GlobeInstance, s: MarkerSettings) => {
+  if (s.mode === 'dots') {
+    globe.setHtmlMarkers([]);
+    globe.setMarkers(buildDots(s));
+  } else {
+    globe.setMarkers([]);
+    globe.setHtmlMarkers(buildCards(s));
+  }
+};
 listeners.add(() => {
-  if (activeGlobe) activeGlobe.setMarkers(buildMarkers(liveSettings));
+  if (activeGlobe) pushDataset(activeGlobe, liveSettings);
 });
 
 const preset: PresetModule = {
   cinematography: {
-    kind: 'hologram',
-    theme: 'hologram-cyan',
     initialLat: 38,
     initialLng: 18,
     speed: 0.018,
     framingPadding: 0.16,
     atmosphere: true,
     starfield: true,
-    tagline: 'Hologram · Mediterranean — capitals + transcontinental anchors',
+    tagline: 'Mediterranean — capitals + transcontinental anchors',
   },
   KnobsComponent,
   watchedKeys: [],
   onMount: (globe) => {
     activeGlobe = globe;
-    globe.setMarkers(buildMarkers(liveSettings));
+    pushDataset(globe, liveSettings);
   },
   onLiveUpdate: (globe) => {
     activeGlobe = globe;
-    globe.setMarkers(buildMarkers(liveSettings));
+    pushDataset(globe, liveSettings);
   },
 };
 

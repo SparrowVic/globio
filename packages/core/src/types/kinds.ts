@@ -58,7 +58,29 @@ export interface OutlineConfig {
     /** Lift above the globe surface as a multiplier of GLOBE_RADIUS. Default 1.0045. */
     readonly radiusFactor?: number;
   };
-  readonly hoverCrosshair?: { readonly enabled?: boolean };
+  readonly hoverCrosshair?: {
+    readonly enabled?: boolean;
+    /**
+     * Reticle line color override. Falls back to
+     * `tokens['countries.borderHover.color']`.
+     */
+    readonly color?: string;
+    /** Reticle size as world units on the sphere. Default 0.012. */
+    readonly size?: number;
+    /** Material opacity (0..1). Default 0.85. */
+    readonly opacity?: number;
+    /**
+     * Inner ring radius as a fraction of the cross arm length. 0 = no
+     * ring, 0.7 (default) = ring fits inside the cross diagonal.
+     */
+    readonly ringRadiusFactor?: number;
+    /** Show small N/S/E/W ticks just outside the ring. Default true. */
+    readonly cardinalTicks?: boolean;
+    /** Show the DOM lat/lng readout near the cursor. Default true. */
+    readonly tooltip?: boolean;
+    /** Decimals in the lat/lng readout. Default 2. */
+    readonly tooltipDecimals?: number;
+  };
   readonly continentDim?: { readonly enabled?: boolean; readonly amount?: number };
 }
 
