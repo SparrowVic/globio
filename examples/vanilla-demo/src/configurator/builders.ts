@@ -279,6 +279,84 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         opacity: state.globe.hologramCalibrationTicksOpacity,
       },
     },
+    // Paper kind (vintage atlas) — every knob is always sent so the
+    // workshop's clear-override flow can route through globe.update().
+    // Sentinels: empty-string color = use theme default, < 0 numeric =
+    // use theme default where the natural domain is ≥ 0. The core
+    // paper kind ignores this section for non-paper kinds.
+    paper: {
+      surface: {
+        color: state.globe.paperSurfaceColor,
+        noiseAmount: state.globe.paperSurfaceNoise,
+        vignette: state.globe.paperSurfaceVignette,
+      },
+      borders: {
+        enabled: state.globe.paperBorders,
+        color: state.globe.paperBorderColor,
+        opacity: state.globe.paperBorderOpacity,
+        width: state.globe.paperBorderWidth,
+        roughness: state.globe.paperBorderRoughness,
+        stipple: {
+          enabled: state.globe.paperStipple,
+          density: state.globe.paperStippleDensity,
+          size: state.globe.paperStippleSize,
+        },
+        inkBleed: {
+          enabled: state.globe.paperInkBleed,
+          color: state.globe.paperInkBleedColor,
+          opacity: state.globe.paperInkBleedOpacity,
+          spread: state.globe.paperInkBleedSpread,
+        },
+      },
+      fill: {
+        enabled: state.globe.paperFill,
+        color: state.globe.paperFillColor,
+        opacity: state.globe.paperFillOpacity,
+        mode: state.globe.paperFillMode,
+      },
+      grid: {
+        enabled: state.globe.paperGrid,
+        color: state.globe.paperGridColor,
+        opacity: state.globe.paperGridOpacity,
+        stepDeg: state.globe.paperGridStep,
+        majorEvery: state.globe.paperGridMajorEvery,
+        majorOpacity: state.globe.paperGridMajorOpacity,
+      },
+      sepia: {
+        enabled: state.globe.paperSepia,
+        color: state.globe.paperSepiaColor,
+        opacity: state.globe.paperSepiaOpacity,
+      },
+      vignette: {
+        enabled: state.globe.paperVignette,
+        color: state.globe.paperVignetteColor,
+        intensity: state.globe.paperVignetteIntensity,
+        radius: state.globe.paperVignetteRadius,
+      },
+      compassRose: {
+        enabled: state.globe.paperCompass,
+        lat: state.globe.paperCompassLat,
+        lng: state.globe.paperCompassLng,
+        color: state.globe.paperCompassColor,
+        opacity: state.globe.paperCompassOpacity,
+        size: state.globe.paperCompassSize,
+      },
+      agingMarks: {
+        enabled: state.globe.paperAging,
+        count: state.globe.paperAgingCount,
+        color: state.globe.paperAgingColor,
+        intensity: state.globe.paperAgingIntensity,
+        seed: state.globe.paperAgingSeed,
+      },
+      watermark: {
+        enabled: state.globe.paperWatermark,
+        text: state.globe.paperWatermarkText,
+        color: state.globe.paperWatermarkColor,
+        opacity: state.globe.paperWatermarkOpacity,
+        size: state.globe.paperWatermarkSize,
+        position: state.globe.paperWatermarkPosition,
+      },
+    },
     axisTilt: state.globe.axisTilt,
     zoom: {
       mode: state.globe.zoomMode,

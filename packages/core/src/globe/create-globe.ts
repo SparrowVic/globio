@@ -783,6 +783,19 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         }
       }
 
+      // Paper-kind decorations — every PaperConfig sub-section is
+      // live-tunable via PaperKindHandle.setPaperConfig. The handle
+      // routes color / numeric / mode changes to the relevant layer
+      // setters; sentinel reset semantics (empty-string color = use
+      // default, < 0 numeric = reset where the natural domain is ≥ 0)
+      // are handled inside each setter.
+      if (partial.paper !== undefined) {
+        const paperHandle = state.kindHandle as
+          | { readonly setPaperConfig?: (next: NonNullable<GlobeConfig['paper']>) => void }
+          | null;
+        paperHandle?.setPaperConfig?.(partial.paper);
+      }
+
       // Outline-kind decorations — focus pulse band geometry / timing
       // / color is now live via the FocusPulseDecorator.setOptions()
       // hatch. Other outline extras (hover lift, glow, continentDim,

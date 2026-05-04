@@ -305,15 +305,106 @@ export interface WireframeConfig {
 }
 
 /**
- * Paper kind — vintage atlas: cream parchment surface, hand-drawn jittered
- * ink borders, optional pastel country fill, optional faint atlas grid.
- * `borderRoughness` overrides the `paper.borderRoughness` token (degrees of
- * lng/lat jitter per vertex; ~0.25 reads as confident pen, ~0.6 looks shaky).
+ * Paper kind — vintage-atlas vibe rendered as a 3D globe. Every layer is
+ * tunable so callers can dial the parchment from "freshly printed" all
+ * the way to "mouldering 17th-century artefact."
+ *
+ * Sub-sections:
+ *  - `surface` — the parchment sphere itself (color, grain, vignette).
+ *  - `borders` — hand-drawn ink country outlines (color, width, opacity,
+ *    roughness, optional stipple style + ink-bleed glow).
+ *  - `fill` — pastel country wash.
+ *  - `grid` — atlas registration lat/lng grid (step, major/minor lines).
+ *  - `sepia` — warm tint applied over the whole globe.
+ *  - `vignette` — corner darkening like an old illustration plate.
+ *  - `compassRose` — fixed compass rose watermark on the surface.
+ *  - `agingMarks` — tea-stain blotches scattered on the parchment.
+ *  - `watermark` — faint DOM text watermark (e.g. "ATLAS").
+ *
+ * Sentinel reset semantics: empty-string color = use theme default,
+ * non-positive numeric where the property only makes sense ≥ 0 = use
+ * theme default. The `setPaperConfig` live setter respects them.
+ *
+ * `borderRoughness` is kept at the top level for back-compat — it now
+ * also lives at `borders.roughness`. Either path works.
  */
 export interface PaperConfig {
-  readonly grid?: { readonly enabled?: boolean };
-  readonly fill?: { readonly enabled?: boolean };
   readonly borderRoughness?: number;
+  readonly surface?: {
+    readonly color?: string;
+    readonly noiseAmount?: number;
+    readonly vignette?: number;
+  };
+  readonly borders?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly opacity?: number;
+    readonly roughness?: number;
+    readonly width?: number;
+    readonly stipple?: {
+      readonly enabled?: boolean;
+      /** Average dot every N world-units along the ring. Lower = denser. */
+      readonly density?: number;
+      readonly size?: number;
+    };
+    readonly inkBleed?: {
+      readonly enabled?: boolean;
+      readonly color?: string;
+      readonly opacity?: number;
+      /** Outward lift of the bleed pass relative to surface (0..0.01). */
+      readonly spread?: number;
+    };
+  };
+  readonly fill?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly opacity?: number;
+    readonly mode?: 'single' | 'pastel';
+  };
+  readonly grid?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly opacity?: number;
+    readonly stepDeg?: number;
+    readonly majorEvery?: number;
+    readonly majorOpacity?: number;
+  };
+  readonly sepia?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly opacity?: number;
+  };
+  readonly vignette?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly intensity?: number;
+    /** Inner radius (0..1) where the vignette starts darkening. */
+    readonly radius?: number;
+  };
+  readonly compassRose?: {
+    readonly enabled?: boolean;
+    readonly lat?: number;
+    readonly lng?: number;
+    readonly color?: string;
+    readonly opacity?: number;
+    readonly size?: number;
+  };
+  readonly agingMarks?: {
+    readonly enabled?: boolean;
+    readonly count?: number;
+    readonly color?: string;
+    readonly intensity?: number;
+    /** Deterministic seed so marks don't move on every rebuild. */
+    readonly seed?: number;
+  };
+  readonly watermark?: {
+    readonly enabled?: boolean;
+    readonly text?: string;
+    readonly color?: string;
+    readonly opacity?: number;
+    readonly size?: number;
+    readonly position?: 'center' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+  };
 }
 
 /**

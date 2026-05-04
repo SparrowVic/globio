@@ -188,6 +188,60 @@ export interface GlobeSettings {
   readonly hologramCalibrationTicksCount: number;
   readonly hologramCalibrationTicksLength: number;
   readonly hologramCalibrationTicksOpacity: number;
+  // -----------------------------------------------------------------
+  // Paper kind (vintage atlas) — only honoured when kind === 'paper'.
+  // Empty-string color = use theme default. 0 / negative numerics where
+  // the natural domain is positive = "use theme default" sentinel.
+  // -----------------------------------------------------------------
+  readonly paperSurfaceColor: string;
+  readonly paperSurfaceNoise: number;
+  readonly paperSurfaceVignette: number;
+  readonly paperBorders: boolean;
+  readonly paperBorderColor: string;
+  readonly paperBorderOpacity: number;
+  readonly paperBorderWidth: number;
+  readonly paperBorderRoughness: number;
+  readonly paperStipple: boolean;
+  readonly paperStippleDensity: number;
+  readonly paperStippleSize: number;
+  readonly paperInkBleed: boolean;
+  readonly paperInkBleedColor: string;
+  readonly paperInkBleedOpacity: number;
+  readonly paperInkBleedSpread: number;
+  readonly paperFill: boolean;
+  readonly paperFillColor: string;
+  readonly paperFillOpacity: number;
+  readonly paperFillMode: 'single' | 'pastel';
+  readonly paperGrid: boolean;
+  readonly paperGridColor: string;
+  readonly paperGridOpacity: number;
+  readonly paperGridStep: number;
+  readonly paperGridMajorEvery: number;
+  readonly paperGridMajorOpacity: number;
+  readonly paperSepia: boolean;
+  readonly paperSepiaColor: string;
+  readonly paperSepiaOpacity: number;
+  readonly paperVignette: boolean;
+  readonly paperVignetteColor: string;
+  readonly paperVignetteIntensity: number;
+  readonly paperVignetteRadius: number;
+  readonly paperCompass: boolean;
+  readonly paperCompassLat: number;
+  readonly paperCompassLng: number;
+  readonly paperCompassColor: string;
+  readonly paperCompassOpacity: number;
+  readonly paperCompassSize: number;
+  readonly paperAging: boolean;
+  readonly paperAgingCount: number;
+  readonly paperAgingColor: string;
+  readonly paperAgingIntensity: number;
+  readonly paperAgingSeed: number;
+  readonly paperWatermark: boolean;
+  readonly paperWatermarkText: string;
+  readonly paperWatermarkColor: string;
+  readonly paperWatermarkOpacity: number;
+  readonly paperWatermarkSize: number;
+  readonly paperWatermarkPosition: 'center' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
   readonly clickToFocus: boolean;
   readonly focusPadding: number;
   readonly focusDurationMs: number;

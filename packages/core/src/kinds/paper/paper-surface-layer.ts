@@ -11,19 +11,25 @@ import { GLOBE_RADIUS } from '../../utils/coordinates';
 export interface PaperSurfaceLayerOptions {
   readonly color: string;
   readonly noiseAmount: number;
+  readonly vignette?: number;
   readonly radius?: number;
   readonly segments?: number;
 }
 
 const TEXTURE_W = 512;
 const TEXTURE_H = 256;
+const DEFAULT_VIGNETTE = 0.18;
 
 /**
  * Build a procedural paper-grain CanvasTexture: cream base + clusters of
- * darker grains + a soft vignette. Cached per-layer; cheap to regenerate
- * on rebuild because canvas ops dominate, not GL upload.
+ * darker grains + a soft vignette. Pure pixel ops in JS land — cheap to
+ * regenerate when one of the inputs (color / noise / vignette) changes.
  */
-const createPaperTexture = (color: string, noiseAmount: number): Texture | null => {
+const createPaperTexture = (
+  color: string,
+  noiseAmount: number,
+  vignette: number
+): Texture | null => {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = TEXTURE_W;
@@ -54,12 +60,15 @@ const createPaperTexture = (color: string, noiseAmount: number): Texture | null 
 
   // Vignette darkens the equirectangular poles slightly — feels like the
   // sphere's edges when wrapped (which they are, projection-wise).
-  const grad = ctx.createLinearGradient(0, 0, 0, TEXTURE_H);
-  grad.addColorStop(0, 'rgba(0, 0, 0, 0.18)');
-  grad.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
-  grad.addColorStop(1, 'rgba(0, 0, 0, 0.18)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, TEXTURE_W, TEXTURE_H);
+  const v = Math.max(0, Math.min(1, vignette));
+  if (v > 0) {
+    const grad = ctx.createLinearGradient(0, 0, 0, TEXTURE_H);
+    grad.addColorStop(0, `rgba(0, 0, 0, ${v.toFixed(3)})`);
+    grad.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(1, `rgba(0, 0, 0, ${v.toFixed(3)})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, TEXTURE_W, TEXTURE_H);
+  }
 
   return new CanvasTexture(canvas);
 };
@@ -68,23 +77,83 @@ const createPaperTexture = (color: string, noiseAmount: number): Texture | null 
  * Cream-paper sphere overlay. Sits at `GLOBE_RADIUS * 0.999` — just outside
  * the default `globeMesh` (0.998) but inside every kind layer (≥1.0). The
  * paper texture wraps equirectangularly and reads as warm parchment.
+ *
+ * All construction inputs are live-tunable through `setColor`, `setNoise`
+ * and `setVignette`. Color is applied both as the material tint AND baked
+ * into the canvas texture so the parchment hue actually shifts; noise and
+ * vignette regenerate the canvas (cheap — single 512×256 pixel pass).
  */
 export class PaperSurfaceLayer {
   public readonly mesh: Mesh;
   private readonly geometry: SphereGeometry;
   private readonly material: MeshBasicMaterial;
-  private readonly texture: Texture | null;
+  private texture: Texture | null;
+  private currentColor: string;
+  private currentNoise: number;
+  private currentVignette: number;
+  private readonly defaultColor: string;
+  private readonly defaultNoise: number;
+  private readonly defaultVignette: number;
 
   public constructor(options: PaperSurfaceLayerOptions) {
     const radius = options.radius ?? GLOBE_RADIUS * 0.999;
     const segments = options.segments ?? 64;
+    const vignette = options.vignette ?? DEFAULT_VIGNETTE;
     this.geometry = new SphereGeometry(radius, segments, segments);
-    this.texture = createPaperTexture(options.color, options.noiseAmount);
+    this.currentColor = options.color;
+    this.currentNoise = options.noiseAmount;
+    this.currentVignette = vignette;
+    this.defaultColor = options.color;
+    this.defaultNoise = options.noiseAmount;
+    this.defaultVignette = vignette;
+    this.texture = createPaperTexture(options.color, options.noiseAmount, vignette);
     this.material = new MeshBasicMaterial({
       color: new Color(options.color),
       ...(this.texture ? { map: this.texture } : {}),
     });
     this.mesh = new Mesh(this.geometry, this.material);
+  }
+
+  /**
+   * Repaint the texture from current color/noise/vignette state, swap it
+   * onto the material, and dispose the previous one. Single canvas pass
+   * + one GPU upload — no measurable hitch even when slid live.
+   */
+  private regenerate(): void {
+    const next = createPaperTexture(this.currentColor, this.currentNoise, this.currentVignette);
+    const prev = this.texture;
+    this.texture = next;
+    if (next) this.material.map = next;
+    this.material.color.set(this.currentColor);
+    this.material.needsUpdate = true;
+    prev?.dispose();
+  }
+
+  public setColor(color: string): void {
+    this.currentColor = color;
+    this.regenerate();
+  }
+
+  public resetColor(): void {
+    this.setColor(this.defaultColor);
+  }
+
+  public setNoise(amount: number): void {
+    this.currentNoise = Math.max(0, Math.min(1, amount));
+    this.regenerate();
+  }
+
+  public resetNoise(): void {
+    this.setNoise(this.defaultNoise);
+  }
+
+  public setVignette(amount: number): void {
+    this.currentVignette = Math.max(0, Math.min(1, amount));
+    this.regenerate();
+  }
+
+  public resetVignette(): void {
+    this.setVignette(this.defaultVignette);
   }
 
   public setVisible(visible: boolean): void {
