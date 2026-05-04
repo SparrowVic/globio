@@ -92,14 +92,52 @@ export function GlobePreview({
   }, [onMessage, onReady, rebuildKey]);
 
   useEffect(() => {
+    // Live-update path for the studio main globe. Mirrors the spread
+    // `WorkshopPreviewGlobe` uses so config changes coming back from
+    // the workshop modal (per-kind sub-trees, country fill, labels,
+    // atmosphere, etc.) actually reach the running globe — without
+    // the per-kind spread, dotted dot colours / hologram shell knobs
+    // / paper aging marks etc. would only show up after a
+    // `rebuildKey` change forced a destroy + create.
+    //
+    // `rebuildKey` (computed from `structuralGlobeKey`) intentionally
+    // *excludes* per-kind sub-trees so a knob tweak doesn't trigger a
+    // full rebuild — instead the live-update path here pushes the
+    // change to the running `kindHandle` setter via core's
+    // `globe.update(...)` dispatch.
     const partial: Partial<GlobeConfig> = {
       ...(config.autoRotate !== undefined ? { autoRotate: config.autoRotate } : {}),
       ...(config.zoom !== undefined ? { zoom: config.zoom } : {}),
       ...(config.minZoom !== undefined ? { minZoom: config.minZoom } : {}),
       ...(config.maxZoom !== undefined ? { maxZoom: config.maxZoom } : {}),
+      ...(config.countryLabels !== undefined ? { countryLabels: config.countryLabels } : {}),
+      ...(config.starfield !== undefined ? { starfield: config.starfield } : {}),
+      ...(config.atmosphere !== undefined ? { atmosphere: config.atmosphere } : {}),
+      ...(config.countries !== undefined ? { countries: config.countries } : {}),
+      ...(config.outline !== undefined ? { outline: config.outline } : {}),
+      ...(config.focusPulse !== undefined ? { focusPulse: config.focusPulse } : {}),
+      ...(config.dotted !== undefined ? { dotted: config.dotted } : {}),
+      ...(config.hologram !== undefined ? { hologram: config.hologram } : {}),
+      ...(config.paper !== undefined ? { paper: config.paper } : {}),
+      ...(config.wireframe !== undefined ? { wireframe: config.wireframe } : {}),
     };
     instanceRef.current?.update(partial);
-  }, [config.autoRotate, config.zoom, config.minZoom, config.maxZoom]);
+  }, [
+    config.autoRotate,
+    config.zoom,
+    config.minZoom,
+    config.maxZoom,
+    config.countryLabels,
+    config.starfield,
+    config.atmosphere,
+    config.countries,
+    config.outline,
+    config.focusPulse,
+    config.dotted,
+    config.hologram,
+    config.paper,
+    config.wireframe,
+  ]);
 
   useEffect(() => {
     instanceRef.current?.setDataLayer(dataLayer);

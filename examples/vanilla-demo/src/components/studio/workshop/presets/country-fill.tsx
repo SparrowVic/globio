@@ -37,7 +37,11 @@ const modeOptions = [
  * paint — the strongest "wow" frame for the layer.
  */
 const dotsModeOptions = [
-  { value: 'theme', label: 'Theme' },
+  // 'theme' is the underlying enum value (matches `DottedConfig.dots.mode`),
+  // but we surface it as "Solid" to mirror the Background fill card —
+  // the user reads it as "every dot a single colour" rather than the
+  // engine-internal "use the theme token" framing.
+  { value: 'theme', label: 'Solid' },
   { value: 'palette', label: 'Palette' },
 ] as const;
 
@@ -165,9 +169,33 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           onChange={(dottedDotsMode) => onGlobeChange({ dottedDotsMode })}
         />
         <DependsOn
+          when={dotsMode === 'theme'}
+          because="Default colour only matters in Solid mode."
+          className="space-y-4"
+          variant="hidden"
+        >
+          {/*
+            Solid-mode default colour is the same uniform the dotted
+            "Master appearance" `dottedColor` knob writes to — surface
+            it here too so the user can dial it from the country-fill
+            card without hunting for the orphan dotted preset. Empty
+            string = "use the theme token", matching the rest of the
+            configurator's reset semantics.
+          */}
+          <ColorField
+            label="Default color"
+            value={settings.dottedColor || '#7fdfff'}
+            onChange={(dottedColor) => onGlobeChange({ dottedColor })}
+            hint={settings.dottedColor === '' ? 'Theme default' : undefined}
+            {...(settings.dottedColor !== '' ? { preset: '' } : {})}
+            swatches={['#7fdfff', '#67e8f9', '#a5f3fc', '#fbbf24', '#f472b6', '#34d399', '#a78bfa', '#ffffff']}
+          />
+        </DependsOn>
+        <DependsOn
           when={dotsMode === 'palette'}
           because="Palette only matters when Dots mode is set to Palette."
           className="space-y-4"
+          variant="hidden"
         >
           <SectionHeading>Dots palette</SectionHeading>
           <PaletteEditor
@@ -291,6 +319,10 @@ const preset: PresetModule = {
     'dottedDotsPalette',
     'dottedDotsHoverColor',
     'dottedDotsActiveColor',
+    // Solid-mode default dot colour — same uniform as the master
+    // appearance knob, surfaced here so the workshop preview reacts
+    // when the user tweaks the colour in this card.
+    'dottedColor',
   ],
   // All knobs go through the new `partial.countries.fill.*` live-update
   // branch in `create-globe.ts` — no rebuild keys.
