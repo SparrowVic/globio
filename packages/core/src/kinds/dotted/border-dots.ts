@@ -160,12 +160,13 @@ export class DottedBorderDotsLayer {
           // Per-vertex membership tests — the dot is part of the
           // hovered ring, the active ring, or neither.
           float hovered = (idx == uHoveredCountry) ? 1.0 : 0.0;
-          float active = (idx == uActiveCountry) ? 1.0 : 0.0;
+          // GLSL ES reserves the identifier "active" — use "pinned".
+          float pinned = (idx == uActiveCountry) ? 1.0 : 0.0;
           // Combine the two fades so a country that's both hovered AND
           // active reads strongest. The active envelope picks up a
           // small sin pulse so pinned borders breathe.
           float activeEnv = 0.7 + 0.3 * uActivePulse;
-          float weight = max(hovered * uHoveredFade, active * uActiveFade * activeEnv);
+          float weight = max(hovered * uHoveredFade, pinned * uActiveFade * activeEnv);
           vAlpha = weight;
           // Off-ring dots collapse to size 0 so they cost nothing in
           // the fragment shader either.
