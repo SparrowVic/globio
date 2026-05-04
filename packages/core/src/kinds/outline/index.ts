@@ -8,8 +8,8 @@ import { OutlineArcsLayer } from './arcs';
 import { OutlineMarkersLayer } from './markers';
 import { OutlineAtmosphereLayer } from './atmosphere';
 import { OutlineSelectionLayer } from './selection';
+import { OutlineCountryFillLayer } from './country-fill';
 import { buildOutlineFocusPulse } from '../shared/focus-pulse-decorators';
-import { CountriesFillLayer } from '../../renderer/countries-fill-layer';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ChartsLayer } from '../../data-layers/charts/charts-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
@@ -130,6 +130,7 @@ export const outlineKind: KindModule = {
     MarkersLayer: OutlineMarkersLayer,
     AtmosphereLayer: OutlineAtmosphereLayer,
     SelectionLayer: OutlineSelectionLayer,
+    CountryFillLayer: OutlineCountryFillLayer,
   },
   build({ globeGroup, features, tokens, config }: KindBuildContext): OutlineKindHandle {
     const layer = new OutlineBordersLayer({
@@ -143,7 +144,7 @@ export const outlineKind: KindModule = {
     // Per-country fill — owned by outline kind, surfaced as the `choropleth`
     // data-layer decoration. Hidden until `setDataLayer({type:'choropleth'})`
     // (or the legacy `setCountryData`) routes data through here.
-    const fill = new CountriesFillLayer({
+    const fill = new OutlineCountryFillLayer({
       features: features as ReadonlyArray<CountryFeature>,
       defaultColor: tokens['countries.fill.defaultColor'],
       defaultOpacity: tokens['countries.fill.opacity'],

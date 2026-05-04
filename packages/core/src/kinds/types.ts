@@ -14,6 +14,10 @@ import type {
   CountryHighlightLayer,
   CountryHighlightLayerOptions,
 } from '../renderer/country-highlight-layer';
+import type {
+  CountriesFillLayer,
+  CountriesFillLayerOptions,
+} from '../renderer/countries-fill-layer';
 
 /**
  * Globe kinds — the high-level visual identity of the rendered globe.
@@ -223,6 +227,16 @@ export interface KindLayerRegistry {
   readonly MarkersLayer: new (opts: MarkersLayerOptions) => Public<MarkersLayer>;
   readonly AtmosphereLayer: new (opts: AtmosphereOptions) => Public<AtmosphereLayer>;
   readonly SelectionLayer: new (opts: CountryHighlightLayerOptions) => Public<CountryHighlightLayer>;
+  /**
+   * Per-country filled meshes — `'none'` mode hides the layer (legacy
+   * behaviour, only choropleth callers used it before), `'always'`
+   * paints every country with `defaultColor`, `'palette'` cycles a
+   * palette across countries, `'data'` is the choropleth path.
+   * Plus state-driven hover/active fill overrides.
+   */
+  readonly CountryFillLayer: new (
+    opts: CountriesFillLayerOptions
+  ) => Public<CountriesFillLayer>;
 }
 
 /**

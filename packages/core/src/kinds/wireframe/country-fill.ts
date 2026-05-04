@@ -8,11 +8,11 @@ import {
   MeshBasicMaterial,
   Uint32BufferAttribute,
 } from 'three';
-import { GLOBE_RADIUS } from '../utils/coordinates';
-import { triangulatePolygon } from '../utils/triangulate-ring';
-import type { CountryFeature } from './country-feature';
-import type { CountryDataMap } from '../types';
-import { colorForValue, dataExtentFor, type ScaleConfig } from '../data/scales';
+import { GLOBE_RADIUS } from '../../utils/coordinates';
+import { triangulatePolygon } from '../../utils/triangulate-ring';
+import type { CountryFeature } from '../../renderer/country-feature';
+import type { CountryDataMap } from '../../types';
+import { colorForValue, dataExtentFor, type ScaleConfig } from '../../data/scales';
 
 /**
  * Mode the layer renders in. Each mode picks a different way of computing
@@ -28,7 +28,7 @@ import { colorForValue, dataExtentFor, type ScaleConfig } from '../data/scales';
  */
 export type CountryFillMode = 'none' | 'always' | 'palette' | 'data';
 
-export interface CountriesFillLayerOptions {
+export interface WireframeCountryFillLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;
   readonly defaultColor: string;
   readonly defaultOpacity: number;
@@ -88,7 +88,7 @@ interface FillEntry {
  * pinned country can recolor in place. Active wins over hover when
  * both fall on the same country (matches stroke-layer semantics).
  */
-export class CountriesFillLayer {
+export class WireframeCountryFillLayer {
   public readonly group: Group;
   private readonly entries = new Map<string, FillEntry>();
   private readonly defaultColor: string;
@@ -109,9 +109,9 @@ export class CountriesFillLayer {
   private currentT = 0;
   private targetOpacities = new Map<string, number>();
 
-  public constructor(options: CountriesFillLayerOptions) {
+  public constructor(options: WireframeCountryFillLayerOptions) {
     this.group = new Group();
-    this.group.name = 'CountriesFillLayer';
+    this.group.name = 'WireframeCountryFillLayer';
     this.defaultColor = options.defaultColor;
     this.defaultOpacity = options.defaultOpacity;
     this.fadeDuration = options.fadeDuration ?? 0.25;

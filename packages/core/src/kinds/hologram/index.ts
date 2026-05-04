@@ -6,6 +6,7 @@ import { HologramArcsLayer } from './arcs';
 import { HologramMarkersLayer } from './markers';
 import { HologramAtmosphereLayer } from './atmosphere';
 import { HologramSelectionLayer } from './selection';
+import { HologramCountryFillLayer } from './country-fill';
 import { buildHologramFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { HologramConfig } from '../../types/kinds';
@@ -46,6 +47,7 @@ export const hologramKind: KindModule = {
     MarkersLayer: HologramMarkersLayer,
     AtmosphereLayer: HologramAtmosphereLayer,
     SelectionLayer: HologramSelectionLayer,
+    CountryFillLayer: HologramCountryFillLayer,
   },
   build({
     globeGroup,
