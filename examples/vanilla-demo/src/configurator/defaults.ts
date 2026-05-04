@@ -411,7 +411,7 @@ export const heatmapSurfacePresets: Readonly<Record<HeatmapSurfaceMode, Partial<
 };
 
 export const defaultState: ConfiguratorState = {
-  activeLayer: 'hexbin',
+  activeLayer: 'none',
   lastPresetId: null,
   dirtySincePreset: false,
   globe: defaultGlobeSettings,
@@ -457,7 +457,7 @@ const layerFromPath = (pathname: string): ActiveLayer => {
   if (pathname.includes('heatmap')) return 'heatmap';
   if (pathname.includes('charts')) return 'charts';
   if (pathname.includes('hexbin')) return 'hexbin';
-  return 'hexbin';
+  return 'none';
 };
 
 export const initialStateForPath = (pathname: string): ConfiguratorState => ({
