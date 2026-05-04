@@ -20,6 +20,8 @@ export interface HologramBordersLayerOptions {
     readonly intervalMin: number;
     readonly intervalMax: number;
     readonly amount: number;
+    /** RGB channel split during glitch — adds a chromatic fringe to the shear. */
+    readonly channelShift?: number;
   };
 }
 
@@ -34,10 +36,12 @@ const VERT_SHADER = /* glsl */ `
   uniform float uGlitchHalfHeight;
   varying vec3 vWorldNormal;
   varying vec3 vViewDir;
+  varying float vGlitchBand;
   void main() {
     vec3 displaced = position;
+    float band = 0.0;
     if (uGlitchPhase > 0.0) {
-      float band = step(abs(aLat - uGlitchCenterLat), uGlitchHalfHeight);
+      band = step(abs(aLat - uGlitchCenterLat), uGlitchHalfHeight);
       // East-tangent in globe-local space (cross product of up × position).
       vec3 up = vec3(0.0, 1.0, 0.0);
       vec3 east = cross(up, position);
@@ -49,6 +53,7 @@ const VERT_SHADER = /* glsl */ `
         displaced = position + east * uGlitchAmount * envelope * band * (1.0 + seedJitter);
       }
     }
+    vGlitchBand = band * uGlitchPhase;
     vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
     vWorldNormal = normalize(mat3(modelMatrix) * normalize(displaced));
     vViewDir = normalize(cameraPosition - worldPos.xyz);
@@ -60,13 +65,25 @@ const FRAG_SHADER = /* glsl */ `
   precision mediump float;
   uniform vec3 uColor;
   uniform float uIntensity;
+  uniform float uChannelShift;
   varying vec3 vWorldNormal;
   varying vec3 vViewDir;
+  varying float vGlitchBand;
   void main() {
     float ndv = max(dot(normalize(vViewDir), normalize(vWorldNormal)), 0.0);
     // Soft fade-out near the silhouette so back-side borders dim gracefully.
     float facing = smoothstep(0.0, 0.35, ndv);
     vec3 rgb = uColor * uIntensity * facing;
+    // Chromatic channel split — only fires inside the glitch band, peaks at
+    // mid-phase. Adds a red/blue fringe to the shear which sells the "data
+    // corruption" effect.
+    if (vGlitchBand > 0.001 && uChannelShift > 0.001) {
+      float envelope = sin(vGlitchBand * 3.1415926);
+      float k = uChannelShift * envelope;
+      rgb.r += k * 0.6;
+      rgb.b += k * 0.4;
+      rgb.g -= k * 0.2;
+    }
     gl_FragColor = vec4(rgb, facing);
   }
 `;
@@ -84,22 +101,35 @@ interface ActiveGlitch {
  * fade and band-restricted east-tangent glitch displacement on a per-vertex
  * `aOffsetSeed`. Intentionally separate from the base outline borders — the
  * hologram preset zeroes their opacity.
+ *
+ * Live setters expose every knob (color, intensity, glitch on/off, intervals,
+ * amplitude, channel shift) so the workshop preset doesn't need a rebuild.
  */
 export class HologramBordersLayer {
   public readonly group: Group;
   private readonly geometry: BufferGeometry;
   private readonly material: ShaderMaterial;
-  private readonly glitchEnabled: boolean;
-  private readonly glitchIntervalMin: number;
-  private readonly glitchIntervalMax: number;
+  private glitchEnabled: boolean;
+  private glitchIntervalMin: number;
+  private glitchIntervalMax: number;
+  private glitchAmount: number;
   private currentGlitch: ActiveGlitch | null;
   private nextGlitchAt: number;
+  // Cached construction-time values for reset-to-default flows.
+  private readonly defaultColor: string;
+  private readonly defaultIntensity: number;
+  private readonly defaultAmount: number;
 
   public constructor(options: HologramBordersLayerOptions) {
     this.group = new Group();
     this.glitchEnabled = options.glitch.enabled;
     this.glitchIntervalMin = options.glitch.intervalMin;
     this.glitchIntervalMax = options.glitch.intervalMax;
+    this.glitchAmount = options.glitch.amount;
+
+    this.defaultColor = options.color;
+    this.defaultIntensity = options.intensity;
+    this.defaultAmount = options.glitch.amount;
 
     const positions: Array<number> = [];
     const seeds: Array<number> = [];
@@ -137,6 +167,7 @@ export class HologramBordersLayer {
         uGlitchAmount: { value: options.glitch.amount },
         uGlitchCenterLat: { value: 0 },
         uGlitchHalfHeight: { value: 0 },
+        uChannelShift: { value: options.glitch.channelShift ?? 0.5 },
       },
       vertexShader: VERT_SHADER,
       fragmentShader: FRAG_SHADER,
@@ -158,7 +189,14 @@ export class HologramBordersLayer {
   }
 
   public update(elapsedSeconds: number, deltaSeconds: number): void {
-    if (!this.glitchEnabled) return;
+    if (!this.glitchEnabled) {
+      // Drain a residual glitch if the user toggled it off mid-shear.
+      if (this.currentGlitch) {
+        this.currentGlitch = null;
+        this.material.uniforms['uGlitchPhase']!.value = 0;
+      }
+      return;
+    }
 
     if (this.currentGlitch) {
       this.currentGlitch.age += deltaSeconds;
@@ -196,6 +234,50 @@ export class HologramBordersLayer {
     this.geometry.dispose();
     this.material.dispose();
     this.group.clear();
+  }
+
+  // -----------------------------------------------------------------
+  // Live setters
+  // -----------------------------------------------------------------
+
+  public setColor(color: string): void {
+    if (color === '') {
+      (this.material.uniforms['uColor']!.value as Color).set(this.defaultColor);
+      return;
+    }
+    (this.material.uniforms['uColor']!.value as Color).set(color);
+  }
+
+  public setIntensity(intensity: number): void {
+    this.material.uniforms['uIntensity']!.value =
+      intensity > 0 ? intensity : this.defaultIntensity;
+  }
+
+  public setGlitchEnabled(enabled: boolean): void {
+    if (enabled === this.glitchEnabled) return;
+    this.glitchEnabled = enabled;
+    if (enabled) {
+      // Reschedule from "now" — borders.update() consumes elapsedSeconds
+      // each tick, so passing 0 starts the countdown on next frame.
+      this.nextGlitchAt = this.scheduleNext(0);
+    } else {
+      this.nextGlitchAt = Infinity;
+    }
+  }
+
+  public setGlitchInterval(min: number, max: number): void {
+    this.glitchIntervalMin = Math.max(0, min);
+    this.glitchIntervalMax = Math.max(this.glitchIntervalMin, max);
+  }
+
+  public setGlitchAmount(amount: number): void {
+    const next = amount > 0 ? amount : this.defaultAmount;
+    this.glitchAmount = next;
+    this.material.uniforms['uGlitchAmount']!.value = next;
+  }
+
+  public setGlitchChannelShift(shift: number): void {
+    this.material.uniforms['uChannelShift']!.value = Math.max(0, shift);
   }
 }
 

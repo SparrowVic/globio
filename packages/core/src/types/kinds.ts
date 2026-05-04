@@ -317,19 +317,145 @@ export interface PaperConfig {
 }
 
 /**
- * Hologram kind extras — scanlines, Fresnel rim glow, glitch transients,
- * and an optional outer-shell glow that amplifies the silhouette. All
- * default-on; toggle individually for the look you want.
+ * Hologram kind extras — sci-fi cinema in globe form. Every effect is
+ * additive on top of the base shell shader; combine knobs to dial from
+ * "calm projection" to "chaotic data feed under load". All default-on;
+ * toggle individually for the look you want.
+ *
+ * Existing knobs (scanlines, rimGlow, glitch, outerGlow) are now fully
+ * parameterised. Six new effect families layer on top:
+ *  - `chromaticAberration` — RGB channel split for the sci-fi cinema rim shimmer.
+ *  - `noise` — animated grain texture on the surface.
+ *  - `projectorPulse` — slow brightness sweep around the silhouette ("hum").
+ *  - `dataScan` — bright band moving across the globe; "live data feed" feel.
+ *  - `phaseShimmer` — moiré interference pattern; reads as projector phase drift.
+ *  - `calibrationTicks` — tiny ticks pulled around the rim every N degrees;
+ *    lends a "scientific instrument" calibration vibe.
+ *
+ * Sentinel reset semantics match other kinds: empty-string color = "use
+ * theme default"; `0` for non-zero numeric defaults = "use construction-
+ * time value". Every knob is live-updatable via `setHologramConfig`.
  */
 export interface HologramConfig {
-  readonly scanlines?: { readonly enabled?: boolean };
-  readonly rimGlow?: { readonly enabled?: boolean };
+  readonly scanlines?: {
+    readonly enabled?: boolean;
+    /** Stripe density (sin frequency along the chosen axis). 0 = use theme default (240). */
+    readonly density?: number;
+    /** Stripe sweep speed in radians/sec. 0 = use theme default (1.5). */
+    readonly speed?: number;
+    /** Modulation depth; 0 = invisible, 1 = full theme default (0.4). */
+    readonly opacity?: number;
+    /** Sweep axis. `'horizontal'` (default) sweeps top-to-bottom; `'vertical'` sweeps left-to-right; `'diagonal'` mixes both axes for a moiré drift. */
+    readonly direction?: 'horizontal' | 'vertical' | 'diagonal';
+  };
+  readonly rimGlow?: {
+    readonly enabled?: boolean;
+    /** Hex tint for the rim Fresnel glow. Empty string = use theme default. */
+    readonly color?: string;
+    /** Brightness multiplier. 0 = use theme default (1.4). */
+    readonly intensity?: number;
+    /** Falloff sharpness — higher = thinner rim. 0 = default 2.0. */
+    readonly width?: number;
+  };
   readonly glitch?: {
     readonly enabled?: boolean;
     /** Lower bound of inter-glitch wait (seconds). Default 4. */
     readonly intervalMin?: number;
     /** Upper bound of inter-glitch wait (seconds). Default 9. */
     readonly intervalMax?: number;
+    /** Shear amplitude on the borders during a glitch. 0 = use theme default (0.025). */
+    readonly amplitude?: number;
+    /** RGB channel offset during glitch — visible as a fringed shear. 0..1. */
+    readonly channelShift?: number;
   };
-  readonly outerGlow?: { readonly enabled?: boolean };
+  readonly outerGlow?: {
+    readonly enabled?: boolean;
+    /** Hex tint of the outer halo. Empty string = use theme default (matches shell color). */
+    readonly color?: string;
+    /** Halo radius as a multiplier of GLOBE_RADIUS (≥1.0). 0 = default 1.02. */
+    readonly spread?: number;
+    /** Halo opacity multiplier. 0 = use theme default (0.12). */
+    readonly intensity?: number;
+  };
+  /**
+   * Chromatic aberration — splits the RGB channels at the silhouette so the
+   * rim of the planet refracts into red / blue fringes. Sci-fi cinema staple.
+   */
+  readonly chromaticAberration?: {
+    readonly enabled?: boolean;
+    /** Channel separation (0..1). Default 0.45. */
+    readonly amount?: number;
+    /** `'rim'` (default) peaks the split at the Fresnel edge; `'global'` splits across the whole shell. */
+    readonly mode?: 'rim' | 'global';
+  };
+  /**
+   * Holographic noise — animated grain that flickers across the surface.
+   * Reads as projector dust + photon shot noise.
+   */
+  readonly noise?: {
+    readonly enabled?: boolean;
+    /** Grain depth (0..1). Default 0.18. */
+    readonly intensity?: number;
+    /** Grain cell size — bigger = chunkier. Default 1.6. */
+    readonly scale?: number;
+    /** Reroll speed (Hz). Default 22. */
+    readonly speed?: number;
+  };
+  /**
+   * Projector hum / pulse rim — slow brightness sweep that orbits the
+   * silhouette, faking a rotating projector emitter.
+   */
+  readonly projectorPulse?: {
+    readonly enabled?: boolean;
+    /** Sweep speed (revs/sec). Default 0.35. */
+    readonly speed?: number;
+    /** Brightness amplitude on the rim. Default 0.6. */
+    readonly amplitude?: number;
+    /** Hex tint, empty = inherit shell color. */
+    readonly color?: string;
+  };
+  /**
+   * Data feed scan — a bright luminous band moves slowly across the globe.
+   * Default `axis: 'horizontal'` produces a top-to-bottom scan line; `'vertical'`
+   * sweeps east; `'radial'` pulls in/out from a pole.
+   */
+  readonly dataScan?: {
+    readonly enabled?: boolean;
+    /** Sweep speed in cycles/sec. Default 0.2. */
+    readonly speed?: number;
+    /** Band thickness (0..1, fraction of axis range). Default 0.05. */
+    readonly width?: number;
+    /** Band brightness boost. Default 0.7. */
+    readonly opacity?: number;
+    readonly axis?: 'horizontal' | 'vertical' | 'radial';
+    /** Hex tint, empty = inherit shell color. */
+    readonly color?: string;
+  };
+  /**
+   * Phase shimmer — interference / moiré pattern that drifts across the
+   * surface. Subtle; combines with scanlines for a "phase locking" feel.
+   */
+  readonly phaseShimmer?: {
+    readonly enabled?: boolean;
+    /** Pattern density. Default 60. */
+    readonly scale?: number;
+    /** Modulation depth (0..1). Default 0.12. */
+    readonly intensity?: number;
+    /** Drift speed. Default 0.4. */
+    readonly speed?: number;
+  };
+  /**
+   * Calibration ticks — short bright marks rendered along the rim every
+   * N degrees, like a sextant or radar bezel. Implemented in the shell
+   * shader so they pin to the silhouette regardless of camera angle.
+   */
+  readonly calibrationTicks?: {
+    readonly enabled?: boolean;
+    /** Number of ticks around the rim. Default 36. */
+    readonly count?: number;
+    /** Tick length as a fraction of the visible radius. Default 0.04. */
+    readonly length?: number;
+    /** Tick brightness multiplier. Default 0.9. */
+    readonly opacity?: number;
+  };
 }

@@ -140,6 +140,54 @@ export interface GlobeSettings {
   readonly dottedConstellationColor: string;
   readonly dottedConstellationOpacity: number;
   readonly dottedConstellationDistanceFactor: number;
+  /**
+   * Hologram-only knobs — every effect on the projection shell exposed to
+   * the workshop. `''` color / `0` numeric = sentinel for "use theme
+   * default" (matches the rest of the configurator's reset pattern).
+   */
+  readonly hologramScanlines: boolean;
+  readonly hologramScanlineSpeed: number;
+  readonly hologramScanlineDensity: number;
+  readonly hologramScanlineOpacity: number;
+  readonly hologramScanlineDirection: 'horizontal' | 'vertical' | 'diagonal';
+  readonly hologramRimGlow: boolean;
+  readonly hologramRimColor: string;
+  readonly hologramRimIntensity: number;
+  readonly hologramRimWidth: number;
+  readonly hologramGlitch: boolean;
+  readonly hologramGlitchIntervalMin: number;
+  readonly hologramGlitchIntervalMax: number;
+  readonly hologramGlitchAmplitude: number;
+  readonly hologramGlitchChannelShift: number;
+  readonly hologramOuterGlow: boolean;
+  readonly hologramOuterGlowColor: string;
+  readonly hologramOuterGlowSpread: number;
+  readonly hologramOuterGlowIntensity: number;
+  readonly hologramChromaticAberration: boolean;
+  readonly hologramChromaticAberrationAmount: number;
+  readonly hologramChromaticAberrationMode: 'rim' | 'global';
+  readonly hologramNoise: boolean;
+  readonly hologramNoiseIntensity: number;
+  readonly hologramNoiseScale: number;
+  readonly hologramNoiseSpeed: number;
+  readonly hologramProjectorPulse: boolean;
+  readonly hologramProjectorPulseSpeed: number;
+  readonly hologramProjectorPulseAmplitude: number;
+  readonly hologramProjectorPulseColor: string;
+  readonly hologramDataScan: boolean;
+  readonly hologramDataScanSpeed: number;
+  readonly hologramDataScanWidth: number;
+  readonly hologramDataScanOpacity: number;
+  readonly hologramDataScanAxis: 'horizontal' | 'vertical' | 'radial';
+  readonly hologramDataScanColor: string;
+  readonly hologramPhaseShimmer: boolean;
+  readonly hologramPhaseShimmerScale: number;
+  readonly hologramPhaseShimmerIntensity: number;
+  readonly hologramPhaseShimmerSpeed: number;
+  readonly hologramCalibrationTicks: boolean;
+  readonly hologramCalibrationTicksCount: number;
+  readonly hologramCalibrationTicksLength: number;
+  readonly hologramCalibrationTicksOpacity: number;
   readonly clickToFocus: boolean;
   readonly focusPadding: number;
   readonly focusDurationMs: number;

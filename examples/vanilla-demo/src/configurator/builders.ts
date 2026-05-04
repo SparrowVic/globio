@@ -209,6 +209,76 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         color: state.globe.outlinePulseColor,
       },
     },
+    // Hologram-only knobs. We always pass the structure so the
+    // workshop's save / discard / preset round-trip persists every
+    // setting; core ignores the hologram section for non-hologram
+    // kinds. Empty-string color / 0-or-below numerics are treated
+    // as "reset to theme default" sentinels by the layer setters.
+    hologram: {
+      scanlines: {
+        enabled: state.globe.hologramScanlines,
+        density: state.globe.hologramScanlineDensity,
+        speed: state.globe.hologramScanlineSpeed,
+        opacity: state.globe.hologramScanlineOpacity,
+        direction: state.globe.hologramScanlineDirection,
+      },
+      rimGlow: {
+        enabled: state.globe.hologramRimGlow,
+        color: state.globe.hologramRimColor,
+        intensity: state.globe.hologramRimIntensity,
+        width: state.globe.hologramRimWidth,
+      },
+      glitch: {
+        enabled: state.globe.hologramGlitch,
+        intervalMin: state.globe.hologramGlitchIntervalMin,
+        intervalMax: state.globe.hologramGlitchIntervalMax,
+        amplitude: state.globe.hologramGlitchAmplitude,
+        channelShift: state.globe.hologramGlitchChannelShift,
+      },
+      outerGlow: {
+        enabled: state.globe.hologramOuterGlow,
+        color: state.globe.hologramOuterGlowColor,
+        spread: state.globe.hologramOuterGlowSpread,
+        intensity: state.globe.hologramOuterGlowIntensity,
+      },
+      chromaticAberration: {
+        enabled: state.globe.hologramChromaticAberration,
+        amount: state.globe.hologramChromaticAberrationAmount,
+        mode: state.globe.hologramChromaticAberrationMode,
+      },
+      noise: {
+        enabled: state.globe.hologramNoise,
+        intensity: state.globe.hologramNoiseIntensity,
+        scale: state.globe.hologramNoiseScale,
+        speed: state.globe.hologramNoiseSpeed,
+      },
+      projectorPulse: {
+        enabled: state.globe.hologramProjectorPulse,
+        speed: state.globe.hologramProjectorPulseSpeed,
+        amplitude: state.globe.hologramProjectorPulseAmplitude,
+        color: state.globe.hologramProjectorPulseColor,
+      },
+      dataScan: {
+        enabled: state.globe.hologramDataScan,
+        speed: state.globe.hologramDataScanSpeed,
+        width: state.globe.hologramDataScanWidth,
+        opacity: state.globe.hologramDataScanOpacity,
+        axis: state.globe.hologramDataScanAxis,
+        color: state.globe.hologramDataScanColor,
+      },
+      phaseShimmer: {
+        enabled: state.globe.hologramPhaseShimmer,
+        scale: state.globe.hologramPhaseShimmerScale,
+        intensity: state.globe.hologramPhaseShimmerIntensity,
+        speed: state.globe.hologramPhaseShimmerSpeed,
+      },
+      calibrationTicks: {
+        enabled: state.globe.hologramCalibrationTicks,
+        count: state.globe.hologramCalibrationTicksCount,
+        length: state.globe.hologramCalibrationTicksLength,
+        opacity: state.globe.hologramCalibrationTicksOpacity,
+      },
+    },
     axisTilt: state.globe.axisTilt,
     zoom: {
       mode: state.globe.zoomMode,

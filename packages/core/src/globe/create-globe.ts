@@ -18,6 +18,7 @@ import { KIND_MODULES } from '../kinds/registry';
 import type { GlobeKind, KindHandle } from '../kinds/types';
 import type { OutlineKindHandle } from '../kinds/outline';
 import type { DottedKindHandle } from '../kinds/dotted';
+import type { HologramKindHandle } from '../kinds/hologram';
 import type { WireframeKindHandle } from '../kinds/wireframe';
 import { GlobeControls } from '../interaction/controls';
 import { PointerRaycaster } from '../interaction/raycaster';
@@ -819,6 +820,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (partial.dotted !== undefined) {
         const dottedHandle = state.kindHandle as DottedKindHandle | null;
         dottedHandle?.setDottedConfig?.(partial.dotted);
+      }
+
+      // Hologram-kind decorations — every knob is uniform-driven on the
+      // shell shader (or a small interval flip on the borders glitch
+      // scheduler). No rebuilds.
+      if (partial.hologram !== undefined) {
+        const hologramHandle = state.kindHandle as HologramKindHandle | null;
+        hologramHandle?.setHologramConfig?.(partial.hologram);
       }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
