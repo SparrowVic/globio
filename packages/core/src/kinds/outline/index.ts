@@ -2,6 +2,12 @@ import { OutlineBordersLayer } from './borders';
 import { continentOf, type Continent } from './continent-of';
 import { OutlineCrosshairLayer } from './crosshair';
 import { OutlineHoverGlowLayer } from './hover-glow';
+import { OutlineLabelsLayer } from './labels';
+import { OutlineStarfieldLayer } from './starfield';
+import { OutlineArcsLayer } from './arcs';
+import { OutlineMarkersLayer } from './markers';
+import { OutlineAtmosphereLayer } from './atmosphere';
+import { OutlineHoverLayer } from './hover';
 import { buildOutlineFocusPulse } from '../shared/focus-pulse-decorators';
 import { CountriesFillLayer } from '../../renderer/countries-fill-layer';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
@@ -117,6 +123,14 @@ export interface OutlineKindHandle extends KindHandle {
 export const outlineKind: KindModule = {
   kind: 'outline',
   hasCountryInteraction: true,
+  layers: {
+    LabelsLayer: OutlineLabelsLayer,
+    StarfieldLayer: OutlineStarfieldLayer,
+    ArcsLayer: OutlineArcsLayer,
+    MarkersLayer: OutlineMarkersLayer,
+    AtmosphereLayer: OutlineAtmosphereLayer,
+    HoverLayer: OutlineHoverLayer,
+  },
   build({ globeGroup, features, tokens, config }: KindBuildContext): OutlineKindHandle {
     const layer = new OutlineBordersLayer({
       features,

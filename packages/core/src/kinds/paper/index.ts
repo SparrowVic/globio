@@ -8,6 +8,12 @@ import { PaperVignetteOverlay } from './vignette';
 import { PaperCompassRose } from './compass-rose';
 import { PaperAgingMarks } from './aging-marks';
 import { PaperWatermark, type PaperWatermarkPosition } from './watermark';
+import { PaperLabelsLayer } from './labels';
+import { PaperStarfieldLayer } from './starfield';
+import { PaperArcsLayer } from './arcs';
+import { PaperMarkersLayer } from './markers';
+import { PaperAtmosphereLayer } from './atmosphere';
+import { PaperHoverLayer } from './hover';
 import { buildPaperFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
@@ -65,6 +71,14 @@ export interface PaperKindHandle extends KindHandle {
 export const paperKind: KindModule = {
   kind: 'paper',
   hasCountryInteraction: true,
+  layers: {
+    LabelsLayer: PaperLabelsLayer,
+    StarfieldLayer: PaperStarfieldLayer,
+    ArcsLayer: PaperArcsLayer,
+    MarkersLayer: PaperMarkersLayer,
+    AtmosphereLayer: PaperAtmosphereLayer,
+    HoverLayer: PaperHoverLayer,
+  },
   build({ globeGroup, features, tokens, config }: KindBuildContext): PaperKindHandle {
     const paper = (config.paper ?? {}) as PaperConfig;
 

@@ -2,6 +2,18 @@ import type { Group, Mesh, PerspectiveCamera, Vector3 } from 'three';
 import type { CountryFeature } from '../renderer/country-feature';
 import type { ResolvedTokens } from '../theme/types';
 import type { CountryDataMap, GlobeConfig, LatLng } from '../types';
+import type {
+  CountryLabelsLayer,
+  CountryLabelsLayerOptions,
+} from '../renderer/country-labels-layer';
+import type { StarfieldLayer, StarfieldLayerOptions } from '../renderer/starfield-layer';
+import type { ArcsLayer, ArcsLayerOptions } from '../renderer/arcs-layer';
+import type { MarkersLayer, MarkersLayerOptions } from '../renderer/markers-layer';
+import type { AtmosphereLayer, AtmosphereOptions } from '../renderer/atmosphere-layer';
+import type {
+  CountryHighlightLayer,
+  CountryHighlightLayerOptions,
+} from '../renderer/country-highlight-layer';
 
 /**
  * Globe kinds — the high-level visual identity of the rendered globe.
@@ -174,11 +186,57 @@ export interface KindDecorations {
 }
 
 /**
+ * Per-kind constructor registry for the cross-cutting layer types
+ * (country labels, starfield, arcs, markers, atmosphere, country
+ * highlight stroke). `create-globe.ts` reads this at build time so the
+ * active kind owns its visual signature for every shared layer — when
+ * the user switches kind, the rebuild instantiates the new kind's
+ * classes automatically.
+ *
+ * Each kind ships its own copy of these classes under `kinds/<kind>/
+ * {labels,starfield,arcs,markers,atmosphere,hover}.ts`. The constructor
+ * shapes are typed against `renderer/*` (the original implementations)
+ * since every kind is currently a structural copy of those — once a
+ * kind diverges, replace the shared type alias with a kind-specific
+ * one.
+ *
+ * Focus pulse + crosshair are intentionally *not* in this registry:
+ * both live entirely inside the kind's `build()` (the focus pulse via
+ * `decorations.focusPulse`, the crosshair as a kind-specific extra
+ * mounted directly on the `globeGroup`). They never get instantiated
+ * from `create-globe.ts`.
+ */
+/**
+ * `Pick<T, keyof T>` strips `private` fields — `keyof` only sees public
+ * keys — so the resulting type is purely structural. We need this because
+ * each kind ships its own copy of these classes, and TS treats two
+ * classes with identically-named private fields as nominally distinct.
+ * Used both in the layer registry and in `InternalState` so the types of
+ * the layer fields line up with what the registry constructors return.
+ */
+export type Public<T> = Pick<T, keyof T>;
+
+export interface KindLayerRegistry {
+  readonly LabelsLayer: new (opts: CountryLabelsLayerOptions) => Public<CountryLabelsLayer>;
+  readonly StarfieldLayer: new (opts: StarfieldLayerOptions) => Public<StarfieldLayer>;
+  readonly ArcsLayer: new (opts: ArcsLayerOptions) => Public<ArcsLayer>;
+  readonly MarkersLayer: new (opts: MarkersLayerOptions) => Public<MarkersLayer>;
+  readonly AtmosphereLayer: new (opts: AtmosphereOptions) => Public<AtmosphereLayer>;
+  readonly HoverLayer: new (opts: CountryHighlightLayerOptions) => Public<CountryHighlightLayer>;
+}
+
+/**
  * The contract every kind implements. Pure data + factory. No state lives
  * on the module itself — `build()` returns a fresh handle per globe.
  */
 export interface KindModule {
   readonly kind: GlobeKind;
+  /**
+   * Constructor registry for the cross-cutting layers. Populated with
+   * the kind's own per-kind layer classes (`<Kind>LabelsLayer`,
+   * `<Kind>StarfieldLayer`, …).
+   */
+  readonly layers: KindLayerRegistry;
   /**
    * Whether this kind has hoverable / clickable country surface. When true,
    * globe.ts mounts the picking + highlight infrastructure so country events

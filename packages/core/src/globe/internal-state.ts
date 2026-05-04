@@ -13,7 +13,7 @@ import type { GlobeControls } from '../interaction/controls';
 import type { PointerRaycaster } from '../interaction/raycaster';
 import type { GlobeEventEmitter } from '../interaction/events';
 import type { LegendInstance } from '../data/legend';
-import type { GlobeKind, KindHandle } from '../kinds/types';
+import type { GlobeKind, KindHandle, Public } from '../kinds/types';
 import type {
   DataLayer,
   DataLayerHandle,
@@ -34,7 +34,7 @@ export interface InternalState {
   config: GlobeConfig;
   scene: SceneManager;
   globeMesh: GlobeMesh;
-  markersLayer: MarkersLayer;
+  markersLayer: Public<MarkersLayer>;
   /**
    * Active kind module's runtime handle. Built by the dispatcher in
    * `initCountries` once country features have loaded. Null on a globe
@@ -48,13 +48,13 @@ export interface InternalState {
    * builders read this so they can scaffold their geometry without re-loading.
    */
   features: ReadonlyArray<CountryFeature> | null;
-  countryLabelsLayer: CountryLabelsLayer | null;
-  countryHighlightLayer: CountryHighlightLayer | null;
-  countryActiveLayer: CountryHighlightLayer | null;
+  countryLabelsLayer: Public<CountryLabelsLayer> | null;
+  countryHighlightLayer: Public<CountryHighlightLayer> | null;
+  countryActiveLayer: Public<CountryHighlightLayer> | null;
   countryTooltip: CountryTooltip | null;
   htmlMarkersLayer: HtmlMarkersLayer;
-  arcsLayer: ArcsLayer;
-  atmosphereLayer: AtmosphereLayer | null;
+  arcsLayer: Public<ArcsLayer>;
+  atmosphereLayer: Public<AtmosphereLayer> | null;
   controls: GlobeControls;
   raycaster: PointerRaycaster;
   emitter: GlobeEventEmitter;

@@ -1,21 +1,20 @@
 import { AmbientLight, DirectionalLight, Group, Vector2 } from 'three';
 import { SceneManager } from '../renderer/scene-manager';
 import { GlobeMesh } from '../renderer/globe-mesh';
-import { MarkersLayer } from '../renderer/markers-layer';
 import type { CountryFeature } from '../renderer/country-feature';
 import { CountriesPickingLayer } from '../renderer/countries-picking-layer';
-import { CountryLabelsLayer } from '../renderer/country-labels-layer';
-import { CountryHighlightLayer } from '../renderer/country-highlight-layer';
 import { CountryTooltip } from '../renderer/country-tooltip';
 import { MarkerTooltip } from '../renderer/marker-tooltip';
 import { HtmlMarkersLayer } from '../renderer/html-markers-layer';
-import { StarfieldLayer } from '../renderer/starfield-layer';
-import { ArcsLayer } from '../renderer/arcs-layer';
+// Renderer/* still owns the canonical *type* shapes for the layers
+// dispatched through `kindModule.layers` — every per-kind class is
+// structurally compatible with these. Imported as `type` only; the
+// runtime constructor comes from the kind registry.
+import type { StarfieldLayer } from '../renderer/starfield-layer';
 import { StoryController } from '../story/story-controller';
 import type { SceneConfig, StoryConfig } from '../story/types';
-import { AtmosphereLayer } from '../renderer/atmosphere-layer';
 import { KIND_MODULES } from '../kinds/registry';
-import type { GlobeKind, KindHandle } from '../kinds/types';
+import type { GlobeKind, KindHandle, KindLayerRegistry, Public } from '../kinds/types';
 import type { OutlineKindHandle } from '../kinds/outline';
 import type { DottedKindHandle } from '../kinds/dotted';
 import type { HologramKindHandle } from '../kinds/hologram';
@@ -111,12 +110,19 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   globeGroup.rotation.z = (-(config.axisTilt ?? 0) * Math.PI) / 180;
   scene.scene.add(globeGroup);
 
+  // The active globe kind decides every shared-layer constructor below.
+  // Resolved up here (rather than after the layer constructions like the
+  // pre-Phase-B layout) so `kindModule.layers.X` is in scope for every
+  // `new` site — labels, starfield, arcs, markers, atmosphere, hover.
+  const resolvedKind: GlobeKind = resolveActiveKind(config);
+  const kindModule = KIND_MODULES[resolvedKind];
+
   // `let` so `update({ starfield })` can swap the layer in-place when a
   // geometry-baked field changes (density, palette, sizeVariety) — the
   // rest of the scene keeps rendering uninterrupted, only the points
   // cloud blinks for one frame.
-  let starfieldLayer: StarfieldLayer | null = config.starfield?.enabled
-    ? buildStarfieldLayer(config.starfield, tokens)
+  let starfieldLayer: Public<StarfieldLayer> | null = config.starfield?.enabled
+    ? buildStarfieldLayer(config.starfield, tokens, kindModule.layers.StarfieldLayer)
     : null;
   if (starfieldLayer) scene.scene.add(starfieldLayer.object);
 
@@ -128,10 +134,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   });
   globeGroup.add(globeMesh.mesh);
 
-  const markersLayer = new MarkersLayer({ defaultColor: tokens['markers.defaultColor'] });
+  const markersLayer = new kindModule.layers.MarkersLayer({
+    defaultColor: tokens['markers.defaultColor'],
+  });
   globeGroup.add(markersLayer.mesh);
 
-  const arcsLayer = new ArcsLayer({
+  const arcsLayer = new kindModule.layers.ArcsLayer({
     defaultColor: tokens['arcs.color'],
     defaultWidth: tokens['arcs.width'],
     defaultOpacity: tokens['arcs.opacity'],
@@ -149,7 +157,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // without rebuilding. `enabled: false` just hides the mesh. Empty-
   // string color / 0 intensity → fall back to theme tokens (same
   // sentinel as the live update path).
-  const atmosphereLayer = new AtmosphereLayer({
+  const atmosphereLayer = new kindModule.layers.AtmosphereLayer({
     color:
       config.atmosphere?.color && config.atmosphere.color !== ''
         ? config.atmosphere.color
@@ -171,13 +179,6 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   });
   atmosphereLayer.setVisible(config.atmosphere?.enabled !== false);
   globeGroup.add(atmosphereLayer.mesh);
-
-  // The active globe kind (outline / dotted / wireframe / future). Each kind
-  // owns its visible country/grid pipeline; built later in `initCountries`
-  // once features have loaded. The kind itself is decided once here so the
-  // dispatcher and event handlers can branch on it before features arrive.
-  const resolvedKind: GlobeKind = resolveActiveKind(config);
-  const kindModule = KIND_MODULES[resolvedKind];
 
   const htmlMarkersLayer = new HtmlMarkersLayer({
     container: config.container,
@@ -475,7 +476,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
               ? GLOBE_RADIUS * (1 + (config.outline?.hover?.lift ?? 0))
               : undefined;
 
-          const highlight = new CountryHighlightLayer({
+          const highlight = new kindModule.layers.HoverLayer({
             hoverColor: tokens['countries.borderHover.color'],
             hoverWidth: tokens['countries.borderHover.width'],
             hoverOpacity: tokens['countries.borderHover.opacity'],
@@ -488,7 +489,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           globeGroup.add(highlight.object);
           state.countryHighlightLayer = highlight;
 
-          const activeLayer = new CountryHighlightLayer({
+          const activeLayer = new kindModule.layers.HoverLayer({
             hoverColor: tokens['countries.borderActive.color'],
             hoverWidth: tokens['countries.borderActive.width'],
             hoverOpacity: tokens['countries.borderActive.opacity'],
@@ -516,7 +517,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       }
 
       const labelsConfig = config.countryLabels;
-      const labelsLayer = new CountryLabelsLayer({
+      const labelsLayer = new kindModule.layers.LabelsLayer({
         container: config.container,
         camera: scene.camera,
         globeGroup,
@@ -735,7 +736,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           starfieldLayer?.setVisible(false);
         } else if (!starfieldLayer) {
           // Toggle on for the first time → build the layer fresh.
-          starfieldLayer = buildStarfieldLayer(next, tokens);
+          starfieldLayer = buildStarfieldLayer(next, tokens, kindModule.layers.StarfieldLayer);
           scene.scene.add(starfieldLayer.object);
         } else if (wantRebuild) {
           // Geometry-baked field changed → swap the layer atomically.
@@ -743,7 +744,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           // scene keeps rendering uninterrupted.
           scene.scene.remove(starfieldLayer.object);
           starfieldLayer.dispose();
-          starfieldLayer = buildStarfieldLayer(next, tokens);
+          starfieldLayer = buildStarfieldLayer(next, tokens, kindModule.layers.StarfieldLayer);
           scene.scene.add(starfieldLayer.object);
         } else {
           // Live uniform updates — no rebuild, no blink.
@@ -1106,12 +1107,18 @@ const palettesEqual = (
  * Extracted so `update({ starfield })` can rebuild the layer in-place
  * when geometry-baked fields change (density / palette / sizeVariety)
  * — the rest of the scene keeps rendering uninterrupted.
+ *
+ * Takes the active kind's `StarfieldLayer` constructor so the rebuild
+ * stays per-kind even mid-session — when the user toggles density on a
+ * paper globe, the new layer is a `PaperStarfieldLayer`, not the shared
+ * default.
  */
 const buildStarfieldLayer = (
   starfield: StarfieldConfig,
   tokens: ResolvedTokens,
-): StarfieldLayer => {
-  return new StarfieldLayer({
+  Ctor: KindLayerRegistry['StarfieldLayer'],
+): Public<StarfieldLayer> => {
+  return new Ctor({
     count: starfield.density ?? tokens['starfield.density'],
     color: tokens['starfield.color'],
     size: starfield.size ?? tokens['starfield.size'],

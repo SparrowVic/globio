@@ -1,5 +1,11 @@
 import { DottedSurfaceLayer } from './surface';
 import { DottedBorderDotsLayer } from './border-dots';
+import { DottedLabelsLayer } from './labels';
+import { DottedStarfieldLayer } from './starfield';
+import { DottedArcsLayer } from './arcs';
+import { DottedMarkersLayer } from './markers';
+import { DottedAtmosphereLayer } from './atmosphere';
+import { DottedHoverLayer } from './hover';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
@@ -84,6 +90,14 @@ export interface DottedKindHandle extends KindHandle {
 export const dottedKind: KindModule = {
   kind: 'dotted',
   hasCountryInteraction: true,
+  layers: {
+    LabelsLayer: DottedLabelsLayer,
+    StarfieldLayer: DottedStarfieldLayer,
+    ArcsLayer: DottedArcsLayer,
+    MarkersLayer: DottedMarkersLayer,
+    AtmosphereLayer: DottedAtmosphereLayer,
+    HoverLayer: DottedHoverLayer,
+  },
   // Dotted's hover / active feedback emerges from the dot field itself:
   // the country's dots brighten + scale via `hoverDots` and (optionally)
   // a constellation/border-dot layer fades in. A LineSegments stroke on

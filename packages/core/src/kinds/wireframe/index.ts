@@ -5,6 +5,12 @@ import { WireframePoleStreams } from './pole-streams';
 import { WireframeEquatorBeam } from './equator-beam';
 import { WireframeDataPackets } from './data-packets';
 import { WireframeCompassMarkers } from './compass-markers';
+import { WireframeLabelsLayer } from './labels';
+import { WireframeStarfieldLayer } from './starfield';
+import { WireframeArcsLayer } from './arcs';
+import { WireframeMarkersLayer } from './markers';
+import { WireframeAtmosphereLayer } from './atmosphere';
+import { WireframeHoverLayer } from './hover';
 import { buildWireframeFocusPulse } from '../shared/focus-pulse-decorators';
 import type { Vector3 } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
@@ -52,6 +58,14 @@ export interface WireframeKindHandle extends KindHandle {
 export const wireframeKind: KindModule = {
   kind: 'wireframe',
   hasCountryInteraction: false,
+  layers: {
+    LabelsLayer: WireframeLabelsLayer,
+    StarfieldLayer: WireframeStarfieldLayer,
+    ArcsLayer: WireframeArcsLayer,
+    MarkersLayer: WireframeMarkersLayer,
+    AtmosphereLayer: WireframeAtmosphereLayer,
+    HoverLayer: WireframeHoverLayer,
+  },
   build({ globeGroup, features, tokens, config }: KindBuildContext): WireframeKindHandle {
     const wf = config.wireframe;
 

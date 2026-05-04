@@ -1,5 +1,11 @@
 import { HologramBordersLayer } from './borders';
 import { HologramShellLayer } from './shell';
+import { HologramLabelsLayer } from './labels';
+import { HologramStarfieldLayer } from './starfield';
+import { HologramArcsLayer } from './arcs';
+import { HologramMarkersLayer } from './markers';
+import { HologramAtmosphereLayer } from './atmosphere';
+import { HologramHoverLayer } from './hover';
 import { buildHologramFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { HologramConfig } from '../../types/kinds';
@@ -33,6 +39,14 @@ export interface HologramKindHandle extends KindHandle {
 export const hologramKind: KindModule = {
   kind: 'hologram',
   hasCountryInteraction: true,
+  layers: {
+    LabelsLayer: HologramLabelsLayer,
+    StarfieldLayer: HologramStarfieldLayer,
+    ArcsLayer: HologramArcsLayer,
+    MarkersLayer: HologramMarkersLayer,
+    AtmosphereLayer: HologramAtmosphereLayer,
+    HoverLayer: HologramHoverLayer,
+  },
   build({
     globeGroup,
     features,
