@@ -108,6 +108,68 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       origin: state.globe.focusPulseOrigin,
       pulseOnSurfaceClick: state.globe.focusPulseOnSurfaceClick,
     },
+    // Dotted-only fine-tune knobs. We always pass the structure so the
+    // configurator preset/save round-trip keeps them; core ignores the
+    // dotted section for non-dotted kinds. Empty-string color = use
+    // theme default; 0 numeric = use theme default (sentinel pattern
+    // shared with outline / atmosphere / labels).
+    dotted: {
+      appearance: {
+        color: state.globe.dottedColor,
+        sizeScale: state.globe.dottedSizeScale,
+        opacity: state.globe.dottedOpacity,
+      },
+      clickRipple: {
+        enabled: state.globe.dottedRipple,
+        boost: state.globe.dottedRippleBoost,
+        speed: state.globe.dottedRippleSpeed,
+        width: state.globe.dottedRippleWidth,
+        maxConcurrent: state.globe.dottedRippleMaxConcurrent,
+        color: state.globe.dottedRippleColor,
+      },
+      dataFlash: {
+        enabled: state.globe.dottedFlash,
+        strength: state.globe.dottedFlashStrength,
+        decay: state.globe.dottedFlashDecay,
+        color: state.globe.dottedFlashColor,
+      },
+      drift: {
+        enabled: state.globe.dottedDrift,
+        amplitude: state.globe.dottedDriftAmplitude,
+        speed: state.globe.dottedDriftSpeed,
+        freq: state.globe.dottedDriftFreq,
+        axis: state.globe.dottedDriftAxis,
+      },
+      hoverDots: {
+        enabled: state.globe.dottedHoverDots,
+        scale: state.globe.dottedHoverScale,
+        brightnessBoost: state.globe.dottedHoverBrightnessBoost,
+        duration: state.globe.dottedHoverDuration,
+      },
+      cursorWake: {
+        enabled: state.globe.dottedCursorWake,
+        amplitude: state.globe.dottedCursorWakeAmplitude,
+        fade: state.globe.dottedCursorWakeFade,
+        width: state.globe.dottedCursorWakeWidth,
+      },
+      latitudeBands: {
+        enabled: state.globe.dottedLatitudeBands,
+        equatorBoost: state.globe.dottedEquatorBoost,
+        tropicsBoost: state.globe.dottedTropicsBoost,
+        width: state.globe.dottedLatitudeBandWidth,
+      },
+      pulseBreath: {
+        enabled: state.globe.dottedPulseBreath,
+        amplitude: state.globe.dottedPulseBreathAmplitude,
+        speed: state.globe.dottedPulseBreathSpeed,
+      },
+      constellation: {
+        enabled: state.globe.dottedConstellation,
+        color: state.globe.dottedConstellationColor,
+        opacity: state.globe.dottedConstellationOpacity,
+        distanceFactor: state.globe.dottedConstellationDistanceFactor,
+      },
+    },
     // Outline-only fine-tune knobs. We always pass the structure so the
     // configurator preset/save round-trip keeps them; core ignores the
     // outline section for non-outline kinds.

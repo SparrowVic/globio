@@ -810,6 +810,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           });
         }
       }
+
+      // Dotted-kind decorations — every dotted knob lives on the
+      // kindHandle's `setDottedConfig` setter (color, size, ripple,
+      // flash, drift, hover, cursor wake, latitude bands, breath,
+      // constellation). All update in place via shader uniforms /
+      // material props, so no rebuild is needed for any of them.
+      if (partial.dotted !== undefined) {
+        const dottedHandle = state.kindHandle as DottedKindHandle | null;
+        dottedHandle?.setDottedConfig?.(partial.dotted);
+      }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
     off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.off(event, handler),

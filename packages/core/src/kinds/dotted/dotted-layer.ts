@@ -5,6 +5,8 @@ import {
   Color,
   Float32BufferAttribute,
   Group,
+  LineBasicMaterial,
+  LineSegments,
   Points,
   ShaderMaterial,
   Vector3,
@@ -26,6 +28,8 @@ export interface CountriesDottedLayerOptions {
   readonly rippleWidth: number;
   readonly rippleEnabled: boolean;
   readonly rippleMaxConcurrent: number;
+  /** Empty string = no override (use brightened base color). */
+  readonly rippleColor: string;
   readonly flashColor: string;
   readonly flashStrength: number;
   readonly flashDecay: number;
@@ -34,11 +38,34 @@ export interface CountriesDottedLayerOptions {
   readonly driftAmplitude: number;
   readonly driftSpeed: number;
   readonly driftFreq: number;
-  readonly driftAxis: 'ns' | 'ew';
+  readonly driftAxis: 'ns' | 'ew' | 'both';
   readonly hoverEnabled: boolean;
   readonly hoverScale: number;
   readonly hoverBrightnessBoost: number;
   readonly hoverDuration: number;
+  /** Master appearance overrides. Empty color / non-positive size scale → use base. */
+  readonly appearanceColor: string;
+  readonly appearanceSizeScale: number;
+  readonly appearanceOpacity: number;
+  /** Cursor wake — ambient ripple following the cursor. */
+  readonly cursorWakeEnabled: boolean;
+  readonly cursorWakeAmplitude: number;
+  readonly cursorWakeFade: number;
+  readonly cursorWakeWidth: number;
+  /** Latitude band emphasis. */
+  readonly latitudeBandsEnabled: boolean;
+  readonly equatorBoost: number;
+  readonly tropicsBoost: number;
+  readonly latitudeBandWidth: number;
+  /** Global pulse breath. */
+  readonly pulseBreathEnabled: boolean;
+  readonly pulseBreathAmplitude: number;
+  readonly pulseBreathSpeed: number;
+  /** Constellation hover lines. */
+  readonly constellationEnabled: boolean;
+  readonly constellationColor: string;
+  readonly constellationOpacity: number;
+  readonly constellationDistanceFactor: number;
 }
 
 interface ActiveRipple {
@@ -57,6 +84,7 @@ const MAX_RIPPLES = 6;
 // vectors; a flat float[256] uniform fits well within that budget.
 const MAX_FLASHES = 256;
 const MAX_GREAT_CIRCLE = Math.PI;
+const TROPIC_LAT = 23.4366; // degrees — Tropic of Cancer / Capricorn
 
 export const pointInRing = (
   ring: ReadonlyArray<readonly [number, number]>,
@@ -157,9 +185,24 @@ const createGlowTexture = (): CanvasTexture | null => {
   return new CanvasTexture(canvas);
 };
 
+/**
+ * Resolve the drift axis vector from the user's choice.
+ * - `'ns'` → Y axis (north-south bands ring around equator).
+ * - `'ew'` → Z axis (east-west bands).
+ * - `'both'` → a normalized 45° diagonal of Y+Z so the wave reads as a
+ *   moving diagonal moiré rather than a strict parallel.
+ */
+const driftAxisVector = (axis: 'ns' | 'ew' | 'both'): Vector3 => {
+  if (axis === 'ew') return new Vector3(0, 0, 1);
+  if (axis === 'both') return new Vector3(0, 1, 1).normalize();
+  return new Vector3(0, 1, 0);
+};
+
 const VERT_SHADER = /* glsl */ `
   attribute float aCountryIndex;
+  attribute float aLat;
   uniform float uPointSize;
+  uniform float uSizeScale;
   uniform float uPixelRatio;
   uniform int uRippleCount;
   uniform vec4 uRippleOrigin[${MAX_RIPPLES}];
@@ -175,9 +218,23 @@ const VERT_SHADER = /* glsl */ `
   uniform float uHoverBoost;
   uniform float uHoverScale;
   uniform float uHoverBrightnessBoost;
+  uniform vec3 uCursorOrigin;
+  uniform float uCursorAge;
+  uniform float uCursorAmp;
+  uniform float uCursorWidth;
+  uniform float uCursorActive;
+  uniform float uLatBandEnabled;
+  uniform float uEquatorBoost;
+  uniform float uTropicBoost;
+  uniform float uLatBandWidthRad;
+  uniform float uTropicLatRad;
+  uniform float uBreathEnabled;
+  uniform float uBreathAmp;
+  uniform float uBreathSpeed;
 
   varying float vBrightness;
   varying float vFlashStrength;
+  varying float vRippleBrightness;
 
   void main() {
     vec3 dir = normalize(position);
@@ -190,6 +247,16 @@ const VERT_SHADER = /* glsl */ `
       ripple += exp(-band * band);
     }
     float rippleBrightness = clamp(ripple, 0.0, 1.0) * uRippleBoost;
+    vRippleBrightness = rippleBrightness;
+
+    // Cursor wake — single trailing Gaussian centred on the latest cursor
+    // position, fading as uCursorActive decays toward 0.
+    float wake = 0.0;
+    if (uCursorActive > 0.001) {
+      float wd = acos(clamp(dot(dir, uCursorOrigin), -1.0, 1.0));
+      float wband = wd / max(uCursorWidth, 1e-4);
+      wake = exp(-wband * wband) * uCursorAmp * uCursorActive;
+    }
 
     // Ambient drift wave — bands of equal phase perpendicular to uDriftAxis.
     float driftPhase = dot(dir, uDriftAxis) * uDriftFreq - uDriftSpeed * uTime;
@@ -201,7 +268,27 @@ const VERT_SHADER = /* glsl */ `
     float hoverBrightness = hoverActive * uHoverBrightnessBoost;
     float hoverSize = 1.0 + hoverActive * (uHoverScale - 1.0);
 
-    vBrightness = rippleBrightness + driftBrightness + hoverBrightness;
+    // Latitude band emphasis — equator + tropics get a brightness boost
+    // proportional to a Gaussian falloff around each parallel. aLat is
+    // the dot's latitude in radians, baked at build time.
+    float latBoost = 0.0;
+    if (uLatBandEnabled > 0.5) {
+      float halfW = max(uLatBandWidthRad, 1e-4);
+      float eq = exp(-(aLat / halfW) * (aLat / halfW));
+      float tn = exp(-((aLat - uTropicLatRad) / halfW) * ((aLat - uTropicLatRad) / halfW));
+      float ts = exp(-((aLat + uTropicLatRad) / halfW) * ((aLat + uTropicLatRad) / halfW));
+      latBoost = eq * uEquatorBoost + (tn + ts) * uTropicBoost;
+    }
+
+    // Pulse breath — whole-field global oscillation. Cheap (no per-vertex
+    // cost beyond a single sin) and reads as a planetary inhale/exhale.
+    float breath = 0.0;
+    if (uBreathEnabled > 0.5) {
+      breath = sin(uTime * uBreathSpeed * 6.2831853) * uBreathAmp;
+    }
+
+    vBrightness = rippleBrightness + driftBrightness + hoverBrightness
+      + wake + latBoost + breath;
 
     float fs = 0.0;
     for (int i = 0; i < ${MAX_FLASHES}; i++) {
@@ -211,7 +298,7 @@ const VERT_SHADER = /* glsl */ `
 
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = uPointSize * uPixelRatio * (1.0 / -mv.z) * hoverSize;
+    gl_PointSize = uPointSize * uSizeScale * uPixelRatio * (1.0 / -mv.z) * hoverSize;
   }
 `;
 
@@ -219,12 +306,15 @@ const FRAG_SHADER = /* glsl */ `
   precision mediump float;
   uniform vec3 uBaseColor;
   uniform vec3 uFlashColor;
+  uniform vec3 uRippleColor;
+  uniform float uUseRippleColor;
   uniform float uOpacity;
   uniform sampler2D uTexture;
   uniform bool uUseTexture;
 
   varying float vBrightness;
   varying float vFlashStrength;
+  varying float vRippleBrightness;
 
   void main() {
     vec2 c = gl_PointCoord - vec2(0.5);
@@ -235,6 +325,13 @@ const FRAG_SHADER = /* glsl */ `
     if (disc < 0.05) discard;
 
     vec3 base = uBaseColor * (1.0 + vBrightness);
+    // Ripple color override: tint toward uRippleColor by the ripple's own
+    // brightness contribution. Lets users dial a "wave color" distinct
+    // from the base dot color.
+    if (uUseRippleColor > 0.5) {
+      float t = clamp(vRippleBrightness, 0.0, 1.0);
+      base = mix(base, uRippleColor * (1.0 + vBrightness), t);
+    }
     float fs = clamp(vFlashStrength, 0.0, 1.0);
     vec3 mixed = mix(base, uFlashColor, fs);
     vec3 col = mixed * (1.0 + vFlashStrength);
@@ -247,6 +344,12 @@ const FRAG_SHADER = /* glsl */ `
  * inside its polygon. The custom shader computes per-vertex brightness from
  * any active ripples plus a per-country flash term — all on the GPU, so no
  * per-frame attribute uploads even with tens of thousands of dots.
+ *
+ * Every visual emerges from the same dot field: ripples brighten, flashes
+ * recolor, drift waves, latitude bands emphasise parallels, breath
+ * oscillates the whole grid, hover rebuilds star-chart constellation
+ * lines from nearest-neighbour pairs. No separate borders, no fills —
+ * the dots ARE the canvas.
  */
 export class CountriesDottedLayer {
   public readonly group: Group;
@@ -254,37 +357,110 @@ export class CountriesDottedLayer {
   private readonly geometries: Array<BufferGeometry> = [];
   private readonly texture: Texture | null;
   private readonly countryIndex = new Map<string, number>();
+  /** Per-country dot positions (Vector3, on the same lifted radius), used
+   *  to lazily build constellation lines on hover. */
+  private readonly countryDots = new Map<string, Array<Vector3>>();
   private readonly flashState: Float32Array;
   private readonly rippleOrigin: Array<Vector4>;
   private readonly activeRipples: Array<ActiveRipple> = [];
   private readonly activeFlashes: Array<ActiveFlash> = [];
   private readonly opts: CountriesDottedLayerOptions;
+  /** Live mutable opts — setters write here so render loop reads latest. */
+  private rippleEnabled: boolean;
+  private rippleSpeed: number;
+  private rippleMaxConcurrent: number;
+  private flashEnabled: boolean;
+  private flashStrength: number;
+  private flashDecay: number;
+  private hoverEnabled: boolean;
+  private hoverDuration: number;
+  private driftEnabled: boolean;
+  private driftAmplitude: number;
+  private cursorWakeEnabled: boolean;
+  private cursorWakeFade: number;
   private elapsed = 0;
   private hoveredId: string | null = null;
   private hoverBoost = 0;
   private hoverTarget = 0;
+  /** Cursor wake state — origin & age live as uniforms; we just clamp. */
+  private cursorAge = Infinity; // > fade → invisible
+  private readonly cursorOrigin = new Vector3(1, 0, 0);
+  /** Theme-default values cached so reset semantics work. */
+  private readonly defaultBaseColor: Color;
+  private readonly defaultPointSize: number;
+  private readonly defaultOpacity: number;
+  /** Constellation lines layer — separate group, shown on hover. */
+  private readonly constellationGroup: Group;
+  private readonly constellationMaterial: LineBasicMaterial;
+  private constellationVisible = false;
+  private constellationCurrentId: string | null = null;
+  private constellationEnabled: boolean;
+  private constellationDistanceFactor: number;
+  /** Density used at build time — neighbour distance threshold derives from this. */
+  private readonly density: number;
 
   public constructor(options: CountriesDottedLayerOptions) {
     this.opts = options;
+    this.density = options.density;
     this.group = new Group();
     this.group.name = 'CountriesDottedLayer';
     this.texture = createGlowTexture();
     this.flashState = new Float32Array(MAX_FLASHES);
     this.rippleOrigin = new Array(MAX_RIPPLES).fill(0).map(() => new Vector4());
 
-    const baseColor = new Color(options.color);
+    this.rippleEnabled = options.rippleEnabled;
+    this.rippleSpeed = options.rippleSpeed;
+    this.rippleMaxConcurrent = options.rippleMaxConcurrent;
+    this.flashEnabled = options.flashEnabled;
+    this.flashStrength = options.flashStrength;
+    this.flashDecay = options.flashDecay;
+    this.hoverEnabled = options.hoverEnabled;
+    this.hoverDuration = options.hoverDuration;
+    this.driftEnabled = options.driftEnabled;
+    this.driftAmplitude = options.driftAmplitude;
+    this.cursorWakeEnabled = options.cursorWakeEnabled;
+    this.cursorWakeFade = options.cursorWakeFade;
+    this.constellationEnabled = options.constellationEnabled;
+    this.constellationDistanceFactor = options.constellationDistanceFactor;
+
+    const baseColorHex =
+      options.appearanceColor && options.appearanceColor !== ''
+        ? options.appearanceColor
+        : options.color;
+    const baseColor = new Color(baseColorHex);
+    this.defaultBaseColor = new Color(options.color);
+    this.defaultPointSize = options.size * 1000;
+    this.defaultOpacity = options.opacity;
+
     const flashColor = new Color(options.flashColor);
-    const driftAxis = options.driftAxis === 'ew' ? new Vector3(0, 0, 1) : new Vector3(0, 1, 0);
+    const rippleColor = new Color(
+      options.rippleColor && options.rippleColor !== ''
+        ? options.rippleColor
+        : options.color
+    );
+    const useRippleColor = options.rippleColor && options.rippleColor !== '' ? 1 : 0;
+    const driftAxis = driftAxisVector(options.driftAxis);
     const driftAmp = options.driftEnabled ? options.driftAmplitude : 0;
     const hoverScale = options.hoverEnabled ? options.hoverScale : 1;
     const hoverBrightnessBoost = options.hoverEnabled ? options.hoverBrightnessBoost : 0;
+
+    const sizeScale =
+      options.appearanceSizeScale > 0 ? options.appearanceSizeScale : 1;
+    const opacityNow =
+      options.appearanceOpacity > 0 ? options.appearanceOpacity : options.opacity;
+
+    const tropicLatRad = (TROPIC_LAT * Math.PI) / 180;
+    const latBandWidthRad = (Math.max(0.1, options.latitudeBandWidth) * Math.PI) / 180;
 
     this.material = new ShaderMaterial({
       uniforms: {
         uBaseColor: { value: baseColor },
         uFlashColor: { value: flashColor },
-        uOpacity: { value: options.opacity },
-        uPointSize: { value: options.size * 1000 },
+        uRippleColor: { value: rippleColor },
+        uUseRippleColor: { value: useRippleColor },
+        uOpacity: { value: opacityNow },
+        uPointSize: { value: this.defaultPointSize },
+        uSizeScale: { value: sizeScale },
         uPixelRatio: {
           value: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
         },
@@ -304,6 +480,19 @@ export class CountriesDottedLayer {
         uHoverBoost: { value: 0 },
         uHoverScale: { value: hoverScale },
         uHoverBrightnessBoost: { value: hoverBrightnessBoost },
+        uCursorOrigin: { value: this.cursorOrigin },
+        uCursorAge: { value: 0 },
+        uCursorAmp: { value: options.cursorWakeAmplitude },
+        uCursorWidth: { value: options.cursorWakeWidth },
+        uCursorActive: { value: 0 },
+        uLatBandEnabled: { value: options.latitudeBandsEnabled ? 1 : 0 },
+        uEquatorBoost: { value: options.equatorBoost },
+        uTropicBoost: { value: options.tropicsBoost },
+        uLatBandWidthRad: { value: latBandWidthRad },
+        uTropicLatRad: { value: tropicLatRad },
+        uBreathEnabled: { value: options.pulseBreathEnabled ? 1 : 0 },
+        uBreathAmp: { value: options.pulseBreathAmplitude },
+        uBreathSpeed: { value: options.pulseBreathSpeed },
       },
       vertexShader: VERT_SHADER,
       fragmentShader: FRAG_SHADER,
@@ -313,6 +502,26 @@ export class CountriesDottedLayer {
     });
 
     this.buildPoints(options.features, options.density);
+
+    // Constellation group sits above the dot field. Single LineBasicMaterial
+    // shared across all hovered-country lines — geometry rebuilds in place
+    // each hover (small per-country mesh: a few hundred segments at most).
+    const constellationColorHex =
+      options.constellationColor && options.constellationColor !== ''
+        ? options.constellationColor
+        : baseColorHex;
+    this.constellationMaterial = new LineBasicMaterial({
+      color: new Color(constellationColorHex),
+      transparent: true,
+      opacity: options.constellationOpacity,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    this.constellationGroup = new Group();
+    this.constellationGroup.name = 'CountriesDottedConstellation';
+    this.constellationGroup.renderOrder = 12;
+    this.constellationGroup.visible = false;
+    this.group.add(this.constellationGroup);
   }
 
   public setVisible(visible: boolean): void {
@@ -323,24 +532,26 @@ export class CountriesDottedLayer {
     this.geometries.forEach((g) => g.dispose());
     this.material.dispose();
     this.texture?.dispose();
+    this.constellationMaterial.dispose();
+    this.disposeConstellationGeometry();
     this.group.clear();
   }
 
   /** Spawn a ripple originating from a globe-local 3D point. */
   public spawnRipple(point3D: Vector3): void {
-    if (!this.opts.rippleEnabled) return;
+    if (!this.rippleEnabled) return;
     const origin = point3D.clone().normalize();
-    const speed = this.opts.rippleSpeed > 0 ? this.opts.rippleSpeed : 1;
+    const speed = this.rippleSpeed > 0 ? this.rippleSpeed : 1;
     const duration = Math.min(MAX_GREAT_CIRCLE / speed, 4);
     this.activeRipples.push({ origin, age: 0, duration });
-    while (this.activeRipples.length > this.opts.rippleMaxConcurrent) {
+    while (this.activeRipples.length > this.rippleMaxConcurrent) {
       this.activeRipples.shift();
     }
   }
 
   /** Trigger / refresh a flash on a country (by id). */
   public spawnFlash(countryId: string): void {
-    if (!this.opts.flashEnabled) return;
+    if (!this.flashEnabled) return;
     const idx = this.countryIndex.get(countryId);
     if (idx === undefined || idx >= MAX_FLASHES) return;
     const existing = this.activeFlashes.find((f) => f.countryIndex === idx);
@@ -352,26 +563,47 @@ export class CountriesDottedLayer {
   }
 
   /**
+   * Refresh the cursor wake's origin. Each call resets `cursorAge` to 0 so
+   * the trailing Gaussian rides the cursor; the per-frame update lets it
+   * fade back out over `cursorWakeFade` seconds.
+   */
+  public setCursorPosition(point3D: Vector3 | null): void {
+    if (!this.cursorWakeEnabled || point3D === null) {
+      // Don't reset age — let the wake fade naturally if cursor leaves.
+      return;
+    }
+    this.cursorOrigin.copy(point3D).normalize();
+    this.cursorAge = 0;
+    this.material.uniforms['uCursorOrigin']!.value = this.cursorOrigin;
+  }
+
+  /**
    * Set the currently-hovered country. The shader's hover boost eases
    * smoothly toward 1 when set, toward 0 when cleared. Swapping countries
    * snaps the index instantly but preserves the boost value, so the visual
    * fades from old → new without strobing.
    */
   public setHoveredCountry(id: string | null): void {
-    if (!this.opts.hoverEnabled) return;
-    if (id === this.hoveredId) return;
-    this.hoveredId = id;
-    if (id === null) {
-      this.hoverTarget = 0;
-      return;
+    if (this.hoverEnabled) {
+      if (id !== this.hoveredId) {
+        this.hoveredId = id;
+        if (id === null) {
+          this.hoverTarget = 0;
+        } else {
+          const idx = this.countryIndex.get(id);
+          if (idx === undefined) {
+            this.hoverTarget = 0;
+          } else {
+            this.material.uniforms['uHoveredCountry']!.value = idx;
+            this.hoverTarget = 1;
+          }
+        }
+      }
     }
-    const idx = this.countryIndex.get(id);
-    if (idx === undefined) {
-      this.hoverTarget = 0;
-      return;
-    }
-    this.material.uniforms['uHoveredCountry']!.value = idx;
-    this.hoverTarget = 1;
+    // Constellation lines run independently of the hover-brightness boost
+    // so a user can disable hover dot expansion but keep the lines (or
+    // vice versa).
+    this.refreshConstellation(id);
   }
 
   /** Per-frame tick. Advances ripple/flash ages and writes uniforms. */
@@ -383,12 +615,12 @@ export class CountriesDottedLayer {
     }
     this.material.uniforms['uTime']!.value = this.elapsed;
 
-    if (this.opts.hoverEnabled) {
+    if (this.hoverEnabled) {
       this.hoverBoost = easeHoverBoost(
         this.hoverBoost,
         this.hoverTarget,
         delta,
-        this.opts.hoverDuration > 0 ? this.opts.hoverDuration : 0.25
+        this.hoverDuration > 0 ? this.hoverDuration : 0.25
       );
       this.material.uniforms['uHoverBoost']!.value = this.hoverBoost;
       // When the boost ramps to ~0 with no active hover, drop the index too
@@ -398,9 +630,27 @@ export class CountriesDottedLayer {
         this.hoverBoost = 0;
         this.material.uniforms['uHoverBoost']!.value = 0;
       }
+    } else {
+      // When hover is disabled mid-flight, snap uniforms off so old halos
+      // don't linger on the next frame.
+      this.material.uniforms['uHoverBoost']!.value = 0;
+      this.material.uniforms['uHoveredCountry']!.value = -1;
+      this.hoverBoost = 0;
+      this.hoverTarget = 0;
     }
 
-    const speed = this.opts.rippleSpeed > 0 ? this.opts.rippleSpeed : 1;
+    if (this.cursorWakeEnabled) {
+      this.cursorAge += delta;
+      const fade = this.cursorWakeFade > 0 ? this.cursorWakeFade : 0.45;
+      const t = 1 - Math.min(1, this.cursorAge / fade);
+      // Quadratic falloff reads softer than linear and keeps the wake from
+      // strobing on rapid cursor jitter.
+      this.material.uniforms['uCursorActive']!.value = t * t;
+    } else {
+      this.material.uniforms['uCursorActive']!.value = 0;
+    }
+
+    const speed = this.rippleSpeed > 0 ? this.rippleSpeed : 1;
     for (let i = this.activeRipples.length - 1; i >= 0; i--) {
       const r = this.activeRipples[i];
       if (!r) continue;
@@ -422,8 +672,8 @@ export class CountriesDottedLayer {
     this.material.uniforms['uRippleCount']!.value = limit;
 
     this.flashState.fill(0);
-    const decay = this.opts.flashDecay;
-    const peak = this.opts.flashStrength;
+    const decay = this.flashDecay;
+    const peak = this.flashStrength;
     for (let i = this.activeFlashes.length - 1; i >= 0; i--) {
       const f = this.activeFlashes[i];
       if (!f) continue;
@@ -437,6 +687,215 @@ export class CountriesDottedLayer {
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Live setters — every knob the kindHandle can update at runtime.
+  // ---------------------------------------------------------------------
+
+  /** Master dot color. Empty string = restore theme default. */
+  public setBaseColor(hex: string): void {
+    const target = this.material.uniforms['uBaseColor']!.value as Color;
+    if (hex === '') target.copy(this.defaultBaseColor);
+    else target.set(hex);
+    // Constellation defaults to follow the base color when no override —
+    // keeps the dot field + lines reading as a single palette unless a
+    // user explicitly diverges them.
+    if (this.opts.constellationColor === '' || this.opts.constellationColor === undefined) {
+      this.constellationMaterial.color.copy(target);
+    }
+  }
+
+  /** Multiplicative scale on the base point size. */
+  public setSizeScale(scale: number): void {
+    this.material.uniforms['uSizeScale']!.value = scale > 0 ? scale : 1;
+  }
+
+  /** Master opacity. ≤0 = restore theme default. */
+  public setOpacity(opacity: number): void {
+    this.material.uniforms['uOpacity']!.value = opacity > 0 ? opacity : this.defaultOpacity;
+  }
+
+  public setRippleEnabled(enabled: boolean): void {
+    this.rippleEnabled = enabled;
+    if (!enabled) this.activeRipples.length = 0;
+  }
+
+  public setRippleBoost(value: number): void {
+    this.material.uniforms['uRippleBoost']!.value = value;
+  }
+
+  public setRippleSpeed(value: number): void {
+    this.rippleSpeed = value;
+  }
+
+  public setRippleWidth(value: number): void {
+    this.material.uniforms['uRippleWidth']!.value = value;
+  }
+
+  public setRippleMaxConcurrent(value: number): void {
+    this.rippleMaxConcurrent = Math.max(1, Math.min(MAX_RIPPLES, value));
+    while (this.activeRipples.length > this.rippleMaxConcurrent) {
+      this.activeRipples.shift();
+    }
+  }
+
+  /** Empty string = no override (use base color brightened). */
+  public setRippleColor(hex: string): void {
+    const useOverride = hex !== '';
+    this.material.uniforms['uUseRippleColor']!.value = useOverride ? 1 : 0;
+    if (useOverride) {
+      const target = this.material.uniforms['uRippleColor']!.value as Color;
+      target.set(hex);
+    }
+  }
+
+  public setFlashEnabled(enabled: boolean): void {
+    this.flashEnabled = enabled;
+    if (!enabled) this.activeFlashes.length = 0;
+  }
+
+  public setFlashStrength(value: number): void {
+    this.flashStrength = value;
+  }
+
+  public setFlashDecay(value: number): void {
+    this.flashDecay = value;
+  }
+
+  /** Empty string = restore default flash color from tokens (white-ish). */
+  public setFlashColor(hex: string): void {
+    const target = this.material.uniforms['uFlashColor']!.value as Color;
+    target.set(hex === '' ? this.opts.flashColor : hex);
+  }
+
+  public setDriftEnabled(enabled: boolean): void {
+    this.driftEnabled = enabled;
+    // Toggle by zeroing amplitude — fast and reversible.
+    this.material.uniforms['uDriftAmp']!.value = enabled ? this.driftAmplitude : 0;
+  }
+
+  public setDriftAmplitude(value: number): void {
+    this.driftAmplitude = value;
+    if (this.driftEnabled) {
+      this.material.uniforms['uDriftAmp']!.value = value;
+    }
+  }
+
+  public setDriftSpeed(value: number): void {
+    this.material.uniforms['uDriftSpeed']!.value = value;
+  }
+
+  public setDriftFreq(value: number): void {
+    this.material.uniforms['uDriftFreq']!.value = value;
+  }
+
+  public setDriftAxis(axis: 'ns' | 'ew' | 'both'): void {
+    const v = driftAxisVector(axis);
+    (this.material.uniforms['uDriftAxis']!.value as Vector3).copy(v);
+  }
+
+  public setHoverEnabled(enabled: boolean): void {
+    this.hoverEnabled = enabled;
+    if (!enabled) {
+      this.hoverBoost = 0;
+      this.hoverTarget = 0;
+      this.material.uniforms['uHoverBoost']!.value = 0;
+      this.material.uniforms['uHoveredCountry']!.value = -1;
+    }
+  }
+
+  public setHoverScale(scale: number): void {
+    this.material.uniforms['uHoverScale']!.value = scale;
+  }
+
+  public setHoverBrightnessBoost(boost: number): void {
+    this.material.uniforms['uHoverBrightnessBoost']!.value = boost;
+  }
+
+  public setHoverDuration(duration: number): void {
+    this.hoverDuration = duration;
+  }
+
+  public setCursorWakeEnabled(enabled: boolean): void {
+    this.cursorWakeEnabled = enabled;
+    if (!enabled) this.material.uniforms['uCursorActive']!.value = 0;
+  }
+
+  public setCursorWakeAmplitude(value: number): void {
+    this.material.uniforms['uCursorAmp']!.value = value;
+  }
+
+  public setCursorWakeFade(value: number): void {
+    this.cursorWakeFade = value;
+  }
+
+  public setCursorWakeWidth(value: number): void {
+    this.material.uniforms['uCursorWidth']!.value = value;
+  }
+
+  public setLatitudeBandsEnabled(enabled: boolean): void {
+    this.material.uniforms['uLatBandEnabled']!.value = enabled ? 1 : 0;
+  }
+
+  public setEquatorBoost(value: number): void {
+    this.material.uniforms['uEquatorBoost']!.value = value;
+  }
+
+  public setTropicsBoost(value: number): void {
+    this.material.uniforms['uTropicBoost']!.value = value;
+  }
+
+  public setLatitudeBandWidth(deg: number): void {
+    const rad = (Math.max(0.1, deg) * Math.PI) / 180;
+    this.material.uniforms['uLatBandWidthRad']!.value = rad;
+  }
+
+  public setPulseBreathEnabled(enabled: boolean): void {
+    this.material.uniforms['uBreathEnabled']!.value = enabled ? 1 : 0;
+  }
+
+  public setPulseBreathAmplitude(value: number): void {
+    this.material.uniforms['uBreathAmp']!.value = value;
+  }
+
+  public setPulseBreathSpeed(value: number): void {
+    this.material.uniforms['uBreathSpeed']!.value = value;
+  }
+
+  public setConstellationEnabled(enabled: boolean): void {
+    this.constellationEnabled = enabled;
+    if (!enabled) this.hideConstellation();
+    else if (this.hoveredId !== null) this.refreshConstellation(this.hoveredId);
+  }
+
+  /** Empty string = follow the base dot color. */
+  public setConstellationColor(hex: string): void {
+    if (hex === '') {
+      this.constellationMaterial.color.copy(
+        this.material.uniforms['uBaseColor']!.value as Color,
+      );
+    } else {
+      this.constellationMaterial.color.set(hex);
+    }
+  }
+
+  public setConstellationOpacity(value: number): void {
+    this.constellationMaterial.opacity = Math.max(0, Math.min(1, value));
+  }
+
+  public setConstellationDistanceFactor(value: number): void {
+    this.constellationDistanceFactor = value;
+    if (this.constellationVisible && this.constellationCurrentId !== null) {
+      // Rebuild current country's lines with the new threshold.
+      const id = this.constellationCurrentId;
+      this.constellationCurrentId = null; // force refresh
+      this.refreshConstellation(id);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Internals
+  // ---------------------------------------------------------------------
+
   private buildPoints(
     features: ReadonlyArray<CountryFeature>,
     density: number
@@ -446,11 +905,15 @@ export class CountriesDottedLayer {
 
     for (const feature of features) {
       const positions: Array<number> = [];
+      const lats: Array<number> = [];
+      const dotCache: Array<Vector3> = [];
       for (const polygon of feature.polygons) {
         const samples = samplePolygonInterior(polygon, density);
         for (const [lng, lat] of samples) {
           const v = latLngToVector3([lat, lng], radius);
           positions.push(v.x, v.y, v.z);
+          lats.push((lat * Math.PI) / 180);
+          dotCache.push(v);
         }
       }
       if (positions.length === 0) continue;
@@ -460,6 +923,7 @@ export class CountriesDottedLayer {
       // covers the visually-interesting "data-driven" chunk.
       const idxForShader = countryIdx < MAX_FLASHES ? countryIdx : MAX_FLASHES - 1;
       this.countryIndex.set(feature.id, countryIdx);
+      this.countryDots.set(feature.id, dotCache);
 
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
@@ -467,12 +931,93 @@ export class CountriesDottedLayer {
       const idxArr = new Float32Array(vertCount);
       idxArr.fill(idxForShader);
       geometry.setAttribute('aCountryIndex', new Float32BufferAttribute(idxArr, 1));
+      geometry.setAttribute('aLat', new Float32BufferAttribute(lats, 1));
       this.geometries.push(geometry);
 
       const points = new Points(geometry, this.material);
       points.userData['countryId'] = feature.id;
       this.group.add(points);
       countryIdx++;
+    }
+  }
+
+  /**
+   * Rebuild the constellation LineSegments mesh for the hovered country.
+   * Connects each dot to neighbours within a configurable multiple of the
+   * grid step. The result is a star-chart-like mesh that *visually
+   * derives from the dot field itself* — no separate borders, no fills.
+   */
+  private refreshConstellation(id: string | null): void {
+    if (!this.constellationEnabled) {
+      this.hideConstellation();
+      return;
+    }
+    if (id === null) {
+      this.hideConstellation();
+      return;
+    }
+    if (id === this.constellationCurrentId) return;
+    const dots = this.countryDots.get(id);
+    if (!dots || dots.length < 2) {
+      this.hideConstellation();
+      return;
+    }
+
+    this.disposeConstellationGeometry();
+
+    // Density is in degrees of lat/lng; convert to chord length on the
+    // sphere as a robust threshold. distanceFactor scales it — 1.6 reads
+    // as "connect to the immediate ring of grid neighbours".
+    const stepRad = (this.density * Math.PI) / 180;
+    const chord = 2 * GLOBE_RADIUS * Math.sin(stepRad / 2);
+    const threshold = chord * this.constellationDistanceFactor;
+    const t2 = threshold * threshold;
+
+    const positions: Array<number> = [];
+    const n = dots.length;
+    // O(n²) is fine — country dots are typically <= ~3000, and we only
+    // rebuild on hover changes (user-initiated, low frequency).
+    for (let i = 0; i < n; i++) {
+      const a = dots[i];
+      if (!a) continue;
+      for (let j = i + 1; j < n; j++) {
+        const b = dots[j];
+        if (!b) continue;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dz = a.z - b.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 > 0 && d2 <= t2) {
+          positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        }
+      }
+    }
+    if (positions.length === 0) {
+      this.hideConstellation();
+      return;
+    }
+    const geom = new BufferGeometry();
+    geom.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    const mesh = new LineSegments(geom, this.constellationMaterial);
+    this.constellationGroup.add(mesh);
+    this.constellationGroup.visible = true;
+    this.constellationVisible = true;
+    this.constellationCurrentId = id;
+  }
+
+  private hideConstellation(): void {
+    this.disposeConstellationGeometry();
+    this.constellationGroup.visible = false;
+    this.constellationVisible = false;
+    this.constellationCurrentId = null;
+  }
+
+  private disposeConstellationGeometry(): void {
+    while (this.constellationGroup.children.length > 0) {
+      const child = this.constellationGroup.children[0]!;
+      const seg = child as LineSegments;
+      if (seg.geometry) seg.geometry.dispose();
+      this.constellationGroup.remove(child);
     }
   }
 }

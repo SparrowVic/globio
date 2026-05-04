@@ -3,8 +3,8 @@ import { buildDottedFocusPulse } from '../shared/focus-pulse-decorators';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
-import { AdditiveBlending, DoubleSide, MeshBasicMaterial } from 'three';
-import type { CountryDataMap } from '../../types';
+import { AdditiveBlending, DoubleSide, MeshBasicMaterial, type Vector3 } from 'three';
+import type { CountryDataMap, DottedConfig, LatLng } from '../../types';
 import type {
   DataLayerBuilder,
   KindBuildContext,
@@ -20,25 +20,56 @@ import type {
 } from '../../data-layers/types';
 import type { CountryFeature } from '../../renderer/country-feature';
 
+const DEFAULT_CURSOR_WAKE_AMPLITUDE = 0.6;
+const DEFAULT_CURSOR_WAKE_FADE = 0.45;
+const DEFAULT_CURSOR_WAKE_WIDTH = 0.09;
+const DEFAULT_EQUATOR_BOOST = 0.35;
+const DEFAULT_TROPICS_BOOST = 0.18;
+const DEFAULT_LAT_BAND_WIDTH_DEG = 4;
+const DEFAULT_BREATH_AMPLITUDE = 0.12;
+const DEFAULT_BREATH_SPEED = 0.35;
+const DEFAULT_CONSTELLATION_OPACITY = 0.55;
+const DEFAULT_CONSTELLATION_DISTANCE_FACTOR = 1.6;
+
+const resolveDriftAxis = (
+  configured: DottedConfig['drift'] extends infer T ? T : never,
+  tokenAxis: string | number | boolean | undefined,
+): 'ns' | 'ew' | 'both' => {
+  const supplied = (configured as { axis?: string } | undefined)?.axis;
+  if (supplied === 'ew' || supplied === 'ns' || supplied === 'both') return supplied;
+  return tokenAxis === 'ew' ? 'ew' : 'ns';
+};
+
 /**
- * Dotted kind extras: a `setHoveredCountry` widening so globe.ts can drive
- * the dot expansion + brighten effect from the same hover signal as the
- * outline kind's glow halo.
+ * Dotted kind extras — every visual emerges from the same dot grid, so
+ * the kindHandle exposes:
+ *  - `setHoveredCountry` — drives both the hover-dot expansion AND the
+ *    constellation lines from the same hover signal as the picking layer.
+ *  - `setPointerSurface` — streams the latest cursor surface position so
+ *    the cursor-wake ripple can ride alongside the cursor.
+ *  - `setDottedConfig` — live-update hatch for every dotted knob (color,
+ *    size, ripple, flash, drift, hover, cursor wake, latitude bands,
+ *    breath, constellation). No rebuild needed.
  */
 export interface DottedKindHandle extends KindHandle {
   setHoveredCountry?(id: string | null): void;
+  setPointerSurface?(point3D: import('three').Vector3 | null): void;
+  setDottedConfig?(next: DottedConfig): void;
 }
 
 /**
- * Dotted kind — Apple/Stripe-style. A `THREE.Points` cloud fills each
- * country at a regular lat/lng grid; no visible borders. Hover/click still
- * work via the shared picking layer.
+ * Dotted kind — Apple/Stripe-style "dot field". A `THREE.Points` cloud
+ * fills each country at a regular lat/lng grid; no visible borders. Every
+ * effect emerges from those dots: ripples brighten, flashes recolor,
+ * drift waves, latitude bands emphasise parallels, breath oscillates
+ * the whole grid, hover expansion + constellation lines literally
+ * connect star-chart pairs from the dot field.
  *
  * Reads tokens `countries.dotted.{color,size,density,opacity}` and the
  * effect tokens `countries.dotted.{rippleBoost,rippleSpeed,rippleWidth,
  * flashColor,flashStrength,flashDecay,driftAmplitude,driftSpeed,driftFreq,
  * driftAxis,hoverScale,hoverBrightnessBoost,hoverDuration}`. Per-instance
- * overrides come from `config.dotted.{clickRipple,dataFlash,drift,hoverDots}`.
+ * overrides come from `config.dotted.{...}`.
  */
 export const dottedKind: KindModule = {
   kind: 'dotted',
@@ -49,8 +80,13 @@ export const dottedKind: KindModule = {
     const flash = dottedCfg?.dataFlash;
     const drift = dottedCfg?.drift;
     const hoverDots = dottedCfg?.hoverDots;
+    const appearance = dottedCfg?.appearance;
+    const cursorWake = dottedCfg?.cursorWake;
+    const latitudeBands = dottedCfg?.latitudeBands;
+    const pulseBreath = dottedCfg?.pulseBreath;
+    const constellation = dottedCfg?.constellation;
     const tokenAxis = tokens['countries.dotted.driftAxis'];
-    const driftAxis: 'ns' | 'ew' = drift?.axis ?? (tokenAxis === 'ew' ? 'ew' : 'ns');
+    const driftAxis = resolveDriftAxis(drift, tokenAxis);
     const layer = new CountriesDottedLayer({
       features,
       color: tokens['countries.dotted.color'],
@@ -62,6 +98,7 @@ export const dottedKind: KindModule = {
       rippleWidth: ripple?.width ?? tokens['countries.dotted.rippleWidth'],
       rippleEnabled: ripple?.enabled !== false,
       rippleMaxConcurrent: ripple?.maxConcurrent ?? 3,
+      rippleColor: ripple?.color ?? '',
       flashColor: tokens['countries.dotted.flashColor'],
       flashStrength: flash?.strength ?? tokens['countries.dotted.flashStrength'],
       flashDecay: flash?.decay ?? tokens['countries.dotted.flashDecay'],
@@ -76,6 +113,25 @@ export const dottedKind: KindModule = {
       hoverBrightnessBoost:
         hoverDots?.brightnessBoost ?? tokens['countries.dotted.hoverBrightnessBoost'],
       hoverDuration: hoverDots?.duration ?? tokens['countries.dotted.hoverDuration'],
+      appearanceColor: appearance?.color ?? '',
+      appearanceSizeScale: appearance?.sizeScale ?? 1,
+      appearanceOpacity: appearance?.opacity ?? 0,
+      cursorWakeEnabled: cursorWake?.enabled ?? true,
+      cursorWakeAmplitude: cursorWake?.amplitude ?? DEFAULT_CURSOR_WAKE_AMPLITUDE,
+      cursorWakeFade: cursorWake?.fade ?? DEFAULT_CURSOR_WAKE_FADE,
+      cursorWakeWidth: cursorWake?.width ?? DEFAULT_CURSOR_WAKE_WIDTH,
+      latitudeBandsEnabled: latitudeBands?.enabled ?? false,
+      equatorBoost: latitudeBands?.equatorBoost ?? DEFAULT_EQUATOR_BOOST,
+      tropicsBoost: latitudeBands?.tropicsBoost ?? DEFAULT_TROPICS_BOOST,
+      latitudeBandWidth: latitudeBands?.width ?? DEFAULT_LAT_BAND_WIDTH_DEG,
+      pulseBreathEnabled: pulseBreath?.enabled ?? false,
+      pulseBreathAmplitude: pulseBreath?.amplitude ?? DEFAULT_BREATH_AMPLITUDE,
+      pulseBreathSpeed: pulseBreath?.speed ?? DEFAULT_BREATH_SPEED,
+      constellationEnabled: constellation?.enabled ?? false,
+      constellationColor: constellation?.color ?? '',
+      constellationOpacity: constellation?.opacity ?? DEFAULT_CONSTELLATION_OPACITY,
+      constellationDistanceFactor:
+        constellation?.distanceFactor ?? DEFAULT_CONSTELLATION_DISTANCE_FACTOR,
     });
     globeGroup.add(layer.group);
 
@@ -199,8 +255,11 @@ export const dottedKind: KindModule = {
       update(delta: number, elapsedSeconds: number) {
         layer.update(delta, elapsedSeconds);
       },
-      onPointerDown(point3D) {
+      onPointerDown(point3D: Vector3) {
         layer.spawnRipple(point3D);
+      },
+      onPointerMove(point3D: Vector3 | null, _latLng: LatLng | null) {
+        layer.setCursorPosition(point3D);
       },
       onCountryDataChange(next: CountryDataMap | null, prev: CountryDataMap | null) {
         if (!next) return;
@@ -213,6 +272,82 @@ export const dottedKind: KindModule = {
       },
       setHoveredCountry(id: string | null) {
         layer.setHoveredCountry(id);
+      },
+      setPointerSurface(point3D: Vector3 | null) {
+        layer.setCursorPosition(point3D);
+      },
+      /**
+       * Live update the dotted-kind effect knobs. Each branch delegates
+       * to a setter on the underlying layer — every knob updates in
+       * place via uniforms / material props, no rebuild. Empty-string
+       * colors / non-positive numerics behave as "reset to default"
+       * sentinels (matching the outline / atmosphere live update path).
+       */
+      setDottedConfig(next: DottedConfig) {
+        if (next.appearance !== undefined) {
+          const a = next.appearance;
+          if (a.color !== undefined) layer.setBaseColor(a.color);
+          if (a.sizeScale !== undefined) layer.setSizeScale(a.sizeScale);
+          if (a.opacity !== undefined) layer.setOpacity(a.opacity);
+        }
+        if (next.clickRipple !== undefined) {
+          const r = next.clickRipple;
+          if (r.enabled !== undefined) layer.setRippleEnabled(r.enabled);
+          if (r.boost !== undefined) layer.setRippleBoost(r.boost);
+          if (r.speed !== undefined) layer.setRippleSpeed(r.speed);
+          if (r.width !== undefined) layer.setRippleWidth(r.width);
+          if (r.maxConcurrent !== undefined) layer.setRippleMaxConcurrent(r.maxConcurrent);
+          if (r.color !== undefined) layer.setRippleColor(r.color);
+        }
+        if (next.dataFlash !== undefined) {
+          const f = next.dataFlash;
+          if (f.enabled !== undefined) layer.setFlashEnabled(f.enabled);
+          if (f.strength !== undefined) layer.setFlashStrength(f.strength);
+          if (f.decay !== undefined) layer.setFlashDecay(f.decay);
+          if (f.color !== undefined) layer.setFlashColor(f.color);
+        }
+        if (next.drift !== undefined) {
+          const d = next.drift;
+          if (d.enabled !== undefined) layer.setDriftEnabled(d.enabled);
+          if (d.amplitude !== undefined) layer.setDriftAmplitude(d.amplitude);
+          if (d.speed !== undefined) layer.setDriftSpeed(d.speed);
+          if (d.freq !== undefined) layer.setDriftFreq(d.freq);
+          if (d.axis !== undefined) layer.setDriftAxis(d.axis);
+        }
+        if (next.hoverDots !== undefined) {
+          const h = next.hoverDots;
+          if (h.enabled !== undefined) layer.setHoverEnabled(h.enabled);
+          if (h.scale !== undefined) layer.setHoverScale(h.scale);
+          if (h.brightnessBoost !== undefined) layer.setHoverBrightnessBoost(h.brightnessBoost);
+          if (h.duration !== undefined) layer.setHoverDuration(h.duration);
+        }
+        if (next.cursorWake !== undefined) {
+          const w = next.cursorWake;
+          if (w.enabled !== undefined) layer.setCursorWakeEnabled(w.enabled);
+          if (w.amplitude !== undefined) layer.setCursorWakeAmplitude(w.amplitude);
+          if (w.fade !== undefined) layer.setCursorWakeFade(w.fade);
+          if (w.width !== undefined) layer.setCursorWakeWidth(w.width);
+        }
+        if (next.latitudeBands !== undefined) {
+          const b = next.latitudeBands;
+          if (b.enabled !== undefined) layer.setLatitudeBandsEnabled(b.enabled);
+          if (b.equatorBoost !== undefined) layer.setEquatorBoost(b.equatorBoost);
+          if (b.tropicsBoost !== undefined) layer.setTropicsBoost(b.tropicsBoost);
+          if (b.width !== undefined) layer.setLatitudeBandWidth(b.width);
+        }
+        if (next.pulseBreath !== undefined) {
+          const p = next.pulseBreath;
+          if (p.enabled !== undefined) layer.setPulseBreathEnabled(p.enabled);
+          if (p.amplitude !== undefined) layer.setPulseBreathAmplitude(p.amplitude);
+          if (p.speed !== undefined) layer.setPulseBreathSpeed(p.speed);
+        }
+        if (next.constellation !== undefined) {
+          const c = next.constellation;
+          if (c.enabled !== undefined) layer.setConstellationEnabled(c.enabled);
+          if (c.color !== undefined) layer.setConstellationColor(c.color);
+          if (c.opacity !== undefined) layer.setConstellationOpacity(c.opacity);
+          if (c.distanceFactor !== undefined) layer.setConstellationDistanceFactor(c.distanceFactor);
+        }
       },
     };
   },
