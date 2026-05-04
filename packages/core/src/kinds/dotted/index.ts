@@ -6,6 +6,7 @@ import { DottedMarkersLayer } from './markers';
 import { DottedAtmosphereLayer } from './atmosphere';
 import { DottedSelectionLayer } from './selection';
 import { DottedCountryFillLayer } from './country-fill';
+import { DottedCrosshairLayer } from './crosshair';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
@@ -70,7 +71,19 @@ export interface DottedKindHandle extends KindHandle {
    */
   setActiveCountry?(id: string | null): void;
   setPointerSurface?(point3D: import('three').Vector3 | null): void;
+  setPointerPixel?(x: number, y: number): void;
   setDottedConfig?(next: DottedConfig): void;
+  /**
+   * Live-update for the crosshair sub-tree (color/size/opacity/etc.).
+   * Dotted mounts its dotted-native crosshair (concentric dot rings,
+   * not the outline cross+ring stroke) but reads its config from the
+   * same `config.outline.hoverCrosshair` path the workshop card writes
+   * to — keeping the workshop UI single-sourced rather than
+   * duplicating knobs. `create-globe.ts` dispatches `partial.outline`
+   * to whichever kindHandle is active, so dotted picks up workshop
+   * crosshair edits via this hook.
+   */
+  setOutlineConfig?(next: NonNullable<import('../../types').GlobeConfig['outline']>): void;
   /**
    * Surfaces the dotted kind's `DottedCountryFillLayer` instance so
    * `create-globe.ts` can stash it in `state.countryFillLayer` and
@@ -216,6 +229,43 @@ export const dottedKind: KindModule = {
         fillCfg.activeOpacity > 0 && { activeOpacity: fillCfg.activeOpacity }),
     });
     globeGroup.add(fill.group);
+
+    // Crosshair — dotted-native dot reticle (canonical
+    // `kinds/dotted/crosshair.ts`, concentric dot rings instead of
+    // the outline cross+ring). Reads its config from the same
+    // `config.outline.hoverCrosshair` path the workshop crosshair
+    // card writes to, so the user gets a single source of truth
+    // across kinds. Always constructed so live `setEnabled(true)`
+    // has somewhere to mount.
+    const crosshairConfig = config.outline?.hoverCrosshair;
+    let crosshairEnabledNow = crosshairConfig?.enabled ?? true;
+    const crosshair: DottedCrosshairLayer = new DottedCrosshairLayer({
+      container: config.container,
+      color:
+        crosshairConfig?.color && crosshairConfig.color !== ''
+          ? crosshairConfig.color
+          : tokens['countries.dotted.color'],
+      ...(crosshairConfig?.size !== undefined && { size: crosshairConfig.size }),
+      ...(crosshairConfig?.opacity !== undefined && { opacity: crosshairConfig.opacity }),
+      ...(crosshairConfig?.ringRadiusFactor !== undefined && {
+        ringRadiusFactor: crosshairConfig.ringRadiusFactor,
+      }),
+      ...(crosshairConfig?.cardinalTicks !== undefined && {
+        cardinalTicks: crosshairConfig.cardinalTicks,
+      }),
+      ...(crosshairConfig?.tooltip !== undefined && { tooltip: crosshairConfig.tooltip }),
+      ...(crosshairConfig?.tooltipDecimals !== undefined && {
+        tooltipDecimals: crosshairConfig.tooltipDecimals,
+      }),
+    });
+    crosshair.setEnabled(crosshairEnabledNow);
+    globeGroup.add(crosshair.object);
+
+    // Pointer pixel state — fed by `setPointerPixel` (called from
+    // create-globe's pointer pipeline) so the crosshair tooltip can
+    // anchor next to the cursor in container-local pixels.
+    let lastPixelX = 0;
+    let lastPixelY = 0;
 
     // Dotted-native focus pulse: instead of a band ring lifted above the
     // surface (the outline / hologram pattern), the focus event spawns a
@@ -363,19 +413,61 @@ export const dottedKind: KindModule = {
         globeGroup.remove(layer.group);
         fill.dispose();
         globeGroup.remove(fill.group);
+        crosshair.dispose();
+        globeGroup.remove(crosshair.object);
         focusPulse.dispose();
       },
       setVisible(visible: boolean) {
         layer.setVisible(visible);
+        crosshair.setEnabled(visible && crosshairEnabledNow);
       },
       update(delta: number, elapsedSeconds: number) {
         layer.update(delta, elapsedSeconds);
+        if (crosshairEnabledNow) crosshair.update(delta);
       },
       onPointerDown(point3D: Vector3) {
         layer.spawnRipple(point3D);
       },
-      onPointerMove(point3D: Vector3 | null, _latLng: LatLng | null) {
+      onPointerMove(point3D: Vector3 | null, latLng: LatLng | null) {
         layer.setCursorPosition(point3D);
+        if (!crosshairEnabledNow) {
+          crosshair.hide();
+          return;
+        }
+        if (point3D === null || latLng === null) {
+          crosshair.hide();
+        } else {
+          crosshair.showAt(point3D, latLng, lastPixelX, lastPixelY);
+        }
+      },
+      setPointerPixel(x: number, y: number) {
+        lastPixelX = x;
+        lastPixelY = y;
+      },
+      setOutlineConfig(next) {
+        // Dotted only cares about the crosshair sub-tree — outline /
+        // hover-glow / continent-dim / focus-pulse band knobs are
+        // outline-specific and meaningless on dotted. The workshop
+        // crosshair card writes here, so this is the live-update
+        // path for crosshair colour / opacity / size / etc.
+        const c = next.hoverCrosshair;
+        if (c === undefined) return;
+        if (c.enabled !== undefined) {
+          crosshairEnabledNow = c.enabled;
+          crosshair.setEnabled(c.enabled);
+          if (!c.enabled) crosshair.hide();
+        }
+        if (c.color !== undefined) {
+          crosshair.setColor(
+            c.color === '' ? tokens['countries.dotted.color'] : c.color,
+          );
+        }
+        if (c.size !== undefined) crosshair.setSize(c.size);
+        if (c.opacity !== undefined) crosshair.setOpacity(c.opacity);
+        if (c.ringRadiusFactor !== undefined) crosshair.setRingRadiusFactor(c.ringRadiusFactor);
+        if (c.cardinalTicks !== undefined) crosshair.setCardinalTicks(c.cardinalTicks);
+        if (c.tooltip !== undefined) crosshair.setTooltipVisible(c.tooltip);
+        if (c.tooltipDecimals !== undefined) crosshair.setTooltipDecimals(c.tooltipDecimals);
       },
       onCountryDataChange(next: CountryDataMap | null, prev: CountryDataMap | null) {
         if (!next) return;

@@ -181,6 +181,16 @@ export function WorkshopPreviewGlobe({
       ...(baseConfig.focusPulse !== undefined
         ? { focusPulse: baseConfig.focusPulse }
         : {}),
+      // Per-kind config sub-trees — without these, knobs in the
+      // dotted / hologram / paper / wireframe presets don't propagate
+      // to the running preview globe (the core's `update()` reads
+      // `partial.dotted` / `.hologram` / `.paper` / `.wireframe` and
+      // dispatches to the active kind's handle, but if the workshop
+      // never spreads them in, the kindHandle setter is never called).
+      ...(baseConfig.dotted !== undefined ? { dotted: baseConfig.dotted } : {}),
+      ...(baseConfig.hologram !== undefined ? { hologram: baseConfig.hologram } : {}),
+      ...(baseConfig.paper !== undefined ? { paper: baseConfig.paper } : {}),
+      ...(baseConfig.wireframe !== undefined ? { wireframe: baseConfig.wireframe } : {}),
     });
     // Imperative live update — arcs / markers presets re-push their
     // fixture dataset with the latest styling so changes (width,
