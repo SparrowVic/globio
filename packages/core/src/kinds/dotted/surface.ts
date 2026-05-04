@@ -165,19 +165,34 @@ export const samplePolygonInteriorWithEdges = (
   const holesS = polygon.slice(1).map(shift);
   const bbox = ringBBox(outerS);
 
+  // Snap the sampling grid to a *global* anchor at (lng=0, lat=0)
+  // rather than each country's bbox.minLng/minLat. Per-country origins
+  // mean Egypt's 22°N row sits at e.g. 21.99°N while Sudan's row sits
+  // at 21.69°N — at the shared border the two grids drift by ~0.3°
+  // and the user sees curving streaks where one country's row meets
+  // another's. With a single global anchor every country puts dots at
+  // the same lat/lng multiples of `density`, so adjacent countries
+  // line up across their shared border.
+  const startLat = Math.ceil(bbox.minLat / density) * density;
+  const startLng = Math.ceil(bbox.minLng / density) * density;
+
   // First pass — collect interior samples in shifted-coord space and
   // remember which grid cells were filled. The second pass uses this
-  // set as an O(1) "is the neighbour also inside?" lookup.
+  // set as an O(1) "is the neighbour also inside?" lookup. Cell keys
+  // are absolute grid indices (not bbox-relative) so neighbours from
+  // adjacent countries' samplings would collide with this country's
+  // — used only intra-country here, but keeping the grid global keeps
+  // the math consistent with the snap above.
   const filled = new Set<string>();
   const cellKey = (lng: number, lat: number): string => {
-    const i = Math.round((lng - bbox.minLng) / density);
-    const j = Math.round((lat - bbox.minLat) / density);
+    const i = Math.round(lng / density);
+    const j = Math.round(lat / density);
     return `${i}|${j}`;
   };
 
   const interior: Array<readonly [number, number]> = [];
-  for (let lat = bbox.minLat; lat <= bbox.maxLat; lat += density) {
-    for (let lng = bbox.minLng; lng <= bbox.maxLng; lng += density) {
+  for (let lat = startLat; lat <= bbox.maxLat; lat += density) {
+    for (let lng = startLng; lng <= bbox.maxLng; lng += density) {
       if (!pointInRing(outerS, [lng, lat])) continue;
       let inHole = false;
       for (const hole of holesS) {
