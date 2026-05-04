@@ -71,6 +71,20 @@ export interface DottedKindHandle extends KindHandle {
   setActiveCountry?(id: string | null): void;
   setPointerSurface?(point3D: import('three').Vector3 | null): void;
   setDottedConfig?(next: DottedConfig): void;
+  /**
+   * Surfaces the dotted kind's `DottedCountryFillLayer` instance so
+   * `create-globe.ts` can stash it in `state.countryFillLayer` and
+   * route hover / active overrides + the choropleth data layer's
+   * `setData` through it. Outline already exposes the same accessor;
+   * dotted mounts the layer too because the fill mesh sits *behind*
+   * the dot field — visible through the gaps between dots, so a
+   * `palette` mode tints each country with a colour readable behind
+   * its dot cluster, and `hoverColor` / `activeColor` make the
+   * focused country glow under its dots in real time.
+   */
+  getCountryFillLayer?(): import('../types').Public<
+    import('../../renderer/countries-fill-layer').CountriesFillLayer
+  >;
 }
 
 /**
@@ -166,13 +180,42 @@ export const dottedKind: KindModule = {
     });
     globeGroup.add(layer.group);
 
-    // Border dots — the dotted kind's answer to "outline the hovered /
-    // active country". Samples each country's outer ring at fixed
     // Country-edge highlight is baked into the surface layer itself
     // (`aIsEdge` per dot) — surface dots whose grid neighbours fall
     // outside the country pick up an extra brightness + lift on hover
-    // and active. No separate boundary layer, so nothing to mount or
-    // dispose here.
+    // and active. No separate boundary layer.
+
+    // Country-fill mesh sits *behind* the dot surface (radius
+    // 1.0008 vs 1.001) so it shows through the gaps between dots.
+    // Visible only when the user picks a non-`'none'` mode in the
+    // workshop or sets choropleth data; `mode: 'none'` keeps the
+    // layer mounted but hidden so live mode flips don't need a
+    // rebuild. Hover / active fill overrides flow through the same
+    // global pipeline outline uses (create-globe.ts hover handler →
+    // `setHoverState`).
+    const fillCfg = config.countries?.fill;
+    const fill = new DottedCountryFillLayer({
+      features: features as ReadonlyArray<CountryFeature>,
+      defaultColor:
+        fillCfg?.defaultColor && fillCfg.defaultColor !== ''
+          ? fillCfg.defaultColor
+          : tokens['countries.fill.defaultColor'],
+      defaultOpacity:
+        fillCfg?.defaultOpacity !== undefined && fillCfg.defaultOpacity > 0
+          ? fillCfg.defaultOpacity
+          : tokens['countries.fill.opacity'],
+      ...(fillCfg?.mode !== undefined && { mode: fillCfg.mode }),
+      ...(fillCfg?.palette !== undefined && { palette: fillCfg.palette }),
+      ...(fillCfg?.hoverColor &&
+        fillCfg.hoverColor !== '' && { hoverColor: fillCfg.hoverColor }),
+      ...(fillCfg?.hoverOpacity !== undefined &&
+        fillCfg.hoverOpacity > 0 && { hoverOpacity: fillCfg.hoverOpacity }),
+      ...(fillCfg?.activeColor &&
+        fillCfg.activeColor !== '' && { activeColor: fillCfg.activeColor }),
+      ...(fillCfg?.activeOpacity !== undefined &&
+        fillCfg.activeOpacity > 0 && { activeOpacity: fillCfg.activeOpacity }),
+    });
+    globeGroup.add(fill.group);
 
     // Dotted-native focus pulse: instead of a band ring lifted above the
     // surface (the outline / hologram pattern), the focus event spawns a
@@ -293,11 +336,33 @@ export const dottedKind: KindModule = {
           bars: barsBuilder,
           extruded: extrudedBuilder,
           heatmap: heatmapBuilder,
+          // Choropleth wired through the country-fill layer — same
+          // pattern outline uses, just on dotted's per-kind class.
+          // The fill mesh shows through the gaps between dots, so
+          // a value-driven palette renders as country-coloured
+          // backdrop with the dot field on top.
+          choropleth: (input: DataLayer): DataLayerHandle => {
+            const cfg = input as import('../../data-layers/types').ChoroplethDataLayer;
+            fill.setData(cfg.data, cfg.scale);
+            return {
+              type: 'choropleth',
+              setData(next: DataLayer) {
+                const ncfg = next as import('../../data-layers/types').ChoroplethDataLayer;
+                fill.setData(ncfg.data, ncfg.scale);
+              },
+              dispose() {
+                fill.setData(null);
+              },
+            };
+          },
         },
       },
+      getCountryFillLayer: () => fill,
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);
+        fill.dispose();
+        globeGroup.remove(fill.group);
         focusPulse.dispose();
       },
       setVisible(visible: boolean) {
