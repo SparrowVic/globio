@@ -1,9 +1,12 @@
 import type {
+  ArcConfig,
   ChartsHoverPayload,
   DataLayer,
   HeatmapDataEntry,
   HeatmapDataLayer,
   HexBinHoverPayload,
+  HtmlMarkerConfig,
+  MarkerConfig,
   ScaleConfig,
 } from '@your-globe/core';
 
@@ -26,6 +29,54 @@ const meshResolutions: ReadonlyArray<{ readonly width: number; readonly height: 
   { width: 256, height: 128 },
   { width: 1024, height: 512 },
   { width: 2048, height: 1024 },
+];
+
+/**
+ * Demo fixtures — visible-on-init showcase data so the empty studio
+ * still demonstrates every cross-cutting layer the outline kind offers
+ * (arcs, 3D markers, HTML callouts) without forcing the user to load a
+ * data layer. Picked so the routes connect every continent and the
+ * markers cluster around populous cities the user is likely to recognise.
+ */
+const SHOWCASE_MARKERS: ReadonlyArray<MarkerConfig> = [
+  { id: 'nyc', position: [40.7128, -74.006], color: '#fbbf24', size: 0.022, label: 'New York', pulse: { speed: 1.2, amplitude: 0.5 } },
+  { id: 'lon', position: [51.5074, -0.1278], color: '#67e8f9', size: 0.022, label: 'London', pulse: { speed: 1.4, amplitude: 0.45 } },
+  { id: 'tok', position: [35.6762, 139.6503], color: '#f472b6', size: 0.022, label: 'Tokyo', pulse: { speed: 1.6, amplitude: 0.5 } },
+  { id: 'syd', position: [-33.8688, 151.2093], color: '#a78bfa', size: 0.022, label: 'Sydney', pulse: { speed: 1.3, amplitude: 0.45 } },
+  { id: 'cai', position: [30.0444, 31.2357], color: '#34d399', size: 0.022, label: 'Cairo', pulse: { speed: 1.5, amplitude: 0.5 } },
+  { id: 'sao', position: [-23.5505, -46.6333], color: '#fb923c', size: 0.022, label: 'São Paulo', pulse: { speed: 1.4, amplitude: 0.45 } },
+  { id: 'sng', position: [1.3521, 103.8198], color: '#22d3ee', size: 0.022, label: 'Singapore', pulse: { speed: 1.5, amplitude: 0.5 } },
+];
+
+const SHOWCASE_ARCS: ReadonlyArray<ArcConfig> = [
+  { id: 'nyc-lon', from: [40.7128, -74.006], to: [51.5074, -0.1278], color: '#67e8f9', height: 'auto', animated: true, animationDuration: 3, headEasing: 'easeInOut' },
+  { id: 'lon-tok', from: [51.5074, -0.1278], to: [35.6762, 139.6503], color: '#f472b6', height: 'auto', animated: true, animationDuration: 4, headEasing: 'pulse' },
+  { id: 'tok-syd', from: [35.6762, 139.6503], to: [-33.8688, 151.2093], color: '#a78bfa', height: 'auto', animated: true, animationDuration: 3.5, headEasing: 'easeInOut' },
+  { id: 'syd-sng', from: [-33.8688, 151.2093], to: [1.3521, 103.8198], color: '#22d3ee', height: 'auto', animated: true, animationDuration: 3, headEasing: 'pulse' },
+  { id: 'sng-cai', from: [1.3521, 103.8198], to: [30.0444, 31.2357], color: '#34d399', height: 'auto', animated: true, animationDuration: 3.5, headEasing: 'easeInOut' },
+  { id: 'cai-lon', from: [30.0444, 31.2357], to: [51.5074, -0.1278], color: '#fbbf24', height: 'auto', animated: true, animationDuration: 2.5, headEasing: 'pulse' },
+  { id: 'nyc-sao', from: [40.7128, -74.006], to: [-23.5505, -46.6333], color: '#fb923c', height: 'auto', animated: true, animationDuration: 3, headEasing: 'easeInOut' },
+];
+
+const SHOWCASE_HTML_MARKERS: ReadonlyArray<HtmlMarkerConfig> = [
+  {
+    id: 'callout-nyc',
+    position: [40.7128, -74.006],
+    content:
+      '<div style="background:rgba(15,23,42,0.85);color:#fbbf24;padding:6px 10px;border-radius:6px;font:600 11px system-ui;border:1px solid #fbbf24;white-space:nowrap;transform:translate(12px,-32px);">▼ New York · 8.3M</div>',
+  },
+  {
+    id: 'callout-tok',
+    position: [35.6762, 139.6503],
+    content:
+      '<div style="background:rgba(15,23,42,0.85);color:#f472b6;padding:6px 10px;border-radius:6px;font:600 11px system-ui;border:1px solid #f472b6;white-space:nowrap;transform:translate(12px,-32px);">▼ Tokyo · 13.9M</div>',
+  },
+  {
+    id: 'callout-cai',
+    position: [30.0444, 31.2357],
+    content:
+      '<div style="background:rgba(15,23,42,0.85);color:#34d399;padding:6px 10px;border-radius:6px;font:600 11px system-ui;border:1px solid #34d399;white-space:nowrap;transform:translate(12px,-32px);">▼ Cairo · 10.0M</div>',
+  },
 ];
 
 export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig => {
@@ -482,6 +533,14 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
     initialPosition: [state.globe.initialLat, state.globe.initialLng],
     minZoom: state.globe.minZoom,
     maxZoom: state.globe.maxZoom,
+    // Showcase fixtures — animated great-circle routes, pulsing 3D
+    // city markers, and HTML callouts for the loudest cities. Surfaced
+    // unconditionally on init so an empty studio still demonstrates
+    // every cross-cutting outline-kind layer; they're declarative
+    // config, so any kind that doesn't render them just no-ops.
+    arcs: SHOWCASE_ARCS,
+    markers: SHOWCASE_MARKERS,
+    htmlMarkers: SHOWCASE_HTML_MARKERS,
   };
 };
 

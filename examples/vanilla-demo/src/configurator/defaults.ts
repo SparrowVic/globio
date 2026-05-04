@@ -12,7 +12,7 @@ export const defaultGlobeSettings: GlobeSettings = {
   countryResolution: 'low',
   hoverEnabled: true,
   hoverOccludeBackSide: true,
-  countryLabels: false,
+  countryLabels: true,
   labelMinScreenSize: 72,
   labelSizeFadeRange: 0.4,
   labelTransitionMs: 200,
