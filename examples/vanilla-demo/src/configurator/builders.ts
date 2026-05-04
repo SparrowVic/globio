@@ -155,11 +155,10 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         pulseSpeed: state.globe.dottedActivePulseSpeed,
         lift: state.globe.dottedActiveLift,
       },
-      borderDots: {
-        enabled: state.globe.dottedBorderDots,
-        color: state.globe.dottedBorderDotsColor,
-        size: state.globe.dottedBorderDotsSize,
-        opacity: state.globe.dottedBorderDotsOpacity,
+      edge: {
+        enabled: state.globe.dottedEdgeHighlight,
+        boost: state.globe.dottedEdgeBoost,
+        lift: state.globe.dottedEdgeLift,
       },
       cursorWake: {
         enabled: state.globe.dottedCursorWake,

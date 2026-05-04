@@ -150,11 +150,15 @@ export interface GlobeSettings {
   readonly dottedActiveScale: number;
   readonly dottedActivePulseSpeed: number;
   readonly dottedActiveLift: number;
-  /** Dot-string border (boundary samples brighten on hover / pin). */
-  readonly dottedBorderDots: boolean;
-  readonly dottedBorderDotsColor: string;
-  readonly dottedBorderDotsSize: number;
-  readonly dottedBorderDotsOpacity: number;
+  /**
+   * Country-edge highlight — surface dots whose grid neighbours fall
+   * outside the country pick up extra brightness + lift on hover/pin.
+   * Replaces the old separate boundary-dots layer; uses the existing
+   * grid so the rim doesn't fight the dot field.
+   */
+  readonly dottedEdgeHighlight: boolean;
+  readonly dottedEdgeBoost: number;
+  readonly dottedEdgeLift: number;
   /**
    * Hologram-only knobs — every effect on the projection shell exposed to
    * the workshop. `''` color / `0` numeric = sentinel for "use theme

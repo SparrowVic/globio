@@ -126,6 +126,29 @@ export const samplePolygonInterior = (
   polygon: CountryPolygon,
   density: number
 ): Array<readonly [number, number]> => {
+  return samplePolygonInteriorWithEdges(polygon, density).map(
+    ([lng, lat]) => [lng, lat] as const
+  );
+};
+
+/**
+ * Same grid sampling as {@link samplePolygonInterior} but also tags each
+ * dot with whether it sits at the country's boundary — i.e. at least one
+ * of its 4-neighbours on the lat/lng grid falls outside the polygon
+ * (outside the outer ring or inside a hole). The flag drives the
+ * "highlight border dots on hover" effect in the dotted kind: rather
+ * than emitting a separate boundary layer at sub-degree spacing (which
+ * fights the surface grid visually), we just brighten the existing
+ * grid dots that already trace the country edge.
+ *
+ * Edge detection runs in the *shifted* (anti-meridian-aware) coordinate
+ * space so a country like Russia or Fiji that wraps around 180° doesn't
+ * get its wrap-line misclassified as edge.
+ */
+export const samplePolygonInteriorWithEdges = (
+  polygon: CountryPolygon,
+  density: number
+): Array<readonly [number, number, boolean]> => {
   if (polygon.length === 0 || density <= 0) return [];
   const outer = polygon[0];
   if (!outer || outer.length < 3) return [];
@@ -142,7 +165,17 @@ export const samplePolygonInterior = (
   const holesS = polygon.slice(1).map(shift);
   const bbox = ringBBox(outerS);
 
-  const points: Array<readonly [number, number]> = [];
+  // First pass — collect interior samples in shifted-coord space and
+  // remember which grid cells were filled. The second pass uses this
+  // set as an O(1) "is the neighbour also inside?" lookup.
+  const filled = new Set<string>();
+  const cellKey = (lng: number, lat: number): string => {
+    const i = Math.round((lng - bbox.minLng) / density);
+    const j = Math.round((lat - bbox.minLat) / density);
+    return `${i}|${j}`;
+  };
+
+  const interior: Array<readonly [number, number]> = [];
   for (let lat = bbox.minLat; lat <= bbox.maxLat; lat += density) {
     for (let lng = bbox.minLng; lng <= bbox.maxLng; lng += density) {
       if (!pointInRing(outerS, [lng, lat])) continue;
@@ -154,11 +187,22 @@ export const samplePolygonInterior = (
         }
       }
       if (inHole) continue;
-      const projLng = lng > 180 ? lng - 360 : lng;
-      points.push([projLng, lat] as const);
+      filled.add(cellKey(lng, lat));
+      interior.push([lng, lat] as const);
     }
   }
-  return points;
+
+  const result: Array<readonly [number, number, boolean]> = [];
+  for (const [lng, lat] of interior) {
+    const isEdge =
+      !filled.has(cellKey(lng + density, lat)) ||
+      !filled.has(cellKey(lng - density, lat)) ||
+      !filled.has(cellKey(lng, lat + density)) ||
+      !filled.has(cellKey(lng, lat - density));
+    const projLng = lng > 180 ? lng - 360 : lng;
+    result.push([projLng, lat, isEdge] as const);
+  }
+  return result;
 };
 
 const createGlowTexture = (): CanvasTexture | null => {
@@ -201,6 +245,13 @@ const driftAxisVector = (axis: 'ns' | 'ew' | 'both'): Vector3 => {
 const VERT_SHADER = /* glsl */ `
   attribute float aCountryIndex;
   attribute float aLat;
+  // 1.0 if the dot sits at the country's outer / hole boundary (any
+  // 4-grid-neighbour falls outside the polygon), 0.0 in the interior.
+  // Drives the boundary highlight on hover/active — instead of mounting
+  // a separate boundary-dots layer at sub-degree spacing (which fights
+  // the surface grid visually), we just brighten the existing surface
+  // dots that already trace the country edge.
+  attribute float aIsEdge;
   uniform float uPointSize;
   uniform float uSizeScale;
   uniform float uPixelRatio;
@@ -234,6 +285,12 @@ const VERT_SHADER = /* glsl */ `
   // (e.g. 0.008 lifts the dot ~0.8% of the radius outward).
   uniform float uHoverLift;
   uniform float uActiveLift;
+  // Edge-dot extras — applied on top of the regular hover/active boost,
+  // and only to dots whose aIsEdge is 1.0. Lets the rim of the
+  // hovered/pinned country read sharper than the interior without
+  // emitting any new geometry.
+  uniform float uEdgeBoost;
+  uniform float uEdgeLift;
   // Per-country deterministic phase offset for the drift wave. With
   // uPerCountryPhase = 1 the wave's phase is offset per-country by a
   // hash of the country index, so adjacent countries breathe at
@@ -325,8 +382,17 @@ const VERT_SHADER = /* glsl */ `
       breath = sin(uTime * uBreathSpeed * 6.2831853) * uBreathAmp;
     }
 
+    // Edge-dot extra boost. Both hover and active envelopes contribute,
+    // so a country that's hovered AND pinned gets the full sum. aIsEdge
+    // gates this to dots actually sitting at the country boundary —
+    // interior dots see no edge addition.
+    float edgeMix = aIsEdge * (
+      hoverActive * uEdgeBoost
+      + activeMatch * uEdgeBoost * activeEnvelope
+    );
+
     vBrightness = rippleBrightness + driftBrightness + hoverBrightness
-      + activeBrightness + wake + latBoost + breath;
+      + activeBrightness + wake + latBoost + breath + edgeMix;
 
     float fs = 0.0;
     for (int i = 0; i < ${MAX_FLASHES}; i++) {
@@ -338,9 +404,17 @@ const VERT_SHADER = /* glsl */ `
     // the surface normal so the country reads as "rising out of the
     // field" toward the camera. Hover lift eases with the existing
     // hover boost; active lift modulates with the active envelope.
+    // Edge dots get an extra micro-lift on top, so the rim sits a
+    // hair higher than the interior — reads as a sharp silhouette
+    // without changing dot size or count.
+    float edgeLiftMix = aIsEdge * (
+      hoverActive * uEdgeLift
+      + activeMatch * uEdgeLift * activeEnvelope
+    );
     float liftScale = 1.0
       + hoverActive * uHoverLift
-      + activeMatch * uActiveLift * activeEnvelope;
+      + activeMatch * uActiveLift * activeEnvelope
+      + edgeLiftMix;
     vec3 lifted = position * liftScale;
 
     vec4 mv = modelViewMatrix * vec4(lifted, 1.0);
@@ -545,6 +619,12 @@ export class DottedSurfaceLayer {
         // gentle "rising platform" rather than a hard pop.
         uHoverLift: { value: 0.008 },
         uActiveLift: { value: 0.012 },
+        // Edge-dot defaults — boost ~80% of hover/active brightness
+        // multiplier reads as a clear rim; lift 50% above the regular
+        // hover lift makes the silhouette pop a hair higher than the
+        // interior. Both tunable from `dotted.edge.{boost,lift}`.
+        uEdgeBoost: { value: 0.55 },
+        uEdgeLift: { value: 0.004 },
         // Per-country phase default-on — gives the dot field its
         // organic "every country has its own breath" personality.
         uPerCountryPhase: { value: 1 },
@@ -697,6 +777,26 @@ export class DottedSurfaceLayer {
   /** Active-only radial lift (fraction of GLOBE_RADIUS). 0 disables. */
   public setActiveLift(value: number): void {
     this.material.uniforms['uActiveLift']!.value = value;
+  }
+
+  /**
+   * Brightness multiplier added to edge-dots on hover / active. Edge
+   * dots are the surface dots whose 4-grid-neighbours include at least
+   * one outside-the-country cell — i.e. the dots that already trace
+   * the country's silhouette. 0 disables the rim highlight (only the
+   * regular hover/active brightness lifts the country).
+   */
+  public setEdgeBoost(value: number): void {
+    this.material.uniforms['uEdgeBoost']!.value = value;
+  }
+
+  /**
+   * Extra radial lift applied only to edge dots on hover / active
+   * (fraction of GLOBE_RADIUS, on top of `uHoverLift`/`uActiveLift`).
+   * 0 disables — edge dots ride at the same height as interior.
+   */
+  public setEdgeLift(value: number): void {
+    this.material.uniforms['uEdgeLift']!.value = value;
   }
 
   /**
@@ -1048,13 +1148,15 @@ export class DottedSurfaceLayer {
     for (const feature of features) {
       const positions: Array<number> = [];
       const lats: Array<number> = [];
+      const edgeFlags: Array<number> = [];
       const dotCache: Array<Vector3> = [];
       for (const polygon of feature.polygons) {
-        const samples = samplePolygonInterior(polygon, density);
-        for (const [lng, lat] of samples) {
+        const samples = samplePolygonInteriorWithEdges(polygon, density);
+        for (const [lng, lat, isEdge] of samples) {
           const v = latLngToVector3([lat, lng], radius);
           positions.push(v.x, v.y, v.z);
           lats.push((lat * Math.PI) / 180);
+          edgeFlags.push(isEdge ? 1 : 0);
           dotCache.push(v);
         }
       }
@@ -1074,6 +1176,7 @@ export class DottedSurfaceLayer {
       idxArr.fill(idxForShader);
       geometry.setAttribute('aCountryIndex', new Float32BufferAttribute(idxArr, 1));
       geometry.setAttribute('aLat', new Float32BufferAttribute(lats, 1));
+      geometry.setAttribute('aIsEdge', new Float32BufferAttribute(edgeFlags, 1));
       this.geometries.push(geometry);
 
       const points = new Points(geometry, this.material);

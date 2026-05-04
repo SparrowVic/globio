@@ -1,5 +1,4 @@
 import { DottedSurfaceLayer } from './surface';
-import { DottedBorderDotsLayer } from './border-dots';
 import { DottedLabelsLayer } from './labels';
 import { DottedStarfieldLayer } from './starfield';
 import { DottedArcsLayer } from './arcs';
@@ -167,16 +166,11 @@ export const dottedKind: KindModule = {
 
     // Border dots — the dotted kind's answer to "outline the hovered /
     // active country". Samples each country's outer ring at fixed
-    // angular intervals and emits brighter dots that fade in on
-    // hover / pin. Lives on the same shell as the interior dot field
-    // so the demarcation reads as part of the same family of marks
-    // rather than a foreign decoration on top.
-    const borderDots = new DottedBorderDotsLayer({
-      features: features as ReadonlyArray<CountryFeature>,
-      countryIndex: layer.getCountryIndex(),
-      color: tokens['countries.dotted.color'],
-    });
-    globeGroup.add(borderDots.object);
+    // Country-edge highlight is baked into the surface layer itself
+    // (`aIsEdge` per dot) — surface dots whose grid neighbours fall
+    // outside the country pick up an extra brightness + lift on hover
+    // and active. No separate boundary layer, so nothing to mount or
+    // dispose here.
 
     // Dotted-native focus pulse: instead of a band ring lifted above the
     // surface (the outline / hologram pattern), the focus event spawns a
@@ -302,17 +296,13 @@ export const dottedKind: KindModule = {
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);
-        borderDots.dispose();
-        globeGroup.remove(borderDots.object);
         focusPulse.dispose();
       },
       setVisible(visible: boolean) {
         layer.setVisible(visible);
-        borderDots.setVisible(visible);
       },
       update(delta: number, elapsedSeconds: number) {
         layer.update(delta, elapsedSeconds);
-        borderDots.update(delta, elapsedSeconds);
       },
       onPointerDown(point3D: Vector3) {
         layer.spawnRipple(point3D);
@@ -331,11 +321,9 @@ export const dottedKind: KindModule = {
       },
       setActiveCountry(id: string | null) {
         layer.setActiveCountry(id);
-        borderDots.setActiveCountry(id, layer.getCountryIndex());
       },
       setHoveredCountry(id: string | null) {
         layer.setHoveredCountry(id);
-        borderDots.setHoveredCountry(id, layer.getCountryIndex());
       },
       setPointerSurface(point3D: Vector3 | null) {
         layer.setCursorPosition(point3D);
@@ -403,16 +391,18 @@ export const dottedKind: KindModule = {
           }
           if (a.pulseSpeed !== undefined) layer.setActivePulseSpeed(a.pulseSpeed);
         }
-        if (next.borderDots !== undefined) {
-          const b = next.borderDots;
-          if (b.enabled !== undefined) borderDots.setVisible(b.enabled);
-          if (b.color !== undefined) {
-            borderDots.setColor(
-              b.color === '' ? tokens['countries.dotted.color'] : b.color,
-            );
+        if (next.edge !== undefined) {
+          const e = next.edge;
+          // `enabled: false` collapses the rim highlight by zeroing both
+          // boost and lift; flipping back on restores the explicit
+          // values (or the defaults if none supplied).
+          if (e.enabled !== undefined) {
+            layer.setEdgeBoost(e.enabled ? (e.boost ?? 0.55) : 0);
+            layer.setEdgeLift(e.enabled ? (e.lift ?? 0.004) : 0);
+          } else {
+            if (e.boost !== undefined) layer.setEdgeBoost(e.boost);
+            if (e.lift !== undefined) layer.setEdgeLift(e.lift);
           }
-          if (b.size !== undefined) borderDots.setSize(b.size);
-          if (b.opacity !== undefined) borderDots.setOpacity(b.opacity);
         }
         if (next.cursorWake !== undefined) {
           const w = next.cursorWake;

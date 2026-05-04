@@ -339,58 +339,37 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
         </DependsOn>
 
-        <SectionHeading>Border dots</SectionHeading>
+        <SectionHeading>Edge highlight</SectionHeading>
         <SwitchField
-          label="Boundary dot ring"
-          checked={settings.dottedBorderDots}
-          onChange={(dottedBorderDots) => onGlobeChange({ dottedBorderDots })}
-          value="Country boundary drawn as a brighter dot string on hover / pin"
+          label="Edge dot rim"
+          checked={settings.dottedEdgeHighlight}
+          onChange={(dottedEdgeHighlight) => onGlobeChange({ dottedEdgeHighlight })}
+          value="Surface dots that already trace the country boundary brighten + lift on hover / pin"
         />
         <DependsOn
-          when={settings.dottedBorderDots}
-          because="Enable Boundary dot ring first."
+          when={settings.dottedEdgeHighlight}
+          because="Enable Edge dot rim first."
           className="space-y-4"
         >
-          <ColorField
-            label="Color"
-            value={settings.dottedBorderDotsColor || '#67e8f9'}
-            onChange={(dottedBorderDotsColor) =>
-              onGlobeChange({ dottedBorderDotsColor })
-            }
-            hint={settings.dottedBorderDotsColor === '' ? 'Theme dotted color' : undefined}
-            {...(settings.dottedBorderDotsColor !== '' ? { preset: '' } : {})}
-            swatches={[
-              '#67e8f9',
-              '#22d3ee',
-              '#fbbf24',
-              '#f472b6',
-              '#34d399',
-              '#a78bfa',
-              '#fde68a',
-              '#ffffff',
-            ]}
-          />
           <SliderField
-            label="Dot size"
-            value={settings.dottedBorderDotsSize}
-            min={2}
-            max={14}
-            step={0.25}
-            format={(value) => `${value.toFixed(2)} px`}
-            onChange={(dottedBorderDotsSize) =>
-              onGlobeChange({ dottedBorderDotsSize })
-            }
-          />
-          <SliderField
-            label="Peak opacity"
-            value={settings.dottedBorderDotsOpacity}
-            min={0.1}
+            label="Brightness boost"
+            value={settings.dottedEdgeBoost}
+            min={0}
             max={1.5}
             step={0.05}
             format={(value) => value.toFixed(2)}
-            onChange={(dottedBorderDotsOpacity) =>
-              onGlobeChange({ dottedBorderDotsOpacity })
+            onChange={(dottedEdgeBoost) => onGlobeChange({ dottedEdgeBoost })}
+          />
+          <SliderField
+            label="Edge lift"
+            value={settings.dottedEdgeLift}
+            min={0}
+            max={0.02}
+            step={0.0005}
+            format={(value) =>
+              value === 0 ? 'flat' : `+${(value * 100).toFixed(2)}% of radius`
             }
+            onChange={(dottedEdgeLift) => onGlobeChange({ dottedEdgeLift })}
           />
         </DependsOn>
 
@@ -678,10 +657,9 @@ const preset: PresetModule = {
     'dottedActiveScale',
     'dottedActivePulseSpeed',
     'dottedActiveLift',
-    'dottedBorderDots',
-    'dottedBorderDotsColor',
-    'dottedBorderDotsSize',
-    'dottedBorderDotsOpacity',
+    'dottedEdgeHighlight',
+    'dottedEdgeBoost',
+    'dottedEdgeLift',
     'dottedCursorWake',
     'dottedCursorWakeAmplitude',
     'dottedCursorWakeFade',

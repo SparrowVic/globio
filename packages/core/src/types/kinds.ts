@@ -198,19 +198,31 @@ export interface DottedConfig {
     readonly lift?: number;
   };
   /**
-   * Dot-string border dots — sample each country's outer ring at fixed
-   * angular intervals and emit brighter dots that fade in on hover /
-   * pin. The dotted-native demarcation of "which country is active"
-   * (no continuous LineSegments stroke).
+   * Country-edge highlight — extra brightness + radial lift applied
+   * only to the surface dots that already sit at the country's
+   * silhouette (`aIsEdge` per dot, baked at build time). Replaces the
+   * old `borderDots` separate-layer approach: instead of emitting a
+   * second dot string at sub-degree spacing (which fights the surface
+   * grid and reads as misaligned noise), we just brighten the existing
+   * grid dots that trace the boundary.
+   *
+   * Active only on the hovered/pinned country — interior dots and
+   * non-active countries are unaffected.
    */
-  readonly borderDots?: {
+  readonly edge?: {
+    /** Master toggle. False zeroes both `boost` and `lift`. Default true. */
     readonly enabled?: boolean;
-    /** Empty string = use theme dotted color. */
-    readonly color?: string;
-    /** Base point size in CSS px (before perspective scaling). Default 5.5. */
-    readonly size?: number;
-    /** Peak opacity scalar (0..1). Default 1.0. */
-    readonly opacity?: number;
+    /**
+     * Brightness multiplier added to edge-dots on hover/active.
+     * 0 = no rim, just the standard country brightness. Default 0.55.
+     */
+    readonly boost?: number;
+    /**
+     * Extra radial lift applied only to edge-dots on hover/active,
+     * stacked on top of `hoverDots.lift` / `activeCountry.lift`.
+     * Fraction of GLOBE_RADIUS. Default 0.004.
+     */
+    readonly lift?: number;
   };
   /**
    * Master appearance overrides applied to every dot. Lets callers

@@ -122,12 +122,12 @@ export const defaultGlobeSettings: GlobeSettings = {
   dottedActiveScale: 1.18,
   dottedActivePulseSpeed: 0.65,
   dottedActiveLift: 0.012,
-  // Border dots default-on — the dotted analogue of the standard
-  // country highlight stroke that dotted opted out of.
-  dottedBorderDots: true,
-  dottedBorderDotsColor: '',
-  dottedBorderDotsSize: 5.5,
-  dottedBorderDotsOpacity: 1,
+  // Edge highlight default-on — the dotted analogue of the standard
+  // country highlight stroke that dotted opted out of. Picks up the
+  // existing surface dots that already trace the boundary.
+  dottedEdgeHighlight: true,
+  dottedEdgeBoost: 0.55,
+  dottedEdgeLift: 0.004,
   // Hologram defaults — picked to match the existing tokens' look so the
   // user opens the preset and sees the same projection they'd get with a
   // bare `kind: 'hologram'`. Every numeric default-of-0 = "use theme
@@ -184,7 +184,7 @@ export const defaultGlobeSettings: GlobeSettings = {
   paperBorderColor: '',
   paperBorderOpacity: -1,
   paperBorderWidth: 1,
-  paperBorderRoughness: 0.25,
+  paperBorderRoughness: 0.12,
   paperStipple: false,
   paperStippleDensity: 1.5,
   paperStippleSize: 1,
