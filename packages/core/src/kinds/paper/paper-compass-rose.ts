@@ -167,7 +167,7 @@ export class PaperCompassRose {
     const fresh = new BufferGeometry();
     fresh.setAttribute('position', new Float32BufferAttribute(positions, 3));
     // Replace internals.
-    (this as { geometry: BufferGeometry }).geometry = fresh;
+    (this as unknown as { geometry: BufferGeometry }).geometry = fresh;
 
     // Re-assemble the group.
     this.group.clear();
