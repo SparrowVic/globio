@@ -160,6 +160,50 @@ export interface DottedConfig {
     readonly scale?: number;
     readonly brightnessBoost?: number;
     readonly duration?: number;
+    /**
+     * Radial lift as a fraction of `GLOBE_RADIUS` — pushes the hovered
+     * country's dots outward along the surface normal so the country
+     * reads as "rising out of the field" toward the camera. Default
+     * 0.008 (≈0.8%). Set to 0 for a hover-without-lift look.
+     */
+    readonly lift?: number;
+  };
+  /**
+   * Pinned-country pulse — the dotted analogue of the standard
+   * `CountryHighlightLayer` active stroke (which dotted opts out of).
+   * When `globe.setActiveCountry(id)` runs, the pinned country's dots
+   * pick up a steady brightness boost + slow sine pulse. Independent
+   * from hover so the user can pin one country and hover another.
+   */
+  readonly activeCountry?: {
+    readonly enabled?: boolean;
+    /** Steady brightness boost added to active dots. Default 0.65. */
+    readonly boost?: number;
+    /** Active-country dot scale multiplier. Default 1.18. */
+    readonly scale?: number;
+    /** Sine pulse frequency in Hz. Default 0.65. */
+    readonly pulseSpeed?: number;
+    /**
+     * Radial lift as a fraction of `GLOBE_RADIUS`. Same idea as the
+     * hover lift but with a higher default so pinned reads stronger.
+     * Default 0.012 (≈1.2%).
+     */
+    readonly lift?: number;
+  };
+  /**
+   * Dot-string border dots — sample each country's outer ring at fixed
+   * angular intervals and emit brighter dots that fade in on hover /
+   * pin. The dotted-native demarcation of "which country is active"
+   * (no continuous LineSegments stroke).
+   */
+  readonly borderDots?: {
+    readonly enabled?: boolean;
+    /** Empty string = use theme dotted color. */
+    readonly color?: string;
+    /** Base point size in CSS px (before perspective scaling). Default 5.5. */
+    readonly size?: number;
+    /** Peak opacity scalar (0..1). Default 1.0. */
+    readonly opacity?: number;
   };
   /**
    * Master appearance overrides applied to every dot. Lets callers

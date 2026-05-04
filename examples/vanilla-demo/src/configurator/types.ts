@@ -140,6 +140,19 @@ export interface GlobeSettings {
   readonly dottedConstellationColor: string;
   readonly dottedConstellationOpacity: number;
   readonly dottedConstellationDistanceFactor: number;
+  /** Hover-lift radial offset (fraction of GLOBE_RADIUS). */
+  readonly dottedHoverLift: number;
+  /** Pinned-country (active) pulse — independent from hover. */
+  readonly dottedActiveCountry: boolean;
+  readonly dottedActiveBoost: number;
+  readonly dottedActiveScale: number;
+  readonly dottedActivePulseSpeed: number;
+  readonly dottedActiveLift: number;
+  /** Dot-string border (boundary samples brighten on hover / pin). */
+  readonly dottedBorderDots: boolean;
+  readonly dottedBorderDotsColor: string;
+  readonly dottedBorderDotsSize: number;
+  readonly dottedBorderDotsOpacity: number;
   /**
    * Hologram-only knobs — every effect on the projection shell exposed to
    * the workshop. `''` color / `0` numeric = sentinel for "use theme

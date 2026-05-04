@@ -1,4 +1,5 @@
 import { CountriesDottedLayer } from './dotted-layer';
+import { DottedBorderDots } from './dotted-border-dots';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
@@ -150,6 +151,19 @@ export const dottedKind: KindModule = {
     });
     globeGroup.add(layer.group);
 
+    // Border dots — the dotted kind's answer to "outline the hovered /
+    // active country". Samples each country's outer ring at fixed
+    // angular intervals and emits brighter dots that fade in on
+    // hover / pin. Lives on the same shell as the interior dot field
+    // so the demarcation reads as part of the same family of marks
+    // rather than a foreign decoration on top.
+    const borderDots = new DottedBorderDots({
+      features: features as ReadonlyArray<CountryFeature>,
+      countryIndex: layer.getCountryIndex(),
+      color: tokens['countries.dotted.color'],
+    });
+    globeGroup.add(borderDots.object);
+
     // Dotted-native focus pulse: instead of a band ring lifted above the
     // surface (the outline / hologram pattern), the focus event spawns a
     // ripple wave *through* the dot field — same brightness curve as
@@ -274,13 +288,17 @@ export const dottedKind: KindModule = {
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);
+        borderDots.dispose();
+        globeGroup.remove(borderDots.object);
         focusPulse.dispose();
       },
       setVisible(visible: boolean) {
         layer.setVisible(visible);
+        borderDots.setVisible(visible);
       },
       update(delta: number, elapsedSeconds: number) {
         layer.update(delta, elapsedSeconds);
+        borderDots.update(delta, elapsedSeconds);
       },
       onPointerDown(point3D: Vector3) {
         layer.spawnRipple(point3D);
@@ -299,9 +317,11 @@ export const dottedKind: KindModule = {
       },
       setActiveCountry(id: string | null) {
         layer.setActiveCountry(id);
+        borderDots.setActiveCountry(id, layer.getCountryIndex());
       },
       setHoveredCountry(id: string | null) {
         layer.setHoveredCountry(id);
+        borderDots.setHoveredCountry(id, layer.getCountryIndex());
       },
       setPointerSurface(point3D: Vector3 | null) {
         layer.setCursorPosition(point3D);
@@ -350,6 +370,33 @@ export const dottedKind: KindModule = {
           if (h.scale !== undefined) layer.setHoverScale(h.scale);
           if (h.brightnessBoost !== undefined) layer.setHoverBrightnessBoost(h.brightnessBoost);
           if (h.duration !== undefined) layer.setHoverDuration(h.duration);
+          if (h.lift !== undefined) layer.setHoverLift(h.lift);
+        }
+        if (next.activeCountry !== undefined) {
+          const a = next.activeCountry;
+          // `enabled: false` collapses every active visual: pin can
+          // still record an id but the shader ignores it.
+          if (a.enabled !== undefined) {
+            layer.setActiveBoost(a.enabled ? (a.boost ?? 0.65) : 0);
+            layer.setActiveScale(a.enabled ? (a.scale ?? 1.18) : 1);
+            layer.setActiveLift(a.enabled ? (a.lift ?? 0.012) : 0);
+          } else {
+            if (a.boost !== undefined) layer.setActiveBoost(a.boost);
+            if (a.scale !== undefined) layer.setActiveScale(a.scale);
+            if (a.lift !== undefined) layer.setActiveLift(a.lift);
+          }
+          if (a.pulseSpeed !== undefined) layer.setActivePulseSpeed(a.pulseSpeed);
+        }
+        if (next.borderDots !== undefined) {
+          const b = next.borderDots;
+          if (b.enabled !== undefined) borderDots.setVisible(b.enabled);
+          if (b.color !== undefined) {
+            borderDots.setColor(
+              b.color === '' ? tokens['countries.dotted.color'] : b.color,
+            );
+          }
+          if (b.size !== undefined) borderDots.setSize(b.size);
+          if (b.opacity !== undefined) borderDots.setOpacity(b.opacity);
         }
         if (next.cursorWake !== undefined) {
           const w = next.cursorWake;

@@ -318,6 +318,128 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             format={(value) => `${(value * 1000).toFixed(0)} ms`}
             onChange={(dottedHoverDuration) => onGlobeChange({ dottedHoverDuration })}
           />
+          <SliderField
+            label="Hover lift"
+            value={settings.dottedHoverLift}
+            min={0}
+            max={0.04}
+            step={0.001}
+            format={(value) =>
+              value === 0 ? 'flat' : `+${(value * 100).toFixed(2)}% of radius`
+            }
+            onChange={(dottedHoverLift) => onGlobeChange({ dottedHoverLift })}
+          />
+        </DependsOn>
+
+        <SectionHeading>Border dots</SectionHeading>
+        <SwitchField
+          label="Boundary dot ring"
+          checked={settings.dottedBorderDots}
+          onChange={(dottedBorderDots) => onGlobeChange({ dottedBorderDots })}
+          value="Country boundary drawn as a brighter dot string on hover / pin"
+        />
+        <DependsOn
+          when={settings.dottedBorderDots}
+          because="Enable Boundary dot ring first."
+          className="space-y-4"
+        >
+          <ColorField
+            label="Color"
+            value={settings.dottedBorderDotsColor || '#67e8f9'}
+            onChange={(dottedBorderDotsColor) =>
+              onGlobeChange({ dottedBorderDotsColor })
+            }
+            hint={settings.dottedBorderDotsColor === '' ? 'Theme dotted color' : undefined}
+            {...(settings.dottedBorderDotsColor !== '' ? { preset: '' } : {})}
+            swatches={[
+              '#67e8f9',
+              '#22d3ee',
+              '#fbbf24',
+              '#f472b6',
+              '#34d399',
+              '#a78bfa',
+              '#fde68a',
+              '#ffffff',
+            ]}
+          />
+          <SliderField
+            label="Dot size"
+            value={settings.dottedBorderDotsSize}
+            min={2}
+            max={14}
+            step={0.25}
+            format={(value) => `${value.toFixed(2)} px`}
+            onChange={(dottedBorderDotsSize) =>
+              onGlobeChange({ dottedBorderDotsSize })
+            }
+          />
+          <SliderField
+            label="Peak opacity"
+            value={settings.dottedBorderDotsOpacity}
+            min={0.1}
+            max={1.5}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(dottedBorderDotsOpacity) =>
+              onGlobeChange({ dottedBorderDotsOpacity })
+            }
+          />
+        </DependsOn>
+
+        <SectionHeading>Pinned country</SectionHeading>
+        <SwitchField
+          label="Active pulse"
+          checked={settings.dottedActiveCountry}
+          onChange={(dottedActiveCountry) =>
+            onGlobeChange({ dottedActiveCountry })
+          }
+          value="Pinned country's dots breathe with steady boost + slow sine"
+        />
+        <DependsOn
+          when={settings.dottedActiveCountry}
+          because="Enable Active pulse first."
+          className="space-y-4"
+        >
+          <SliderField
+            label="Brightness boost"
+            value={settings.dottedActiveBoost}
+            min={0}
+            max={2}
+            step={0.05}
+            format={(value) => `+${value.toFixed(2)}`}
+            onChange={(dottedActiveBoost) => onGlobeChange({ dottedActiveBoost })}
+          />
+          <SliderField
+            label="Scale"
+            value={settings.dottedActiveScale}
+            min={1}
+            max={2}
+            step={0.02}
+            format={(value) => `×${value.toFixed(2)}`}
+            onChange={(dottedActiveScale) => onGlobeChange({ dottedActiveScale })}
+          />
+          <SliderField
+            label="Pulse speed"
+            value={settings.dottedActivePulseSpeed}
+            min={0.05}
+            max={2}
+            step={0.05}
+            format={(value) => `${value.toFixed(2)} Hz`}
+            onChange={(dottedActivePulseSpeed) =>
+              onGlobeChange({ dottedActivePulseSpeed })
+            }
+          />
+          <SliderField
+            label="Active lift"
+            value={settings.dottedActiveLift}
+            min={0}
+            max={0.05}
+            step={0.001}
+            format={(value) =>
+              value === 0 ? 'flat' : `+${(value * 100).toFixed(2)}% of radius`
+            }
+            onChange={(dottedActiveLift) => onGlobeChange({ dottedActiveLift })}
+          />
         </DependsOn>
 
         <SectionHeading>Cursor wake</SectionHeading>
@@ -541,6 +663,16 @@ const preset: PresetModule = {
     'dottedHoverScale',
     'dottedHoverBrightnessBoost',
     'dottedHoverDuration',
+    'dottedHoverLift',
+    'dottedActiveCountry',
+    'dottedActiveBoost',
+    'dottedActiveScale',
+    'dottedActivePulseSpeed',
+    'dottedActiveLift',
+    'dottedBorderDots',
+    'dottedBorderDotsColor',
+    'dottedBorderDotsSize',
+    'dottedBorderDotsOpacity',
     'dottedCursorWake',
     'dottedCursorWakeAmplitude',
     'dottedCursorWakeFade',

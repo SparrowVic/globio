@@ -111,6 +111,22 @@ export const defaultGlobeSettings: GlobeSettings = {
   dottedConstellationColor: '',
   dottedConstellationOpacity: 0.55,
   dottedConstellationDistanceFactor: 1.6,
+  // Hover lift defaults to a subtle ~0.8% radial bump; bigger reads as
+  // a cinematic country pop-out.
+  dottedHoverLift: 0.008,
+  // Pinned-country pulse default-on so the workshop's preview shows
+  // the visual the moment the user clicks a country to pin it.
+  dottedActiveCountry: true,
+  dottedActiveBoost: 0.65,
+  dottedActiveScale: 1.18,
+  dottedActivePulseSpeed: 0.65,
+  dottedActiveLift: 0.012,
+  // Border dots default-on — the dotted analogue of the standard
+  // country highlight stroke that dotted opted out of.
+  dottedBorderDots: true,
+  dottedBorderDotsColor: '',
+  dottedBorderDotsSize: 5.5,
+  dottedBorderDotsOpacity: 1,
   // Hologram defaults — picked to match the existing tokens' look so the
   // user opens the preset and sees the same projection they'd get with a
   // bare `kind: 'hologram'`. Every numeric default-of-0 = "use theme

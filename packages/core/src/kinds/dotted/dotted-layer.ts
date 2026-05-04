@@ -226,6 +226,14 @@ const VERT_SHADER = /* glsl */ `
   uniform float uActivePulse;
   uniform float uActiveBoost;
   uniform float uActiveScale;
+  // Hover / active radial lift — pushes the country's dots a few
+  // millimetres outward along the surface normal when hovered or
+  // pinned. A signature dotted move: the country reads as "rising
+  // out of the field" toward the camera rather than just brightening
+  // in place. uHoverLift / uActiveLift are fractions of GLOBE_RADIUS
+  // (e.g. 0.008 lifts the dot ~0.8% of the radius outward).
+  uniform float uHoverLift;
+  uniform float uActiveLift;
   uniform vec3 uCursorOrigin;
   uniform float uCursorAge;
   uniform float uCursorAmp;
@@ -313,7 +321,16 @@ const VERT_SHADER = /* glsl */ `
     }
     vFlashStrength = fs;
 
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    // Radial lift — push hovered / active country's dots outward along
+    // the surface normal so the country reads as "rising out of the
+    // field" toward the camera. Hover lift eases with the existing
+    // hover boost; active lift modulates with the active envelope.
+    float liftScale = 1.0
+      + hoverActive * uHoverLift
+      + activeMatch * uActiveLift * activeEnvelope;
+    vec3 lifted = position * liftScale;
+
+    vec4 mv = modelViewMatrix * vec4(lifted, 1.0);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = uPointSize * uSizeScale * uPixelRatio * (1.0 / -mv.z)
       * hoverSize * (1.0 + activeSizeBoost);
@@ -511,6 +528,10 @@ export class CountriesDottedLayer {
         // as "this country is selected" without overpowering hover.
         uActiveBoost: { value: 0.65 },
         uActiveScale: { value: 1.18 },
+        // Lift defaults — modest by design so the effect reads as a
+        // gentle "rising platform" rather than a hard pop.
+        uHoverLift: { value: 0.008 },
+        uActiveLift: { value: 0.012 },
         uCursorOrigin: { value: this.cursorOrigin },
         uCursorAge: { value: 0 },
         uCursorAmp: { value: options.cursorWakeAmplitude },
@@ -609,6 +630,16 @@ export class CountriesDottedLayer {
   }
 
   /**
+   * Read-only access to the country-id → instance-index map. Sibling
+   * dotted-kind layers (border dots, future constellation, …) read
+   * the same indexing so a single uniform can drive both interior
+   * dots and border dots in lockstep.
+   */
+  public getCountryIndex(): ReadonlyMap<string, number> {
+    return this.countryIndex;
+  }
+
+  /**
    * Pin a country as "active" — independent from the transient hover.
    * The pinned country's dots get a steady brightness boost + slow
    * sine pulse driven from the per-frame `update()` tick. Pass `null`
@@ -640,6 +671,16 @@ export class CountriesDottedLayer {
   /** Active-country sine speed (Hz). Tick happens in update(). */
   public setActivePulseSpeed(value: number): void {
     this.activePulseSpeed = value;
+  }
+
+  /** Hover-only radial lift (fraction of GLOBE_RADIUS). 0 disables. */
+  public setHoverLift(value: number): void {
+    this.material.uniforms['uHoverLift']!.value = value;
+  }
+
+  /** Active-only radial lift (fraction of GLOBE_RADIUS). 0 disables. */
+  public setActiveLift(value: number): void {
+    this.material.uniforms['uActiveLift']!.value = value;
   }
 
   /**
