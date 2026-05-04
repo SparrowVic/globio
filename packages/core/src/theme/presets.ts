@@ -36,36 +36,45 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
   'outline-dark': Object.freeze({
     'background.color': '#000814',
     'globe.surfaceColor': '#0a1c38',
-    // Vibrant ice-blue borders pop against the deep-navy ocean and
-    // tie into the atmosphere/starfield palette below.
-    'countries.border.color': '#6cc1ff',
-    'countries.border.opacity': 0.92,
+    // Soft ice-blue borders sit gently above the ocean — readable
+    // without screaming "vibrant cyan demo".
+    'countries.border.color': '#5b9bcf',
+    'countries.border.opacity': 0.7,
     'countries.borderHover.color': '#a5f3fc',
-    'countries.borderHover.width': 2.2,
+    'countries.borderHover.width': 2,
     'countries.borderHover.glowColor': '#67e8f9',
-    'countries.borderHover.glowWidth': 9,
-    'countries.borderHover.glowOpacity': 0.7,
-    // Warm amber for the pinned country — lone warm note on the
+    'countries.borderHover.glowWidth': 7,
+    'countries.borderHover.glowOpacity': 0.55,
+    // Warm amber for the pinned country — lone warm note in an
     // otherwise cool palette so a focus instantly stands out.
     'countries.borderActive.color': '#fcd34d',
-    'countries.borderActive.width': 3,
-    'countries.fill.defaultColor': '#1c3866',
-    'countries.fill.opacity': 0.28,
-    'countries.label.color': '#cfeeff',
-    // Cyan halo around labels — turns into a soft glow on the dark
-    // background, much more visible than the default black halo.
+    'countries.borderActive.width': 2.4,
+    // Subtle fill — when the studio enables 'always' mode this
+    // produces a barely-perceptible lift over the ocean, just enough
+    // to read continent shapes without flatness.
+    'countries.fill.defaultColor': '#13294a',
+    'countries.fill.opacity': 0.45,
+    'countries.label.color': '#9eb8d4',
+    'countries.label.fontSize': 11,
+    'countries.label.fontWeight': '400',
+    // Soft dark halo — keeps labels legible on the lit hemisphere
+    // without the loud cyan glow we had before.
     'countries.label.textShadow':
-      '0 0 6px rgba(103, 232, 249, 0.55), 0 1px 2px rgba(0, 0, 0, 0.75)',
+      '0 0 3px rgba(0, 8, 20, 0.85), 0 1px 1px rgba(0, 0, 0, 0.6)',
     'tooltip.backgroundColor': 'rgba(6, 14, 30, 0.92)',
     'tooltip.textColor': '#a5f3fc',
     'lights.ambient.intensity': 0.55,
     'lights.directional.intensity': 0.85,
     'markers.defaultColor': '#fbbf24',
-    'atmosphere.color': '#5b9eff',
-    'atmosphere.intensity': 1.7,
-    'starfield.color': '#e9f1ff',
-    'starfield.density': 2400,
-    'starfield.size': 1.55,
+    // Quieter atmosphere — keeps the limb glow but stops it dominating
+    // the frame the way intensity 1.7 did.
+    'atmosphere.color': '#4a8acc',
+    'atmosphere.intensity': 1.15,
+    // Starfield slightly less dense + dimmer so it reads as backdrop,
+    // not foreground texture.
+    'starfield.color': '#dde6f5',
+    'starfield.density': 1800,
+    'starfield.size': 1.3,
     'arcs.color': '#67e8f9',
     'arcs.headColor': '#fbbf24',
   }),

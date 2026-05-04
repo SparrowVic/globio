@@ -28,7 +28,12 @@ export const defaultGlobeSettings: GlobeSettings = {
   // user picks a mode in the Country fill workshop card or the
   // choropleth data layer fires `setData`. Other defaults are
   // sentinels (empty / 0) so flipping mode picks up the theme tokens.
-  countryFillMode: 'none',
+  // Subtle 'always' fill on init — countries lift a hair above the
+  // ocean colour without screaming "data layer". Empty string / 0
+  // means "use theme token" (`countries.fill.defaultColor` /
+  // `.opacity`), so the look stays in sync with whatever theme the
+  // user picks; just flipping `mode` is enough to enable the depth.
+  countryFillMode: 'always',
   countryFillDefaultColor: '',
   countryFillDefaultOpacity: 0,
   // Curated palette for the demo's 'palette' mode. Picked so the
@@ -49,19 +54,22 @@ export const defaultGlobeSettings: GlobeSettings = {
   countryFillActiveColor: '',
   countryFillActiveOpacity: 0,
   countryLabels: true,
-  labelMinScreenSize: 78,
-  labelSizeFadeRange: 0.45,
-  labelTransitionMs: 220,
-  // Halo on with a cyan tint so labels glow gently against the dark
-  // ocean instead of just dropping a flat black shadow that's
-  // invisible on the deep-navy surface.
+  // High threshold by design — only the ~10-15 biggest countries
+  // (Russia, Canada, Brazil, USA, China, Australia, India, …) read
+  // labels at the boot zoom. Once the user zooms in, smaller ones
+  // fade in. Keeps the first-impression frame clean.
+  labelMinScreenSize: 160,
+  labelSizeFadeRange: 0.5,
+  labelTransitionMs: 240,
+  // Soft white halo at low radius — readable on the dark ocean
+  // without the loud cyan glow the previous default produced.
   labelHaloEnabled: true,
-  labelHaloRadius: 2.5,
-  labelHaloColor: '#67e8f9',
-  labelHaloSteps: 8,
-  labelColor: '',
-  labelFontSize: 12,
-  labelFontWeight: '500',
+  labelHaloRadius: 1.5,
+  labelHaloColor: 'rgba(0, 8, 20, 0.85)',
+  labelHaloSteps: 4,
+  labelColor: '#9eb8d4',
+  labelFontSize: 11,
+  labelFontWeight: '400',
   autoRotate: true,
   autoRotateSpeed: 0.06,
   axisTilt: 23.5,
@@ -73,11 +81,12 @@ export const defaultGlobeSettings: GlobeSettings = {
   atmosphereThreshold: 0.6,
   atmosphereSide: 'back',
   atmosphereBlending: 'additive',
-  // Slow atmospheric breath — the limb halo gently inhales/exhales,
-  // adds life without distracting. Long period + small amplitude.
+  // Very slow atmospheric breath — the limb halo barely shifts. Period
+  // ~6s, amplitude only ~10% of base intensity, so the user might not
+  // notice it consciously but the globe never reads "frozen still".
   atmospherePulse: true,
-  atmospherePulseSpeed: 0.16,
-  atmospherePulseAmplitude: 0.18,
+  atmospherePulseSpeed: 0.14,
+  atmospherePulseAmplitude: 0.1,
   starfield: true,
   starfieldDensity: 2400,
   starfieldSize: 1.5,
