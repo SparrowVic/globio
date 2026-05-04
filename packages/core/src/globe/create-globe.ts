@@ -154,9 +154,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   if (config.arcs && config.arcs.length > 0) arcsLayer.setArcs(config.arcs);
 
   // Always construct so live setters can flip enabled / color / intensity
-  // without rebuilding. `enabled: false` just hides the mesh. Empty-
-  // string color / 0 intensity → fall back to theme tokens (same
-  // sentinel as the live update path).
+  // without rebuilding. `enabled: false` just hides the mesh.
+  //
+  // Sentinel filter for `radiusScale`/`power`: we drop the field when the
+  // caller passes `0` (or radiusScale ≤ 1) so the layer's own DEFAULTS
+  // kick in. The configurator wires these through unconditionally with
+  // `0` meaning "use theme/layer default" — without the filter the
+  // value `0` reached `??` (which only falls back on `undefined`) and
+  // built a degenerate `SphereGeometry(0, …)` mesh that disappeared
+  // entirely. Color/intensity already had this filter inline above; the
+  // live-update path at the bottom of `update()` keeps the same
+  // semantics so init and runtime behave the same way.
   const atmosphereLayer = new kindModule.layers.AtmosphereLayer({
     color:
       config.atmosphere?.color && config.atmosphere.color !== ''
@@ -166,10 +174,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       config.atmosphere?.intensity && config.atmosphere.intensity > 0
         ? config.atmosphere.intensity
         : tokens['atmosphere.intensity'],
-    ...(config.atmosphere?.radiusScale !== undefined && {
-      radiusScale: config.atmosphere.radiusScale,
-    }),
-    ...(config.atmosphere?.power !== undefined && { power: config.atmosphere.power }),
+    ...(config.atmosphere?.radiusScale !== undefined &&
+      config.atmosphere.radiusScale > 1 && {
+        radiusScale: config.atmosphere.radiusScale,
+      }),
+    ...(config.atmosphere?.power !== undefined &&
+      config.atmosphere.power > 0 && { power: config.atmosphere.power }),
     ...(config.atmosphere?.threshold !== undefined && {
       threshold: config.atmosphere.threshold,
     }),
