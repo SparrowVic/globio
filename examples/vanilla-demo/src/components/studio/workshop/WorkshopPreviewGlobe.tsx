@@ -174,6 +174,9 @@ export function WorkshopPreviewGlobe({
       ...(baseConfig.countryLabels !== undefined
         ? { countryLabels: baseConfig.countryLabels }
         : {}),
+      ...(baseConfig.markers !== undefined ? { markers: baseConfig.markers } : {}),
+      ...(baseConfig.htmlMarkers !== undefined ? { htmlMarkers: baseConfig.htmlMarkers } : {}),
+      ...(baseConfig.arcs !== undefined ? { arcs: baseConfig.arcs } : {}),
       ...(baseConfig.starfield !== undefined ? { starfield: baseConfig.starfield } : {}),
       ...(baseConfig.atmosphere !== undefined ? { atmosphere: baseConfig.atmosphere } : {}),
       ...(baseConfig.countries !== undefined ? { countries: baseConfig.countries } : {}),

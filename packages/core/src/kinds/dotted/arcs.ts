@@ -14,7 +14,7 @@ import type { ArcConfig, LatLng } from '../../types';
 
 export interface DottedArcsLayerOptions {
   readonly defaultColor: string;
-  /** Kept for API parity with the shared `ArcsLayer`; ignored by the dotted variant (line width has no analogue when the path is a particle stream). */
+  /** Baseline visual weight; dotted maps this to particle size instead of a line stroke width. */
   readonly defaultWidth: number;
   readonly defaultOpacity: number;
   readonly headColor: string;
@@ -42,6 +42,11 @@ const VERT_SHADER = /* glsl */ `
   attribute vec3 aTailColor;   // base color (config.color or theme default)
   attribute vec3 aHeadColor;   // moving-spark color (config.headColor or theme accent)
   attribute float aAnimated;   // 1.0 if arc is animated, 0.0 = static glow
+  attribute float aWidthScale; // arc.width mapped to particle scale
+  attribute float aDashEnabled;
+  attribute float aDashSize;
+  attribute float aDashGap;
+  attribute float aHeadEasing; // 0 linear, 1 easeInOut, 2 pulse
   uniform float uTime;
   uniform float uPointSize;
   uniform float uPixelRatio;
@@ -53,7 +58,12 @@ const VERT_SHADER = /* glsl */ `
 
   void main() {
     // Head position along the arc, advancing with time. Wrap to [0,1).
-    float head = mod(uTime * aSpeed, 1.0);
+    float headPhase = mod(uTime * aSpeed, 1.0);
+    float head = headPhase;
+    if (aHeadEasing > 0.5 && aHeadEasing < 1.5) {
+      // Smoothstep-like cubic: slow near endpoints, faster through the middle.
+      head = headPhase * headPhase * (3.0 - 2.0 * headPhase);
+    }
 
     // Distance to head, wrapped on the unit circle so the spark can
     // teleport from t=0.99 to t=0.01 without flickering.
@@ -62,7 +72,13 @@ const VERT_SHADER = /* glsl */ `
 
     // Sharp Gaussian peak at the head — sigma controls streak length.
     float sigma = max(uHeadSigma, 1e-4);
-    float headWeight = exp(-(d / sigma) * (d / sigma));
+    float pulseEnvelope = 1.0;
+    if (aHeadEasing > 1.5) {
+      // Keep the head position linear, but make the spark burn strongest
+      // around the arc midpoint and dim near wrap points.
+      pulseEnvelope = max(0.08, sin(headPhase * 3.14159265359));
+    }
+    float headWeight = exp(-(d / sigma) * (d / sigma)) * pulseEnvelope;
     // Animated arcs: head spark on top of baseline tail glow. Static
     // arcs: ignore the head and just show the tail evenly across the path.
     float brightness = mix(1.0, uTailBrightness + headWeight, aAnimated);
@@ -72,13 +88,32 @@ const VERT_SHADER = /* glsl */ `
     // softer gradient than linear lerp.
     float tColor = smoothstep(0.0, sigma * 2.0, d);
     vColor = mix(aHeadColor, aTailColor, tColor);
-    vAlpha = brightness * uOpacity;
+    float dashMask = 1.0;
+    if (aDashEnabled > 0.5) {
+      float dashSize = max(aDashSize, 0.001);
+      float dashGap = max(aDashGap, 0.001);
+      float cycle = dashSize + dashGap;
+      // A tiny animated drift keeps dotted "dashes" reading like data
+      // packets rather than a static stencil.
+      float dashT = mod(aT + headPhase * 0.12 * aAnimated, cycle);
+      float feather = min(0.01, dashSize * 0.35);
+      float leading = smoothstep(0.0, feather, dashT);
+      float trailing = 1.0 - smoothstep(max(dashSize - feather, 0.0), dashSize, dashT);
+      dashMask = leading * trailing;
+    }
+
+    vAlpha = brightness * uOpacity * dashMask * (0.72 + 0.18 * aWidthScale);
 
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
     // Size scales with brightness so the head reads visibly bigger
     // than the tail — same trick the surface dot field uses.
-    gl_PointSize = uPointSize * (0.55 + 0.85 * brightness) * uPixelRatio * (1.0 / -mv.z);
+    gl_PointSize =
+      uPointSize *
+      max(0.35, aWidthScale) *
+      (0.55 + 0.85 * brightness) *
+      uPixelRatio *
+      (1.0 / -mv.z);
   }
 `;
 
@@ -121,6 +156,7 @@ export class DottedArcsLayer {
   private readonly defaultColor: Color;
   private readonly headColor: Color;
   private readonly defaultOpacity: number;
+  private readonly defaultWidth: number;
   private readonly basePointSize: number;
   // Track the active arc set so `addArc` / `removeArc` can rebuild
   // the particle stream incrementally without forcing callers to
@@ -133,6 +169,7 @@ export class DottedArcsLayer {
     this.defaultColor = new Color(options.defaultColor);
     this.headColor = new Color(options.headColor);
     this.defaultOpacity = options.defaultOpacity;
+    this.defaultWidth = Math.max(0.1, options.defaultWidth);
     // headSize from theme tokens lives in lat/lng-radius units (e.g.
     // 0.012). Multiply into shader-pixel range so a small theme value
     // becomes a chunky-but-not-huge dot.
@@ -209,6 +246,11 @@ export class DottedArcsLayer {
     const aTailColor = new Float32Array(total * 3);
     const aHeadColor = new Float32Array(total * 3);
     const aAnimated = new Float32Array(total);
+    const aWidthScale = new Float32Array(total);
+    const aDashEnabled = new Float32Array(total);
+    const aDashSize = new Float32Array(total);
+    const aDashGap = new Float32Array(total);
+    const aHeadEasing = new Float32Array(total);
 
     const fromVec = new Vector3();
     const toVec = new Vector3();
@@ -227,10 +269,12 @@ export class DottedArcsLayer {
       const heightSpec = arc.height ?? 'auto';
       const minH = arc.minHeight ?? 0.15;
       const maxH = arc.maxHeight ?? 0.6;
+      const lowH = Math.min(minH, maxH);
+      const highH = Math.max(minH, maxH);
       const heightFactor =
         typeof heightSpec === 'number'
           ? heightSpec
-          : minH + (maxH - minH) * Math.min(1, omega / Math.PI);
+          : lowH + (highH - lowH) * Math.min(1, omega / Math.PI);
 
       const tail = arc.color ? new Color(arc.color) : this.defaultColor;
       const animated = arc.animated ?? false;
@@ -238,6 +282,15 @@ export class DottedArcsLayer {
       // the head stays put (we suppress its visual via aAnimated=0).
       const duration = arc.animationDuration ?? DEFAULTS.defaultDurationSec;
       const speed = animated ? 1 / Math.max(0.05, duration) : 0;
+      const widthScale = clamp(
+        (arc.width ?? this.defaultWidth) / this.defaultWidth,
+        0.35,
+        4.5,
+      );
+      const dashed = arc.style === 'dashed';
+      const dashSize = clamp(arc.dashSize ?? 0.04, 0.001, 0.95);
+      const dashGap = clamp(arc.dashGap ?? 0.02, 0.001, 0.95);
+      const easingMode = easingToMode(arc.headEasing);
 
       for (let k = 0; k < N; k++) {
         const t = k / (N - 1);
@@ -271,6 +324,11 @@ export class DottedArcsLayer {
         aHeadColor[writeIdx * 3 + 1] = this.headColor.g;
         aHeadColor[writeIdx * 3 + 2] = this.headColor.b;
         aAnimated[writeIdx] = animated ? 1 : 0;
+        aWidthScale[writeIdx] = widthScale;
+        aDashEnabled[writeIdx] = dashed ? 1 : 0;
+        aDashSize[writeIdx] = dashSize;
+        aDashGap[writeIdx] = dashGap;
+        aHeadEasing[writeIdx] = easingMode;
 
         writeIdx++;
       }
@@ -283,6 +341,11 @@ export class DottedArcsLayer {
     geometry.setAttribute('aTailColor', new Float32BufferAttribute(aTailColor, 3));
     geometry.setAttribute('aHeadColor', new Float32BufferAttribute(aHeadColor, 3));
     geometry.setAttribute('aAnimated', new Float32BufferAttribute(aAnimated, 1));
+    geometry.setAttribute('aWidthScale', new Float32BufferAttribute(aWidthScale, 1));
+    geometry.setAttribute('aDashEnabled', new Float32BufferAttribute(aDashEnabled, 1));
+    geometry.setAttribute('aDashSize', new Float32BufferAttribute(aDashSize, 1));
+    geometry.setAttribute('aDashGap', new Float32BufferAttribute(aDashGap, 1));
+    geometry.setAttribute('aHeadEasing', new Float32BufferAttribute(aHeadEasing, 1));
 
     this.geometry = geometry;
     const points = new Points(geometry, this.material);
@@ -313,6 +376,15 @@ export class DottedArcsLayer {
     }
   }
 }
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
+const easingToMode = (easing: ArcConfig['headEasing']): number => {
+  if (easing === 'easeInOut') return 1;
+  if (easing === 'pulse') return 2;
+  return 0;
+};
 
 // LatLng kept available for callers who set arcs from outside the kind
 // (mirrors the shared layer's import surface).

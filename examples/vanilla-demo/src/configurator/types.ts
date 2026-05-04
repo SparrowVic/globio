@@ -13,6 +13,15 @@ import type {
   ThemePresetName,
   ZoomMode,
 } from '@your-globe/core';
+import type {
+  ArcDatasetId,
+  ArcHeadEasing,
+  ArcLineStyle,
+  MarkerCardAnchor,
+  MarkerCardStyle,
+  MarkerDatasetId,
+  MarkerMode,
+} from './layer-fixtures';
 
 export type FocusPulseOrigin = 'centroid' | 'click';
 
@@ -142,6 +151,35 @@ export interface GlobeSettings {
   readonly outlineHoverCrosshairCardinalTicks: boolean;
   readonly outlineHoverCrosshairTooltip: boolean;
   readonly outlineHoverCrosshairTooltipDecimals: number;
+  readonly arcDataset: ArcDatasetId;
+  readonly arcWidth: number;
+  /** 0 = auto height. */
+  readonly arcHeight: number;
+  readonly arcMinHeight: number;
+  readonly arcMaxHeight: number;
+  readonly arcColor: string;
+  readonly arcPerArcGradient: boolean;
+  readonly arcStyle: ArcLineStyle;
+  readonly arcDashSize: number;
+  readonly arcDashGap: number;
+  readonly arcAnimated: boolean;
+  readonly arcAnimationDuration: number;
+  readonly arcHeadEasing: ArcHeadEasing;
+  readonly markerDataset: MarkerDatasetId;
+  readonly markerMode: MarkerMode;
+  readonly markerSize: number;
+  readonly markerHoverScale: number;
+  readonly markerColor: string;
+  readonly markerPerMarkerColor: boolean;
+  readonly markerPulse: boolean;
+  readonly markerPulseSpeed: number;
+  readonly markerPulseAmplitude: number;
+  readonly markerPulsePhaseOffset: boolean;
+  readonly markerCardStyle: MarkerCardStyle;
+  readonly markerCardAnchor: MarkerCardAnchor;
+  readonly markerCardOffsetY: number;
+  readonly markerCardAccent: string;
+  readonly markerCardHideOccluded: boolean;
   /** Dotted-only — every dotted knob lives behind one DependsOn switch. */
   readonly dottedColor: string;
   readonly dottedSizeScale: number;

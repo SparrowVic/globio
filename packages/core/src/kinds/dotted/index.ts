@@ -191,6 +191,41 @@ export const dottedKind: KindModule = {
       constellationDistanceFactor:
         constellation?.distanceFactor ?? DEFAULT_CONSTELLATION_DISTANCE_FACTOR,
     });
+    if (drift?.perCountryPhase !== undefined) {
+      layer.setPerCountryPhase(drift.perCountryPhase);
+    }
+    if (flash?.color !== undefined) {
+      layer.setFlashColor(flash.color);
+    }
+    if (hoverDots?.lift !== undefined) {
+      layer.setHoverLift(hoverDots.lift);
+    }
+    if (dottedCfg?.activeCountry !== undefined) {
+      const a = dottedCfg.activeCountry;
+      if (a.enabled !== undefined) {
+        layer.setActiveBoost(a.enabled ? (a.boost ?? 0.65) : 0);
+        layer.setActiveScale(a.enabled ? (a.scale ?? 1.18) : 1);
+        layer.setActiveLift(a.enabled ? (a.lift ?? 0.012) : 0);
+      } else {
+        if (a.boost !== undefined) layer.setActiveBoost(a.boost);
+        if (a.scale !== undefined) layer.setActiveScale(a.scale);
+        if (a.lift !== undefined) layer.setActiveLift(a.lift);
+      }
+      if (a.pulseSpeed !== undefined) layer.setActivePulseSpeed(a.pulseSpeed);
+    }
+    if (dottedCfg?.edge !== undefined) {
+      const e = dottedCfg.edge;
+      if (e.enabled !== undefined) {
+        layer.setEdgeBoost(e.enabled ? (e.boost ?? 0.55) : 0);
+        layer.setEdgeLift(e.enabled ? (e.lift ?? 0.004) : 0);
+      } else {
+        if (e.boost !== undefined) layer.setEdgeBoost(e.boost);
+        if (e.lift !== undefined) layer.setEdgeLift(e.lift);
+      }
+    }
+    if (dottedCfg?.dots !== undefined) {
+      applyDotColorConfig(layer, dottedCfg.dots);
+    }
     globeGroup.add(layer.group);
 
     // Country-edge highlight is baked into the surface layer itself
@@ -279,6 +314,7 @@ export const dottedKind: KindModule = {
       spawn(latLng: LatLng) {
         const origin = latLngToVector3(latLng, GLOBE_RADIUS, new Vector3());
         layer.spawnRipple(origin);
+        layer.spawnRipple(origin, 0.18);
       },
       // No per-frame work — the dotted layer's update() already ticks
       // the ripple pool.
@@ -591,54 +627,52 @@ export const dottedKind: KindModule = {
           if (c.distanceFactor !== undefined) layer.setConstellationDistanceFactor(c.distanceFactor);
         }
         if (next.dots !== undefined) {
-          const d = next.dots;
-          // Mode + palette → recompute per-country tint colours and
-          // push to the surface layer's `aDotColor` attribute. Empty
-          // palette in palette mode falls back to theme colour for
-          // every country; 'theme' mode clears the per-country
-          // override entirely so the shader skips the attribute fetch.
-          if (d.mode === 'theme') {
-            layer.clearCountryDotColors();
-          } else if (d.mode === 'palette' && d.palette !== undefined) {
-            const palette = d.palette;
-            if (palette.length === 0) {
-              layer.clearCountryDotColors();
-            } else {
-              // Map countryId → palette[index % palette.length].
-              const map: Record<string, string> = {};
-              const indexById = layer.getCountryIndex();
-              indexById.forEach((featureIndex, id) => {
-                const colour = palette[featureIndex % palette.length];
-                if (colour !== undefined) map[id] = colour;
-              });
-              layer.setCountryDotColors(map);
-            }
-          } else if (d.mode === 'data') {
-            // 'data' mode: dots take their colour from the same
-            // choropleth-style data the fill mesh would use. The
-            // routing happens externally via `setCountryDotColors`
-            // (e.g. a future demo `setDotsData` API). Mode flip on
-            // its own just leaves whatever map was previously set.
-            // No-op here.
-          }
-          // Palette swap without changing mode — re-apply if currently
-          // in palette mode.
-          if (d.palette !== undefined && d.mode === undefined) {
-            const indexById = layer.getCountryIndex();
-            const palette = d.palette;
-            const map: Record<string, string> = {};
-            indexById.forEach((featureIndex, id) => {
-              const colour = palette[featureIndex % palette.length];
-              if (colour !== undefined) map[id] = colour;
-            });
-            if (palette.length > 0) layer.setCountryDotColors(map);
-          }
-          if (d.hoverColor !== undefined) layer.setHoverDotColor(d.hoverColor);
-          if (d.activeColor !== undefined) layer.setActiveDotColor(d.activeColor);
+          applyDotColorConfig(layer, next.dots);
         }
       },
     };
   },
+};
+
+const applyDotColorConfig = (
+  layer: DottedSurfaceLayer,
+  dots: NonNullable<DottedConfig['dots']>,
+): void => {
+  // Mode + palette -> recompute per-country tint colours and push to
+  // the surface layer's `aDotColor` attribute. Empty palette clears
+  // the override so the shader falls back to the current base colour.
+  const applyPalette = (palette: ReadonlyArray<string>): void => {
+    if (palette.length === 0) {
+      layer.clearCountryDotColors();
+      return;
+    }
+    const map: Record<string, string> = {};
+    const indexById = layer.getCountryIndex();
+    indexById.forEach((featureIndex, id) => {
+      const colour = palette[featureIndex % palette.length];
+      if (colour !== undefined) map[id] = colour;
+    });
+    layer.setCountryDotColors(map);
+  };
+
+  if (dots.mode === 'theme') {
+    layer.clearCountryDotColors();
+  } else if (dots.mode === 'palette') {
+    applyPalette(dots.palette ?? []);
+  } else if (dots.mode === 'data') {
+    // Data-driven dot tinting does not have a public data-routing API
+    // yet. Clear stale palette colours rather than leaving an old
+    // palette visible under a mode that the user has switched away from.
+    layer.clearCountryDotColors();
+  } else if (dots.palette !== undefined) {
+    // Palette swap without an explicit mode only matters when the
+    // caller is already in palette mode; the demo sends full config
+    // objects, and this branch keeps partial API calls safe too.
+    applyPalette(dots.palette);
+  }
+
+  if (dots.hoverColor !== undefined) layer.setHoverDotColor(dots.hoverColor);
+  if (dots.activeColor !== undefined) layer.setActiveDotColor(dots.activeColor);
 };
 
 export { DottedSurfaceLayer } from './surface';

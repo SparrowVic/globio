@@ -573,6 +573,7 @@ export class DottedSurfaceLayer {
   private constellationVisible = false;
   private constellationCurrentId: string | null = null;
   private constellationEnabled: boolean;
+  private constellationColorOverride: string;
   private constellationDistanceFactor: number;
   /** Density used at build time — neighbour distance threshold derives from this. */
   private readonly density: number;
@@ -599,6 +600,7 @@ export class DottedSurfaceLayer {
     this.cursorWakeEnabled = options.cursorWakeEnabled;
     this.cursorWakeFade = options.cursorWakeFade;
     this.constellationEnabled = options.constellationEnabled;
+    this.constellationColorOverride = options.constellationColor;
     this.constellationDistanceFactor = options.constellationDistanceFactor;
 
     const baseColorHex =
@@ -744,12 +746,16 @@ export class DottedSurfaceLayer {
   }
 
   /** Spawn a ripple originating from a globe-local 3D point. */
-  public spawnRipple(point3D: Vector3): void {
+  public spawnRipple(point3D: Vector3, ageOffsetSeconds = 0): void {
     if (!this.rippleEnabled) return;
     const origin = point3D.clone().normalize();
     const speed = this.rippleSpeed > 0 ? this.rippleSpeed : 1;
     const duration = Math.min(MAX_GREAT_CIRCLE / speed, 4);
-    this.activeRipples.push({ origin, age: 0, duration });
+    this.activeRipples.push({
+      origin,
+      age: Math.max(0, Math.min(duration * 0.9, ageOffsetSeconds)),
+      duration,
+    });
     while (this.activeRipples.length > this.rippleMaxConcurrent) {
       this.activeRipples.shift();
     }
@@ -999,7 +1005,7 @@ export class DottedSurfaceLayer {
     // Constellation defaults to follow the base color when no override —
     // keeps the dot field + lines reading as a single palette unless a
     // user explicitly diverges them.
-    if (this.opts.constellationColor === '' || this.opts.constellationColor === undefined) {
+    if (this.constellationColorOverride === '' || this.constellationColorOverride === undefined) {
       this.constellationMaterial.color.copy(target);
     }
   }
@@ -1232,6 +1238,7 @@ export class DottedSurfaceLayer {
 
   /** Empty string = follow the base dot color. */
   public setConstellationColor(hex: string): void {
+    this.constellationColorOverride = hex;
     if (hex === '') {
       this.constellationMaterial.color.copy(
         this.material.uniforms['uBaseColor']!.value as Color,

@@ -167,6 +167,82 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             ]}
           />
         </DependsOn>
+
+        <DependsOn
+          when={settings.kind === 'dotted'}
+          because="Dotted renders focus pulse as a ripple through the dot field. Switch the main globe to dotted kind to tune."
+          className="space-y-4"
+          variant="hidden"
+        >
+          <SectionHeading>Dotted · ripple wave</SectionHeading>
+          <SwitchField
+            label="Dot-field ripple"
+            checked={settings.dottedRipple}
+            onChange={(dottedRipple) => onGlobeChange({ dottedRipple })}
+            value="Focus and surface clicks propagate through the dots"
+          />
+          <DependsOn
+            when={settings.dottedRipple}
+            because="Enable Dot-field ripple first."
+            className="space-y-4"
+          >
+            <SliderField
+              label="Boost"
+              value={settings.dottedRippleBoost}
+              min={0.1}
+              max={4}
+              step={0.05}
+              format={(value) => value.toFixed(2)}
+              onChange={(dottedRippleBoost) => onGlobeChange({ dottedRippleBoost })}
+            />
+            <SliderField
+              label="Speed"
+              value={settings.dottedRippleSpeed}
+              min={0.1}
+              max={4}
+              step={0.05}
+              format={(value) => `${value.toFixed(2)}x`}
+              onChange={(dottedRippleSpeed) => onGlobeChange({ dottedRippleSpeed })}
+            />
+            <SliderField
+              label="Wave width"
+              value={settings.dottedRippleWidth}
+              min={0.02}
+              max={0.5}
+              step={0.01}
+              format={(value) => value.toFixed(2)}
+              onChange={(dottedRippleWidth) => onGlobeChange({ dottedRippleWidth })}
+            />
+            <SliderField
+              label="Concurrent waves"
+              value={settings.dottedRippleMaxConcurrent}
+              min={1}
+              max={8}
+              step={1}
+              format={(value) => `${value}`}
+              onChange={(dottedRippleMaxConcurrent) =>
+                onGlobeChange({ dottedRippleMaxConcurrent })
+              }
+            />
+            <ColorField
+              label="Ripple color"
+              value={settings.dottedRippleColor || '#7fdfff'}
+              onChange={(dottedRippleColor) => onGlobeChange({ dottedRippleColor })}
+              hint={settings.dottedRippleColor === '' ? 'Follow dot color' : undefined}
+              {...(settings.dottedRippleColor !== '' ? { preset: '' } : {})}
+              swatches={[
+                '#7fdfff',
+                '#22d3ee',
+                '#67e8f9',
+                '#a78bfa',
+                '#f472b6',
+                '#fbbf24',
+                '#34d399',
+                '#ffffff',
+              ]}
+            />
+          </DependsOn>
+        </DependsOn>
       </DependsOn>
 
       <p className="rounded-md border border-dashed border-pink-200/[0.16] bg-pink-200/[0.03] px-3 py-2 text-[10.5px] leading-relaxed text-pink-100/80">
@@ -209,6 +285,12 @@ const preset: PresetModule = {
     'outlinePulseSegments',
     'outlinePulseColor',
     'outlinePulseRadiusFactor',
+    'dottedRipple',
+    'dottedRippleBoost',
+    'dottedRippleSpeed',
+    'dottedRippleWidth',
+    'dottedRippleMaxConcurrent',
+    'dottedRippleColor',
   ],
   // All band geometry + color / radius factor are live via
   // FocusPulseDecorator.setOptions(). Origin + on-surface-click flip

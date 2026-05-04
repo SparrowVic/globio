@@ -366,12 +366,18 @@ export class PaperCountryFillLayer {
     let color = baseColor;
     let opacity = baseOpacity;
     let visible = baseVisible;
-    if (this.activeId === id && this.activeColor !== undefined) {
-      color = this.activeColor;
+    if (
+      this.activeId === id &&
+      (this.activeColor !== undefined || this.activeOpacity !== undefined)
+    ) {
+      color = this.activeColor ?? baseColor;
       opacity = this.activeOpacity ?? baseOpacity;
       visible = true;
-    } else if (this.hoverId === id && this.hoverColor !== undefined) {
-      color = this.hoverColor;
+    } else if (
+      this.hoverId === id &&
+      (this.hoverColor !== undefined || this.hoverOpacity !== undefined)
+    ) {
+      color = this.hoverColor ?? baseColor;
       opacity = this.hoverOpacity ?? baseOpacity;
       visible = true;
     }

@@ -18,7 +18,6 @@ import type { GlobeKind, KindHandle, KindLayerRegistry, Public } from '../kinds/
 import type { OutlineKindHandle } from '../kinds/outline';
 import type { DottedKindHandle } from '../kinds/dotted';
 import type { HologramKindHandle } from '../kinds/hologram';
-import type { WireframeKindHandle } from '../kinds/wireframe';
 import { GlobeControls } from '../interaction/controls';
 import { PointerRaycaster } from '../interaction/raycaster';
 import { GlobeEventEmitter } from '../interaction/events';
@@ -369,6 +368,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         return;
       }
       if (hit?.type === 'country') {
+        if (state.config.countries?.hoverEnabled === false) {
+          emitter.emit('countryHover', null);
+          emitter.emit('markerHover', null);
+          state.countryHighlightLayer?.clear();
+          setFillHover(null);
+          setKindHover(null);
+          state.countryTooltip?.clear();
+          markersLayer.setHovered(null);
+          markerTooltip.clear();
+          return;
+        }
         const event = handleCountryHit(hit.object, hit.point);
         emitter.emit('countryHover', event);
         emitter.emit('markerHover', null);
@@ -486,12 +496,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       } else if (state.countryData) {
         instance.setDataLayer({ type: 'choropleth', data: state.countryData });
       }
-      // Re-apply pending active country to kind handle (e.g. wireframe ring)
-      // if user called setActiveCountry before features loaded.
+      // Re-apply pending active country to kind handle (e.g. wireframe ring
+      // or dotted pinned-pulse) if user called setActiveCountry before
+      // features loaded.
       if (state.activeCountryId) {
-        (state.kindHandle as WireframeKindHandle | null)?.setActiveCountry?.(
-          state.activeCountryId
-        );
+        (state.kindHandle as
+          | { readonly setActiveCountry?: (id: string | null) => void }
+          | null
+        )?.setActiveCountry?.(state.activeCountryId);
       }
 
       // Country interaction (picking + hover/active highlight) is gated by
@@ -743,10 +755,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
     update: (partial) => {
       const prev = state.config;
-      state.config = { ...state.config, ...partial };
-      if (partial.markers) markersLayer.setMarkers(partial.markers);
+      state.config = mergeRuntimeConfig(state.config, partial);
+      if (partial.markers !== undefined) markersLayer.setMarkers(partial.markers);
+      if (partial.htmlMarkers !== undefined) htmlMarkersLayer.setMarkers(partial.htmlMarkers);
+      if (partial.arcs !== undefined) arcsLayer.setArcs(partial.arcs);
       if (partial.autoRotate) {
-        controls.setAutoRotate(partial.autoRotate.enabled ?? false, partial.autoRotate.speed);
+        const nextAutoRotate = state.config.autoRotate ?? partial.autoRotate;
+        controls.setAutoRotate(nextAutoRotate.enabled ?? false, nextAutoRotate.speed);
       }
       if (partial.zoom !== undefined) {
         controls.setZoom(partial.zoom);
@@ -768,7 +783,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (next.sizeFadeRange !== undefined) layer.setSizeFadeRange(next.sizeFadeRange);
           if (next.occlusionFade !== undefined) layer.setOcclusionFade(next.occlusionFade);
           if (next.transitionMs !== undefined) layer.setTransitionMs(next.transitionMs);
-          if (next.halo !== undefined) layer.setHalo(next.halo);
+          if (next.halo !== undefined) {
+            layer.setHalo(state.config.countryLabels?.halo ?? next.halo);
+          }
           // Color / font: an empty-string color or non-positive size /
           // empty-string weight means "reset to theme default" so the
           // workshop's clear-override flow restores the layer state.
@@ -796,7 +813,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // the workshop / studio can pass a full StarfieldConfig and the
       // engine decides what's cheap vs what needs a swap.
       if (partial.starfield !== undefined) {
-        const next = partial.starfield;
+        const next = state.config.starfield ?? partial.starfield;
         const prevStars = prev.starfield;
         const enabledNow = next.enabled !== undefined ? next.enabled : prevStars?.enabled === true;
         // Geometry-baked fields → in-place layer swap. Compare palette
@@ -829,7 +846,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           // Live uniform updates — no rebuild, no blink.
           starfieldLayer.setVisible(true);
           if (next.size !== undefined) starfieldLayer.setSize(next.size);
-          if (next.twinkle !== undefined) starfieldLayer.setTwinkle(next.twinkle);
+          if (partial.starfield.twinkle !== undefined) {
+            starfieldLayer.setTwinkle(next.twinkle ?? partial.starfield.twinkle);
+          }
         }
       }
 
@@ -864,15 +883,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         }
         if (a.side !== undefined) atmosphereLayer?.setSide(a.side);
         if (a.blending !== undefined) atmosphereLayer?.setBlending(a.blending);
-        if (a.pulse !== undefined) atmosphereLayer?.setPulse(a.pulse);
+        if (a.pulse !== undefined) {
+          atmosphereLayer?.setPulse(state.config.atmosphere?.pulse ?? a.pulse);
+        }
       }
 
       // Country selection (hover stroke + active stroke + glow halo).
       // Each setter is a no-op on the sentinel value (empty-string color,
       // ≤ 0 numeric) so the configurator's "leave as-is" path doesn't
-      // reset live mid-tweak. The hoverEnabled flag is currently only
-      // gated on the dotted kind; outline + others always run hover, so
-      // toggling it live is a no-op there.
+      // reset live mid-tweak. `hoverEnabled` is read by the pointer
+      // hit path, so spreading the partial into `state.config` above is
+      // enough for the live toggle.
       if (partial.countries !== undefined) {
         const occ = partial.countries.hoverOccludeBackSide;
         if (occ !== undefined) {
@@ -957,7 +978,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         const paperHandle = state.kindHandle as
           | { readonly setPaperConfig?: (next: NonNullable<GlobeConfig['paper']>) => void }
           | null;
-        paperHandle?.setPaperConfig?.(partial.paper);
+        paperHandle?.setPaperConfig?.(state.config.paper ?? partial.paper);
       }
 
       // Outline-kind decorations — focus pulse band geometry / timing
@@ -965,12 +986,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // hatch. Other outline extras (hover lift, glow, continentDim,
       // crosshair) live on the kindHandle and are routed below.
       if (partial.outline !== undefined) {
+        const mergedOutline = state.config.outline ?? partial.outline;
         const outlineHandle = state.kindHandle as
           | { readonly setOutlineConfig?: (next: NonNullable<GlobeConfig['outline']>) => void }
           | null;
-        outlineHandle?.setOutlineConfig?.(partial.outline);
+        outlineHandle?.setOutlineConfig?.(mergedOutline);
         if (partial.outline.focusPulse) {
-          const pulse = partial.outline.focusPulse;
+          const pulse = mergedOutline.focusPulse ?? partial.outline.focusPulse;
           state.kindHandle?.decorations?.focusPulse?.setOptions?.({
             ...(pulse.durationMs !== undefined
               ? { durationSeconds: pulse.durationMs / 1000 }
@@ -996,7 +1018,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // material props, so no rebuild is needed for any of them.
       if (partial.dotted !== undefined) {
         const dottedHandle = state.kindHandle as DottedKindHandle | null;
-        dottedHandle?.setDottedConfig?.(partial.dotted);
+        dottedHandle?.setDottedConfig?.(state.config.dotted ?? partial.dotted);
       }
 
       // Hologram-kind decorations — every knob is uniform-driven on the
@@ -1004,7 +1026,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // scheduler). No rebuilds.
       if (partial.hologram !== undefined) {
         const hologramHandle = state.kindHandle as HologramKindHandle | null;
-        hologramHandle?.setHologramConfig?.(partial.hologram);
+        hologramHandle?.setHologramConfig?.(state.config.hologram ?? partial.hologram);
       }
 
       // Wireframe-kind extras — every knob in WireframeConfig is routed
@@ -1017,7 +1039,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         const wireframeHandle = state.kindHandle as
           | { readonly setWireframeConfig?: (next: NonNullable<GlobeConfig['wireframe']>) => void }
           | null;
-        wireframeHandle?.setWireframeConfig?.(partial.wireframe);
+        wireframeHandle?.setWireframeConfig?.(state.config.wireframe ?? partial.wireframe);
       }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
@@ -1044,7 +1066,10 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           ? fillCfg.activeOpacity
           : undefined;
       state.countryFillLayer?.setActiveState(id, activeColor, activeOpacity);
-      (state.kindHandle as WireframeKindHandle | null)?.setActiveCountry?.(id);
+      (state.kindHandle as
+        | { readonly setActiveCountry?: (nextId: string | null) => void }
+        | null
+      )?.setActiveCountry?.(id);
     },
     getActiveCountry: () => state.activeCountryId,
     setCountryData: (data, scale) => {
@@ -1238,6 +1263,67 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   };
 
   return instance;
+};
+
+/**
+ * `globe.update()` accepts a top-level Partial<GlobeConfig>, while most
+ * nested config sections are themselves sparse live-update objects. Keep
+ * existing nested values when a caller updates just one sub-field, but
+ * still replace arrays and primitive values wholesale.
+ */
+const mergeRuntimeConfig = (
+  prev: GlobeConfig,
+  partial: Partial<GlobeConfig>,
+): GlobeConfig => {
+  const merged: Record<string, unknown> = { ...prev, ...partial };
+
+  assignMergedSection(merged, 'countries', prev.countries, partial.countries);
+  assignMergedSection(merged, 'countryLabels', prev.countryLabels, partial.countryLabels);
+  assignMergedSection(merged, 'atmosphere', prev.atmosphere, partial.atmosphere);
+  assignMergedSection(merged, 'focusPulse', prev.focusPulse, partial.focusPulse);
+  assignMergedSection(merged, 'outline', prev.outline, partial.outline);
+  assignMergedSection(merged, 'dotted', prev.dotted, partial.dotted);
+  assignMergedSection(merged, 'wireframe', prev.wireframe, partial.wireframe);
+  assignMergedSection(merged, 'paper', prev.paper, partial.paper);
+  assignMergedSection(merged, 'hologram', prev.hologram, partial.hologram);
+  assignMergedSection(merged, 'starfield', prev.starfield, partial.starfield);
+  assignMergedSection(merged, 'autoRotate', prev.autoRotate, partial.autoRotate);
+  assignMergedSection(merged, 'performance', prev.performance, partial.performance);
+  assignMergedSection(merged, 'zoom', prev.zoom, partial.zoom);
+  assignMergedSection(merged, 'framing', prev.framing, partial.framing);
+
+  return merged as unknown as GlobeConfig;
+};
+
+const assignMergedSection = <K extends keyof GlobeConfig>(
+  target: Record<string, unknown>,
+  key: K,
+  prev: GlobeConfig[K],
+  next: Partial<GlobeConfig>[K],
+): void => {
+  const value = next === undefined ? prev : mergeConfigValue(prev, next);
+  if (value === undefined) {
+    delete target[String(key)];
+  } else {
+    target[String(key)] = value;
+  }
+};
+
+const mergeConfigValue = (prev: unknown, next: unknown): unknown => {
+  if (next === undefined) return prev;
+  if (!isPlainConfigObject(prev) || !isPlainConfigObject(next)) return next;
+
+  const merged: Record<string, unknown> = { ...prev };
+  for (const [key, value] of Object.entries(next)) {
+    merged[key] = mergeConfigValue(prev[key], value);
+  }
+  return merged;
+};
+
+const isPlainConfigObject = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
 };
 
 /**

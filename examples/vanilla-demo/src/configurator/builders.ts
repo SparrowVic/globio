@@ -1,12 +1,9 @@
 import type {
-  ArcConfig,
   ChartsHoverPayload,
   DataLayer,
   HeatmapDataEntry,
   HeatmapDataLayer,
   HexBinHoverPayload,
-  HtmlMarkerConfig,
-  MarkerConfig,
   ScaleConfig,
 } from '@your-globe/core';
 
@@ -17,6 +14,7 @@ import {
   getHexbinDataset,
   resolveHeatmapPalette,
 } from './datasets';
+import { buildArcs, buildMarkerCards, buildMarkerDots } from './layer-fixtures';
 import type { ConfiguratorState, GlobeRuntimeConfig, HeatmapSettings } from './types';
 
 const textureResolutions: ReadonlyArray<{ readonly width: number; readonly height: number }> = [
@@ -30,40 +28,6 @@ const meshResolutions: ReadonlyArray<{ readonly width: number; readonly height: 
   { width: 1024, height: 512 },
   { width: 2048, height: 1024 },
 ];
-
-/**
- * Demo fixtures — visible-on-init showcase. Curated down to the
- * minimum that demonstrates each cross-cutting layer (arcs, 3D
- * markers, HTML callouts) without crowding the boot frame. The
- * outline-dark first-impression is "subtle, professional, modern" —
- * a few markers tracing major cities, a handful of slow great-circle
- * arcs threading them together, no shouting HTML callouts.
- *
- * All marker / arc colours sit on a tight cyan / amber palette so
- * the picture reads as a coherent composition rather than a paint
- * chart. Pulse speeds are deliberately mismatched so the field
- * doesn't strobe in unison.
- */
-const SHOWCASE_MARKERS: ReadonlyArray<MarkerConfig> = [
-  { id: 'nyc', position: [40.7128, -74.006], color: '#fbbf24', size: 0.018, label: 'New York', pulse: { speed: 1.2, amplitude: 0.4 } },
-  { id: 'lon', position: [51.5074, -0.1278], color: '#67e8f9', size: 0.018, label: 'London', pulse: { speed: 1.4, amplitude: 0.4 } },
-  { id: 'tok', position: [35.6762, 139.6503], color: '#a5f3fc', size: 0.018, label: 'Tokyo', pulse: { speed: 1.6, amplitude: 0.4 } },
-  { id: 'syd', position: [-33.8688, 151.2093], color: '#fcd34d', size: 0.018, label: 'Sydney', pulse: { speed: 1.3, amplitude: 0.4 } },
-];
-
-const SHOWCASE_ARCS: ReadonlyArray<ArcConfig> = [
-  { id: 'nyc-lon', from: [40.7128, -74.006], to: [51.5074, -0.1278], color: '#67e8f9', height: 'auto', animated: true, animationDuration: 3.5, headEasing: 'easeInOut' },
-  { id: 'lon-tok', from: [51.5074, -0.1278], to: [35.6762, 139.6503], color: '#5b9eff', height: 'auto', animated: true, animationDuration: 4.5, headEasing: 'pulse' },
-  { id: 'tok-syd', from: [35.6762, 139.6503], to: [-33.8688, 151.2093], color: '#a5f3fc', height: 'auto', animated: true, animationDuration: 3.5, headEasing: 'easeInOut' },
-  { id: 'syd-nyc', from: [-33.8688, 151.2093], to: [40.7128, -74.006], color: '#fcd34d', height: 'auto', animated: true, animationDuration: 5, headEasing: 'pulse' },
-];
-
-// HTML callouts intentionally empty on init — kept the type/import
-// alive so a consumer (or the demo's later "showcase" toggle) can
-// inject custom DOM markers without reaching into core. Loud
-// inline-styled chips read as "demo content" rather than "the
-// product"; we surface them via the workshop instead.
-const SHOWCASE_HTML_MARKERS: ReadonlyArray<HtmlMarkerConfig> = [];
 
 export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig => {
   const pixelRatio =
@@ -551,14 +515,9 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
     initialPosition: [state.globe.initialLat, state.globe.initialLng],
     minZoom: state.globe.minZoom,
     maxZoom: state.globe.maxZoom,
-    // Showcase fixtures — animated great-circle routes, pulsing 3D
-    // city markers, and HTML callouts for the loudest cities. Surfaced
-    // unconditionally on init so an empty studio still demonstrates
-    // every cross-cutting outline-kind layer; they're declarative
-    // config, so any kind that doesn't render them just no-ops.
-    arcs: SHOWCASE_ARCS,
-    markers: SHOWCASE_MARKERS,
-    htmlMarkers: SHOWCASE_HTML_MARKERS,
+    arcs: buildArcs(state.globe),
+    markers: state.globe.markerMode === 'dots' ? buildMarkerDots(state.globe) : [],
+    htmlMarkers: state.globe.markerMode === 'cards' ? buildMarkerCards(state.globe) : [],
   };
 };
 
@@ -566,16 +525,15 @@ export const structuralGlobeKey = (config: GlobeRuntimeConfig): string =>
   JSON.stringify({
     kind: config.kind,
     theme: config.theme,
-    countries: config.countries,
-    labels: config.countryLabels,
-    atmosphere: config.atmosphere,
-    starfield: config.starfield,
-    focusPulse: config.focusPulse,
-    // Per-kind sections own decorators that are constructed once at build
-    // time (focus pulse band, hover glow, etc.) — changing any of these
-    // means we need to rebuild rather than live-update.
-    outline: config.outline,
+    countryResolution: config.countries?.resolution,
+    // Outline hover lift values are baked into the standard selection
+    // geometry's surface radius. Everything else in `outline` flows
+    // through `setOutlineConfig` / focusPulse.setOptions live.
+    outlineHoverLift: config.outline?.hover?.lift,
+    outlineHoverGlowLift: config.outline?.hover?.glowLift,
     axisTilt: config.axisTilt,
+    minZoom: config.minZoom,
+    maxZoom: config.maxZoom,
     performance: config.performance,
   });
 

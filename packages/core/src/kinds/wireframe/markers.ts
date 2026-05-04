@@ -138,7 +138,8 @@ export class WireframeMarkersLayer {
       const pulsed = pulse
         ? baseScale * (1 + pulse.amplitude * Math.sin(this.elapsed * pulse.speed * 2 * Math.PI))
         : baseScale;
-      const target = id === this.hoveredId ? pulsed * this.hoverScale : pulsed;
+      const hoverScale = slot.marker.hoverScale ?? this.hoverScale;
+      const target = id === this.hoveredId ? pulsed * hoverScale : pulsed;
       const next = slot.currentScale + (target - slot.currentScale) * k;
       const changed = Math.abs(next - slot.currentScale) > 1e-6 || pulse !== null;
       slot.currentScale = next;
@@ -192,6 +193,14 @@ export class WireframeMarkersLayer {
   }
 
   private refreshCount(): void {
-    this.mesh.count = this.slots.size;
+    if (this.slots.size === 0) {
+      this.mesh.count = 0;
+      return;
+    }
+    let maxIndex = 0;
+    this.slots.forEach((slot) => {
+      maxIndex = Math.max(maxIndex, slot.index);
+    });
+    this.mesh.count = maxIndex + 1;
   }
 }

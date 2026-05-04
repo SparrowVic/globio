@@ -5,6 +5,7 @@ import type {
   HeatmapSettings,
   HeatmapSurfaceMode,
 } from './types';
+import { defaultArcSettings, defaultMarkerSettings } from './layer-fixtures';
 
 export const defaultGlobeSettings: GlobeSettings = {
   kind: 'outline',
@@ -144,6 +145,8 @@ export const defaultGlobeSettings: GlobeSettings = {
   outlineHoverCrosshairCardinalTicks: true,
   outlineHoverCrosshairTooltip: true,
   outlineHoverCrosshairTooltipDecimals: 2,
+  ...defaultArcSettings,
+  ...defaultMarkerSettings,
   // Dotted defaults — empty-string colors / 0 numerics mean "use theme
   // default" sentinel; sensible booleans default-on so the workshop's
   // baseline preview shows the dot field at full personality.

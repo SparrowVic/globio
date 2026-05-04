@@ -60,6 +60,9 @@ const RING_VERT = /* glsl */ `
   uniform float uPointSize;
   uniform float uPixelRatio;
   uniform float uOpacityScale;
+  uniform vec3 uHoveredCenter;
+  uniform float uHoveredActive;
+  uniform float uHoverBoost;
   varying vec3 vColor;
   varying float vAlpha;
 
@@ -84,7 +87,9 @@ const RING_VERT = /* glsl */ `
 
     // Quadratic fade so the ring is brightest at spawn and gone at
     // the outer rim — reads as "energy expanding outward".
-    vAlpha = (1.0 - t) * (1.0 - t) * uOpacityScale;
+    float hovered = uHoveredActive * (1.0 - step(0.0005, distance(aMarkerCenter, uHoveredCenter)));
+    float hoverLift = 1.0 + hovered * uHoverBoost;
+    vAlpha = (1.0 - t) * (1.0 - t) * uOpacityScale * hoverLift;
     vColor = aColor;
 
     vec4 mv = modelViewMatrix * vec4(onSphere, 1.0);
@@ -92,7 +97,12 @@ const RING_VERT = /* glsl */ `
     // Particles also shrink as they ride outward — sells the
     // "energy dissipating" feel and stops the outer dots looking
     // chunkier than the centre.
-    gl_PointSize = uPointSize * (0.5 + 0.5 * (1.0 - t)) * uPixelRatio * (1.0 / -mv.z);
+    gl_PointSize =
+      uPointSize *
+      (0.5 + 0.5 * (1.0 - t)) *
+      (1.0 + hovered * 0.55) *
+      uPixelRatio *
+      (1.0 / -mv.z);
   }
 `;
 
@@ -150,6 +160,7 @@ export class DottedMarkersLayer {
   private readonly dummy = new Object3D();
   private readonly tempColor = new Color();
   private readonly tempVector = new Vector3();
+  private readonly hoveredCenter = new Vector3();
   private readonly defaultColor: string;
   private readonly defaultSize: number;
   private readonly hoverScale: number;
@@ -168,7 +179,13 @@ export class DottedMarkersLayer {
     this.hoverScale = options.hoverScale ?? 1.5;
 
     this.geometry = new SphereGeometry(1, 8, 8);
-    this.material = new MeshBasicMaterial({ color: 0xffffff });
+    this.material = new MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.78,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
     this.mesh = new InstancedMesh(this.geometry, this.material, this.maxMarkers);
     this.mesh.count = 0;
     this.mesh.frustumCulled = false;
@@ -188,6 +205,9 @@ export class DottedMarkersLayer {
         uPointSize: { value: BEACON.pointSize },
         uPixelRatio: { value: pixelRatio },
         uOpacityScale: { value: 1 },
+        uHoveredCenter: { value: this.hoveredCenter },
+        uHoveredActive: { value: 0 },
+        uHoverBoost: { value: 0.65 },
       },
       vertexShader: RING_VERT,
       fragmentShader: RING_FRAG,
@@ -230,6 +250,10 @@ export class DottedMarkersLayer {
     this.mesh.instanceMatrix.needsUpdate = true;
     this.slots.delete(id);
     this.freeIndices.push(slot.index);
+    if (this.hoveredId === id) {
+      this.hoveredId = null;
+      this.syncHoveredBeacon();
+    }
     this.refreshCount();
     this.rebuildBeacons();
   }
@@ -244,13 +268,7 @@ export class DottedMarkersLayer {
   public setHovered(id: string | null): void {
     if (this.hoveredId === id) return;
     this.hoveredId = id;
-    // Hovered marker: its rings get a brighter overlay scale. Cheap to
-    // implement via the shared opacity uniform — only one hovered
-    // marker at a time, so the others stay at default and the hovered
-    // one rides bright. (Implementation detail simplification: we
-    // could split the geometry into per-marker draws to highlight
-    // only one; for the demo's marker counts the global lift reads
-    // fine and keeps the geometry single-buffer.)
+    this.syncHoveredBeacon();
   }
 
   public update(delta: number): void {
@@ -266,7 +284,8 @@ export class DottedMarkersLayer {
       const pulsed = pulse
         ? baseScale * (1 + pulse.amplitude * Math.sin(this.elapsed * pulse.speed * 2 * Math.PI))
         : baseScale;
-      const target = id === this.hoveredId ? pulsed * this.hoverScale : pulsed;
+      const hoverScale = markerHoverScale(slot.marker, this.hoverScale);
+      const target = id === this.hoveredId ? pulsed * hoverScale : pulsed;
       const next = slot.currentScale + (target - slot.currentScale) * k;
       const changed = Math.abs(next - slot.currentScale) > 1e-6 || pulse !== null;
       slot.currentScale = next;
@@ -324,7 +343,15 @@ export class DottedMarkersLayer {
   }
 
   private refreshCount(): void {
-    this.mesh.count = this.slots.size;
+    if (this.slots.size === 0) {
+      this.mesh.count = 0;
+      return;
+    }
+    let maxIndex = 0;
+    this.slots.forEach((slot) => {
+      maxIndex = Math.max(maxIndex, slot.index);
+    });
+    this.mesh.count = maxIndex + 1;
   }
 
   /**
@@ -416,6 +443,7 @@ export class DottedMarkersLayer {
     points.renderOrder = 7; // above arcs, below the InstancedMesh cores
     this.beaconPoints = points;
     this.mesh.add(points);
+    this.syncHoveredBeacon();
   }
 
   private disposeBeacons(): void {
@@ -428,4 +456,20 @@ export class DottedMarkersLayer {
       this.beaconGeometry = null;
     }
   }
+
+  private syncHoveredBeacon(): void {
+    const slot = this.hoveredId ? this.slots.get(this.hoveredId) : undefined;
+    const active = slot !== undefined;
+    this.beaconMaterial.uniforms['uHoveredActive']!.value = active ? 1 : 0;
+    if (!slot) return;
+    latLngToVector3(slot.marker.position, GLOBE_RADIUS, this.hoveredCenter);
+    const hoverScale = markerHoverScale(slot.marker, this.hoverScale);
+    this.beaconMaterial.uniforms['uHoverBoost']!.value = Math.max(
+      0.25,
+      (hoverScale - 1) * 0.9 + 0.35,
+    );
+  }
 }
+
+const markerHoverScale = (marker: MarkerConfig, fallback: number): number =>
+  marker.hoverScale ?? fallback;

@@ -131,6 +131,155 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         </DependsOn>
 
         <DependsOn
+          when={settings.kind === 'dotted'}
+          because="Dotted selection is rendered by scaling, brightening, and lifting surface dots instead of drawing a country stroke."
+          className="space-y-4"
+          variant="hidden"
+        >
+          <SectionHeading>Dotted · hover dots</SectionHeading>
+          <SwitchField
+            label="Hover expansion"
+            checked={settings.dottedHoverDots}
+            onChange={(dottedHoverDots) => onGlobeChange({ dottedHoverDots })}
+            value="Hovered country's dots scale up and brighten"
+          />
+          <DependsOn
+            when={settings.dottedHoverDots}
+            because="Enable Hover expansion first."
+            className="space-y-4"
+          >
+            <SliderField
+              label="Scale"
+              value={settings.dottedHoverScale}
+              min={1}
+              max={3}
+              step={0.05}
+              format={(value) => `×${value.toFixed(2)}`}
+              onChange={(dottedHoverScale) => onGlobeChange({ dottedHoverScale })}
+            />
+            <SliderField
+              label="Brightness boost"
+              value={settings.dottedHoverBrightnessBoost}
+              min={0}
+              max={2}
+              step={0.05}
+              format={(value) => `×${value.toFixed(2)}`}
+              onChange={(dottedHoverBrightnessBoost) =>
+                onGlobeChange({ dottedHoverBrightnessBoost })
+              }
+            />
+            <SliderField
+              label="Ease duration"
+              value={settings.dottedHoverDuration}
+              min={0.05}
+              max={1.5}
+              step={0.01}
+              format={(value) => `${(value * 1000).toFixed(0)} ms`}
+              onChange={(dottedHoverDuration) => onGlobeChange({ dottedHoverDuration })}
+            />
+            <SliderField
+              label="Hover lift"
+              value={settings.dottedHoverLift}
+              min={0}
+              max={0.04}
+              step={0.001}
+              format={(value) =>
+                value === 0 ? 'flat' : `+${(value * 100).toFixed(2)}% of radius`
+              }
+              onChange={(dottedHoverLift) => onGlobeChange({ dottedHoverLift })}
+            />
+          </DependsOn>
+
+          <SectionHeading>Dotted · edge rim</SectionHeading>
+          <SwitchField
+            label="Edge dot rim"
+            checked={settings.dottedEdgeHighlight}
+            onChange={(dottedEdgeHighlight) => onGlobeChange({ dottedEdgeHighlight })}
+            value="Boundary dots brighten and lift on hover or pin"
+          />
+          <DependsOn
+            when={settings.dottedEdgeHighlight}
+            because="Enable Edge dot rim first."
+            className="space-y-4"
+          >
+            <SliderField
+              label="Brightness boost"
+              value={settings.dottedEdgeBoost}
+              min={0}
+              max={1.5}
+              step={0.05}
+              format={(value) => value.toFixed(2)}
+              onChange={(dottedEdgeBoost) => onGlobeChange({ dottedEdgeBoost })}
+            />
+            <SliderField
+              label="Edge lift"
+              value={settings.dottedEdgeLift}
+              min={0}
+              max={0.02}
+              step={0.0005}
+              format={(value) =>
+                value === 0 ? 'flat' : `+${(value * 100).toFixed(2)}% of radius`
+              }
+              onChange={(dottedEdgeLift) => onGlobeChange({ dottedEdgeLift })}
+            />
+          </DependsOn>
+
+          <SectionHeading>Dotted · pinned country</SectionHeading>
+          <SwitchField
+            label="Active pulse"
+            checked={settings.dottedActiveCountry}
+            onChange={(dottedActiveCountry) => onGlobeChange({ dottedActiveCountry })}
+            value="Pinned country's dots breathe with a steady boost"
+          />
+          <DependsOn
+            when={settings.dottedActiveCountry}
+            because="Enable Active pulse first."
+            className="space-y-4"
+          >
+            <SliderField
+              label="Brightness boost"
+              value={settings.dottedActiveBoost}
+              min={0}
+              max={2}
+              step={0.05}
+              format={(value) => `+${value.toFixed(2)}`}
+              onChange={(dottedActiveBoost) => onGlobeChange({ dottedActiveBoost })}
+            />
+            <SliderField
+              label="Scale"
+              value={settings.dottedActiveScale}
+              min={1}
+              max={2}
+              step={0.02}
+              format={(value) => `×${value.toFixed(2)}`}
+              onChange={(dottedActiveScale) => onGlobeChange({ dottedActiveScale })}
+            />
+            <SliderField
+              label="Pulse speed"
+              value={settings.dottedActivePulseSpeed}
+              min={0.05}
+              max={2}
+              step={0.05}
+              format={(value) => `${value.toFixed(2)} Hz`}
+              onChange={(dottedActivePulseSpeed) =>
+                onGlobeChange({ dottedActivePulseSpeed })
+              }
+            />
+            <SliderField
+              label="Active lift"
+              value={settings.dottedActiveLift}
+              min={0}
+              max={0.05}
+              step={0.001}
+              format={(value) =>
+                value === 0 ? 'flat' : `+${(value * 100).toFixed(2)}% of radius`
+              }
+              onChange={(dottedActiveLift) => onGlobeChange({ dottedActiveLift })}
+            />
+          </DependsOn>
+        </DependsOn>
+
+        <DependsOn
           when={settings.kind === 'outline'}
           because="Outline-specific decoration. Switch the main globe to outline kind to tune."
           className="space-y-4"
@@ -223,6 +372,19 @@ const preset: PresetModule = {
     'hoverGlowOpacity',
     'activeStrokeColor',
     'activeStrokeOpacity',
+    'dottedHoverDots',
+    'dottedHoverScale',
+    'dottedHoverBrightnessBoost',
+    'dottedHoverDuration',
+    'dottedHoverLift',
+    'dottedActiveCountry',
+    'dottedActiveBoost',
+    'dottedActiveScale',
+    'dottedActivePulseSpeed',
+    'dottedActiveLift',
+    'dottedEdgeHighlight',
+    'dottedEdgeBoost',
+    'dottedEdgeLift',
     'outlineHoverLift',
     'outlineHoverGlowLift',
     'outlineHoverGlowEnabled',
@@ -230,11 +392,10 @@ const preset: PresetModule = {
     'outlineContinentDimAmount',
   ],
   // Live now: hoverOccludeBackSide (highlight material depthTest flip),
-  // outlineHoverGlowEnabled / outlineContinentDim / amount via the new
-  // outline kindHandle.setOutlineConfig hatch. Hover lift / glow lift
-  // bake into geometry surface radius so they still rebuild.
-  // `hoverEnabled` only gates the dotted kind today; flipping it on
-  // the outline preview is a visual no-op so we skip the rebuild.
+  // hoverEnabled (pointer hit path), dotted selection knobs, and
+  // outlineHoverGlowEnabled / outlineContinentDim / amount via the
+  // kindHandle setters. Hover lift / glow lift bake into geometry
+  // surface radius so they still rebuild.
   rebuildKeys: ['outlineHoverLift', 'outlineHoverGlowLift'],
 };
 

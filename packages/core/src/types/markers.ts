@@ -5,6 +5,11 @@ export interface MarkerConfig {
   readonly position: LatLng;
   readonly color?: string;
   readonly size?: number;
+  /**
+   * Multiplier applied while this marker is hovered. Defaults to the
+   * active kind layer's own hover scale (currently 1.5 for dot markers).
+   */
+  readonly hoverScale?: number;
   readonly label?: string;
   readonly data?: Readonly<Record<string, unknown>>;
   /**

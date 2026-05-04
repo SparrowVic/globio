@@ -207,7 +207,7 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     icon: faRoute,
     accent: '#22d3ee',
     description: 'Great-circle connections between lat/lng pairs.',
-    status: () => 'preview',
+    status: (s) => `${s.globe.arcDataset}${s.globe.arcAnimated ? ' · animated' : ''}`,
   },
   {
     id: 'markers',
@@ -215,7 +215,7 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     icon: faMapLocationDot,
     accent: '#34d399',
     description: 'Points of interest with pulse animation + tooltips.',
-    status: () => 'preview',
+    status: (s) => `${s.globe.markerMode} · ${s.globe.markerDataset}`,
   },
   {
     id: 'atmosphere',
@@ -232,10 +232,10 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     accent: '#fde68a',
     description: 'Cursor reticle + lat/lng readout — kind decides the visual.',
     status: (s) =>
-      s.globe.kind === 'outline'
+      s.globe.kind === 'outline' || s.globe.kind === 'dotted'
         ? s.globe.outlineHoverCrosshair
           ? 'reticle'
           : 'off'
-        : 'kind-specific',
+        : 'unavailable',
   },
 ];

@@ -42,6 +42,7 @@ const DEFAULT_RING_FACTOR = 0.7;
 const SURFACE_LIFT = GLOBE_RADIUS * 1.0025;
 const FOLLOW_BLEND = 0.8;
 const POSITION_EPSILON = 1e-5;
+const RETICLE_ROTATION_SPEED = 0.55;
 
 /**
  * Pure formatter — `(52.23, 21.01) → '52.23°N, 21.01°E'`. Lat clamped to
@@ -82,6 +83,7 @@ export class DottedCrosshairLayer {
   private tooltipDecimals: number;
   private latestLat = 0;
   private latestLng = 0;
+  private elapsed = 0;
 
   public constructor(options: DottedCrosshairOptions) {
     this.container = options.container;
@@ -104,7 +106,7 @@ export class DottedCrosshairLayer {
       depthWrite: false,
       blending: AdditiveBlending,
       size: this.size * 320,
-      sizeAttenuation: true,
+      sizeAttenuation: false,
     });
 
     this.object = new Group();
@@ -170,6 +172,7 @@ export class DottedCrosshairLayer {
   }
 
   public update(delta: number): void {
+    this.elapsed += delta;
     const target = this.active ? 1 : 0;
     if (this.fadeT !== target) {
       const step = delta / 0.08;
@@ -186,6 +189,7 @@ export class DottedCrosshairLayer {
       if (this.current.lengthSq() < POSITION_EPSILON) this.current.copy(this.target);
       this.object.position.copy(this.current);
       this.object.lookAt(0, 0, 0);
+      this.object.rotateZ(this.elapsed * RETICLE_ROTATION_SPEED);
       this.object.visible = true;
     } else if (this.fadeT === 0) {
       this.object.visible = false;
@@ -265,10 +269,9 @@ export class DottedCrosshairLayer {
  * of points around the cursor's surface intersection:
  *
  *   - inner: 4 dots at N/E/S/W (cardinal targeting cue)
- *   - mid:   12 dots at every 30° (the main "ring" but as a dotted
+ *   - mid:   16 dots around the main reticle ring
+ *   - outer: broken orbit dots plus cardinal ticks
  *            constellation rather than a continuous stroke)
- *   - outer: 4 cardinal-only ticks just past the mid ring (subtle
- *            extra direction marker)
  *
  * Plus a single bright dot at the cursor centre. Reads as a HUD
  * targeting reticle from sci-fi rather than a Tron cross + ring;
@@ -294,26 +297,43 @@ const buildReticle = (
     positions.push(Math.cos(a) * innerR, Math.sin(a) * innerR, 0);
   }
 
-  // Mid ring: 12 dots at every 30° around `size * ringRadiusFactor`.
+  // Mid ring around `size * ringRadiusFactor`.
   // This is the visual successor to the old continuous ring — same
   // size envelope, dotted instead.
   const midR = size * ringRadiusFactor;
   if (midR > 0) {
-    const segs = 12;
+    const segs = 16;
     for (let i = 0; i < segs; i++) {
       const a = (i / segs) * Math.PI * 2;
       positions.push(Math.cos(a) * midR, Math.sin(a) * midR, 0);
     }
+
+    // Broken outer orbit — every third point is omitted, which gives
+    // the reticle a scanning/radar cadence without drawing lines.
+    const outerR = midR + size * 0.32;
+    const orbitSegs = 24;
+    for (let i = 0; i < orbitSegs; i++) {
+      if (i % 3 === 1) continue;
+      const a = (i / orbitSegs) * Math.PI * 2;
+      positions.push(Math.cos(a) * outerR, Math.sin(a) * outerR, 0);
+    }
   }
 
-  // Outer ticks: 4 dots at N/E/S/W just past the mid ring — same
-  // role as the legacy cardinal ticks (extra orientation cue) but
-  // each tick is a single dot rather than a short line.
+  // Cardinal ticks as small dot triplets. They still read like N/S/E/W
+  // orientation marks, but remain native to a dotted HUD.
   if (cardinalTicks && midR > 0) {
-    const outerR = midR + size * 0.18;
+    const outerR = midR + size * 0.55;
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2;
-      positions.push(Math.cos(a) * outerR, Math.sin(a) * outerR, 0);
+      const tangent = a + Math.PI / 2;
+      for (let j = -1; j <= 1; j++) {
+        const spread = j * size * 0.08;
+        positions.push(
+          Math.cos(a) * outerR + Math.cos(tangent) * spread,
+          Math.sin(a) * outerR + Math.sin(tangent) * spread,
+          0,
+        );
+      }
     }
   }
 
