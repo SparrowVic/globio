@@ -218,6 +218,14 @@ const VERT_SHADER = /* glsl */ `
   uniform float uHoverBoost;
   uniform float uHoverScale;
   uniform float uHoverBrightnessBoost;
+  // Active (pinned) country uniforms. The pinned country's dots take a
+  // steady brightness boost plus a slow sin pulse driven by uActivePulse
+  // (a normalised -1..1 sine updated per-frame in JS, so the shader
+  // stays free of extra trig calls beyond the existing drift wave).
+  uniform int uActiveCountry;
+  uniform float uActivePulse;
+  uniform float uActiveBoost;
+  uniform float uActiveScale;
   uniform vec3 uCursorOrigin;
   uniform float uCursorAge;
   uniform float uCursorAmp;
@@ -268,6 +276,15 @@ const VERT_SHADER = /* glsl */ `
     float hoverBrightness = hoverActive * uHoverBrightnessBoost;
     float hoverSize = 1.0 + hoverActive * (uHoverScale - 1.0);
 
+    // Active (pinned) boost — persistent steady brightness + slow pulse on
+    // the pinned country's dots. Independent from hover so the user can
+    // hover other countries without losing the pinned visual cue.
+    float activeMatch = (idx == uActiveCountry) ? 1.0 : 0.0;
+    // Pulse amplitude: 70% steady + 30% sine ([0..1] envelope).
+    float activeEnvelope = 0.7 + 0.3 * uActivePulse;
+    float activeBrightness = activeMatch * uActiveBoost * activeEnvelope;
+    float activeSizeBoost = activeMatch * (uActiveScale - 1.0) * activeEnvelope;
+
     // Latitude band emphasis — equator + tropics get a brightness boost
     // proportional to a Gaussian falloff around each parallel. aLat is
     // the dot's latitude in radians, baked at build time.
@@ -288,7 +305,7 @@ const VERT_SHADER = /* glsl */ `
     }
 
     vBrightness = rippleBrightness + driftBrightness + hoverBrightness
-      + wake + latBoost + breath;
+      + activeBrightness + wake + latBoost + breath;
 
     float fs = 0.0;
     for (int i = 0; i < ${MAX_FLASHES}; i++) {
@@ -298,7 +315,8 @@ const VERT_SHADER = /* glsl */ `
 
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = uPointSize * uSizeScale * uPixelRatio * (1.0 / -mv.z) * hoverSize;
+    gl_PointSize = uPointSize * uSizeScale * uPixelRatio * (1.0 / -mv.z)
+      * hoverSize * (1.0 + activeSizeBoost);
   }
 `;
 
@@ -382,6 +400,13 @@ export class CountriesDottedLayer {
   private hoveredId: string | null = null;
   private hoverBoost = 0;
   private hoverTarget = 0;
+  /**
+   * Active (pinned) country state — independent from hover. The id
+   * tracks who's pinned; `activePulseSpeed` drives the per-frame sine
+   * so the pinned country's dots breathe gently in/out.
+   */
+  private activeId: string | null = null;
+  private activePulseSpeed = 0.65;
   /** Cursor wake state — origin & age live as uniforms; we just clamp. */
   private cursorAge = Infinity; // > fade → invisible
   private readonly cursorOrigin = new Vector3(1, 0, 0);
@@ -480,6 +505,12 @@ export class CountriesDottedLayer {
         uHoverBoost: { value: 0 },
         uHoverScale: { value: hoverScale },
         uHoverBrightnessBoost: { value: hoverBrightnessBoost },
+        uActiveCountry: { value: -1 },
+        uActivePulse: { value: 1 },
+        // Default active boost / scale chosen so the visual cue reads
+        // as "this country is selected" without overpowering hover.
+        uActiveBoost: { value: 0.65 },
+        uActiveScale: { value: 1.18 },
         uCursorOrigin: { value: this.cursorOrigin },
         uCursorAge: { value: 0 },
         uCursorAmp: { value: options.cursorWakeAmplitude },
@@ -578,6 +609,40 @@ export class CountriesDottedLayer {
   }
 
   /**
+   * Pin a country as "active" — independent from the transient hover.
+   * The pinned country's dots get a steady brightness boost + slow
+   * sine pulse driven from the per-frame `update()` tick. Pass `null`
+   * to clear. Hover continues to work over any country regardless of
+   * the active state.
+   */
+  public setActiveCountry(id: string | null): void {
+    if (id === this.activeId) return;
+    this.activeId = id;
+    if (id === null) {
+      this.material.uniforms['uActiveCountry']!.value = -1;
+      this.material.uniforms['uActivePulse']!.value = 1;
+      return;
+    }
+    const idx = this.countryIndex.get(id);
+    this.material.uniforms['uActiveCountry']!.value = idx === undefined ? -1 : idx;
+  }
+
+  /** Adjust the steady brightness boost added to active-country dots. */
+  public setActiveBoost(value: number): void {
+    this.material.uniforms['uActiveBoost']!.value = value;
+  }
+
+  /** Adjust the active-country dot scale multiplier. */
+  public setActiveScale(value: number): void {
+    this.material.uniforms['uActiveScale']!.value = value;
+  }
+
+  /** Active-country sine speed (Hz). Tick happens in update(). */
+  public setActivePulseSpeed(value: number): void {
+    this.activePulseSpeed = value;
+  }
+
+  /**
    * Set the currently-hovered country. The shader's hover boost eases
    * smoothly toward 1 when set, toward 0 when cleared. Swapping countries
    * snaps the index instantly but preserves the boost value, so the visual
@@ -637,6 +702,16 @@ export class CountriesDottedLayer {
       this.material.uniforms['uHoveredCountry']!.value = -1;
       this.hoverBoost = 0;
       this.hoverTarget = 0;
+    }
+
+    // Active-country pulse — drive uActivePulse with a sine that maps
+    // to [0..1] so the shader's envelope stays well-behaved.
+    if (this.activeId !== null) {
+      const phase = this.elapsed * this.activePulseSpeed * 2 * Math.PI;
+      this.material.uniforms['uActivePulse']!.value = 0.5 + 0.5 * Math.sin(phase);
+    } else {
+      // Idle state — ensure no stale value lingers if id was just cleared.
+      this.material.uniforms['uActivePulse']!.value = 1;
     }
 
     if (this.cursorWakeEnabled) {

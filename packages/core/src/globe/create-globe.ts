@@ -457,45 +457,54 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           { type: 'surface', object: globeMesh.mesh },
         ]);
 
-        // Outline kind is pure linework — the legacy 1.0025 default lift
-        // shows up as a duplicated stroke. Default outline lift to 0 so the
-        // highlight redraws the existing border rather than stacking above
-        // it; expose the knob via OutlineConfig.hover.lift if a caller
-        // wants the lifted look back. Other kinds keep the default since
-        // their fills mask any z-fight on the same radius.
-        const highlightSurfaceRadius =
-          resolvedKind === 'outline'
-            ? GLOBE_RADIUS * (1 + (config.outline?.hover?.lift ?? 0))
-            : undefined;
+        // Mount the standard outline-stroke hover + active layers only if
+        // the kind opts in. Kinds with their own visual language for
+        // hover / active feedback (e.g. dotted's brightening dots) set
+        // `usesStandardCountryHighlight: false` so the line-segments
+        // strokes don't fight their aesthetic.
+        const useStandardHighlight = kindModule.usesStandardCountryHighlight !== false;
+        if (useStandardHighlight) {
+          // Outline kind is pure linework — the legacy 1.0025 default lift
+          // shows up as a duplicated stroke. Default outline lift to 0 so
+          // the highlight redraws the existing border rather than stacking
+          // above it; expose the knob via OutlineConfig.hover.lift if a
+          // caller wants the lifted look back. Other kinds keep the default
+          // since their fills mask any z-fight on the same radius.
+          const highlightSurfaceRadius =
+            resolvedKind === 'outline'
+              ? GLOBE_RADIUS * (1 + (config.outline?.hover?.lift ?? 0))
+              : undefined;
 
-        const highlight = new CountryHighlightLayer({
-          hoverColor: tokens['countries.borderHover.color'],
-          hoverWidth: tokens['countries.borderHover.width'],
-          hoverOpacity: tokens['countries.borderHover.opacity'],
-          occludeBackSide: countries.hoverOccludeBackSide,
-          ...(highlightSurfaceRadius !== undefined
-            ? { surfaceRadius: highlightSurfaceRadius }
-            : {}),
-        });
-        highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
-        globeGroup.add(highlight.object);
-        state.countryHighlightLayer = highlight;
+          const highlight = new CountryHighlightLayer({
+            hoverColor: tokens['countries.borderHover.color'],
+            hoverWidth: tokens['countries.borderHover.width'],
+            hoverOpacity: tokens['countries.borderHover.opacity'],
+            occludeBackSide: countries.hoverOccludeBackSide,
+            ...(highlightSurfaceRadius !== undefined
+              ? { surfaceRadius: highlightSurfaceRadius }
+              : {}),
+          });
+          highlight.registerFeatures(features as ReadonlyArray<CountryFeature>);
+          globeGroup.add(highlight.object);
+          state.countryHighlightLayer = highlight;
 
-        const activeLayer = new CountryHighlightLayer({
-          hoverColor: tokens['countries.borderActive.color'],
-          hoverWidth: tokens['countries.borderActive.width'],
-          hoverOpacity: tokens['countries.borderActive.opacity'],
-          occludeBackSide: countries.hoverOccludeBackSide,
-          ...(highlightSurfaceRadius !== undefined
-            ? { surfaceRadius: highlightSurfaceRadius }
-            : {}),
-        });
-        activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
-        activeLayer.object.renderOrder = 11;
-        globeGroup.add(activeLayer.object);
-        state.countryActiveLayer = activeLayer;
-        // Re-apply pending active country if user called setActiveCountry before features loaded
-        if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
+          const activeLayer = new CountryHighlightLayer({
+            hoverColor: tokens['countries.borderActive.color'],
+            hoverWidth: tokens['countries.borderActive.width'],
+            hoverOpacity: tokens['countries.borderActive.opacity'],
+            occludeBackSide: countries.hoverOccludeBackSide,
+            ...(highlightSurfaceRadius !== undefined
+              ? { surfaceRadius: highlightSurfaceRadius }
+              : {}),
+          });
+          activeLayer.registerFeatures(features as ReadonlyArray<CountryFeature>);
+          activeLayer.object.renderOrder = 11;
+          globeGroup.add(activeLayer.object);
+          state.countryActiveLayer = activeLayer;
+          // Re-apply pending active country if user called
+          // setActiveCountry before features loaded.
+          if (state.activeCountryId) activeLayer.showCountry(state.activeCountryId);
+        }
       } else {
         // No country surface (wireframe). Marker raycasting plus the globe
         // sphere as a generic 'surface' target so kinds can still react to
@@ -597,7 +606,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.activeCountryId = id;
       if (id === null) state.countryActiveLayer?.clear();
       else state.countryActiveLayer?.showCountry(id);
-      (state.kindHandle as WireframeKindHandle | null)?.setActiveCountry?.(id);
+      // Forward to any kind handle that surfaces a `setActiveCountry`
+      // hook (wireframe ring, dotted pinned-pulse, …). Cast through a
+      // duck-typed shape so each kind-handle interface stays its own
+      // concern.
+      (state.kindHandle as
+        | { readonly setActiveCountry?: (id: string | null) => void }
+        | null
+      )?.setActiveCountry?.(id);
     },
     setAutoRotate: (enabled) => controls.setAutoRotate(enabled),
     setStoryPopup: (popup) => {

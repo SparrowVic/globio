@@ -1,12 +1,13 @@
 import { CountriesDottedLayer } from './dotted-layer';
-import { buildDottedFocusPulse } from '../shared/focus-pulse-decorators';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
-import { AdditiveBlending, DoubleSide, MeshBasicMaterial, type Vector3 } from 'three';
+import { AdditiveBlending, DoubleSide, MeshBasicMaterial, Vector3 } from 'three';
+import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { CountryDataMap, DottedConfig, LatLng } from '../../types';
 import type {
   DataLayerBuilder,
+  FocusPulseDecorator,
   KindBuildContext,
   KindHandle,
   KindModule,
@@ -53,6 +54,14 @@ const resolveDriftAxis = (
  */
 export interface DottedKindHandle extends KindHandle {
   setHoveredCountry?(id: string | null): void;
+  /**
+   * Pin a country as "active" — its dots get a steady brightness boost
+   * plus a slow sine pulse, independent of the transient hover signal.
+   * Surfaced as the dotted analogue of the standard
+   * `CountryHighlightLayer.activeLayer` outline (which dotted opts out
+   * of).
+   */
+  setActiveCountry?(id: string | null): void;
   setPointerSurface?(point3D: import('three').Vector3 | null): void;
   setDottedConfig?(next: DottedConfig): void;
 }
@@ -74,6 +83,12 @@ export interface DottedKindHandle extends KindHandle {
 export const dottedKind: KindModule = {
   kind: 'dotted',
   hasCountryInteraction: true,
+  // Dotted's hover / active feedback emerges from the dot field itself:
+  // the country's dots brighten + scale via `hoverDots` and (optionally)
+  // a constellation/border-dot layer fades in. A LineSegments stroke on
+  // top of dots reads as foreign material — opt out of the shared
+  // CountryHighlightLayer entirely.
+  usesStandardCountryHighlight: false,
   build({ globeGroup, features, tokens, config }: KindBuildContext): DottedKindHandle {
     const dottedCfg = config.dotted;
     const ripple = dottedCfg?.clickRipple;
@@ -135,12 +150,24 @@ export const dottedKind: KindModule = {
     });
     globeGroup.add(layer.group);
 
-    const focusPulse = buildDottedFocusPulse({
-      globeGroup,
-      enabled: true,
-      color: tokens['countries.dotted.color'],
-      durationSeconds: 1.1,
-    });
+    // Dotted-native focus pulse: instead of a band ring lifted above the
+    // surface (the outline / hologram pattern), the focus event spawns a
+    // ripple wave *through* the dot field — same brightness curve as
+    // click ripples, just centered on the country's centroid (or click
+    // point, depending on `focusPulse.origin`). The wave emerges from
+    // the same dots the user is already looking at, so the feedback
+    // reads as the field reacting to the focus rather than an extra
+    // decoration parked on top.
+    const focusPulse: FocusPulseDecorator = {
+      spawn(latLng: LatLng) {
+        const origin = latLngToVector3(latLng, GLOBE_RADIUS, new Vector3());
+        layer.spawnRipple(origin);
+      },
+      // No per-frame work — the dotted layer's update() already ticks
+      // the ripple pool.
+      update: () => undefined,
+      dispose: () => undefined,
+    };
 
     // Dotted heatmap: shader-based density texture; lower opacity so the
     // dot field shows through underneath.
@@ -269,6 +296,9 @@ export const dottedKind: KindModule = {
             layer.spawnFlash(id);
           }
         }
+      },
+      setActiveCountry(id: string | null) {
+        layer.setActiveCountry(id);
       },
       setHoveredCountry(id: string | null) {
         layer.setHoveredCountry(id);

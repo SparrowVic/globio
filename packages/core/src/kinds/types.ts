@@ -189,5 +189,16 @@ export interface KindModule {
    * separate target.
    */
   readonly hasCountryInteraction: boolean;
+  /**
+   * Whether this kind opts in to the *standard* `CountryHighlightLayer` —
+   * the LineSegments-based stroke around the hovered + active country. The
+   * default (true) is the right call for outline / wireframe / paper /
+   * hologram which all read "fine" as a continuous line on top of their
+   * surface. Kinds whose visual language fights with continuous strokes
+   * (e.g. **dotted**, where a hard outline reads as foreign material on
+   * top of the dot field) opt out and provide their own dot-native hover /
+   * active feedback inside the kind module.
+   */
+  readonly usesStandardCountryHighlight?: boolean;
   build(ctx: KindBuildContext): KindHandle;
 }
