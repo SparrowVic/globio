@@ -39,6 +39,18 @@ export const loadPreset = async (id: ConfiguratorId): Promise<PresetModule | nul
       case 'markers':
         // @ts-ignore -- Wave F
         return ((await import('./presets/markers')) as { default: PresetModule }).default;
+      case 'dotted':
+        // @ts-ignore -- Wave I (kind personalities)
+        return ((await import('./presets/dotted')) as { default: PresetModule }).default;
+      case 'hologram':
+        // @ts-ignore -- Wave I
+        return ((await import('./presets/hologram')) as { default: PresetModule }).default;
+      case 'wireframe':
+        // @ts-ignore -- Wave I
+        return ((await import('./presets/wireframe')) as { default: PresetModule }).default;
+      case 'paper':
+        // @ts-ignore -- Wave I
+        return ((await import('./presets/paper')) as { default: PresetModule }).default;
       default:
         return null;
     }

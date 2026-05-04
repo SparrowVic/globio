@@ -3,12 +3,16 @@ import type { GlobeInstance } from '@your-globe/core';
 import {
   faCircleSmall,
   faCrosshairs,
+  faGrid2,
+  faGripDots,
   faMapLocationDot,
   faMousePointer,
+  faNewspaper,
   faRoute,
   faStars,
   faTags,
   faWandMagicSparkles,
+  faWaveSquare,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
 import type { GlobeKind, ThemePresetName } from '@your-globe/core';
@@ -35,7 +39,11 @@ export type ConfiguratorId =
   | 'arcs'
   | 'markers'
   | 'atmosphere'
-  | 'crosshair';
+  | 'crosshair'
+  | 'dotted'
+  | 'hologram'
+  | 'wireframe'
+  | 'paper';
 
 export interface PreviewCinematography {
   /**
@@ -204,5 +212,41 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     accent: '#fde68a',
     description: 'Tron-style targeting reticle (outline kind only).',
     status: (s) => (s.globe.kind === 'outline' ? 'outline' : 'off'),
+  },
+  /* ───────── Kind-personality cards ───────── */
+  // Each card lights up when the user is on that kind. On other kinds
+  // the preset opens but its knobs gate behind a `Switch to <kind>`
+  // hint via DependsOn — preview still mirrors the user's actual kind.
+  {
+    id: 'dotted',
+    name: 'Dotted style',
+    icon: faGripDots,
+    accent: '#22d3ee',
+    description: 'Per-dot color, drift, ripple, constellations, breath.',
+    status: (s) => (s.globe.kind === 'dotted' ? 'live' : 'switch to dotted'),
+  },
+  {
+    id: 'hologram',
+    name: 'Hologram style',
+    icon: faWaveSquare,
+    accent: '#67e8f9',
+    description: 'Scanlines, rim flicker, chromatic aberration, projector hum.',
+    status: (s) => (s.globe.kind === 'hologram' ? 'live' : 'switch to hologram'),
+  },
+  {
+    id: 'wireframe',
+    name: 'Wireframe grid',
+    icon: faGrid2,
+    accent: '#a78bfa',
+    description: 'Tron lat/lng grid — data packets, pulses, compass marks.',
+    status: (s) => (s.globe.kind === 'wireframe' ? 'live' : 'switch to wireframe'),
+  },
+  {
+    id: 'paper',
+    name: 'Paper texture',
+    icon: faNewspaper,
+    accent: '#fbbf24',
+    description: 'Vintage atlas — sepia, ink, vignette, compass rose.',
+    status: (s) => (s.globe.kind === 'paper' ? 'live' : 'switch to paper'),
   },
 ];
