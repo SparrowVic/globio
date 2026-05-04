@@ -24,6 +24,30 @@ export const defaultGlobeSettings: GlobeSettings = {
   activeStrokeColor: '',
   activeStrokeWidth: 0,
   activeStrokeOpacity: 0,
+  // Country fill — 'none' default keeps the layer hidden until the
+  // user picks a mode in the Country fill workshop card or the
+  // choropleth data layer fires `setData`. Other defaults are
+  // sentinels (empty / 0) so flipping mode picks up the theme tokens.
+  countryFillMode: 'none',
+  countryFillDefaultColor: '',
+  countryFillDefaultOpacity: 0,
+  // Curated palette for the demo's 'palette' mode. Picked so the
+  // hue spread reads cleanly on the dark globe — neighbouring
+  // countries land on visually distinct entries.
+  countryFillPalette: [
+    '#67e8f9',
+    '#fbbf24',
+    '#f472b6',
+    '#34d399',
+    '#a78bfa',
+    '#fb923c',
+    '#22d3ee',
+    '#facc15',
+  ],
+  countryFillHoverColor: '',
+  countryFillHoverOpacity: 0,
+  countryFillActiveColor: '',
+  countryFillActiveOpacity: 0,
   countryLabels: true,
   labelMinScreenSize: 78,
   labelSizeFadeRange: 0.45,

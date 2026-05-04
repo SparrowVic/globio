@@ -44,6 +44,19 @@ export interface GlobeSettings {
   readonly activeStrokeColor: string;
   readonly activeStrokeWidth: number;
   readonly activeStrokeOpacity: number;
+  /**
+   * Country fill (9th canonical layer). Mode + base + state-driven
+   * overrides. `'data'` mode is reserved for the choropleth data layer
+   * and isn't selectable from the workshop card.
+   */
+  readonly countryFillMode: 'none' | 'always' | 'palette' | 'data';
+  readonly countryFillDefaultColor: string;
+  readonly countryFillDefaultOpacity: number;
+  readonly countryFillPalette: ReadonlyArray<string>;
+  readonly countryFillHoverColor: string;
+  readonly countryFillHoverOpacity: number;
+  readonly countryFillActiveColor: string;
+  readonly countryFillActiveOpacity: number;
   readonly countryLabels: boolean;
   readonly labelMinScreenSize: number;
   readonly labelSizeFadeRange: number;

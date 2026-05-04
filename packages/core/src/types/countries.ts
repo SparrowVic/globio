@@ -59,6 +59,32 @@ export interface CountriesConfig {
     readonly width?: number;
     readonly opacity?: number;
   };
+  /**
+   * Country fill layer config. Independent of strokes — paints the
+   * country shape with a solid color.
+   *
+   * Modes:
+   *  - `'none'` — layer hidden (default; matches the legacy "wait for
+   *    setData / setDataLayer choropleth" behaviour).
+   *  - `'always'` — every country shown with `defaultColor` × `defaultOpacity`.
+   *  - `'palette'` — every country picks `palette[index % palette.length]`
+   *    (stable order from the loaded features array).
+   *  - `'data'` — driven by `setData(map, scale?)` / choropleth data layer.
+   *
+   * State overrides recolor a single country in place; active wins
+   * over hover when both target the same country.
+   */
+  readonly fill?: {
+    readonly mode?: 'none' | 'always' | 'palette' | 'data';
+    readonly defaultColor?: string;
+    readonly defaultOpacity?: number;
+    readonly palette?: ReadonlyArray<string>;
+    /** Empty string / non-positive numeric = no override (layer falls back to base). */
+    readonly hoverColor?: string;
+    readonly hoverOpacity?: number;
+    readonly activeColor?: string;
+    readonly activeOpacity?: number;
+  };
 }
 
 /**

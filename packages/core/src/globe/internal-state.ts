@@ -3,6 +3,7 @@ import type { AtmosphereLayer } from '../renderer/atmosphere-layer';
 import type { CountriesPickingLayer } from '../renderer/countries-picking-layer';
 import type { CountryFeature } from '../renderer/country-feature';
 import type { CountryHighlightLayer } from '../renderer/country-highlight-layer';
+import type { CountriesFillLayer } from '../renderer/countries-fill-layer';
 import type { CountryLabelsLayer } from '../renderer/country-labels-layer';
 import type { CountryTooltip } from '../renderer/country-tooltip';
 import type { GlobeMesh } from '../renderer/globe-mesh';
@@ -51,6 +52,13 @@ export interface InternalState {
   countryLabelsLayer: Public<CountryLabelsLayer> | null;
   countryHighlightLayer: Public<CountryHighlightLayer> | null;
   countryActiveLayer: Public<CountryHighlightLayer> | null;
+  /**
+   * Per-country filled meshes (the new 9th canonical layer). Mounted in
+   * `create-globe.ts` once features load for kinds that opt into
+   * country interaction; null otherwise. Drives `none/always/palette/
+   * data` modes plus the optional hover / active fill overrides.
+   */
+  countryFillLayer: Public<CountriesFillLayer> | null;
   countryTooltip: CountryTooltip | null;
   htmlMarkersLayer: HtmlMarkersLayer;
   arcsLayer: Public<ArcsLayer>;

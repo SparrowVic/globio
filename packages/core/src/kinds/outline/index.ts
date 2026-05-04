@@ -114,6 +114,17 @@ export interface OutlineKindHandle extends KindHandle {
   setHoverGlowColor?(color: string): void;
   setHoverGlowWidth?(width: number): void;
   setHoverGlowOpacity?(opacity: number): void;
+  /**
+   * Surfaces the per-kind `OutlineCountryFillLayer` instance so
+   * `create-globe.ts` can stash it in `state.countryFillLayer` and
+   * drive hover / active state from the same global hover/click
+   * pipeline that drives the stroke layer. Typed via `Public<>` to
+   * bypass the per-kind/private-field nominal typing — the public
+   * surface is what `create-globe.ts` actually consumes.
+   */
+  getCountryFillLayer?(): import('../types').Public<
+    import('../../renderer/countries-fill-layer').CountriesFillLayer
+  >;
 }
 
 /**
@@ -151,13 +162,36 @@ export const outlineKind: KindModule = {
     });
     globeGroup.add(layer.group);
 
-    // Per-country fill — owned by outline kind, surfaced as the `choropleth`
-    // data-layer decoration. Hidden until `setDataLayer({type:'choropleth'})`
-    // (or the legacy `setCountryData`) routes data through here.
+    // Per-country fill — owned by outline kind. Construction reads
+    // every `countries.fill.*` override (mode, palette, default colour,
+    // state colours) so the layer wakes up in the right state on init
+    // without a follow-up live update. Choropleth data-layer reuses
+    // this same instance via `setData(map, scale?)`.
+    const fillCfg = config.countries?.fill;
     const fill = new OutlineCountryFillLayer({
       features: features as ReadonlyArray<CountryFeature>,
-      defaultColor: tokens['countries.fill.defaultColor'],
-      defaultOpacity: tokens['countries.fill.opacity'],
+      defaultColor:
+        fillCfg?.defaultColor && fillCfg.defaultColor !== ''
+          ? fillCfg.defaultColor
+          : tokens['countries.fill.defaultColor'],
+      defaultOpacity:
+        fillCfg?.defaultOpacity !== undefined && fillCfg.defaultOpacity > 0
+          ? fillCfg.defaultOpacity
+          : tokens['countries.fill.opacity'],
+      ...(fillCfg?.mode !== undefined && { mode: fillCfg.mode }),
+      ...(fillCfg?.palette !== undefined && { palette: fillCfg.palette }),
+      ...(fillCfg?.hoverColor && fillCfg.hoverColor !== '' && {
+        hoverColor: fillCfg.hoverColor,
+      }),
+      ...(fillCfg?.hoverOpacity !== undefined && fillCfg.hoverOpacity > 0 && {
+        hoverOpacity: fillCfg.hoverOpacity,
+      }),
+      ...(fillCfg?.activeColor && fillCfg.activeColor !== '' && {
+        activeColor: fillCfg.activeColor,
+      }),
+      ...(fillCfg?.activeOpacity !== undefined && fillCfg.activeOpacity > 0 && {
+        activeOpacity: fillCfg.activeOpacity,
+      }),
     });
     globeGroup.add(fill.group);
 
@@ -455,6 +489,7 @@ export const outlineKind: KindModule = {
           charts: chartsBuilder,
         },
       },
+      getCountryFillLayer: () => fill,
       dispose() {
         layer.dispose();
         globeGroup.remove(layer.group);

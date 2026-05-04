@@ -107,6 +107,16 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         width: state.globe.activeStrokeWidth,
         opacity: state.globe.activeStrokeOpacity,
       },
+      fill: {
+        mode: state.globe.countryFillMode,
+        defaultColor: state.globe.countryFillDefaultColor,
+        defaultOpacity: state.globe.countryFillDefaultOpacity,
+        palette: state.globe.countryFillPalette,
+        hoverColor: state.globe.countryFillHoverColor,
+        hoverOpacity: state.globe.countryFillHoverOpacity,
+        activeColor: state.globe.countryFillActiveColor,
+        activeOpacity: state.globe.countryFillActiveOpacity,
+      },
     },
     countryLabels: {
       enabled: state.globe.countryLabels,

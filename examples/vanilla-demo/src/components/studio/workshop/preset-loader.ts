@@ -27,6 +27,9 @@ export const loadPreset = async (id: ConfiguratorId): Promise<PresetModule | nul
       case 'selection':
         // @ts-ignore -- Wave D
         return ((await import('./presets/selection')) as { default: PresetModule }).default;
+      case 'country-fill':
+        // @ts-ignore -- Wave J (country-fill canonical layer)
+        return ((await import('./presets/country-fill')) as { default: PresetModule }).default;
       case 'atmosphere':
         // @ts-ignore -- Wave F
         return ((await import('./presets/atmosphere')) as { default: PresetModule }).default;

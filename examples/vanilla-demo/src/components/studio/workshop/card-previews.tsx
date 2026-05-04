@@ -22,6 +22,8 @@ export function CardPreview({
       return <StarsPreview accent={accent} />;
     case 'selection':
       return <HoverPreview accent={accent} />;
+    case 'country-fill':
+      return <CountryFillPreview accent={accent} />;
     case 'arcs':
       return <ArcsPreview accent={accent} />;
     case 'markers':
@@ -182,6 +184,37 @@ function HoverPreview({ accent }: { readonly accent: string }) {
       <style>{`
         @keyframes hover-cycle {
           0%, 100% { opacity: 0.4; }
+          40%, 70% { opacity: 1; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+/* ───────────────────── COUNTRY FILL ───────────────────── */
+
+function CountryFillPreview({ accent }: { readonly accent: string }) {
+  // Three country shapes filled with different palette entries; the
+  // middle one swaps to a hover-fill colour on a slow cycle so the
+  // user reads "stateful per-country fills" at a glance.
+  const palette = [`${accent}cc`, '#67e8f9cc', '#a78bfacc'];
+  return (
+    <svg viewBox="0 0 240 144" className="size-full">
+      <g stroke="#475569" strokeWidth="1">
+        <path d="M30 50 L70 45 L80 75 L60 95 L35 90 Z" fill={palette[1]} />
+        <path d="M170 40 L210 50 L205 90 L175 95 L165 70 Z" fill={palette[2]} />
+      </g>
+      <g style={{ animation: 'fill-cycle 3.2s ease-in-out infinite' }}>
+        <path
+          d="M95 35 L150 40 L155 80 L130 105 L100 95 L90 65 Z"
+          fill={palette[0]}
+          stroke={accent}
+          strokeWidth="1.2"
+        />
+      </g>
+      <style>{`
+        @keyframes fill-cycle {
+          0%, 100% { opacity: 0.65; }
           40%, 70% { opacity: 1; }
         }
       `}</style>

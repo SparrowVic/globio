@@ -68,6 +68,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.markersLayer.update(delta);
       state.countryHighlightLayer?.update(delta);
       state.countryActiveLayer?.update(delta);
+      state.countryFillLayer?.update(delta);
       state.countryLabelsLayer?.update();
       starfieldLayer?.update(delta);
       atmosphereLayer?.update(delta);
@@ -339,11 +340,27 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (clickLatLng) emitter.emit('surfaceClick', { point: clickLatLng });
     },
     onHover: (hit) => {
+      // Drive the country-fill state-override slot from the same hover
+      // signal. Empty string color → undefined (`setHoverState` treats
+      // `undefined` as "no override" — country renders with its base
+      // mode color). Reads the latest config so live changes propagate
+      // without a rebuild.
+      const fillHover = state.config.countries?.fill;
+      const setFillHover = (id: string | null): void => {
+        const color =
+          fillHover?.hoverColor && fillHover.hoverColor !== '' ? fillHover.hoverColor : undefined;
+        const opacity =
+          fillHover?.hoverOpacity !== undefined && fillHover.hoverOpacity > 0
+            ? fillHover.hoverOpacity
+            : undefined;
+        state.countryFillLayer?.setHoverState(id, color, opacity);
+      };
       if (hit?.type === 'marker' && hit.instanceId !== undefined) {
         const marker = markersLayer.getMarkerByInstanceId(hit.instanceId);
         emitter.emit('markerHover', marker ? { marker } : null);
         emitter.emit('countryHover', null);
         state.countryHighlightLayer?.clear();
+        setFillHover(null);
         setKindHover(null);
         state.countryTooltip?.clear();
         markersLayer.setHovered(marker?.id ?? null);
@@ -357,10 +374,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         emitter.emit('markerHover', null);
         if (event) {
           state.countryHighlightLayer?.showCountry(event.country.id);
+          setFillHover(event.country.id);
           setKindHover(event.country.id);
           state.countryTooltip?.showCountry(event.country);
         } else {
           state.countryHighlightLayer?.clear();
+          setFillHover(null);
           setKindHover(null);
           state.countryTooltip?.clear();
         }
@@ -371,6 +390,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       emitter.emit('markerHover', null);
       emitter.emit('countryHover', null);
       state.countryHighlightLayer?.clear();
+      setFillHover(null);
       setKindHover(null);
       state.countryTooltip?.clear();
       markersLayer.setHovered(null);
@@ -390,6 +410,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     countryLabelsLayer: null,
     countryHighlightLayer: null,
     countryActiveLayer: null,
+    countryFillLayer: null,
     countryTooltip: tooltip,
     htmlMarkersLayer,
     arcsLayer,
@@ -433,6 +454,27 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         config,
         globeSurfaceMesh: globeMesh.mesh,
       });
+      // Surface the kind's country-fill layer (if mounted) so the global
+      // hover / active wiring + the live-update branch + the choropleth
+      // builder all see the same instance. Outline always mounts;
+      // future kinds opt in by implementing `getCountryFillLayer`.
+      state.countryFillLayer =
+        (
+          state.kindHandle as
+            | { readonly getCountryFillLayer?: () => InternalState['countryFillLayer'] }
+            | null
+        )?.getCountryFillLayer?.() ?? null;
+      // If the user pinned a country before features loaded, re-apply the
+      // pinned-fill override now that the layer exists.
+      if (state.activeCountryId && state.countryFillLayer) {
+        const fillCfg = state.config.countries?.fill;
+        const c = fillCfg?.activeColor && fillCfg.activeColor !== '' ? fillCfg.activeColor : undefined;
+        const o =
+          fillCfg?.activeOpacity !== undefined && fillCfg.activeOpacity > 0
+            ? fillCfg.activeOpacity
+            : undefined;
+        state.countryFillLayer.setActiveState(state.activeCountryId, c, o);
+      }
       // Re-apply pending data layer (or legacy countryData) once the kind's
       // decorators are live. setDataLayer queues silently when kindHandle is
       // null; here we drain the queue. Order matters: explicit dataLayer
@@ -633,6 +675,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.activeCountryId = id;
       if (id === null) state.countryActiveLayer?.clear();
       else state.countryActiveLayer?.showCountry(id);
+      // Mirror the pinned-state on the fill layer — its setActiveState
+      // override recolors the pinned country with the configured active
+      // fill (if any) on top of whatever the mode produced.
+      const fillCfg = state.config.countries?.fill;
+      const activeColor =
+        fillCfg?.activeColor && fillCfg.activeColor !== '' ? fillCfg.activeColor : undefined;
+      const activeOpacity =
+        fillCfg?.activeOpacity !== undefined && fillCfg.activeOpacity > 0
+          ? fillCfg.activeOpacity
+          : undefined;
+      state.countryFillLayer?.setActiveState(id, activeColor, activeOpacity);
       // Forward to any kind handle that surfaces a `setActiveCountry`
       // hook (wireframe ring, dotted pinned-pulse, …). Cast through a
       // duck-typed shape so each kind-handle interface stays its own
@@ -852,6 +905,48 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (aCfg.width !== undefined) state.countryActiveLayer?.setWidth(aCfg.width);
           if (aCfg.opacity !== undefined) state.countryActiveLayer?.setOpacity(aCfg.opacity);
         }
+        // Country-fill live updates. Mode flips, palette swaps, and
+        // hover/active overrides all hit the same shared layer that the
+        // choropleth data-layer also writes to via `setData`.
+        const fCfg = partial.countries.fill;
+        if (fCfg !== undefined) {
+          if (fCfg.mode !== undefined) state.countryFillLayer?.setMode(fCfg.mode);
+          if (fCfg.palette !== undefined) state.countryFillLayer?.setPalette(fCfg.palette);
+          // Re-apply current hover / active selection with the new
+          // colour overrides if the user changed those mid-session
+          // (e.g. tweaks the hoverColor knob while still hovering).
+          if (fCfg.hoverColor !== undefined || fCfg.hoverOpacity !== undefined) {
+            const merged = state.config.countries?.fill;
+            // Empty string / non-positive numeric → no override
+            // (fill renders with its base mode colour, in line with
+            // the configurator's "leave as theme" sentinel pattern).
+            const c =
+              merged?.hoverColor && merged.hoverColor !== '' ? merged.hoverColor : undefined;
+            const o =
+              merged?.hoverOpacity !== undefined && merged.hoverOpacity > 0
+                ? merged.hoverOpacity
+                : undefined;
+            // We don't know the current hovered id here; re-applying
+            // with `null` clears any stale override and the next hover
+            // event re-applies with the new colour. Acceptable trade
+            // (the user is dragging the cursor anyway).
+            state.countryFillLayer?.setHoverState(null, c, o);
+          }
+          if (fCfg.activeColor !== undefined || fCfg.activeOpacity !== undefined) {
+            const merged = state.config.countries?.fill;
+            const c =
+              merged?.activeColor && merged.activeColor !== ''
+                ? merged.activeColor
+                : undefined;
+            const o =
+              merged?.activeOpacity !== undefined && merged.activeOpacity > 0
+                ? merged.activeOpacity
+                : undefined;
+            // Pinned id is sticky — re-apply immediately so the change
+            // is visible without waiting for a re-pin.
+            state.countryFillLayer?.setActiveState(state.activeCountryId, c, o);
+          }
+        }
       }
 
       // Paper-kind decorations — every PaperConfig sub-section is
@@ -942,6 +1037,15 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       } else {
         state.countryActiveLayer?.showCountry(id);
       }
+      // Mirror to the fill layer's active-state override slot.
+      const fillCfg = state.config.countries?.fill;
+      const activeColor =
+        fillCfg?.activeColor && fillCfg.activeColor !== '' ? fillCfg.activeColor : undefined;
+      const activeOpacity =
+        fillCfg?.activeOpacity !== undefined && fillCfg.activeOpacity > 0
+          ? fillCfg.activeOpacity
+          : undefined;
+      state.countryFillLayer?.setActiveState(id, activeColor, activeOpacity);
       (state.kindHandle as WireframeKindHandle | null)?.setActiveCountry?.(id);
     },
     getActiveCountry: () => state.activeCountryId,

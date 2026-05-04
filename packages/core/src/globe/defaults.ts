@@ -31,6 +31,7 @@ export const DEFAULT_COUNTRIES: Required<CountriesConfig> = {
   // override is supplied.
   borderHover: {},
   borderActive: {},
+  fill: {},
 };
 
 /**

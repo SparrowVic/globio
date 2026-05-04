@@ -3,6 +3,7 @@ import type { GlobeInstance } from '@your-globe/core';
 import {
   faCircleSmall,
   faCrosshairs,
+  faFillDrip,
   faMapLocationDot,
   faMousePointer,
   faRoute,
@@ -49,6 +50,7 @@ export type ConfiguratorId =
   | 'pulse'
   | 'stars'
   | 'selection'
+  | 'country-fill'
   | 'arcs'
   | 'markers'
   | 'atmosphere'
@@ -189,6 +191,15 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     description: 'Country stroke for hovered + pinned states — colors, occlusion, lift, glow.',
     status: (s) =>
       s.globe.hoverEnabled ? `on${s.globe.hoverOccludeBackSide ? ' · occluded' : ''}` : 'off',
+  },
+  {
+    id: 'country-fill',
+    name: 'Country fill',
+    icon: faFillDrip,
+    accent: '#fb923c',
+    description: 'Fill every country — none / always / palette / data — plus per-state overrides.',
+    status: (s) =>
+      s.globe.countryFillMode === 'none' ? 'off' : s.globe.countryFillMode,
   },
   {
     id: 'arcs',
