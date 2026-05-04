@@ -910,27 +910,27 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         // choropleth data-layer also writes to via `setData`.
         const fCfg = partial.countries.fill;
         if (fCfg !== undefined) {
+          if (fCfg.defaultColor !== undefined)
+            state.countryFillLayer?.setDefaultColor(fCfg.defaultColor);
+          if (fCfg.defaultOpacity !== undefined)
+            state.countryFillLayer?.setDefaultOpacity(fCfg.defaultOpacity);
           if (fCfg.mode !== undefined) state.countryFillLayer?.setMode(fCfg.mode);
           if (fCfg.palette !== undefined) state.countryFillLayer?.setPalette(fCfg.palette);
           // Re-apply current hover / active selection with the new
-          // colour overrides if the user changed those mid-session
-          // (e.g. tweaks the hoverColor knob while still hovering).
+          // colour overrides — the dedicated `setHoverOverride` /
+          // `setActiveOverride` setters update colour/opacity in place
+          // without dropping the existing hover/active id, so a knob
+          // tweak mid-hover repaints the country immediately rather
+          // than waiting for the next hover event.
           if (fCfg.hoverColor !== undefined || fCfg.hoverOpacity !== undefined) {
             const merged = state.config.countries?.fill;
-            // Empty string / non-positive numeric → no override
-            // (fill renders with its base mode colour, in line with
-            // the configurator's "leave as theme" sentinel pattern).
             const c =
               merged?.hoverColor && merged.hoverColor !== '' ? merged.hoverColor : undefined;
             const o =
               merged?.hoverOpacity !== undefined && merged.hoverOpacity > 0
                 ? merged.hoverOpacity
                 : undefined;
-            // We don't know the current hovered id here; re-applying
-            // with `null` clears any stale override and the next hover
-            // event re-applies with the new colour. Acceptable trade
-            // (the user is dragging the cursor anyway).
-            state.countryFillLayer?.setHoverState(null, c, o);
+            state.countryFillLayer?.setHoverOverride(c, o);
           }
           if (fCfg.activeColor !== undefined || fCfg.activeOpacity !== undefined) {
             const merged = state.config.countries?.fill;
@@ -942,9 +942,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
               merged?.activeOpacity !== undefined && merged.activeOpacity > 0
                 ? merged.activeOpacity
                 : undefined;
-            // Pinned id is sticky — re-apply immediately so the change
-            // is visible without waiting for a re-pin.
-            state.countryFillLayer?.setActiveState(state.activeCountryId, c, o);
+            state.countryFillLayer?.setActiveOverride(c, o);
           }
         }
       }

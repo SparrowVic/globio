@@ -91,8 +91,11 @@ interface FillEntry {
 export class PaperCountryFillLayer {
   public readonly group: Group;
   private readonly entries = new Map<string, FillEntry>();
-  private readonly defaultColor: string;
-  private readonly defaultOpacity: number;
+  // Mutable so live setters can patch the values that `applyMode` and
+  // `refreshEntry` read each frame; `setDefaultColor` / `setDefaultOpacity`
+  // re-run `applyMode` so the change is visible without a re-mount.
+  private defaultColor: string;
+  private defaultOpacity: number;
   private readonly fadeDuration: number;
   private mode: CountryFillMode;
   private palette: ReadonlyArray<string>;
@@ -192,6 +195,29 @@ export class PaperCountryFillLayer {
   }
 
   /**
+   * Replace the default fill color. Empty string is a no-op sentinel.
+   * Re-runs the mode pass so `'always'` (and palette/data fallbacks)
+   * pick up the new colour immediately.
+   */
+  public setDefaultColor(color: string): void {
+    if (color === '') return;
+    this.defaultColor = color;
+    if (this.mode !== 'none') this.applyMode();
+  }
+
+  /**
+   * Replace the default fill opacity. ≤ 0 is a no-op sentinel
+   * (matches the configurator's "leave as theme" pattern). Re-runs
+   * the mode pass + immediately patches every country's targetOpacity
+   * so the fade tween reflects the new value on the next frame.
+   */
+  public setDefaultOpacity(opacity: number): void {
+    if (opacity <= 0) return;
+    this.defaultOpacity = opacity;
+    if (this.mode !== 'none') this.applyMode();
+  }
+
+  /**
    * Mark `id` as hovered with optional override colour/opacity. `null`
    * clears the hover. Re-applies on top of the current base so the
    * effect is in-place — no need to wait for `update()`.
@@ -215,6 +241,25 @@ export class PaperCountryFillLayer {
     this.activeOpacity = opacity;
     if (prev) this.refreshEntry(prev);
     if (id) this.refreshEntry(id);
+  }
+
+  /**
+   * Update *only* the hover override colour / opacity, preserving the
+   * current `hoverId`. Lets a workshop knob change colour mid-hover
+   * without the layer briefly clearing the visual selection. Pass
+   * `undefined` to mean "no override" (renders with base mode colour).
+   */
+  public setHoverOverride(color: string | undefined, opacity: number | undefined): void {
+    this.hoverColor = color;
+    this.hoverOpacity = opacity;
+    if (this.hoverId) this.refreshEntry(this.hoverId);
+  }
+
+  /** Same shape as `setHoverOverride`, for the pinned/active slot. */
+  public setActiveOverride(color: string | undefined, opacity: number | undefined): void {
+    this.activeColor = color;
+    this.activeOpacity = opacity;
+    if (this.activeId) this.refreshEntry(this.activeId);
   }
 
   /** Step the fade tween. Should be called once per render frame. */
