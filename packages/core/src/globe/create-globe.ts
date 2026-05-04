@@ -486,10 +486,23 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
               ? GLOBE_RADIUS * (1 + (config.outline?.hover?.lift ?? 0))
               : undefined;
 
+          // Per-instance overrides for hover/active stroke color + width
+          // + opacity. Empty string / non-positive numeric → fall back to
+          // the theme token (same sentinel pattern as atmosphere/labels).
+          const hoverCfg = config.countries?.borderHover;
+          const activeCfg = config.countries?.borderActive;
+          const pickColor = (override: string | undefined, token: string): string =>
+            override && override !== '' ? override : token;
+          const pickPositive = (override: number | undefined, token: number): number =>
+            override !== undefined && override > 0 ? override : token;
+
           const highlight = new kindModule.layers.SelectionLayer({
-            hoverColor: tokens['countries.borderHover.color'],
-            hoverWidth: tokens['countries.borderHover.width'],
-            hoverOpacity: tokens['countries.borderHover.opacity'],
+            hoverColor: pickColor(hoverCfg?.color, tokens['countries.borderHover.color']),
+            hoverWidth: pickPositive(hoverCfg?.width, tokens['countries.borderHover.width']),
+            hoverOpacity: pickPositive(
+              hoverCfg?.opacity,
+              tokens['countries.borderHover.opacity']
+            ),
             occludeBackSide: countries.hoverOccludeBackSide,
             ...(highlightSurfaceRadius !== undefined
               ? { surfaceRadius: highlightSurfaceRadius }
@@ -500,9 +513,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           state.countryHighlightLayer = highlight;
 
           const activeLayer = new kindModule.layers.SelectionLayer({
-            hoverColor: tokens['countries.borderActive.color'],
-            hoverWidth: tokens['countries.borderActive.width'],
-            hoverOpacity: tokens['countries.borderActive.opacity'],
+            hoverColor: pickColor(activeCfg?.color, tokens['countries.borderActive.color']),
+            hoverWidth: pickPositive(activeCfg?.width, tokens['countries.borderActive.width']),
+            hoverOpacity: pickPositive(
+              activeCfg?.opacity,
+              tokens['countries.borderActive.opacity']
+            ),
             occludeBackSide: countries.hoverOccludeBackSide,
             ...(highlightSurfaceRadius !== undefined
               ? { surfaceRadius: highlightSurfaceRadius }
@@ -798,15 +814,43 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         if (a.pulse !== undefined) atmosphereLayer?.setPulse(a.pulse);
       }
 
-      // Country hover — the back-side occlusion flag is the only field
-      // we can flip live today (depthTest on the highlight material).
-      // The hoverEnabled flag only gates the dotted kind currently;
-      // outline + others always run hover, so we leave it as a no-op.
+      // Country selection (hover stroke + active stroke + glow halo).
+      // Each setter is a no-op on the sentinel value (empty-string color,
+      // ≤ 0 numeric) so the configurator's "leave as-is" path doesn't
+      // reset live mid-tweak. The hoverEnabled flag is currently only
+      // gated on the dotted kind; outline + others always run hover, so
+      // toggling it live is a no-op there.
       if (partial.countries !== undefined) {
         const occ = partial.countries.hoverOccludeBackSide;
         if (occ !== undefined) {
           state.countryHighlightLayer?.setOccludeBackSide(occ);
           state.countryActiveLayer?.setOccludeBackSide(occ);
+        }
+        const hCfg = partial.countries.borderHover;
+        if (hCfg !== undefined) {
+          if (hCfg.color !== undefined) state.countryHighlightLayer?.setColor(hCfg.color);
+          if (hCfg.width !== undefined) state.countryHighlightLayer?.setWidth(hCfg.width);
+          if (hCfg.opacity !== undefined)
+            state.countryHighlightLayer?.setOpacity(hCfg.opacity);
+          // Glow setters live on the outline kind handle (only outline
+          // mounts a glow halo today). Cast through the duck-typed shape
+          // so non-outline kinds silently no-op.
+          const handle = state.kindHandle as
+            | (KindHandle & {
+                setHoverGlowColor?: (c: string) => void;
+                setHoverGlowWidth?: (w: number) => void;
+                setHoverGlowOpacity?: (o: number) => void;
+              })
+            | null;
+          if (hCfg.glowColor !== undefined) handle?.setHoverGlowColor?.(hCfg.glowColor);
+          if (hCfg.glowWidth !== undefined) handle?.setHoverGlowWidth?.(hCfg.glowWidth);
+          if (hCfg.glowOpacity !== undefined) handle?.setHoverGlowOpacity?.(hCfg.glowOpacity);
+        }
+        const aCfg = partial.countries.borderActive;
+        if (aCfg !== undefined) {
+          if (aCfg.color !== undefined) state.countryActiveLayer?.setColor(aCfg.color);
+          if (aCfg.width !== undefined) state.countryActiveLayer?.setWidth(aCfg.width);
+          if (aCfg.opacity !== undefined) state.countryActiveLayer?.setOpacity(aCfg.opacity);
         }
       }
 

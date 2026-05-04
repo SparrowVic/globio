@@ -91,6 +91,22 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
       resolution: state.globe.countryResolution,
       hoverEnabled: state.globe.hoverEnabled,
       hoverOccludeBackSide: state.globe.hoverOccludeBackSide,
+      // Per-instance overrides for the selection-layer strokes + glow.
+      // Always sent so the live-update path can either apply the value
+      // or treat it as a sentinel ('' / 0 → reset to theme).
+      borderHover: {
+        color: state.globe.hoverStrokeColor,
+        width: state.globe.hoverStrokeWidth,
+        opacity: state.globe.hoverStrokeOpacity,
+        glowColor: state.globe.hoverGlowColor,
+        glowWidth: state.globe.hoverGlowWidth,
+        glowOpacity: state.globe.hoverGlowOpacity,
+      },
+      borderActive: {
+        color: state.globe.activeStrokeColor,
+        width: state.globe.activeStrokeWidth,
+        opacity: state.globe.activeStrokeOpacity,
+      },
     },
     countryLabels: {
       enabled: state.globe.countryLabels,

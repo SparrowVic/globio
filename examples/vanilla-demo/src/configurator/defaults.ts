@@ -12,6 +12,18 @@ export const defaultGlobeSettings: GlobeSettings = {
   countryResolution: 'low',
   hoverEnabled: true,
   hoverOccludeBackSide: true,
+  // Empty string / 0 numeric = "use theme token" sentinel — leaves
+  // outline-dark's cyan-tinted hover stroke + glow palette intact
+  // until the user explicitly overrides via the Selection card.
+  hoverStrokeColor: '',
+  hoverStrokeWidth: 0,
+  hoverStrokeOpacity: 0,
+  hoverGlowColor: '',
+  hoverGlowWidth: 0,
+  hoverGlowOpacity: 0,
+  activeStrokeColor: '',
+  activeStrokeWidth: 0,
+  activeStrokeOpacity: 0,
   countryLabels: true,
   labelMinScreenSize: 78,
   labelSizeFadeRange: 0.45,

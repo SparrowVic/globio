@@ -36,6 +36,29 @@ export interface CountriesConfig {
    * country outline is always visible.
    */
   readonly hoverOccludeBackSide?: boolean;
+  /**
+   * Per-instance overrides for the hovered country's stroke + additive
+   * glow halo. Each field is independent — set what you want to change,
+   * leave the rest. Empty-string color / non-positive numeric =
+   * "use theme token" sentinel (matches the pattern used elsewhere).
+   */
+  readonly borderHover?: {
+    readonly color?: string;
+    readonly width?: number;
+    readonly opacity?: number;
+    readonly glowColor?: string;
+    readonly glowWidth?: number;
+    readonly glowOpacity?: number;
+  };
+  /**
+   * Per-instance overrides for the pinned/active country's stroke. Same
+   * sentinel semantics as `borderHover`.
+   */
+  readonly borderActive?: {
+    readonly color?: string;
+    readonly width?: number;
+    readonly opacity?: number;
+  };
 }
 
 /**

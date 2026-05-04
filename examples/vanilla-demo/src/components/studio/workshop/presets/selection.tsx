@@ -1,4 +1,4 @@
-import { SliderField, SwitchField } from '@/components/shared/controls';
+import { ColorField, SliderField, SwitchField } from '@/components/shared/controls';
 import { DependsOn } from '@/components/shared/components/DependsOn';
 
 import type {
@@ -46,6 +46,72 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           checked={settings.hoverOccludeBackSide}
           onChange={(hoverOccludeBackSide) => onGlobeChange({ hoverOccludeBackSide })}
           value="Hide highlight on the far hemisphere"
+        />
+
+        <SectionHeading>Hover · stroke</SectionHeading>
+        <ColorField
+          label="Stroke color"
+          value={settings.hoverStrokeColor || '#a5f3fc'}
+          onChange={(hoverStrokeColor) => onGlobeChange({ hoverStrokeColor })}
+          hint={settings.hoverStrokeColor === '' ? 'Theme default' : undefined}
+          {...(settings.hoverStrokeColor !== '' ? { preset: '' } : {})}
+          swatches={['#a5f3fc', '#67e8f9', '#fbbf24', '#f472b6', '#34d399', '#a78bfa', '#ffffff']}
+        />
+        <SliderField
+          label="Stroke opacity"
+          value={settings.hoverStrokeOpacity}
+          min={0}
+          max={1.5}
+          step={0.05}
+          format={(value) => (value <= 0 ? 'theme' : value.toFixed(2))}
+          onChange={(hoverStrokeOpacity) => onGlobeChange({ hoverStrokeOpacity })}
+        />
+
+        <SectionHeading>Hover · glow halo</SectionHeading>
+        <ColorField
+          label="Glow color"
+          value={settings.hoverGlowColor || '#67e8f9'}
+          onChange={(hoverGlowColor) => onGlobeChange({ hoverGlowColor })}
+          hint={settings.hoverGlowColor === '' ? 'Theme default' : undefined}
+          {...(settings.hoverGlowColor !== '' ? { preset: '' } : {})}
+          swatches={['#67e8f9', '#fbbf24', '#f472b6', '#34d399', '#a78bfa', '#ff8866', '#ffffff']}
+        />
+        <SliderField
+          label="Glow width"
+          value={settings.hoverGlowWidth}
+          min={0}
+          max={16}
+          step={0.5}
+          format={(value) => (value <= 0 ? 'theme' : `${value.toFixed(1)} px`)}
+          onChange={(hoverGlowWidth) => onGlobeChange({ hoverGlowWidth })}
+        />
+        <SliderField
+          label="Glow opacity"
+          value={settings.hoverGlowOpacity}
+          min={0}
+          max={1.5}
+          step={0.05}
+          format={(value) => (value <= 0 ? 'theme' : value.toFixed(2))}
+          onChange={(hoverGlowOpacity) => onGlobeChange({ hoverGlowOpacity })}
+        />
+
+        <SectionHeading>Pinned · stroke</SectionHeading>
+        <ColorField
+          label="Stroke color"
+          value={settings.activeStrokeColor || '#fcd34d'}
+          onChange={(activeStrokeColor) => onGlobeChange({ activeStrokeColor })}
+          hint={settings.activeStrokeColor === '' ? 'Theme default' : undefined}
+          {...(settings.activeStrokeColor !== '' ? { preset: '' } : {})}
+          swatches={['#fcd34d', '#fbbf24', '#ffffff', '#ff8866', '#a5f3fc', '#22ee99']}
+        />
+        <SliderField
+          label="Stroke opacity"
+          value={settings.activeStrokeOpacity}
+          min={0}
+          max={1.5}
+          step={0.05}
+          format={(value) => (value <= 0 ? 'theme' : value.toFixed(2))}
+          onChange={(activeStrokeOpacity) => onGlobeChange({ activeStrokeOpacity })}
         />
 
         <DependsOn
@@ -133,6 +199,13 @@ const preset: PresetModule = {
   watchedKeys: [
     'hoverEnabled',
     'hoverOccludeBackSide',
+    'hoverStrokeColor',
+    'hoverStrokeOpacity',
+    'hoverGlowColor',
+    'hoverGlowWidth',
+    'hoverGlowOpacity',
+    'activeStrokeColor',
+    'activeStrokeOpacity',
     'outlineHoverLift',
     'outlineHoverGlowLift',
     'outlineHoverGlowEnabled',

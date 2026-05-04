@@ -36,7 +36,9 @@ export class OutlineHoverGlowLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
   private readonly featuresById = new Map<string, CountryFeature>();
-  private readonly baseOpacity: number;
+  // Mutable so live setters can patch the value the render loop reads
+  // each frame (`material.opacity = eased * baseOpacity`).
+  private baseOpacity: number;
   private readonly fadeDuration: number;
   private readonly surfaceRadius: number;
   private currentId: string | null = null;
@@ -82,6 +84,28 @@ export class OutlineHoverGlowLayer {
   public clear(): void {
     this.targetT = 0;
     this.currentId = null;
+  }
+
+  /** Live update for the halo color. Empty string is a "leave as-is" sentinel. */
+  public setColor(color: string): void {
+    if (color === '') return;
+    this.material.color.set(color);
+  }
+
+  /** Live update for the halo peak opacity (drives the glow intensity). 0 = no-op. */
+  public setOpacity(opacity: number): void {
+    if (opacity <= 0) return;
+    this.baseOpacity = opacity;
+  }
+
+  /**
+   * Live update for the halo line width. Same WebGL2 caveat as
+   * `OutlineSelectionLayer.setWidth` — most platforms ignore
+   * `LineBasicMaterial.linewidth`. Setter kept for API symmetry.
+   */
+  public setWidth(width: number): void {
+    if (width <= 0) return;
+    this.material.linewidth = width;
   }
 
   public update(delta: number): void {

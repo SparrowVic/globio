@@ -50,7 +50,9 @@ export class WireframeSelectionLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
   private readonly featuresById = new Map<string, CountryFeature>();
-  private readonly baseOpacity: number;
+  // Mutable so live setters can patch the value the fade-driven render
+  // reads each frame (`material.opacity = currentT * baseOpacity`).
+  private baseOpacity: number;
   private readonly fadeDuration: number;
   private readonly surfaceRadius: number;
   private currentId: string | null = null;
@@ -111,6 +113,38 @@ export class WireframeSelectionLayer {
   public setOccludeBackSide(occlude: boolean): void {
     this.material.depthTest = occlude;
     this.material.needsUpdate = true;
+  }
+
+  /**
+   * Live update for the stroke color. Empty string is a no-op so callers
+   * can use it as a "leave as construction default" sentinel without
+   * branching at every call site.
+   */
+  public setColor(color: string): void {
+    if (color === '') return;
+    this.material.color.set(color);
+  }
+
+  /**
+   * Live update for the stroke peak opacity. The fade tween multiplies
+   * `currentT * baseOpacity` each frame, so updating `baseOpacity` lifts
+   * (or lowers) the entire visible range without resetting the fade.
+   * 0 or negative is a no-op (sentinel for "leave as constructed").
+   */
+  public setOpacity(opacity: number): void {
+    if (opacity <= 0) return;
+    this.baseOpacity = opacity;
+  }
+
+  /**
+   * Live update for the stroke width. Note: WebGL2 ignores
+   * `LineBasicMaterial.linewidth` on most platforms — kept here for the
+   * day we migrate to `Line2` / `LineMaterial` (already done for arcs);
+   * for now the call sets the field but visual change isn't guaranteed.
+   */
+  public setWidth(width: number): void {
+    if (width <= 0) return;
+    this.material.linewidth = width;
   }
 
   /** Step the fade tween. Should be called once per render frame. */

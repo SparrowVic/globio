@@ -26,6 +26,11 @@ export const DEFAULT_COUNTRIES: Required<CountriesConfig> = {
   resolution: 'medium',
   hoverEnabled: true,
   hoverOccludeBackSide: true,
+  // Empty-object defaults — the `pickColor` / `pickPositive` helpers
+  // in `create-globe.ts` fall through to theme tokens when no explicit
+  // override is supplied.
+  borderHover: {},
+  borderActive: {},
 };
 
 /**

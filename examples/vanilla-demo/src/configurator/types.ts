@@ -28,6 +28,22 @@ export interface GlobeSettings {
   readonly countryResolution: ResolutionLevel;
   readonly hoverEnabled: boolean;
   readonly hoverOccludeBackSide: boolean;
+  /**
+   * Per-instance overrides for the country-stroke selection layer
+   * (hovered country) + its additive glow halo. Empty string / 0 = use
+   * theme token (sentinel pattern shared with the rest of the
+   * configurator's reset semantics).
+   */
+  readonly hoverStrokeColor: string;
+  readonly hoverStrokeWidth: number;
+  readonly hoverStrokeOpacity: number;
+  readonly hoverGlowColor: string;
+  readonly hoverGlowWidth: number;
+  readonly hoverGlowOpacity: number;
+  /** Per-instance overrides for the pinned/active country stroke. */
+  readonly activeStrokeColor: string;
+  readonly activeStrokeWidth: number;
+  readonly activeStrokeOpacity: number;
   readonly countryLabels: boolean;
   readonly labelMinScreenSize: number;
   readonly labelSizeFadeRange: number;

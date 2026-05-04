@@ -50,7 +50,9 @@ export class CountryHighlightLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
   private readonly featuresById = new Map<string, CountryFeature>();
-  private readonly baseOpacity: number;
+  // Mutable so live setters can patch the value the fade-driven render
+  // reads each frame (`material.opacity = currentT * baseOpacity`).
+  private baseOpacity: number;
   private readonly fadeDuration: number;
   private readonly surfaceRadius: number;
   private currentId: string | null = null;
@@ -111,6 +113,34 @@ export class CountryHighlightLayer {
   public setOccludeBackSide(occlude: boolean): void {
     this.material.depthTest = occlude;
     this.material.needsUpdate = true;
+  }
+
+  /** Live update for the stroke color. Empty string is a no-op sentinel. */
+  public setColor(color: string): void {
+    if (color === '') return;
+    this.material.color.set(color);
+  }
+
+  /**
+   * Live update for the stroke peak opacity. The fade tween multiplies
+   * `currentT * baseOpacity` each frame, so updating `baseOpacity` lifts
+   * (or lowers) the visible range without resetting the fade.
+   * 0 / negative is a no-op (sentinel for "leave as constructed").
+   */
+  public setOpacity(opacity: number): void {
+    if (opacity <= 0) return;
+    this.baseOpacity = opacity;
+  }
+
+  /**
+   * Live update for the stroke width. Note: WebGL2 ignores
+   * `LineBasicMaterial.linewidth` on most platforms; the call sets the
+   * field but visual change isn't guaranteed. Kept for API symmetry
+   * with future Line2-based migrations.
+   */
+  public setWidth(width: number): void {
+    if (width <= 0) return;
+    this.material.linewidth = width;
   }
 
   /** Step the fade tween. Should be called once per render frame. */

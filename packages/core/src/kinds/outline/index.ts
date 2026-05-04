@@ -104,6 +104,16 @@ export interface OutlineKindHandle extends KindHandle {
    * into geometry and still require a rebuild upstream.
    */
   setOutlineConfig?(next: NonNullable<import('../../types').GlobeConfig['outline']>): void;
+  /**
+   * Live setters for the additive hover-glow halo. Surfaced on the
+   * handle (rather than a generic kind interface) because only the
+   * outline kind mounts a glow today; `create-globe.ts` reaches in
+   * via duck-typed cast when the user tweaks
+   * `countries.borderHover.glow*` so non-outline kinds silently no-op.
+   */
+  setHoverGlowColor?(color: string): void;
+  setHoverGlowWidth?(width: number): void;
+  setHoverGlowOpacity?(opacity: number): void;
 }
 
 /**
@@ -343,11 +353,24 @@ export const outlineKind: KindModule = {
     // the highlight. Caller can dial it through OutlineConfig.hover.glowLift
     // (e.g. 0 = glow flat on the surface, 0.006 = pulled further out).
     const glowLift = outlineConfig?.hover?.glowLift ?? 0.0035;
+    // Honour per-instance overrides from `countries.borderHover.glow*`
+    // (the same pattern create-globe.ts uses for the stroke colours).
+    // Empty string / non-positive numeric falls back to the theme token.
+    const glowOverride = config.countries?.borderHover;
     const glow: OutlineHoverGlowLayer | null = glowEnabled
       ? new OutlineHoverGlowLayer({
-          color: tokens['countries.borderHover.glowColor'],
-          width: tokens['countries.borderHover.glowWidth'],
-          opacity: tokens['countries.borderHover.glowOpacity'],
+          color:
+            glowOverride?.glowColor && glowOverride.glowColor !== ''
+              ? glowOverride.glowColor
+              : tokens['countries.borderHover.glowColor'],
+          width:
+            glowOverride?.glowWidth !== undefined && glowOverride.glowWidth > 0
+              ? glowOverride.glowWidth
+              : tokens['countries.borderHover.glowWidth'],
+          opacity:
+            glowOverride?.glowOpacity !== undefined && glowOverride.glowOpacity > 0
+              ? glowOverride.glowOpacity
+              : tokens['countries.borderHover.glowOpacity'],
           surfaceRadius: GLOBE_RADIUS * (1 + glowLift),
         })
       : null;
@@ -525,6 +548,15 @@ export const outlineKind: KindModule = {
       setPointerPixel(x: number, y: number) {
         lastPixelX = x;
         lastPixelY = y;
+      },
+      setHoverGlowColor(color: string) {
+        glow?.setColor(color);
+      },
+      setHoverGlowWidth(width: number) {
+        glow?.setWidth(width);
+      },
+      setHoverGlowOpacity(opacity: number) {
+        glow?.setOpacity(opacity);
       },
       setHoveredCountry(id: string | null) {
         if (glow) {
