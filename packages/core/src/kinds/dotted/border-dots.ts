@@ -52,7 +52,7 @@ const DEFAULTS = {
  * and hover another (instant fade-in) without the two visuals
  * fighting.
  */
-export class DottedBorderDots {
+export class DottedBorderDotsLayer {
   public readonly object: Points;
   private readonly geometry: BufferGeometry;
   private readonly material: ShaderMaterial;

@@ -3,7 +3,7 @@ import {
   fresnelFactor,
   nextGlitchTime,
   scanlineMod,
-} from '../hologram-extras';
+} from '../extras';
 
 describe('fresnelFactor', () => {
   it('returns ~0 when looking straight at the surface (viewDotNormal = 1)', () => {

@@ -8,7 +8,7 @@ import {
   Vector3,
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
-import { seededJitter } from './paper-jitter';
+import { seededJitter } from './jitter';
 
 export interface PaperAgingMarksOptions {
   readonly enabled: boolean;

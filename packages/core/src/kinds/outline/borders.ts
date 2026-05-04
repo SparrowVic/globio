@@ -2,7 +2,7 @@ import { Group, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAt
 import { latLngToVector3, GLOBE_RADIUS } from '../../utils/coordinates';
 import type { CountryFeature } from '../../renderer/country-feature';
 
-export interface CountriesLayerOptions {
+export interface OutlineBordersLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;
   readonly borderColor: string;
   readonly borderWidth: number;
@@ -16,13 +16,13 @@ interface CountrySlot {
   currentOpacity: number;
 }
 
-export class CountriesLayer {
+export class OutlineBordersLayer {
   public readonly group: Group;
   private readonly geometries: Array<BufferGeometry> = [];
   private readonly slots: Map<string, CountrySlot> = new Map();
   private readonly baseOpacity: number;
 
-  public constructor(options: CountriesLayerOptions) {
+  public constructor(options: OutlineBordersLayerOptions) {
     this.group = new Group();
     this.baseOpacity = options.borderOpacity;
     this.buildBorders(options);
@@ -89,7 +89,7 @@ export class CountriesLayer {
     return moved;
   }
 
-  private buildBorders(options: CountriesLayerOptions): void {
+  private buildBorders(options: OutlineBordersLayerOptions): void {
     const surfaceRadius = GLOBE_RADIUS * 1.001;
 
     options.features.forEach((feature) => {

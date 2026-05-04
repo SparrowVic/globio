@@ -1,5 +1,5 @@
-import { CountriesDottedLayer } from './dotted-layer';
-import { DottedBorderDots } from './dotted-border-dots';
+import { DottedSurfaceLayer } from './surface';
+import { DottedBorderDotsLayer } from './border-dots';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
@@ -103,7 +103,7 @@ export const dottedKind: KindModule = {
     const constellation = dottedCfg?.constellation;
     const tokenAxis = tokens['countries.dotted.driftAxis'];
     const driftAxis = resolveDriftAxis(drift, tokenAxis);
-    const layer = new CountriesDottedLayer({
+    const layer = new DottedSurfaceLayer({
       features,
       color: tokens['countries.dotted.color'],
       size: tokens['countries.dotted.size'],
@@ -157,7 +157,7 @@ export const dottedKind: KindModule = {
     // hover / pin. Lives on the same shell as the interior dot field
     // so the demarcation reads as part of the same family of marks
     // rather than a foreign decoration on top.
-    const borderDots = new DottedBorderDots({
+    const borderDots = new DottedBorderDotsLayer({
       features: features as ReadonlyArray<CountryFeature>,
       countryIndex: layer.getCountryIndex(),
       color: tokens['countries.dotted.color'],
@@ -432,11 +432,11 @@ export const dottedKind: KindModule = {
   },
 };
 
-export { CountriesDottedLayer } from './dotted-layer';
+export { DottedSurfaceLayer } from './surface';
 export {
   rippleBrightness,
   flashBrightness,
   angularDistance,
   driftBrightness,
   easeHoverBoost,
-} from './dotted-effects';
+} from './effects';

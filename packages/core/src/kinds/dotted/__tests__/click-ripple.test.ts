@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rippleBrightness, flashBrightness, angularDistance } from '../dotted-effects';
+import { rippleBrightness, flashBrightness, angularDistance } from '../effects';
 
 describe('rippleBrightness', () => {
   it('peaks at ~1.0 when distance == wavefront', () => {

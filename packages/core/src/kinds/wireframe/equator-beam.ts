@@ -9,7 +9,7 @@ import {
 } from 'three';
 import { latLngToVector3 } from '../../utils/coordinates';
 
-export interface EquatorBeamOptions {
+export interface WireframeEquatorBeamOptions {
   readonly color: string;
   readonly opacity: number;
   readonly radius: number;
@@ -25,7 +25,7 @@ const SAMPLE_STEP_DEG = 1; // dense — this is a "beam", not an ordinary parall
  * as a "data spine" running around the planet and is the obvious place to
  * sell the Tron-data-feed metaphor.
  */
-export class EquatorBeam {
+export class WireframeEquatorBeam {
   public readonly group: Group;
   private readonly geometry: BufferGeometry;
   private readonly material: LineBasicMaterial;
@@ -35,7 +35,7 @@ export class EquatorBeam {
   private pulseEnabled: boolean;
   private pulseSpeedHz: number;
 
-  public constructor(options: EquatorBeamOptions) {
+  public constructor(options: WireframeEquatorBeamOptions) {
     this.group = new Group();
     this.originalColor = options.color;
     this.originalOpacity = options.opacity;

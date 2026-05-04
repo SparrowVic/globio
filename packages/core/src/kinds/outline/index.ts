@@ -1,7 +1,7 @@
-import { CountriesLayer } from './borders-layer';
+import { OutlineBordersLayer } from './borders';
 import { continentOf, type Continent } from './continent-of';
-import { HoverCrosshairLayer } from './hover-crosshair';
-import { HoverGlowLayer } from './hover-glow-layer';
+import { OutlineCrosshairLayer } from './crosshair';
+import { OutlineHoverGlowLayer } from './hover-glow';
 import { buildOutlineFocusPulse } from '../shared/focus-pulse-decorators';
 import { CountriesFillLayer } from '../../renderer/countries-fill-layer';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
@@ -106,9 +106,9 @@ export interface OutlineKindHandle extends KindHandle {
  * highlight) is fully supported via the shared picking infrastructure.
  *
  * Extras shipped on top of the base mesh:
- *  - `HoverGlowLayer` — soft additive halo that wraps the hovered country.
- *  - `FocusPulseLayer` — sonar ring that fires from `onCountryFocus`.
- *  - `HoverCrosshairLayer` — Tron-style targeting reticle + lat/lng readout
+ *  - `OutlineHoverGlowLayer` — soft additive halo that wraps the hovered country.
+ *  - `OutlineFocusPulseLayer` — sonar ring that fires from `onCountryFocus`.
+ *  - `OutlineCrosshairLayer` — Tron-style targeting reticle + lat/lng readout
  *    that tracks the cursor across the globe surface.
  *  - Continent dim — when hovering a country, borders on other continents
  *    fade to ~30% so the active region is foregrounded.
@@ -118,7 +118,7 @@ export const outlineKind: KindModule = {
   kind: 'outline',
   hasCountryInteraction: true,
   build({ globeGroup, features, tokens, config }: KindBuildContext): OutlineKindHandle {
-    const layer = new CountriesLayer({
+    const layer = new OutlineBordersLayer({
       features,
       borderColor: tokens['countries.border.color'],
       borderWidth: tokens['countries.border.width'],
@@ -328,8 +328,8 @@ export const outlineKind: KindModule = {
     // the highlight. Caller can dial it through OutlineConfig.hover.glowLift
     // (e.g. 0 = glow flat on the surface, 0.006 = pulled further out).
     const glowLift = outlineConfig?.hover?.glowLift ?? 0.0035;
-    const glow: HoverGlowLayer | null = glowEnabled
-      ? new HoverGlowLayer({
+    const glow: OutlineHoverGlowLayer | null = glowEnabled
+      ? new OutlineHoverGlowLayer({
           color: tokens['countries.borderHover.glowColor'],
           width: tokens['countries.borderHover.glowWidth'],
           opacity: tokens['countries.borderHover.glowOpacity'],
@@ -371,7 +371,7 @@ export const outlineKind: KindModule = {
     // creating the layer is cheap, and skipping the build means a
     // later setEnabled(true) wouldn't have anywhere to mount.
     const crosshairConfig = outlineConfig?.hoverCrosshair;
-    const crosshair: HoverCrosshairLayer = new HoverCrosshairLayer({
+    const crosshair: OutlineCrosshairLayer = new OutlineCrosshairLayer({
       container: config.container,
       color:
         crosshairConfig?.color && crosshairConfig.color !== ''
@@ -545,8 +545,8 @@ export const outlineKind: KindModule = {
   },
 };
 
-export { CountriesLayer } from './borders-layer';
+export { OutlineBordersLayer } from './borders';
 export { continentOf } from './continent-of';
-export { formatLatLng, HoverCrosshairLayer } from './hover-crosshair';
-export { FocusPulseLayer, computePulseFrame } from './focus-pulse-layer';
-export { HoverGlowLayer } from './hover-glow-layer';
+export { formatLatLng, OutlineCrosshairLayer } from './crosshair';
+export { OutlineFocusPulseLayer, computePulseFrame } from './focus-pulse';
+export { OutlineHoverGlowLayer } from './hover-glow';

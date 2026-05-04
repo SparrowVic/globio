@@ -9,7 +9,7 @@ import {
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { CountryFeature } from '../../renderer/country-feature';
 
-export interface HoverGlowLayerOptions {
+export interface OutlineHoverGlowLayerOptions {
   readonly color: string;
   readonly width: number;
   readonly opacity: number;
@@ -32,7 +32,7 @@ const DEFAULT_GLOW_RADIUS = GLOBE_RADIUS * 1.0035;
  * the glow paints a wider, blurred wash behind it. Geometry is rebuilt per
  * hover; opacity is tweened on a 0→1 ease-out ramp to avoid pop-in.
  */
-export class HoverGlowLayer {
+export class OutlineHoverGlowLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
   private readonly featuresById = new Map<string, CountryFeature>();
@@ -43,7 +43,7 @@ export class HoverGlowLayer {
   private targetT = 0;
   private currentT = 0;
 
-  public constructor(options: HoverGlowLayerOptions) {
+  public constructor(options: OutlineHoverGlowLayerOptions) {
     this.baseOpacity = options.opacity;
     this.fadeDuration = options.fadeDuration ?? DEFAULT_FADE;
     this.surfaceRadius = options.surfaceRadius ?? DEFAULT_GLOW_RADIUS;

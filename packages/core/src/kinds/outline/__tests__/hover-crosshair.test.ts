@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatLatLng } from '../hover-crosshair';
+import { formatLatLng } from '../crosshair';
 
 describe('formatLatLng', () => {
   it('Warsaw → 52.23°N, 21.01°E', () => {

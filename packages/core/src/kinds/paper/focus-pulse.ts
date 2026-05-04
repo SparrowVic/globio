@@ -12,7 +12,7 @@ import {
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { LatLng } from '../../types';
 
-export interface FocusPulseLayerOptions {
+export interface PaperFocusPulseLayerOptions {
   readonly color: string;
   readonly durationSeconds: number;
   /** Maximum simultaneous live pulses; older ones get recycled. Default 3. */
@@ -113,13 +113,13 @@ for (let i = 0; i < SEGMENTS; i++) {
  * sphere at angular radius α from the centroid; depth-test against the
  * globe surface then naturally hides the back-side half.
  */
-export class FocusPulseLayer {
+export class PaperFocusPulseLayer {
   public readonly group: Group;
   private readonly slots: Array<PulseSlot> = [];
   private readonly defaultDuration: number;
   private readonly indexBuffer: Uint16Array;
 
-  public constructor(options: FocusPulseLayerOptions) {
+  public constructor(options: PaperFocusPulseLayerOptions) {
     this.group = new Group();
     this.defaultDuration = options.durationSeconds;
     this.indexBuffer = buildBandIndices();

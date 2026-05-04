@@ -11,7 +11,7 @@ import {
 import { GLOBE_RADIUS } from '../../utils/coordinates';
 import { triangulatePolygon } from '../../utils/triangulate-ring';
 import type { CountryFeature } from '../../renderer/country-feature';
-import { seededJitter } from './paper-jitter';
+import { seededJitter } from './jitter';
 
 export type PaperFillMode = 'single' | 'pastel';
 

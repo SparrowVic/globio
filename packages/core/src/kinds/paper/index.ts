@@ -1,13 +1,13 @@
 import { Mesh } from 'three';
-import { PaperBordersLayer } from './paper-borders-layer';
-import { PaperFillLayer } from './paper-fill-layer';
-import { PaperGridLayer } from './paper-grid-layer';
-import { PaperSurfaceLayer } from './paper-surface-layer';
-import { PaperSepiaLayer } from './paper-sepia-layer';
-import { PaperVignetteOverlay } from './paper-vignette-overlay';
-import { PaperCompassRose } from './paper-compass-rose';
-import { PaperAgingMarks } from './paper-aging-marks';
-import { PaperWatermark, type PaperWatermarkPosition } from './paper-watermark';
+import { PaperBordersLayer } from './borders';
+import { PaperFillLayer } from './fill';
+import { PaperGridLayer } from './grid';
+import { PaperSurfaceLayer } from './surface';
+import { PaperSepiaLayer } from './sepia';
+import { PaperVignetteOverlay } from './vignette';
+import { PaperCompassRose } from './compass-rose';
+import { PaperAgingMarks } from './aging-marks';
+import { PaperWatermark, type PaperWatermarkPosition } from './watermark';
 import { buildPaperFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
@@ -449,13 +449,13 @@ export const paperKind: KindModule = {
   },
 };
 
-export { PaperBordersLayer } from './paper-borders-layer';
-export { PaperFillLayer } from './paper-fill-layer';
-export { PaperGridLayer } from './paper-grid-layer';
-export { PaperSurfaceLayer } from './paper-surface-layer';
-export { PaperSepiaLayer } from './paper-sepia-layer';
-export { PaperVignetteOverlay } from './paper-vignette-overlay';
-export { PaperCompassRose } from './paper-compass-rose';
-export { PaperAgingMarks } from './paper-aging-marks';
-export { PaperWatermark } from './paper-watermark';
-export { jitterRing, seededJitter } from './paper-jitter';
+export { PaperBordersLayer } from './borders';
+export { PaperFillLayer } from './fill';
+export { PaperGridLayer } from './grid';
+export { PaperSurfaceLayer } from './surface';
+export { PaperSepiaLayer } from './sepia';
+export { PaperVignetteOverlay } from './vignette';
+export { PaperCompassRose } from './compass-rose';
+export { PaperAgingMarks } from './aging-marks';
+export { PaperWatermark } from './watermark';
+export { jitterRing, seededJitter } from './jitter';

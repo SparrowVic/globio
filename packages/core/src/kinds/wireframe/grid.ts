@@ -9,7 +9,7 @@ import {
   Vector3,
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
-import { glitchEnvelope, isInGlitchBand, pulseBrightness } from './wireframe-extras';
+import { glitchEnvelope, isInGlitchBand, pulseBrightness } from './extras';
 
 export interface WireframeGridLayerOptions {
   readonly color: string;

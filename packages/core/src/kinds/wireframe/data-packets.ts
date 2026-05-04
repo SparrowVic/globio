@@ -10,7 +10,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 
-export interface DataPacketsOptions {
+export interface WireframeDataPacketsOptions {
   readonly color: string;
   readonly count: number;
   readonly speed: number;
@@ -61,7 +61,7 @@ const createSoftDotTexture = (): CanvasTexture | null => {
  * Builds the Tron-data-feed feel: visible *information* moving through
  * the grid, not just the grid as a static frame.
  */
-export class DataPackets {
+export class WireframeDataPackets {
   public readonly group: Group;
   private geometry: BufferGeometry;
   private readonly material: PointsMaterial;
@@ -77,7 +77,7 @@ export class DataPackets {
   private axis: 'latitude' | 'longitude' | 'both';
   private points: Points;
 
-  public constructor(options: DataPacketsOptions) {
+  public constructor(options: WireframeDataPacketsOptions) {
     this.group = new Group();
     this.originalColor = options.color;
     this.originalSize = options.size;

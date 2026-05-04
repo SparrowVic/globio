@@ -8,7 +8,7 @@ import {
   ShaderMaterial,
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
-import { nextGlitchTime } from './hologram-extras';
+import { nextGlitchTime } from './extras';
 import type { CountryFeature } from '../../renderer/country-feature';
 
 export interface HologramBordersLayerOptions {

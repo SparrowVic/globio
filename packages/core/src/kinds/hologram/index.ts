@@ -1,5 +1,5 @@
-import { HologramBordersLayer } from './hologram-borders-layer';
-import { HologramShellLayer } from './hologram-shell-layer';
+import { HologramBordersLayer } from './borders';
+import { HologramShellLayer } from './shell';
 import { buildHologramFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { HologramConfig } from '../../types/kinds';
@@ -296,6 +296,6 @@ export const hologramKind: KindModule = {
   },
 };
 
-export { HologramShellLayer } from './hologram-shell-layer';
-export { HologramBordersLayer } from './hologram-borders-layer';
-export { fresnelFactor, scanlineMod, nextGlitchTime } from './hologram-extras';
+export { HologramShellLayer } from './shell';
+export { HologramBordersLayer } from './borders';
+export { fresnelFactor, scanlineMod, nextGlitchTime } from './extras';

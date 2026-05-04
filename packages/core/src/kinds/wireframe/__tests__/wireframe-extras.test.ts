@@ -4,7 +4,7 @@ import {
   isInEmphasisBand,
   isInGlitchBand,
   pulseBrightness,
-} from '../wireframe-extras';
+} from '../extras';
 
 describe('pulseBrightness', () => {
   it('peaks (~1.0) when distance == wavefront', () => {

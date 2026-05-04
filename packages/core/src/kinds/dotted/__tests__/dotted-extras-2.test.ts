@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { driftBrightness, easeHoverBoost } from '../dotted-effects';
+import { driftBrightness, easeHoverBoost } from '../effects';
 
 describe('driftBrightness', () => {
   it('is ~0 when phase is 0 (elapsed=0, dot=0, freq=1)', () => {

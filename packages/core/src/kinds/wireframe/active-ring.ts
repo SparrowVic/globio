@@ -16,7 +16,7 @@ import {
 import { ringRadiusForExtent } from './active-ring-extras';
 import type { CountryFeature } from '../../renderer/country-feature';
 
-export interface ActiveCountryRingOptions {
+export interface WireframeActiveRingOptions {
   readonly color: string;
   readonly opacity: number;
   /** Fraction of ring radius — inner edge is `radius * (1 - thickness)`. */
@@ -41,7 +41,7 @@ const MAX_RADIUS = GLOBE_RADIUS * 0.85;
  * in/out via a tween on `material.opacity`. Slowly rotates around its
  * outward normal so it reads as "alive" without being noisy.
  */
-export class ActiveCountryRing {
+export class WireframeActiveRing {
   public readonly group: Group;
   private readonly featuresById: Map<string, CountryFeature> = new Map();
   private readonly material: MeshBasicMaterial;
@@ -60,7 +60,7 @@ export class ActiveCountryRing {
   private targetT = 0;
   private currentT = 0;
 
-  public constructor(options: ActiveCountryRingOptions) {
+  public constructor(options: WireframeActiveRingOptions) {
     this.group = new Group();
     this.options = { ...options };
     this.originalColor = options.color;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pointInRing, samplePolygonInterior } from '../dotted-layer';
+import { pointInRing, samplePolygonInterior } from '../surface';
 import type { CountryPolygon } from '../../../renderer/country-feature';
 
 const square10: ReadonlyArray<readonly [number, number]> = [

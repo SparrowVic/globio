@@ -1,10 +1,10 @@
-import { WIREFRAME_DEFAULT_RADIUS, WireframeGridLayer } from './wireframe-grid-layer';
-import { WireframeEmphasisLayer } from './wireframe-emphasis-layer';
-import { ActiveCountryRing } from './active-country-ring';
-import { PoleStreams } from './pole-streams';
-import { EquatorBeam } from './equator-beam';
-import { DataPackets } from './data-packets';
-import { CompassMarkers } from './compass-markers';
+import { WIREFRAME_DEFAULT_RADIUS, WireframeGridLayer } from './grid';
+import { WireframeEmphasisLayer } from './emphasis';
+import { WireframeActiveRing } from './active-ring';
+import { WireframePoleStreams } from './pole-streams';
+import { WireframeEquatorBeam } from './equator-beam';
+import { WireframeDataPackets } from './data-packets';
+import { WireframeCompassMarkers } from './compass-markers';
 import { buildWireframeFocusPulse } from '../shared/focus-pulse-decorators';
 import type { Vector3 } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
@@ -150,7 +150,7 @@ export const wireframeKind: KindModule = {
 
     /* ───────────── equator beam ───────────── */
 
-    const equatorBeam = new EquatorBeam({
+    const equatorBeam = new WireframeEquatorBeam({
       color:
         wf?.equatorBeam?.color !== undefined && wf.equatorBeam.color !== ''
           ? wf.equatorBeam.color
@@ -168,7 +168,7 @@ export const wireframeKind: KindModule = {
 
     /* ───────────── active country ring ───────────── */
 
-    const activeRing = new ActiveCountryRing({
+    const activeRing = new WireframeActiveRing({
       color:
         wf?.activeRing?.color !== undefined && wf.activeRing.color !== ''
           ? wf.activeRing.color
@@ -188,7 +188,7 @@ export const wireframeKind: KindModule = {
 
     /* ───────────── pole streams ───────────── */
 
-    const poleStreams = new PoleStreams({
+    const poleStreams = new WireframePoleStreams({
       color:
         wf?.poleStreams?.color !== undefined && wf.poleStreams.color !== ''
           ? wf.poleStreams.color
@@ -209,7 +209,7 @@ export const wireframeKind: KindModule = {
 
     /* ───────────── data packets ───────────── */
 
-    const dataPackets = new DataPackets({
+    const dataPackets = new WireframeDataPackets({
       color:
         wf?.dataPackets?.color !== undefined && wf.dataPackets.color !== ''
           ? wf.dataPackets.color
@@ -226,7 +226,7 @@ export const wireframeKind: KindModule = {
 
     /* ───────────── compass ───────────── */
 
-    const compass = new CompassMarkers({
+    const compass = new WireframeCompassMarkers({
       color:
         wf?.compass?.color !== undefined && wf.compass.color !== ''
           ? wf.compass.color
@@ -329,11 +329,11 @@ const applyWireframePartial = (
   layers: {
     readonly layer: WireframeGridLayer;
     readonly emphasis: WireframeEmphasisLayer;
-    readonly equatorBeam: EquatorBeam;
-    readonly activeRing: ActiveCountryRing;
-    readonly poleStreams: PoleStreams;
-    readonly dataPackets: DataPackets;
-    readonly compass: CompassMarkers;
+    readonly equatorBeam: WireframeEquatorBeam;
+    readonly activeRing: WireframeActiveRing;
+    readonly poleStreams: WireframePoleStreams;
+    readonly dataPackets: WireframeDataPackets;
+    readonly compass: WireframeCompassMarkers;
     readonly tokens: import('../../theme/types').ResolvedTokens;
     readonly getLastEqBeamPulse: () => boolean;
     readonly setLastEqBeamPulse: (v: boolean) => void;
@@ -549,11 +549,11 @@ const applyWireframePartial = (
 };
 
 // Re-exports — public API is the kindHandle plus the Tron-grid utilities.
-export { WireframeGridLayer, WIREFRAME_DEFAULT_RADIUS } from './wireframe-grid-layer';
-export { WireframeEmphasisLayer } from './wireframe-emphasis-layer';
-export { ActiveCountryRing } from './active-country-ring';
-export { PoleStreams } from './pole-streams';
-export { EquatorBeam } from './equator-beam';
-export { DataPackets } from './data-packets';
-export { CompassMarkers } from './compass-markers';
+export { WireframeGridLayer, WIREFRAME_DEFAULT_RADIUS } from './grid';
+export { WireframeEmphasisLayer } from './emphasis';
+export { WireframeActiveRing } from './active-ring';
+export { WireframePoleStreams } from './pole-streams';
+export { WireframeEquatorBeam } from './equator-beam';
+export { WireframeDataPackets } from './data-packets';
+export { WireframeCompassMarkers } from './compass-markers';
 export { ringRadiusForExtent, stepParticleLat } from './active-ring-extras';

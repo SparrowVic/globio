@@ -15,9 +15,9 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { CountryFeature, CountryPolygon } from '../../renderer/country-feature';
-import { easeHoverBoost } from './dotted-effects';
+import { easeHoverBoost } from './effects';
 
-export interface CountriesDottedLayerOptions {
+export interface DottedSurfaceLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;
   readonly color: string;
   readonly size: number;
@@ -399,7 +399,7 @@ const FRAG_SHADER = /* glsl */ `
  * lines from nearest-neighbour pairs. No separate borders, no fills —
  * the dots ARE the canvas.
  */
-export class CountriesDottedLayer {
+export class DottedSurfaceLayer {
   public readonly group: Group;
   private readonly material: ShaderMaterial;
   private readonly geometries: Array<BufferGeometry> = [];
@@ -412,7 +412,7 @@ export class CountriesDottedLayer {
   private readonly rippleOrigin: Array<Vector4>;
   private readonly activeRipples: Array<ActiveRipple> = [];
   private readonly activeFlashes: Array<ActiveFlash> = [];
-  private readonly opts: CountriesDottedLayerOptions;
+  private readonly opts: DottedSurfaceLayerOptions;
   /** Live mutable opts — setters write here so render loop reads latest. */
   private rippleEnabled: boolean;
   private rippleSpeed: number;
@@ -454,11 +454,11 @@ export class CountriesDottedLayer {
   /** Density used at build time — neighbour distance threshold derives from this. */
   private readonly density: number;
 
-  public constructor(options: CountriesDottedLayerOptions) {
+  public constructor(options: DottedSurfaceLayerOptions) {
     this.opts = options;
     this.density = options.density;
     this.group = new Group();
-    this.group.name = 'CountriesDottedLayer';
+    this.group.name = 'DottedSurfaceLayer';
     this.texture = createGlowTexture();
     this.flashState = new Float32Array(MAX_FLASHES);
     this.rippleOrigin = new Array(MAX_RIPPLES).fill(0).map(() => new Vector4());

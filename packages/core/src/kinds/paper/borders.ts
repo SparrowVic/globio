@@ -9,7 +9,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { CountryFeature } from '../../renderer/country-feature';
-import { jitterRing, seededJitter } from './paper-jitter';
+import { jitterRing, seededJitter } from './jitter';
 
 export interface PaperStippleOptions {
   readonly enabled: boolean;

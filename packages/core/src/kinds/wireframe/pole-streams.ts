@@ -11,7 +11,7 @@ import {
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import { stepParticleLat } from './active-ring-extras';
 
-export interface PoleStreamsOptions {
+export interface WireframePoleStreamsOptions {
   readonly color: string;
   readonly count: number;
   readonly size: number;
@@ -59,7 +59,7 @@ const createSoftDotTexture = (): CanvasTexture | null => {
  * Implemented as a single `Points` object with a per-frame position-attribute
  * rewrite — count is small (≤64 in practice) so the cost is negligible.
  */
-export class PoleStreams {
+export class WireframePoleStreams {
   public readonly group: Group;
   private geometry: BufferGeometry;
   private readonly material: PointsMaterial;
@@ -72,7 +72,7 @@ export class PoleStreams {
   private readonly originalOpacity: number;
   private points: Points;
 
-  public constructor(options: PoleStreamsOptions) {
+  public constructor(options: WireframePoleStreamsOptions) {
     this.group = new Group();
     const count = Math.max(0, Math.floor(options.count));
     this.baseSpeed = options.speed;

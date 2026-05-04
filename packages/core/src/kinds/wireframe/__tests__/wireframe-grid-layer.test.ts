@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateGridSegments } from '../wireframe-grid-layer';
+import { generateGridSegments } from '../grid';
 
 const RADIUS = 1.0005;
 

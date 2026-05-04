@@ -8,7 +8,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 
-export interface CompassMarkersOptions {
+export interface WireframeCompassMarkersOptions {
   readonly color: string;
   readonly opacity: number;
   readonly size: number;
@@ -47,7 +47,7 @@ const EQUATORIAL: ReadonlyArray<CompassEntry> = [
  *  2. The viewer can mentally orient the globe at a glance even when the
  *     country geometry isn't there to anchor them.
  */
-export class CompassMarkers {
+export class WireframeCompassMarkers {
   public readonly group: Group;
   private readonly sprites: Array<{ readonly sprite: Sprite; readonly entry: CompassEntry }>;
   private readonly originalColor: string;
@@ -56,7 +56,7 @@ export class CompassMarkers {
   private currentOpacity: number;
   private polesVisible: boolean;
 
-  public constructor(options: CompassMarkersOptions) {
+  public constructor(options: WireframeCompassMarkersOptions) {
     this.group = new Group();
     this.originalColor = options.color;
     this.currentColor = options.color;

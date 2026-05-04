@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jitterRing, seededJitter } from '../paper-jitter';
+import { jitterRing, seededJitter } from '../jitter';
 
 describe('seededJitter', () => {
   it('is deterministic — same key produces same value across calls', () => {

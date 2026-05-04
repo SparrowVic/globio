@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePulseFrame } from '../focus-pulse-layer';
+import { computePulseFrame } from '../focus-pulse';
 
 const DURATION = 1.4;
 
