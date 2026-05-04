@@ -246,6 +246,12 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         opacity: state.globe.dottedConstellationOpacity,
         distanceFactor: state.globe.dottedConstellationDistanceFactor,
       },
+      dots: {
+        mode: state.globe.dottedDotsMode,
+        palette: state.globe.dottedDotsPalette,
+        hoverColor: state.globe.dottedDotsHoverColor,
+        activeColor: state.globe.dottedDotsActiveColor,
+      },
     },
     // Outline-only fine-tune knobs. We always pass the structure so the
     // configurator preset/save round-trip keeps them; core ignores the

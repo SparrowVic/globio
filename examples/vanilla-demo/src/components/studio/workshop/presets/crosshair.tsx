@@ -35,9 +35,10 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   return (
     <div className="space-y-4">
       <DependsOn
-        when={settings.kind === 'outline'}
-        because="Outline-only feature. Switch the main globe to outline kind to use it."
+        when={settings.kind === 'outline' || settings.kind === 'dotted'}
+        because="Crosshair is only mounted on the outline + dotted kinds today. Switch the main globe to outline or dotted to tune it."
         className="space-y-4"
+        variant="hidden"
       >
         <SwitchField
           label="Hover crosshair"

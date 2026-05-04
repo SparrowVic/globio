@@ -62,6 +62,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           when={settings.kind === 'outline'}
           because="Outline-specific band geometry. Switch the main globe to outline kind to tune."
           className="space-y-4"
+          variant="hidden"
         >
           <SectionHeading>Outline · timing</SectionHeading>
           <SliderField

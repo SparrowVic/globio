@@ -61,6 +61,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           when={settings.kind !== 'dotted'}
           because="The dotted kind paints selection through dot-field edge brightening — stroke / glow knobs don't apply. Switch the main globe to outline / hologram / paper / wireframe to tune."
           className="space-y-4"
+          variant="hidden"
         >
           <SectionHeading>Hover · stroke</SectionHeading>
           <ColorField
@@ -133,6 +134,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           when={settings.kind === 'outline'}
           because="Outline-specific decoration. Switch the main globe to outline kind to tune."
           className="space-y-4"
+          variant="hidden"
         >
           <SectionHeading>Outline · stroke</SectionHeading>
           <SliderField

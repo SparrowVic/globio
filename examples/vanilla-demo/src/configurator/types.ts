@@ -57,6 +57,17 @@ export interface GlobeSettings {
   readonly countryFillHoverOpacity: number;
   readonly countryFillActiveColor: string;
   readonly countryFillActiveOpacity: number;
+  /**
+   * Per-country dot tint — independent of the country-fill mesh that
+   * sits behind the dots. Lets the user customise the dots themselves
+   * (palette, hover/active overrides) without touching the background
+   * fill. `'theme'` defers to `countries.dotted.color`. Only meaningful
+   * for the dotted kind.
+   */
+  readonly dottedDotsMode: 'theme' | 'palette' | 'data';
+  readonly dottedDotsPalette: ReadonlyArray<string>;
+  readonly dottedDotsHoverColor: string;
+  readonly dottedDotsActiveColor: string;
   readonly countryLabels: boolean;
   readonly labelMinScreenSize: number;
   readonly labelSizeFadeRange: number;

@@ -148,6 +148,13 @@ const listeners = new Set<() => void>();
 const setLiveSettings = (next: ArcSettings) => {
   liveSettings = next;
   listeners.forEach((fn) => fn());
+  // Imperative push to the active preview globe — without this, the
+  // workshop preview only reflected knob changes after a full save
+  // (the preset's `watchedKeys` is empty so `WorkshopPreviewGlobe`'s
+  // live-update effect never re-fires its `onLiveUpdate` callback).
+  // Mirror the same `globe.setArcs` call `onLiveUpdate` would have
+  // made so knobs propagate immediately.
+  if (activeGlobe) activeGlobe.setArcs(buildArcs(next));
 };
 
 const useArcSettings = (): ArcSettings => {

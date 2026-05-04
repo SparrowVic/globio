@@ -590,6 +590,52 @@ export const dottedKind: KindModule = {
           if (c.opacity !== undefined) layer.setConstellationOpacity(c.opacity);
           if (c.distanceFactor !== undefined) layer.setConstellationDistanceFactor(c.distanceFactor);
         }
+        if (next.dots !== undefined) {
+          const d = next.dots;
+          // Mode + palette → recompute per-country tint colours and
+          // push to the surface layer's `aDotColor` attribute. Empty
+          // palette in palette mode falls back to theme colour for
+          // every country; 'theme' mode clears the per-country
+          // override entirely so the shader skips the attribute fetch.
+          if (d.mode === 'theme') {
+            layer.clearCountryDotColors();
+          } else if (d.mode === 'palette' && d.palette !== undefined) {
+            const palette = d.palette;
+            if (palette.length === 0) {
+              layer.clearCountryDotColors();
+            } else {
+              // Map countryId → palette[index % palette.length].
+              const map: Record<string, string> = {};
+              const indexById = layer.getCountryIndex();
+              indexById.forEach((featureIndex, id) => {
+                const colour = palette[featureIndex % palette.length];
+                if (colour !== undefined) map[id] = colour;
+              });
+              layer.setCountryDotColors(map);
+            }
+          } else if (d.mode === 'data') {
+            // 'data' mode: dots take their colour from the same
+            // choropleth-style data the fill mesh would use. The
+            // routing happens externally via `setCountryDotColors`
+            // (e.g. a future demo `setDotsData` API). Mode flip on
+            // its own just leaves whatever map was previously set.
+            // No-op here.
+          }
+          // Palette swap without changing mode — re-apply if currently
+          // in palette mode.
+          if (d.palette !== undefined && d.mode === undefined) {
+            const indexById = layer.getCountryIndex();
+            const palette = d.palette;
+            const map: Record<string, string> = {};
+            indexById.forEach((featureIndex, id) => {
+              const colour = palette[featureIndex % palette.length];
+              if (colour !== undefined) map[id] = colour;
+            });
+            if (palette.length > 0) layer.setCountryDotColors(map);
+          }
+          if (d.hoverColor !== undefined) layer.setHoverDotColor(d.hoverColor);
+          if (d.activeColor !== undefined) layer.setActiveDotColor(d.activeColor);
+        }
       },
     };
   },

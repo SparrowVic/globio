@@ -267,6 +267,11 @@ const VERT_SHADER = /* glsl */ `
   // the surface grid visually), we just brighten the existing surface
   // dots that already trace the country edge.
   attribute float aIsEdge;
+  // Per-country tint baked at build time. Defaults to uBaseColor for
+  // every dot; flipping uHasPerCountryDotColor to 1.0 makes the shader
+  // read this attribute instead, so palette / data modes can paint
+  // each country its own colour without separate materials.
+  attribute vec3 aDotColor;
   uniform float uPointSize;
   uniform float uSizeScale;
   uniform float uPixelRatio;
@@ -325,10 +330,24 @@ const VERT_SHADER = /* glsl */ `
   uniform float uBreathEnabled;
   uniform float uBreathAmp;
   uniform float uBreathSpeed;
+  // Dot colouring — uBaseColor is the global default; aDotColor is the
+  // per-country tint baked at build time / refreshed by setCountryDot
+  // Colors. uHasPerCountryDotColor switches between them so the
+  // shared theme path doesn't pay the per-vertex attribute fetch
+  // when the user hasn't enabled palette / data dot tinting.
+  // uHover/Active dot colours layer on top when the dot belongs to
+  // the hovered / pinned country and the corresponding flag is set.
+  uniform vec3 uBaseColor;
+  uniform float uHasPerCountryDotColor;
+  uniform vec3 uHoverDotColor;
+  uniform vec3 uActiveDotColor;
+  uniform float uUseHoverDotColor;
+  uniform float uUseActiveDotColor;
 
   varying float vBrightness;
   varying float vFlashStrength;
   varying float vRippleBrightness;
+  varying vec3 vDotColor;
 
   void main() {
     vec3 dir = normalize(position);
@@ -373,6 +392,19 @@ const VERT_SHADER = /* glsl */ `
     // the pinned country's dots. Independent from hover so the user can
     // hover other countries without losing the pinned visual cue.
     float activeMatch = (idx == uActiveCountry) ? 1.0 : 0.0;
+
+    // Dot colour resolution. Default = uBaseColor, then optionally
+    // overridden by aDotColor (palette / data per-country tint), then
+    // by hover / active colour overrides if the corresponding flag is
+    // set. Active wins over hover when both target the same country.
+    vec3 baseTint = mix(uBaseColor, aDotColor, uHasPerCountryDotColor);
+    vec3 finalTint = baseTint;
+    if (uUseActiveDotColor > 0.5 && activeMatch > 0.5) {
+      finalTint = uActiveDotColor;
+    } else if (uUseHoverDotColor > 0.5 && hoverActive > 0.0) {
+      finalTint = uHoverDotColor;
+    }
+    vDotColor = finalTint;
     // Pulse amplitude: 70% steady + 30% sine ([0..1] envelope).
     float activeEnvelope = 0.7 + 0.3 * uActivePulse;
     float activeBrightness = activeMatch * uActiveBoost * activeEnvelope;
@@ -441,7 +473,6 @@ const VERT_SHADER = /* glsl */ `
 
 const FRAG_SHADER = /* glsl */ `
   precision mediump float;
-  uniform vec3 uBaseColor;
   uniform vec3 uFlashColor;
   uniform vec3 uRippleColor;
   uniform float uUseRippleColor;
@@ -452,6 +483,9 @@ const FRAG_SHADER = /* glsl */ `
   varying float vBrightness;
   varying float vFlashStrength;
   varying float vRippleBrightness;
+  // Per-vertex dot colour resolved by the vertex stage — already
+  // accounts for the base / per-country / hover / active sources.
+  varying vec3 vDotColor;
 
   void main() {
     vec2 c = gl_PointCoord - vec2(0.5);
@@ -461,7 +495,7 @@ const FRAG_SHADER = /* glsl */ `
       : smoothstep(0.5, 0.0, d);
     if (disc < 0.05) discard;
 
-    vec3 base = uBaseColor * (1.0 + vBrightness);
+    vec3 base = vDotColor * (1.0 + vBrightness);
     // Ripple color override: tint toward uRippleColor by the ripple's own
     // brightness contribution. Lets users dial a "wave color" distinct
     // from the base dot color.
@@ -599,6 +633,15 @@ export class DottedSurfaceLayer {
     this.material = new ShaderMaterial({
       uniforms: {
         uBaseColor: { value: baseColor },
+        // Per-country dot tinting — `aDotColor` per-vertex attribute
+        // is read when this flag is 1.0; otherwise the shader falls
+        // back to `uBaseColor`. Off by default, no perf cost on the
+        // theme path.
+        uHasPerCountryDotColor: { value: 0 },
+        uHoverDotColor: { value: new Color() },
+        uActiveDotColor: { value: new Color() },
+        uUseHoverDotColor: { value: 0 },
+        uUseActiveDotColor: { value: 0 },
         uFlashColor: { value: flashColor },
         uRippleColor: { value: rippleColor },
         uUseRippleColor: { value: useRippleColor },
@@ -1118,6 +1161,69 @@ export class DottedSurfaceLayer {
     this.material.uniforms['uBreathSpeed']!.value = value;
   }
 
+  /**
+   * Apply per-country dot colours. Pass a map `{ countryId: hex }` and
+   * each matching country's dots get the supplied colour; missing
+   * ids fall back to the layer's base colour. Switches the shader
+   * into `aDotColor` mode (sets `uHasPerCountryDotColor` to 1.0)
+   * so the per-vertex attribute is actually consulted. Pass an
+   * empty map / call `clearCountryDotColors` to revert.
+   */
+  public setCountryDotColors(colors: Readonly<Record<string, string>>): void {
+    const fallback = this.material.uniforms['uBaseColor']!.value as Color;
+    const tmp = new Color();
+    let touched = false;
+    for (const [id, idx] of this.countryIndex.entries()) {
+      const geom = this.geometries[idx];
+      if (!geom) continue;
+      const attr = geom.getAttribute('aDotColor') as Float32BufferAttribute | null;
+      if (!attr) continue;
+      const hex = colors[id];
+      if (hex !== undefined && hex !== '') tmp.set(hex);
+      else tmp.copy(fallback);
+      const len = attr.count;
+      const arr = attr.array as Float32Array;
+      for (let v = 0; v < len; v++) {
+        arr[v * 3] = tmp.r;
+        arr[v * 3 + 1] = tmp.g;
+        arr[v * 3 + 2] = tmp.b;
+      }
+      attr.needsUpdate = true;
+      touched = true;
+    }
+    if (touched) {
+      this.material.uniforms['uHasPerCountryDotColor']!.value = 1;
+    }
+  }
+
+  /** Reset every dot's colour to the current `uBaseColor` and disable per-country tinting. */
+  public clearCountryDotColors(): void {
+    this.material.uniforms['uHasPerCountryDotColor']!.value = 0;
+  }
+
+  /**
+   * Override the hovered country's dot colour. Empty string clears
+   * the override (dots fall back to their per-country / base colour).
+   */
+  public setHoverDotColor(hex: string): void {
+    if (hex === '') {
+      this.material.uniforms['uUseHoverDotColor']!.value = 0;
+      return;
+    }
+    (this.material.uniforms['uHoverDotColor']!.value as Color).set(hex);
+    this.material.uniforms['uUseHoverDotColor']!.value = 1;
+  }
+
+  /** Same as `setHoverDotColor`, for the pinned/active slot. Empty string disables. */
+  public setActiveDotColor(hex: string): void {
+    if (hex === '') {
+      this.material.uniforms['uUseActiveDotColor']!.value = 0;
+      return;
+    }
+    (this.material.uniforms['uActiveDotColor']!.value as Color).set(hex);
+    this.material.uniforms['uUseActiveDotColor']!.value = 1;
+  }
+
   public setConstellationEnabled(enabled: boolean): void {
     this.constellationEnabled = enabled;
     if (!enabled) this.hideConstellation();
@@ -1192,6 +1298,17 @@ export class DottedSurfaceLayer {
       geometry.setAttribute('aCountryIndex', new Float32BufferAttribute(idxArr, 1));
       geometry.setAttribute('aLat', new Float32BufferAttribute(lats, 1));
       geometry.setAttribute('aIsEdge', new Float32BufferAttribute(edgeFlags, 1));
+      // Per-country dot tint — initialised to the base colour. The
+      // shader ignores this attribute until uHasPerCountryDotColor
+      // is set to 1.0 by setCountryDotColors / palette / data flows.
+      const baseHexColor = (this.material.uniforms['uBaseColor']!.value as Color);
+      const dotColors = new Float32Array(vertCount * 3);
+      for (let v = 0; v < vertCount; v++) {
+        dotColors[v * 3] = baseHexColor.r;
+        dotColors[v * 3 + 1] = baseHexColor.g;
+        dotColors[v * 3 + 2] = baseHexColor.b;
+      }
+      geometry.setAttribute('aDotColor', new Float32BufferAttribute(dotColors, 3));
       this.geometries.push(geometry);
 
       const points = new Points(geometry, this.material);

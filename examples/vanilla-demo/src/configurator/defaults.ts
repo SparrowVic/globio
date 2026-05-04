@@ -53,6 +53,23 @@ export const defaultGlobeSettings: GlobeSettings = {
   countryFillHoverOpacity: 0,
   countryFillActiveColor: '',
   countryFillActiveOpacity: 0,
+  // Dotted-only: per-country dot tint. 'theme' defers to the dotted
+  // theme colour for every dot (no per-country override). Palette
+  // mirrors the country-fill default so flipping just dots-mode to
+  // 'palette' produces a coherent tinted globe.
+  dottedDotsMode: 'theme',
+  dottedDotsPalette: [
+    '#67e8f9',
+    '#fbbf24',
+    '#f472b6',
+    '#34d399',
+    '#a78bfa',
+    '#fb923c',
+    '#22d3ee',
+    '#facc15',
+  ],
+  dottedDotsHoverColor: '',
+  dottedDotsActiveColor: '',
   countryLabels: true,
   // High threshold by design — only the ~10-15 biggest countries
   // (Russia, Canada, Brazil, USA, China, Australia, India, …) read

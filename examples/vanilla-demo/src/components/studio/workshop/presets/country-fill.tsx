@@ -36,17 +36,38 @@ const modeOptions = [
  * palette spread across many small bordering countries on first
  * paint — the strongest "wow" frame for the layer.
  */
+const dotsModeOptions = [
+  { value: 'theme', label: 'Theme' },
+  { value: 'palette', label: 'Palette' },
+] as const;
+
 const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   const settings = state.globe;
   const mode = settings.countryFillMode;
+  const dotsMode = settings.dottedDotsMode;
+  const isDotted = settings.kind === 'dotted';
+  // Background fill mesh is only mounted on outline + dotted today.
+  // Hologram has its own shell visual, paper has its own parchment
+  // fill aesthetic, wireframe has no country geometry — none of them
+  // get the canonical CountryFillLayer instance via getCountryFillLayer.
+  const supportsBackground = settings.kind === 'outline' || settings.kind === 'dotted';
   return (
     <div className="space-y-4">
-      <ToggleField
-        label="Mode"
-        value={mode === 'data' ? 'none' : mode}
-        options={modeOptions}
-        onChange={(countryFillMode) => onGlobeChange({ countryFillMode })}
-      />
+      <DependsOn
+        when={supportsBackground}
+        because="Background fill is mounted on outline + dotted today. Other kinds use their own surface visual (hologram shell, paper parchment, wireframe grid). Switch to outline or dotted to tune."
+        className="space-y-4"
+        variant="hidden"
+      >
+        <SectionHeading>
+          {isDotted ? 'Background fill' : 'Fill mode'}
+        </SectionHeading>
+        <ToggleField
+          label="Mode"
+          value={mode === 'data' ? 'none' : mode}
+          options={modeOptions}
+          onChange={(countryFillMode) => onGlobeChange({ countryFillMode })}
+        />
 
       <DependsOn
         when={mode !== 'none' && mode !== 'data'}
@@ -120,6 +141,57 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           step={0.05}
           format={(value) => (value <= 0 ? 'inherit' : value.toFixed(2))}
           onChange={(countryFillActiveOpacity) => onGlobeChange({ countryFillActiveOpacity })}
+        />
+      </DependsOn>
+      </DependsOn>
+
+      {/*
+        Dots tinting — dotted-only. The fill mesh sits *behind* the
+        dot field (radius 1.0008 vs 1.001), so the user can drive the
+        background and the dots independently. On non-dotted kinds
+        this whole block is hidden — there are no dots to colour.
+      */}
+      <DependsOn
+        when={isDotted}
+        because="Dot tinting is only meaningful on the dotted kind. Switch the main globe to dotted to colour the dots themselves."
+        className="space-y-4"
+        variant="hidden"
+      >
+        <SectionHeading>Dots tinting</SectionHeading>
+        <ToggleField
+          label="Mode"
+          value={dotsMode === 'data' ? 'theme' : dotsMode}
+          options={dotsModeOptions}
+          onChange={(dottedDotsMode) => onGlobeChange({ dottedDotsMode })}
+        />
+        <DependsOn
+          when={dotsMode === 'palette'}
+          because="Palette only matters when Dots mode is set to Palette."
+          className="space-y-4"
+        >
+          <SectionHeading>Dots palette</SectionHeading>
+          <PaletteEditor
+            palette={settings.dottedDotsPalette}
+            onChange={(dottedDotsPalette) => onGlobeChange({ dottedDotsPalette })}
+          />
+        </DependsOn>
+        <SectionHeading>Dots · hover override</SectionHeading>
+        <ColorField
+          label="Hover dot color"
+          value={settings.dottedDotsHoverColor || '#a5f3fc'}
+          onChange={(dottedDotsHoverColor) => onGlobeChange({ dottedDotsHoverColor })}
+          hint={settings.dottedDotsHoverColor === '' ? 'No override' : undefined}
+          {...(settings.dottedDotsHoverColor !== '' ? { preset: '' } : {})}
+          swatches={['#a5f3fc', '#67e8f9', '#fbbf24', '#f472b6', '#34d399', '#ffffff']}
+        />
+        <SectionHeading>Dots · pinned override</SectionHeading>
+        <ColorField
+          label="Active dot color"
+          value={settings.dottedDotsActiveColor || '#fcd34d'}
+          onChange={(dottedDotsActiveColor) => onGlobeChange({ dottedDotsActiveColor })}
+          hint={settings.dottedDotsActiveColor === '' ? 'No override' : undefined}
+          {...(settings.dottedDotsActiveColor !== '' ? { preset: '' } : {})}
+          swatches={['#fcd34d', '#fbbf24', '#ffffff', '#ff8866', '#a5f3fc', '#22ee99']}
         />
       </DependsOn>
     </div>
@@ -206,6 +278,7 @@ const preset: PresetModule = {
   },
   KnobsComponent,
   watchedKeys: [
+    'kind',
     'countryFillMode',
     'countryFillDefaultColor',
     'countryFillDefaultOpacity',
@@ -214,6 +287,10 @@ const preset: PresetModule = {
     'countryFillHoverOpacity',
     'countryFillActiveColor',
     'countryFillActiveOpacity',
+    'dottedDotsMode',
+    'dottedDotsPalette',
+    'dottedDotsHoverColor',
+    'dottedDotsActiveColor',
   ],
   // All knobs go through the new `partial.countries.fill.*` live-update
   // branch in `create-globe.ts` — no rebuild keys.

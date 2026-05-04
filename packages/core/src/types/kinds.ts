@@ -238,6 +238,31 @@ export interface DottedConfig {
     readonly opacity?: number;
   };
   /**
+   * Per-country dot colour overrides — independent of the country
+   * fill mesh that sits *behind* the dots (configured via
+   * `countries.fill`). Modes mirror the fill layer so the user can
+   * tint dots with a palette, drive them from data, or apply
+   * hover/active colour overrides without touching the background.
+   *
+   *  - `'theme'` (default) — every dot uses `countries.dotted.color`.
+   *  - `'palette'` — each country picks a colour from `palette` by
+   *    feature index modulo, recoloured per-vertex.
+   *  - `'data'` — palette index resolved from a data map (see
+   *    `countries.fill` doc — same shape, runs through choropleth
+   *    flow if you also drive fill from data).
+   *
+   * Hover / active overrides apply on top of whichever base the
+   * mode produced; active wins over hover when both target the same
+   * country. Empty-string colour is the universal "no override"
+   * sentinel matching the rest of the configurator.
+   */
+  readonly dots?: {
+    readonly mode?: 'theme' | 'palette' | 'data';
+    readonly palette?: ReadonlyArray<string>;
+    readonly hoverColor?: string;
+    readonly activeColor?: string;
+  };
+  /**
    * Cursor wake — small ripple that fades behind the cursor as it moves
    * across the globe surface. Lower-amplitude than clickRipple, so it
    * reads as ambient response rather than impact.
