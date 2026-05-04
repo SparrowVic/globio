@@ -222,7 +222,7 @@ export interface KindLayerRegistry {
   readonly ArcsLayer: new (opts: ArcsLayerOptions) => Public<ArcsLayer>;
   readonly MarkersLayer: new (opts: MarkersLayerOptions) => Public<MarkersLayer>;
   readonly AtmosphereLayer: new (opts: AtmosphereOptions) => Public<AtmosphereLayer>;
-  readonly HoverLayer: new (opts: CountryHighlightLayerOptions) => Public<CountryHighlightLayer>;
+  readonly SelectionLayer: new (opts: CountryHighlightLayerOptions) => Public<CountryHighlightLayer>;
 }
 
 /**

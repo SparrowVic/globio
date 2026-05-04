@@ -8,7 +8,7 @@ import {
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { CountryFeature } from '../../renderer/country-feature';
 
-export interface WireframeHoverLayerOptions {
+export interface PaperSelectionLayerOptions {
   readonly hoverColor: string;
   readonly hoverWidth: number;
   readonly hoverOpacity: number;
@@ -46,7 +46,7 @@ export interface WireframeHoverLayerOptions {
  * Sits at a slightly larger radius than the base borders layer so the highlight
  * draws on top instead of fighting with the base color via z-fighting.
  */
-export class WireframeHoverLayer {
+export class PaperSelectionLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
   private readonly featuresById = new Map<string, CountryFeature>();
@@ -57,7 +57,7 @@ export class WireframeHoverLayer {
   private targetT = 0; // 0 → hidden, 1 → fully visible
   private currentT = 0;
 
-  public constructor(options: WireframeHoverLayerOptions) {
+  public constructor(options: PaperSelectionLayerOptions) {
     this.baseOpacity = options.hoverOpacity;
     this.fadeDuration = options.fadeDuration ?? 0.18;
     this.surfaceRadius = options.surfaceRadius ?? GLOBE_RADIUS * 1.0025;

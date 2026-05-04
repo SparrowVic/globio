@@ -20,7 +20,7 @@ export function CardPreview({
       return <PulsePreview accent={accent} />;
     case 'stars':
       return <StarsPreview accent={accent} />;
-    case 'hover':
+    case 'selection':
       return <HoverPreview accent={accent} />;
     case 'arcs':
       return <ArcsPreview accent={accent} />;

@@ -24,9 +24,9 @@ export const loadPreset = async (id: ConfiguratorId): Promise<PresetModule | nul
       case 'stars':
         // @ts-ignore -- Wave D
         return ((await import('./presets/stars')) as { default: PresetModule }).default;
-      case 'hover':
+      case 'selection':
         // @ts-ignore -- Wave D
-        return ((await import('./presets/hover')) as { default: PresetModule }).default;
+        return ((await import('./presets/selection')) as { default: PresetModule }).default;
       case 'atmosphere':
         // @ts-ignore -- Wave F
         return ((await import('./presets/atmosphere')) as { default: PresetModule }).default;

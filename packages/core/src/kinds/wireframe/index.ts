@@ -10,7 +10,7 @@ import { WireframeStarfieldLayer } from './starfield';
 import { WireframeArcsLayer } from './arcs';
 import { WireframeMarkersLayer } from './markers';
 import { WireframeAtmosphereLayer } from './atmosphere';
-import { WireframeHoverLayer } from './hover';
+import { WireframeSelectionLayer } from './selection';
 import { buildWireframeFocusPulse } from '../shared/focus-pulse-decorators';
 import type { Vector3 } from 'three';
 import type { CountryFeature } from '../../renderer/country-feature';
@@ -64,7 +64,7 @@ export const wireframeKind: KindModule = {
     ArcsLayer: WireframeArcsLayer,
     MarkersLayer: WireframeMarkersLayer,
     AtmosphereLayer: WireframeAtmosphereLayer,
-    HoverLayer: WireframeHoverLayer,
+    SelectionLayer: WireframeSelectionLayer,
   },
   build({ globeGroup, features, tokens, config }: KindBuildContext): WireframeKindHandle {
     const wf = config.wireframe;

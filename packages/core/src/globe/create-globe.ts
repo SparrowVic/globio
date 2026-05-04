@@ -486,7 +486,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
               ? GLOBE_RADIUS * (1 + (config.outline?.hover?.lift ?? 0))
               : undefined;
 
-          const highlight = new kindModule.layers.HoverLayer({
+          const highlight = new kindModule.layers.SelectionLayer({
             hoverColor: tokens['countries.borderHover.color'],
             hoverWidth: tokens['countries.borderHover.width'],
             hoverOpacity: tokens['countries.borderHover.opacity'],
@@ -499,7 +499,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           globeGroup.add(highlight.object);
           state.countryHighlightLayer = highlight;
 
-          const activeLayer = new kindModule.layers.HoverLayer({
+          const activeLayer = new kindModule.layers.SelectionLayer({
             hoverColor: tokens['countries.borderActive.color'],
             hoverWidth: tokens['countries.borderActive.width'],
             hoverOpacity: tokens['countries.borderActive.opacity'],

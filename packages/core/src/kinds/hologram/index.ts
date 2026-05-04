@@ -5,7 +5,7 @@ import { HologramStarfieldLayer } from './starfield';
 import { HologramArcsLayer } from './arcs';
 import { HologramMarkersLayer } from './markers';
 import { HologramAtmosphereLayer } from './atmosphere';
-import { HologramHoverLayer } from './hover';
+import { HologramSelectionLayer } from './selection';
 import { buildHologramFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { HologramConfig } from '../../types/kinds';
@@ -45,7 +45,7 @@ export const hologramKind: KindModule = {
     ArcsLayer: HologramArcsLayer,
     MarkersLayer: HologramMarkersLayer,
     AtmosphereLayer: HologramAtmosphereLayer,
-    HoverLayer: HologramHoverLayer,
+    SelectionLayer: HologramSelectionLayer,
   },
   build({
     globeGroup,

@@ -13,7 +13,7 @@ import { PaperStarfieldLayer } from './starfield';
 import { PaperArcsLayer } from './arcs';
 import { PaperMarkersLayer } from './markers';
 import { PaperAtmosphereLayer } from './atmosphere';
-import { PaperHoverLayer } from './hover';
+import { PaperSelectionLayer } from './selection';
 import { buildPaperFocusPulse } from '../shared/focus-pulse-decorators';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
@@ -77,7 +77,7 @@ export const paperKind: KindModule = {
     ArcsLayer: PaperArcsLayer,
     MarkersLayer: PaperMarkersLayer,
     AtmosphereLayer: PaperAtmosphereLayer,
-    HoverLayer: PaperHoverLayer,
+    SelectionLayer: PaperSelectionLayer,
   },
   build({ globeGroup, features, tokens, config }: KindBuildContext): PaperKindHandle {
     const paper = (config.paper ?? {}) as PaperConfig;

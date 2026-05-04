@@ -7,7 +7,7 @@ import { OutlineStarfieldLayer } from './starfield';
 import { OutlineArcsLayer } from './arcs';
 import { OutlineMarkersLayer } from './markers';
 import { OutlineAtmosphereLayer } from './atmosphere';
-import { OutlineHoverLayer } from './hover';
+import { OutlineSelectionLayer } from './selection';
 import { buildOutlineFocusPulse } from '../shared/focus-pulse-decorators';
 import { CountriesFillLayer } from '../../renderer/countries-fill-layer';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
@@ -129,7 +129,7 @@ export const outlineKind: KindModule = {
     ArcsLayer: OutlineArcsLayer,
     MarkersLayer: OutlineMarkersLayer,
     AtmosphereLayer: OutlineAtmosphereLayer,
-    HoverLayer: OutlineHoverLayer,
+    SelectionLayer: OutlineSelectionLayer,
   },
   build({ globeGroup, features, tokens, config }: KindBuildContext): OutlineKindHandle {
     const layer = new OutlineBordersLayer({

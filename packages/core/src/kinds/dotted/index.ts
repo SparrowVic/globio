@@ -4,7 +4,7 @@ import { DottedStarfieldLayer } from './starfield';
 import { DottedArcsLayer } from './arcs';
 import { DottedMarkersLayer } from './markers';
 import { DottedAtmosphereLayer } from './atmosphere';
-import { DottedHoverLayer } from './hover';
+import { DottedSelectionLayer } from './selection';
 import { BarsLayer } from '../../data-layers/bars/bars-layer';
 import { ExtrudedCountriesLayer } from '../../data-layers/extruded/extruded-layer';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
@@ -95,7 +95,7 @@ export const dottedKind: KindModule = {
     ArcsLayer: DottedArcsLayer,
     MarkersLayer: DottedMarkersLayer,
     AtmosphereLayer: DottedAtmosphereLayer,
-    HoverLayer: DottedHoverLayer,
+    SelectionLayer: DottedSelectionLayer,
   },
   // Dotted's hover / active feedback emerges from the dot field itself:
   // the country's dots brighten + scale via `hoverDots` and (optionally)

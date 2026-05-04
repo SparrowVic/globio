@@ -48,7 +48,7 @@ export type ConfiguratorId =
   | 'labels'
   | 'pulse'
   | 'stars'
-  | 'hover'
+  | 'selection'
   | 'arcs'
   | 'markers'
   | 'atmosphere'
@@ -182,11 +182,11 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
         : 'off',
   },
   {
-    id: 'hover',
-    name: 'Hover highlight',
+    id: 'selection',
+    name: 'Selection',
     icon: faMousePointer,
     accent: '#a78bfa',
-    description: 'Country hover stroke — back-side occlusion, lift, glow.',
+    description: 'Country stroke for hovered + pinned states — colors, occlusion, lift, glow.',
     status: (s) =>
       s.globe.hoverEnabled ? `on${s.globe.hoverOccludeBackSide ? ' · occluded' : ''}` : 'off',
   },
