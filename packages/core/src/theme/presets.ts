@@ -24,12 +24,51 @@ export type ThemePresetName =
  * the partial over `DEFAULT_TOKENS` so callers always see a complete token
  * set.
  *
- * `outline-dark` matches the defaults verbatim, so it stays empty — the kind
- * dispatcher still picks `outline` for it via `PRESET_DEFAULT_KIND` and the
- * defaults supply the look. Other presets only override what differs.
+ * `outline-dark` is the studio's first-impression preset — every override
+ * here is dialled to make the boot frame read as cinema rather than
+ * tutorial: deep-space background, subtly-lifted ocean, vibrant cyan-
+ * tinted borders with an additive glow, oversized atmosphere halo,
+ * dense multi-tone starfield, and label halos that read on the dark
+ * surface without fighting the country strokes. Other presets only
+ * override what differs from `DEFAULT_TOKENS`.
  */
 export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> = Object.freeze({
-  'outline-dark': Object.freeze({}),
+  'outline-dark': Object.freeze({
+    'background.color': '#000814',
+    'globe.surfaceColor': '#0a1c38',
+    // Vibrant ice-blue borders pop against the deep-navy ocean and
+    // tie into the atmosphere/starfield palette below.
+    'countries.border.color': '#6cc1ff',
+    'countries.border.opacity': 0.92,
+    'countries.borderHover.color': '#a5f3fc',
+    'countries.borderHover.width': 2.2,
+    'countries.borderHover.glowColor': '#67e8f9',
+    'countries.borderHover.glowWidth': 9,
+    'countries.borderHover.glowOpacity': 0.7,
+    // Warm amber for the pinned country — lone warm note on the
+    // otherwise cool palette so a focus instantly stands out.
+    'countries.borderActive.color': '#fcd34d',
+    'countries.borderActive.width': 3,
+    'countries.fill.defaultColor': '#1c3866',
+    'countries.fill.opacity': 0.28,
+    'countries.label.color': '#cfeeff',
+    // Cyan halo around labels — turns into a soft glow on the dark
+    // background, much more visible than the default black halo.
+    'countries.label.textShadow':
+      '0 0 6px rgba(103, 232, 249, 0.55), 0 1px 2px rgba(0, 0, 0, 0.75)',
+    'tooltip.backgroundColor': 'rgba(6, 14, 30, 0.92)',
+    'tooltip.textColor': '#a5f3fc',
+    'lights.ambient.intensity': 0.55,
+    'lights.directional.intensity': 0.85,
+    'markers.defaultColor': '#fbbf24',
+    'atmosphere.color': '#5b9eff',
+    'atmosphere.intensity': 1.7,
+    'starfield.color': '#e9f1ff',
+    'starfield.density': 2400,
+    'starfield.size': 1.55,
+    'arcs.color': '#67e8f9',
+    'arcs.headColor': '#fbbf24',
+  }),
 
   'outline-light': Object.freeze({
     'background.color': '#f0f4f8',
