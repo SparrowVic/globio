@@ -3,8 +3,6 @@ import {
   faCompass,
   faCrosshairs,
   faGauge,
-  faLayerGroup,
-  faMousePointer,
   faSparkles,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
@@ -30,11 +28,6 @@ const zoomOptions = [
   { value: 'repel', label: 'Repel' },
 ] as const;
 
-const focusPulseOriginOptions = [
-  { value: 'click', label: 'Click point' },
-  { value: 'centroid', label: 'Centroid' },
-] as const;
-
 const pixelRatioOptions: ReadonlyArray<{ readonly value: PixelRatioSetting; readonly label: string }> = [
   { value: 'auto', label: 'Auto' },
   { value: '1', label: '1x' },
@@ -48,236 +41,22 @@ export interface StageSectionsProps {
 }
 
 /**
- * Five accordion sections for the Stage panel. Each is a pure render
- * over `settings`/`onChange` — no internal state; collapse persistence
- * lives in `<PanelSection>` via localStorage.
+ * Three accordion sections for the Stage panel — only globals that
+ * Workshop doesn't already cover: Camera (axis tilt, zoom, auto-rotate,
+ * initial position), Focus (click-to-focus camera flight behaviour),
+ * Performance (pixel ratio, FPS cap, antialias, country geometry
+ * resolution).
  *
- * Section grouping follows §5.1 of the redesign plan:
- *   Kind & Theme · Surface · Camera · Interaction · Performance
- *
- * Reactive field disabling is wired here (matrix §6.1):
- *   labelMinScreenSize ← countryLabels
- *   hoverOccludeBackSide ← hoverEnabled
- *   zoomStrength + smoothZoom ← zoomMode !== 'classic'
- *   autoRotateSpeed ← autoRotate
+ * Per-layer visual knobs (country labels, atmosphere, starfield, focus
+ * pulse, hover stroke, hover crosshair, arcs, markers) all live in
+ * the Workshop concept-cards now — duplicating them here just made
+ * the left rail noisy. Each is a pure render over `settings` /
+ * `onChange`; section collapse persistence lives in `<PanelSection>`
+ * via localStorage.
  */
 export function StageSections({ settings, onChange }: StageSectionsProps) {
   return (
     <>
-      <PanelSection
-        id="stage-surface"
-        title="Surface"
-        icon={<FontAwesomeIcon icon={faLayerGroup} className="size-3" />}
-        meta={[
-          settings.atmosphere ? 'atmo' : null,
-          settings.starfield ? 'stars' : null,
-          settings.countryLabels ? 'labels' : null,
-        ]
-          .filter(Boolean)
-          .join(' · ') || 'minimal'}
-        defaultOpen
-      >
-        <ToggleField
-          label="Country resolution"
-          value={settings.countryResolution}
-          options={resolutionOptions}
-          onChange={(countryResolution) => onChange({ countryResolution })}
-        />
-        <SwitchField
-          label="Country labels"
-          checked={settings.countryLabels}
-          onChange={(countryLabels) => onChange({ countryLabels })}
-        />
-        <DependsOn
-          when={settings.countryLabels}
-          because="Enable Country labels first"
-          className="space-y-3"
-        >
-          <SliderField
-            label="Label threshold"
-            value={settings.labelMinScreenSize}
-            min={30}
-            max={150}
-            step={2}
-            format={(value) => `${value.toFixed(0)} px`}
-            onChange={(labelMinScreenSize) => onChange({ labelMinScreenSize })}
-          />
-          <SliderField
-            label="Fade range"
-            value={settings.labelSizeFadeRange}
-            min={0}
-            max={1}
-            step={0.05}
-            format={(value) => value.toFixed(2)}
-            onChange={(labelSizeFadeRange) => onChange({ labelSizeFadeRange })}
-          />
-          <SliderField
-            label="Transition"
-            value={settings.labelTransitionMs}
-            min={0}
-            max={800}
-            step={20}
-            format={(value) => `${value.toFixed(0)} ms`}
-            onChange={(labelTransitionMs) => onChange({ labelTransitionMs })}
-          />
-          <SwitchField
-            label="Halo"
-            checked={settings.labelHaloEnabled}
-            onChange={(labelHaloEnabled) => onChange({ labelHaloEnabled })}
-          />
-          <SliderField
-            label="Halo radius"
-            value={settings.labelHaloRadius}
-            min={0.5}
-            max={6}
-            step={0.5}
-            format={(value) => `${value.toFixed(1)} px`}
-            onChange={(labelHaloRadius) => onChange({ labelHaloRadius })}
-            disabled={!settings.labelHaloEnabled}
-            disabledReason="Enable Halo first"
-          />
-        </DependsOn>
-        <div className="grid grid-cols-2 gap-2">
-          <SwitchField
-            label="Atmosphere"
-            checked={settings.atmosphere}
-            onChange={(atmosphere) => onChange({ atmosphere })}
-          />
-          <SwitchField
-            label="Stars"
-            checked={settings.starfield}
-            onChange={(starfield) => onChange({ starfield })}
-          />
-        </div>
-        <DependsOn
-          when={settings.starfield}
-          because="Enable Stars first"
-          className="space-y-3"
-        >
-          <SliderField
-            label="Star count"
-            value={settings.starfieldDensity}
-            min={300}
-            max={6000}
-            step={100}
-            format={(value) => value.toLocaleString()}
-            onChange={(starfieldDensity) => onChange({ starfieldDensity })}
-          />
-          <SliderField
-            label="Star size"
-            value={settings.starfieldSize}
-            min={0.5}
-            max={4}
-            step={0.1}
-            format={(value) => `${value.toFixed(1)} px`}
-            onChange={(starfieldSize) => onChange({ starfieldSize })}
-          />
-          <SliderField
-            label="Size variety"
-            value={settings.starfieldSizeVariety}
-            min={0}
-            max={1}
-            step={0.05}
-            format={(value) => value.toFixed(2)}
-            onChange={(starfieldSizeVariety) => onChange({ starfieldSizeVariety })}
-          />
-          <SwitchField
-            label="Mixed colors"
-            checked={settings.starfieldMultiColor}
-            onChange={(starfieldMultiColor) => onChange({ starfieldMultiColor })}
-          />
-          <SwitchField
-            label="Twinkle"
-            checked={settings.starfieldTwinkle}
-            onChange={(starfieldTwinkle) => onChange({ starfieldTwinkle })}
-          />
-          <SliderField
-            label="Twinkle intensity"
-            value={settings.starfieldTwinkleIntensity}
-            min={0}
-            max={1}
-            step={0.05}
-            format={(value) => value.toFixed(2)}
-            onChange={(starfieldTwinkleIntensity) => onChange({ starfieldTwinkleIntensity })}
-            disabled={!settings.starfieldTwinkle}
-            disabledReason="Enable Twinkle first"
-          />
-          <SliderField
-            label="Twinkle speed"
-            value={settings.starfieldTwinkleSpeed}
-            min={0.1}
-            max={2}
-            step={0.05}
-            format={(value) => `${value.toFixed(2)} Hz`}
-            onChange={(starfieldTwinkleSpeed) => onChange({ starfieldTwinkleSpeed })}
-            disabled={!settings.starfieldTwinkle}
-            disabledReason="Enable Twinkle first"
-          />
-        </DependsOn>
-        <SwitchField
-          label="Focus pulse"
-          checked={settings.focusPulse}
-          onChange={(focusPulse) => onChange({ focusPulse })}
-        />
-        <DependsOn
-          when={settings.focusPulse}
-          because="Enable Focus pulse first"
-          className="space-y-3"
-        >
-          <ToggleField
-            label="Pulse origin"
-            value={settings.focusPulseOrigin}
-            options={focusPulseOriginOptions}
-            onChange={(focusPulseOrigin) => onChange({ focusPulseOrigin })}
-          />
-          <SwitchField
-            label="Pulse on ocean click"
-            checked={settings.focusPulseOnSurfaceClick}
-            onChange={(focusPulseOnSurfaceClick) => onChange({ focusPulseOnSurfaceClick })}
-          />
-          {/* Outline-specific band geometry knobs. Hidden for other kinds
-              since each kind's pulse will eventually grow its own knob set. */}
-          <DependsOn when={settings.kind === 'outline'} variant="hidden">
-            <SliderField
-              label="Pulse duration"
-              value={settings.outlinePulseDurationMs}
-              min={300}
-              max={3500}
-              step={50}
-              format={(value) => `${(value / 1000).toFixed(2)} s`}
-              onChange={(outlinePulseDurationMs) => onChange({ outlinePulseDurationMs })}
-            />
-            <SliderField
-              label="Pulse start size"
-              value={settings.outlinePulseRadiusBase}
-              min={0.01}
-              max={0.2}
-              step={0.005}
-              format={(value) => `${(value * (180 / Math.PI)).toFixed(1)}°`}
-              onChange={(outlinePulseRadiusBase) => onChange({ outlinePulseRadiusBase })}
-            />
-            <SliderField
-              label="Pulse expansion"
-              value={settings.outlinePulseScaleMax}
-              min={1.2}
-              max={5}
-              step={0.1}
-              format={(value) => `×${value.toFixed(1)}`}
-              onChange={(outlinePulseScaleMax) => onChange({ outlinePulseScaleMax })}
-            />
-            <SliderField
-              label="Pulse intensity"
-              value={settings.outlinePulseOpacity}
-              min={0.2}
-              max={2}
-              step={0.05}
-              format={(value) => value.toFixed(2)}
-              onChange={(outlinePulseOpacity) => onChange({ outlinePulseOpacity })}
-            />
-          </DependsOn>
-        </DependsOn>
-      </PanelSection>
-
       <PanelSection
         id="stage-camera"
         title="Camera"
@@ -287,6 +66,7 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
             ? `auto-rotate · ${settings.zoomMode}`
             : `static · ${settings.zoomMode}`
         }
+        defaultOpen
       >
         <SliderField
           label="Axis tilt"
@@ -384,26 +164,6 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
       </PanelSection>
 
       <PanelSection
-        id="stage-interaction"
-        title="Interaction"
-        icon={<FontAwesomeIcon icon={faMousePointer} className="size-3" />}
-        meta={settings.hoverEnabled ? 'hover on' : 'hover off'}
-      >
-        <SwitchField
-          label="Hover detection"
-          checked={settings.hoverEnabled}
-          onChange={(hoverEnabled) => onChange({ hoverEnabled })}
-        />
-        <SwitchField
-          label="Occlude back side"
-          checked={settings.hoverOccludeBackSide}
-          onChange={(hoverOccludeBackSide) => onChange({ hoverOccludeBackSide })}
-          disabled={!settings.hoverEnabled}
-          disabledReason="Enable Hover detection first"
-        />
-      </PanelSection>
-
-      <PanelSection
         id="stage-focus"
         title="Focus"
         icon={<FontAwesomeIcon icon={faCrosshairs} className="size-3" />}
@@ -465,6 +225,12 @@ export function StageSections({ settings, onChange }: StageSectionsProps) {
           </span>
         }
       >
+        <ToggleField
+          label="Country resolution"
+          value={settings.countryResolution}
+          options={resolutionOptions}
+          onChange={(countryResolution) => onChange({ countryResolution })}
+        />
         <SelectField
           label="Pixel ratio"
           value={settings.pixelRatio}

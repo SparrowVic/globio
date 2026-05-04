@@ -7,7 +7,6 @@ import {
   faGauge,
   faGrid2,
   faLayerGroup,
-  faMousePointer,
   faSparkles,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
@@ -34,29 +33,15 @@ interface SectionMeta {
 }
 
 /**
- * The five Stage sections, in the same order they appear in StageSections.
- * `id` matches the `<PanelSection>` id used there so the Browse → Quick jump
- * can target the corresponding accordion. `accent` drives per-card hover
- * glow + spotlight tint so users build muscle memory for "Surface = amber",
- * "Camera = sky", etc.
+ * The three Stage sections, in the same order they appear in
+ * `<StageSections>`. Per-layer visual knobs (atmosphere, stars,
+ * labels, focus pulse, hover, arcs, markers, crosshair) live in the
+ * Workshop concept-cards now — the Stage rail keeps only the globals
+ * that don't belong on a per-layer card. `id` matches each
+ * `<PanelSection>` id so Browse → Quick can scroll to the right
+ * accordion; `accent` drives per-card hover glow + spotlight tint.
  */
 const SECTIONS: ReadonlyArray<SectionMeta> = [
-  {
-    id: 'stage-surface',
-    name: 'Surface',
-    icon: faLayerGroup,
-    accent: '#fbbf24',
-    description: 'Atmosphere · stars · labels · focus pulse',
-    status: (s) =>
-      [
-        s.atmosphere ? 'atmo' : null,
-        s.starfield ? 'stars' : null,
-        s.countryLabels ? 'labels' : null,
-        s.focusPulse ? 'pulse' : null,
-      ]
-        .filter(Boolean)
-        .join(' · ') || 'minimal',
-  },
   {
     id: 'stage-camera',
     name: 'Camera',
@@ -65,15 +50,6 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
     description: 'Zoom · rotation · framing · initial view',
     status: (s) =>
       `${s.autoRotate ? 'auto-rotate' : 'static'} · ${s.zoomMode}`,
-  },
-  {
-    id: 'stage-interaction',
-    name: 'Interaction',
-    icon: faMousePointer,
-    accent: '#a78bfa',
-    description: 'Hover detection · back-side occlusion',
-    status: (s) =>
-      `${s.hoverEnabled ? 'hover on' : 'hover off'}${s.hoverOccludeBackSide ? ' · occluded' : ''}`,
   },
   {
     id: 'stage-focus',
@@ -91,7 +67,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
     name: 'Performance',
     icon: faGauge,
     accent: '#34d399',
-    description: 'Pixel ratio · adaptive · max FPS · AA',
+    description: 'Resolution · pixel ratio · max FPS · AA',
     status: (s) =>
       `${s.adaptiveQuality ? 'auto' : s.pixelRatio} · ${s.maxFps}fps${s.antialias ? ' · AA' : ''}`,
   },
