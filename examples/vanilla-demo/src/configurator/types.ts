@@ -121,6 +121,8 @@ export interface GlobeSettings {
   readonly dottedDriftSpeed: number;
   readonly dottedDriftFreq: number;
   readonly dottedDriftAxis: 'ns' | 'ew' | 'both';
+  /** Each country gets a deterministic phase offset on the drift wave. */
+  readonly dottedDriftPerCountryPhase: boolean;
   readonly dottedHoverDots: boolean;
   readonly dottedHoverScale: number;
   readonly dottedHoverBrightnessBoost: number;

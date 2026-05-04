@@ -139,6 +139,7 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         speed: state.globe.dottedDriftSpeed,
         freq: state.globe.dottedDriftFreq,
         axis: state.globe.dottedDriftAxis,
+        perCountryPhase: state.globe.dottedDriftPerCountryPhase,
       },
       hoverDots: {
         enabled: state.globe.dottedHoverDots,

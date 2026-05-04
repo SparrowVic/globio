@@ -363,6 +363,8 @@ export const dottedKind: KindModule = {
           if (d.speed !== undefined) layer.setDriftSpeed(d.speed);
           if (d.freq !== undefined) layer.setDriftFreq(d.freq);
           if (d.axis !== undefined) layer.setDriftAxis(d.axis);
+          if (d.perCountryPhase !== undefined)
+            layer.setPerCountryPhase(d.perCountryPhase);
         }
         if (next.hoverDots !== undefined) {
           const h = next.hoverDots;

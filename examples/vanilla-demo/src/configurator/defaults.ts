@@ -92,6 +92,7 @@ export const defaultGlobeSettings: GlobeSettings = {
   dottedDriftSpeed: 0.4,
   dottedDriftFreq: 3,
   dottedDriftAxis: 'ns',
+  dottedDriftPerCountryPhase: true,
   dottedHoverDots: true,
   dottedHoverScale: 1.3,
   dottedHoverBrightnessBoost: 0.7,

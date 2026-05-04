@@ -150,6 +150,13 @@ export interface DottedConfig {
      * patterns.
      */
     readonly axis?: 'ns' | 'ew' | 'both';
+    /**
+     * When true (default), each country's drift wave is rotated by a
+     * deterministic hash of its index so adjacent countries breathe at
+     * slightly different times rather than strobing in unison. The
+     * dotted-only "every country has its own pulse" personality.
+     */
+    readonly perCountryPhase?: boolean;
   };
   /**
    * Hover dot expansion — when a country is hovered, its dots scale up and

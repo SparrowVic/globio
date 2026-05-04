@@ -234,6 +234,12 @@ const VERT_SHADER = /* glsl */ `
   // (e.g. 0.008 lifts the dot ~0.8% of the radius outward).
   uniform float uHoverLift;
   uniform float uActiveLift;
+  // Per-country deterministic phase offset for the drift wave. With
+  // uPerCountryPhase = 1 the wave's phase is offset per-country by a
+  // hash of the country index, so adjacent countries breathe at
+  // slightly different times instead of strobing in unison. Keeps
+  // the dot field organic. Set to 0 for the original synced drift.
+  uniform float uPerCountryPhase;
   uniform vec3 uCursorOrigin;
   uniform float uCursorAge;
   uniform float uCursorAmp;
@@ -274,8 +280,15 @@ const VERT_SHADER = /* glsl */ `
       wake = exp(-wband * wband) * uCursorAmp * uCursorActive;
     }
 
+    // Per-country phase offset — hash of country index → 0..2π. With
+    // uPerCountryPhase active each country's drift wave is rotated by
+    // this constant so adjacent countries breathe at slightly different
+    // times. Pure shader noise — no per-vertex attribute needed.
+    int idxForPhase = int(aCountryIndex + 0.5);
+    float countryHash = fract(sin(float(idxForPhase) * 12.9898) * 43758.5453);
+    float countryPhase = uPerCountryPhase * countryHash * 6.2831853;
     // Ambient drift wave — bands of equal phase perpendicular to uDriftAxis.
-    float driftPhase = dot(dir, uDriftAxis) * uDriftFreq - uDriftSpeed * uTime;
+    float driftPhase = dot(dir, uDriftAxis) * uDriftFreq - uDriftSpeed * uTime + countryPhase;
     float driftBrightness = sin(driftPhase) * uDriftAmp;
 
     // Hover boost — applied when this dot's country matches the active one.
@@ -532,6 +545,9 @@ export class CountriesDottedLayer {
         // gentle "rising platform" rather than a hard pop.
         uHoverLift: { value: 0.008 },
         uActiveLift: { value: 0.012 },
+        // Per-country phase default-on — gives the dot field its
+        // organic "every country has its own breath" personality.
+        uPerCountryPhase: { value: 1 },
         uCursorOrigin: { value: this.cursorOrigin },
         uCursorAge: { value: 0 },
         uCursorAmp: { value: options.cursorWakeAmplitude },
@@ -681,6 +697,16 @@ export class CountriesDottedLayer {
   /** Active-only radial lift (fraction of GLOBE_RADIUS). 0 disables. */
   public setActiveLift(value: number): void {
     this.material.uniforms['uActiveLift']!.value = value;
+  }
+
+  /**
+   * Toggle the per-country phase offset on the drift wave. When on,
+   * each country's drift is rotated by a deterministic hash of its
+   * index so adjacent countries don't pulse in unison — keeps the dot
+   * field organic. When off, the wave is globally synced.
+   */
+  public setPerCountryPhase(enabled: boolean): void {
+    this.material.uniforms['uPerCountryPhase']!.value = enabled ? 1 : 0;
   }
 
   /**

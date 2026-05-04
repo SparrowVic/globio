@@ -275,6 +275,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             format={(value) => value.toFixed(1)}
             onChange={(dottedDriftFreq) => onGlobeChange({ dottedDriftFreq })}
           />
+          <SwitchField
+            label="Per-country phase"
+            checked={settings.dottedDriftPerCountryPhase}
+            onChange={(dottedDriftPerCountryPhase) =>
+              onGlobeChange({ dottedDriftPerCountryPhase })
+            }
+            value="Each country breathes on its own offset — adjacent borders desync"
+          />
         </DependsOn>
 
         <SectionHeading>Hover dots</SectionHeading>
@@ -659,6 +667,7 @@ const preset: PresetModule = {
     'dottedDriftSpeed',
     'dottedDriftFreq',
     'dottedDriftAxis',
+    'dottedDriftPerCountryPhase',
     'dottedHoverDots',
     'dottedHoverScale',
     'dottedHoverBrightnessBoost',
