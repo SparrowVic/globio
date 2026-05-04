@@ -242,6 +242,78 @@ export interface GlobeSettings {
   readonly paperWatermarkOpacity: number;
   readonly paperWatermarkSize: number;
   readonly paperWatermarkPosition: 'center' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+  /* ───────── Wireframe-kind knobs ───────── */
+  /** Empty string = use theme default; otherwise hex override. */
+  readonly wireframeColor: string;
+  /** ≤0 = use theme default. */
+  readonly wireframeOpacity: number;
+  /** Density override (>0). */
+  readonly wireframeDensity: number;
+  /** Token-driven opacity pulse amplitude (0..1). */
+  readonly wireframePulse: number;
+  readonly wireframePulseSpeed: number;
+  readonly wireframeHierarchy: boolean;
+  readonly wireframeHierarchyMajorStepDeg: number;
+  readonly wireframeHierarchyMajorBoost: number;
+  readonly wireframeHierarchyMinorBoost: number;
+  readonly wireframeClickPulse: boolean;
+  /** Empty string = use theme default; otherwise hex override. */
+  readonly wireframeClickPulseColor: string;
+  readonly wireframeClickPulseSpeed: number;
+  readonly wireframeClickPulseWidth: number;
+  readonly wireframeClickPulseBoost: number;
+  readonly wireframeClickPulseMaxConcurrent: number;
+  readonly wireframeEmphasis: boolean;
+  readonly wireframeEmphasisStrongColor: string;
+  readonly wireframeEmphasisWeakColor: string;
+  readonly wireframeEmphasisStrongOpacity: number;
+  readonly wireframeEmphasisWeakOpacityFactor: number;
+  readonly wireframeEquatorBeam: boolean;
+  readonly wireframeEquatorBeamColor: string;
+  readonly wireframeEquatorBeamOpacity: number;
+  readonly wireframeEquatorBeamPulse: boolean;
+  readonly wireframeEquatorBeamPulseSpeed: number;
+  readonly wireframeGlitch: boolean;
+  readonly wireframeGlitchIntervalMin: number;
+  readonly wireframeGlitchIntervalMax: number;
+  readonly wireframeActiveRing: boolean;
+  readonly wireframeActiveRingColor: string;
+  readonly wireframeActiveRingOpacity: number;
+  readonly wireframeActiveRingPadding: number;
+  readonly wireframeActiveRingRotationSpeed: number;
+  readonly wireframePoleStreams: boolean;
+  readonly wireframePoleStreamsColor: string;
+  readonly wireframePoleStreamsOpacity: number;
+  readonly wireframePoleStreamsCount: number;
+  readonly wireframePoleStreamsSpeed: number;
+  readonly wireframePoleStreamsSize: number;
+  readonly wireframeDataPackets: boolean;
+  readonly wireframeDataPacketsColor: string;
+  readonly wireframeDataPacketsCount: number;
+  readonly wireframeDataPacketsSpeed: number;
+  readonly wireframeDataPacketsTrail: number;
+  readonly wireframeDataPacketsSize: number;
+  readonly wireframeDataPacketsAxis: 'latitude' | 'longitude' | 'both';
+  readonly wireframeCompass: boolean;
+  readonly wireframeCompassColor: string;
+  readonly wireframeCompassSize: number;
+  readonly wireframeCompassOpacity: number;
+  readonly wireframeCompassPoles: boolean;
+  readonly wireframeGridPulse: boolean;
+  readonly wireframeGridPulseColor: string;
+  readonly wireframeGridPulseIntervalSec: number;
+  readonly wireframeGridPulseSpeed: number;
+  readonly wireframeGridPulseWidth: number;
+  readonly wireframeGridPulseBoost: number;
+  readonly wireframeGridPulseMode: 'fixed' | 'random';
+  readonly wireframeGridPulseOriginLat: number;
+  readonly wireframeGridPulseOriginLng: number;
+  readonly wireframePolePulse: boolean;
+  readonly wireframePolePulseColor: string;
+  readonly wireframePolePulseIntervalSec: number;
+  readonly wireframePolePulseSpeed: number;
+  readonly wireframePolePulseBoost: number;
+  readonly wireframePolePulseWhich: 'north' | 'south' | 'both';
   readonly clickToFocus: boolean;
   readonly focusPadding: number;
   readonly focusDurationMs: number;

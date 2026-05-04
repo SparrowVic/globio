@@ -238,6 +238,12 @@ export interface DottedConfig {
  * geometry. Auto-enabled when the active theme's `wireframe.opacity` token
  * is > 0 (e.g. preset `wireframe-tron`); set `enabled: true` explicitly to
  * force-on regardless of theme.
+ *
+ * The whole config is "soft-typed" for live updates — every field is a
+ * candidate for `globe.update({ wireframe: { ... } })`, sentinel values
+ * (empty-string color, non-positive numeric on a clamped knob) reset to
+ * theme / construction defaults so the workshop's clear-override flow
+ * works uniformly.
  */
 export interface WireframeConfig {
   readonly enabled?: boolean;
@@ -246,6 +252,29 @@ export interface WireframeConfig {
   /** Override token-driven pulse amplitude (0..1, 0 = disabled). */
   readonly pulse?: number;
   readonly pulseSpeed?: number;
+  /**
+   * Override the base grid line color. Empty string = use theme token. The
+   * pulse / boost colors layered on top read from `clickPulse.color` and
+   * `gridPulse.color` independently.
+   */
+  readonly color?: string;
+  /** 0..1 base opacity — non-positive resets to theme. */
+  readonly opacity?: number;
+  /**
+   * Major / minor line distinction — primary parallels + meridians (every
+   * `majorStepDeg` degrees) render at `majorBoost` * base brightness so the
+   * grid reads as a hierarchy, not a uniform mesh. Defaults: stepDeg=30,
+   * majorBoost=1.6, minorBoost=0.85, edge thickness handled by the renderer.
+   */
+  readonly hierarchy?: {
+    readonly enabled?: boolean;
+    /** Spacing of "major" lines in degrees. Default 30. */
+    readonly majorStepDeg?: number;
+    /** Brightness multiplier for major lines. Default 1.6. */
+    readonly majorBoost?: number;
+    /** Brightness multiplier for non-major (minor) lines. Default 0.85. */
+    readonly minorBoost?: number;
+  };
   /**
    * Click pulse — radial brightness wave expanding along the grid from any
    * surface click. Tron-style impact feedback.
@@ -260,6 +289,8 @@ export interface WireframeConfig {
     readonly boost?: number;
     /** Maximum simultaneous click pulses (older ones recycle). Default 4. */
     readonly maxConcurrent?: number;
+    /** Override pulse color. Empty string = theme default. */
+    readonly color?: string;
   };
   /**
    * Geographic emphasis — equator + tropics get 2× brightness; prime meridian
@@ -267,6 +298,30 @@ export interface WireframeConfig {
    */
   readonly emphasis?: {
     readonly enabled?: boolean;
+    /** Override the strong (equator + tropics) line color. Empty = theme. */
+    readonly strongColor?: string;
+    /** Override the weak (meridians) line color. Empty = theme. */
+    readonly weakColor?: string;
+    /** Strong-line opacity (0..1). Non-positive = theme default. */
+    readonly strongOpacity?: number;
+    /** Weak-line opacity factor (0..1). Default 0.5. */
+    readonly weakOpacityFactor?: number;
+  };
+  /**
+   * Equator beam — a thicker glowing line at the equator drawn separately
+   * from `emphasis`. Reads as a "data spine" running around the planet, can
+   * be pulsed for that "live energy" feel.
+   */
+  readonly equatorBeam?: {
+    readonly enabled?: boolean;
+    /** Override beam color. Empty string = theme default. */
+    readonly color?: string;
+    /** Beam opacity (0..1). Non-positive = default 0.85. */
+    readonly opacity?: number;
+    /** Pulse the beam intensity over time. Default false. */
+    readonly pulse?: boolean;
+    /** Beam pulse Hz when `pulse` enabled. Default 0.6. */
+    readonly pulseSpeed?: number;
   };
   /**
    * CRT-glitch transients — every interval seconds, a horizontal band briefly
@@ -290,6 +345,10 @@ export interface WireframeConfig {
     readonly rotationSpeed?: number;
     /** Multiplier on the country's angular radius. Default 1.2. */
     readonly padding?: number;
+    /** Override ring color. Empty string = theme default. */
+    readonly color?: string;
+    /** Ring opacity (0..1). Non-positive = theme default. */
+    readonly opacity?: number;
   };
   /**
    * Distant data-flow streams — small luminous particles continuously falling
@@ -301,6 +360,90 @@ export interface WireframeConfig {
     readonly count?: number;
     /** Southward angular velocity in radians/sec. Default 0.6. */
     readonly speed?: number;
+    /** Override stream color. Empty string = theme default. */
+    readonly color?: string;
+    /** Particle size. Non-positive = theme default. */
+    readonly size?: number;
+    /** Stream opacity (0..1). Non-positive = theme default. */
+    readonly opacity?: number;
+  };
+  /**
+   * Data packets — small luminous "blips" that race along latitude /
+   * longitude lines as if information was being carried through the grid.
+   * Each packet has a short fading trail.
+   */
+  readonly dataPackets?: {
+    readonly enabled?: boolean;
+    /** Total simultaneous packets. Default 24. */
+    readonly count?: number;
+    /** Travel speed in radians/sec. Default 0.9. */
+    readonly speed?: number;
+    /** Trail length in radians (0 = no trail). Default 0.18. */
+    readonly trail?: number;
+    /** Packet point size. Default 0.018. */
+    readonly size?: number;
+    /** Override packet color. Empty string = theme default. */
+    readonly color?: string;
+    /** Which axis the packets travel along. Default `'both'`. */
+    readonly axis?: 'latitude' | 'longitude' | 'both';
+  };
+  /**
+   * Compass markers — N/S/E/W cardinal letters anchored above the surface
+   * at the four cardinal poles (and the two geographic poles). Acts as a
+   * "we know where we are" anchor for the viewer.
+   */
+  readonly compass?: {
+    readonly enabled?: boolean;
+    /** Override marker color. Empty string = theme default. */
+    readonly color?: string;
+    /** Marker text size in pixels. Default 12. */
+    readonly size?: number;
+    /** Opacity (0..1). Non-positive = default 0.9. */
+    readonly opacity?: number;
+    /** Show N + S poles in addition to cardinals. Default true. */
+    readonly poles?: boolean;
+  };
+  /**
+   * Autonomous grid pulse — like the click pulse, but fires periodically from
+   * either a fixed location or a random origin each cycle. Reads as the grid
+   * "breathing" or "transmitting" without needing user input.
+   */
+  readonly gridPulse?: {
+    readonly enabled?: boolean;
+    /** Seconds between pulses. Default 4. */
+    readonly intervalSec?: number;
+    /** Wavefront speed (rad/sec). Default 1.2. */
+    readonly speed?: number;
+    /** Gaussian band half-width in radians. Default 0.16. */
+    readonly width?: number;
+    /** Peak brightness multiplier. Default 1.8. */
+    readonly boost?: number;
+    /** Override pulse color (empty = uses click-pulse color). */
+    readonly color?: string;
+    /** `'fixed'` = always from `origin` lat/lng; `'random'` = random sphere point each cycle. */
+    readonly mode?: 'fixed' | 'random';
+    /** Origin lat (used when `mode === 'fixed'`). Default 0. */
+    readonly originLat?: number;
+    /** Origin lng (used when `mode === 'fixed'`). Default 0. */
+    readonly originLng?: number;
+  };
+  /**
+   * Pole pulses — periodic radial waves emanating outward from the geographic
+   * poles. Distinct from `poleStreams` (which travel pole→pole along
+   * meridians); pole pulses spread around the cap as a halo.
+   */
+  readonly polePulse?: {
+    readonly enabled?: boolean;
+    /** Seconds between pulses. Default 5. */
+    readonly intervalSec?: number;
+    /** Wavefront speed in rad/sec. Default 1.0. */
+    readonly speed?: number;
+    /** Peak brightness multiplier. Default 1.5. */
+    readonly boost?: number;
+    /** Override pulse color. Empty string = theme default (uses pulse color). */
+    readonly color?: string;
+    /** Which pole(s) to fire from. Default `'both'`. */
+    readonly which?: 'north' | 'south' | 'both';
   };
 }
 

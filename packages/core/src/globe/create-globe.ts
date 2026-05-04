@@ -842,6 +842,19 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         const hologramHandle = state.kindHandle as HologramKindHandle | null;
         hologramHandle?.setHologramConfig?.(partial.hologram);
       }
+
+      // Wireframe-kind extras — every knob in WireframeConfig is routed
+      // through the kindHandle's setWireframeConfig live setter (color,
+      // density, click pulse, emphasis, equator beam, glitch, active
+      // ring, pole streams, data packets, compass, autonomous grid +
+      // pole pulses). Only the master `enabled` flag still requires a
+      // rebuild — that's tracked by the workshop's `rebuildKeys`.
+      if (partial.wireframe !== undefined) {
+        const wireframeHandle = state.kindHandle as
+          | { readonly setWireframeConfig?: (next: NonNullable<GlobeConfig['wireframe']>) => void }
+          | null;
+        wireframeHandle?.setWireframeConfig?.(partial.wireframe);
+      }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
     off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.off(event, handler),

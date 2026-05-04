@@ -61,17 +61,24 @@ const createSoftDotTexture = (): CanvasTexture | null => {
  */
 export class PoleStreams {
   public readonly group: Group;
-  private readonly geometry: BufferGeometry;
+  private geometry: BufferGeometry;
   private readonly material: PointsMaterial;
   private readonly texture: CanvasTexture | null;
-  private readonly positions: Float32Array;
+  private positions: Float32Array;
   private readonly particles: Array<Particle>;
-  private readonly baseSpeed: number;
+  private baseSpeed: number;
+  private readonly originalColor: string;
+  private readonly originalSize: number;
+  private readonly originalOpacity: number;
+  private points: Points;
 
   public constructor(options: PoleStreamsOptions) {
     this.group = new Group();
     const count = Math.max(0, Math.floor(options.count));
     this.baseSpeed = options.speed;
+    this.originalColor = options.color;
+    this.originalSize = options.size;
+    this.originalOpacity = options.opacity;
     this.positions = new Float32Array(count * 3);
     this.particles = [];
     for (let i = 0; i < count; i++) {
@@ -94,9 +101,9 @@ export class PoleStreams {
       ...(this.texture && { map: this.texture }),
     });
 
-    const points = new Points(this.geometry, this.material);
-    points.renderOrder = 9;
-    this.group.add(points);
+    this.points = new Points(this.geometry, this.material);
+    this.points.renderOrder = 9;
+    this.group.add(this.points);
   }
 
   public setVisible(visible: boolean): void {
@@ -129,6 +136,72 @@ export class PoleStreams {
     this.material.dispose();
     this.texture?.dispose();
     this.group.clear();
+  }
+
+  /* ───────── live setters ───────── */
+
+  public setColor(color: string): void {
+    this.material.color.set(color);
+  }
+
+  public resetColor(): void {
+    this.material.color.set(this.originalColor);
+  }
+
+  public setSize(size: number): void {
+    this.material.size = size;
+  }
+
+  public resetSize(): void {
+    this.material.size = this.originalSize;
+  }
+
+  public setOpacity(opacity: number): void {
+    this.material.opacity = Math.max(0, Math.min(1, opacity));
+  }
+
+  public resetOpacity(): void {
+    this.material.opacity = this.originalOpacity;
+  }
+
+  public setSpeed(speed: number): void {
+    const ratio = this.baseSpeed > 0 ? speed / this.baseSpeed : 1;
+    this.baseSpeed = speed;
+    // Re-scale every active particle's individual speed so the variation
+    // distribution is preserved without snapping.
+    if (ratio !== 1 && Number.isFinite(ratio)) {
+      for (const p of this.particles) p.speed *= ratio;
+    } else {
+      for (const p of this.particles) {
+        const jitter = 1 + (Math.random() * 2 - 1) * SPEED_VARIATION;
+        p.speed = this.baseSpeed * jitter;
+      }
+    }
+  }
+
+  /**
+   * Live count change — grow or shrink the particle pool. New particles
+   * spawn at the north pole with random meridians (so they ramp in
+   * naturally rather than appearing mid-stream).
+   */
+  public setCount(count: number): void {
+    const target = Math.max(0, Math.floor(count));
+    if (target === this.particles.length) return;
+    if (target > this.particles.length) {
+      while (this.particles.length < target) this.particles.push(this.spawn());
+    } else {
+      this.particles.length = target;
+    }
+    // Reallocate the GPU buffer to match the new count and rebuild
+    // geometry / point cloud — single-frame swap, no scene churn.
+    this.positions = new Float32Array(this.particles.length * 3);
+    this.writePositions();
+    const oldGeometry = this.geometry;
+    const next = new BufferGeometry();
+    next.setAttribute('position', new Float32BufferAttribute(this.positions, 3));
+    this.geometry = next;
+    this.points.geometry = next;
+    oldGeometry.dispose();
   }
 
   private spawn(): Particle {

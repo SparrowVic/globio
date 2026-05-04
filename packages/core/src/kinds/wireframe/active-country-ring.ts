@@ -45,8 +45,16 @@ export class ActiveCountryRing {
   public readonly group: Group;
   private readonly featuresById: Map<string, CountryFeature> = new Map();
   private readonly material: MeshBasicMaterial;
-  private readonly options: ActiveCountryRingOptions;
-  private readonly baseOpacity: number;
+  private readonly options: {
+    color: string;
+    opacity: number;
+    thickness: number;
+    padding: number;
+    rotationSpeed: number;
+  };
+  private readonly originalColor: string;
+  private readonly originalOpacity: number;
+  private baseOpacity: number;
   private mesh: Mesh | null = null;
   private currentId: string | null = null;
   private targetT = 0;
@@ -54,7 +62,9 @@ export class ActiveCountryRing {
 
   public constructor(options: ActiveCountryRingOptions) {
     this.group = new Group();
-    this.options = options;
+    this.options = { ...options };
+    this.originalColor = options.color;
+    this.originalOpacity = options.opacity;
     this.baseOpacity = options.opacity;
     this.material = new MeshBasicMaterial({
       color: new Color(options.color),
@@ -114,6 +124,44 @@ export class ActiveCountryRing {
     this.disposeMesh();
     this.material.dispose();
     this.featuresById.clear();
+  }
+
+  /* ───────── live setters ───────── */
+
+  public setColor(color: string): void {
+    this.material.color.set(color);
+  }
+
+  public resetColor(): void {
+    this.material.color.set(this.originalColor);
+  }
+
+  public setOpacity(opacity: number): void {
+    this.baseOpacity = Math.max(0, Math.min(1, opacity));
+    this.material.opacity = this.currentT * this.baseOpacity;
+  }
+
+  public resetOpacity(): void {
+    this.baseOpacity = this.originalOpacity;
+    this.material.opacity = this.currentT * this.baseOpacity;
+  }
+
+  public setRotationSpeed(speed: number): void {
+    this.options.rotationSpeed = speed;
+  }
+
+  /**
+   * Padding changes — needs a geometry rebuild for the active country, so
+   * we re-trigger the build path if a country is currently active. Inactive
+   * → no-op until the next setCountry(id) call.
+   */
+  public setPadding(padding: number): void {
+    if (padding === this.options.padding) return;
+    this.options.padding = padding;
+    if (this.currentId) {
+      const feature = this.featuresById.get(this.currentId);
+      if (feature) this.rebuildForFeature(feature);
+    }
   }
 
   private rebuildForFeature(feature: CountryFeature): void {

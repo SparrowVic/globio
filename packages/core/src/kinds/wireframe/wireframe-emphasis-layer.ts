@@ -12,12 +12,20 @@ export interface WireframeEmphasisLayerOptions {
   readonly color: string;
   readonly opacity: number;
   readonly radius: number;
+  /** Override the strong (equator + tropics) color. If omitted falls back to `color`. */
+  readonly strongColor?: string;
+  /** Override the weak (meridians) color. If omitted falls back to `color`. */
+  readonly weakColor?: string;
+  /** Strong-line opacity (defaults to `opacity`). */
+  readonly strongOpacity?: number;
+  /** Weak-line opacity factor relative to base. Default 0.5. */
+  readonly weakOpacityFactor?: number;
 }
 
 const SAMPLE_STEP_DEG = 3;
 const STRONG_LATS = [0, 23.43, -23.43] as const;
 const WEAK_LNGS = [0, 180] as const;
-const WEAK_OPACITY_FACTOR = 0.5;
+const DEFAULT_WEAK_OPACITY_FACTOR = 0.5;
 
 const generateParallel = (lat: number, radius: number, out: Array<number>): void => {
   let prev = latLngToVector3([lat, -180], radius);
@@ -41,7 +49,8 @@ const generateMeridian = (lng: number, radius: number, out: Array<number>): void
  * Equator + tropics + prime/anti-meridian as a separate LineSegments on a
  * slightly inflated radius so they read as "above" the regular grid. Two
  * sub-meshes split by emphasis strength so we can color them differently
- * without per-vertex attributes.
+ * without per-vertex attributes. Live setters mutate the materials in
+ * place — no geometry rebuild on a color/opacity change.
  */
 export class WireframeEmphasisLayer {
   public readonly group: Group;
@@ -49,9 +58,19 @@ export class WireframeEmphasisLayer {
   private readonly weakGeometry: BufferGeometry;
   private readonly strongMaterial: LineBasicMaterial;
   private readonly weakMaterial: LineBasicMaterial;
+  private readonly originalColor: string;
+  private readonly originalStrongColor: string;
+  private readonly originalWeakColor: string;
+  private baseOpacity: number;
+  private weakFactor: number;
 
   public constructor(options: WireframeEmphasisLayerOptions) {
     this.group = new Group();
+    this.originalColor = options.color;
+    this.originalStrongColor = options.strongColor ?? options.color;
+    this.originalWeakColor = options.weakColor ?? options.color;
+    this.baseOpacity = options.strongOpacity ?? options.opacity;
+    this.weakFactor = options.weakOpacityFactor ?? DEFAULT_WEAK_OPACITY_FACTOR;
 
     const strong: Array<number> = [];
     for (const lat of STRONG_LATS) generateParallel(lat, options.radius, strong);
@@ -70,16 +89,16 @@ export class WireframeEmphasisLayer {
     );
 
     this.strongMaterial = new LineBasicMaterial({
-      color: options.color,
+      color: this.originalStrongColor,
       transparent: true,
-      opacity: options.opacity,
+      opacity: this.baseOpacity,
       depthWrite: false,
       blending: AdditiveBlending,
     });
     this.weakMaterial = new LineBasicMaterial({
-      color: options.color,
+      color: this.originalWeakColor,
       transparent: true,
-      opacity: options.opacity * WEAK_OPACITY_FACTOR,
+      opacity: this.baseOpacity * this.weakFactor,
       depthWrite: false,
       blending: AdditiveBlending,
     });
@@ -98,5 +117,34 @@ export class WireframeEmphasisLayer {
     this.strongMaterial.dispose();
     this.weakMaterial.dispose();
     this.group.clear();
+  }
+
+  /* ───────── live setters ───────── */
+
+  public setStrongColor(color: string): void {
+    this.strongMaterial.color.set(color);
+  }
+
+  public resetStrongColor(): void {
+    this.strongMaterial.color.set(this.originalStrongColor);
+  }
+
+  public setWeakColor(color: string): void {
+    this.weakMaterial.color.set(color);
+  }
+
+  public resetWeakColor(): void {
+    this.weakMaterial.color.set(this.originalWeakColor);
+  }
+
+  public setStrongOpacity(opacity: number): void {
+    this.baseOpacity = Math.max(0, Math.min(1, opacity));
+    this.strongMaterial.opacity = this.baseOpacity;
+    this.weakMaterial.opacity = this.baseOpacity * this.weakFactor;
+  }
+
+  public setWeakOpacityFactor(factor: number): void {
+    this.weakFactor = Math.max(0, Math.min(1, factor));
+    this.weakMaterial.opacity = this.baseOpacity * this.weakFactor;
   }
 }
