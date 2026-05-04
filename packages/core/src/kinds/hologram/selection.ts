@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   BufferGeometry,
   Color,
   Float32BufferAttribute,
@@ -49,6 +50,8 @@ export interface HologramSelectionLayerOptions {
 export class HologramSelectionLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
+  private readonly glowMaterial: LineBasicMaterial;
+  private readonly glowObject: LineSegments;
   private readonly featuresById = new Map<string, CountryFeature>();
   // Mutable so live setters can patch the value the fade-driven render
   // reads each frame (`material.opacity = currentT * baseOpacity`).
@@ -69,10 +72,24 @@ export class HologramSelectionLayer {
       transparent: true,
       opacity: 0,
       depthTest: options.occludeBackSide,
+      depthWrite: false,
+      blending: AdditiveBlending,
     });
     this.object = new LineSegments(new BufferGeometry(), this.material);
     this.object.renderOrder = 10;
     this.object.visible = false;
+    this.glowMaterial = new LineBasicMaterial({
+      color: new Color(options.hoverColor),
+      linewidth: Math.max(options.hoverWidth * 3, options.hoverWidth + 2),
+      transparent: true,
+      opacity: 0,
+      depthTest: options.occludeBackSide,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+    this.glowObject = new LineSegments(new BufferGeometry(), this.glowMaterial);
+    this.glowObject.renderOrder = 9;
+    this.object.add(this.glowObject);
   }
 
   public registerFeatures(features: ReadonlyArray<CountryFeature>): void {
@@ -112,7 +129,9 @@ export class HologramSelectionLayer {
    */
   public setOccludeBackSide(occlude: boolean): void {
     this.material.depthTest = occlude;
+    this.glowMaterial.depthTest = occlude;
     this.material.needsUpdate = true;
+    this.glowMaterial.needsUpdate = true;
   }
 
   /**
@@ -123,6 +142,7 @@ export class HologramSelectionLayer {
   public setColor(color: string): void {
     if (color === '') return;
     this.material.color.set(color);
+    this.glowMaterial.color.set(color);
   }
 
   /**
@@ -145,6 +165,7 @@ export class HologramSelectionLayer {
   public setWidth(width: number): void {
     if (width <= 0) return;
     this.material.linewidth = width;
+    this.glowMaterial.linewidth = Math.max(width * 3, width + 2);
   }
 
   /** Step the fade tween. Should be called once per render frame. */
@@ -158,12 +179,15 @@ export class HologramSelectionLayer {
       this.currentT = Math.max(0, Math.min(1, this.currentT + dir * step));
     }
     this.material.opacity = this.currentT * this.baseOpacity;
+    this.glowMaterial.opacity = this.currentT * this.baseOpacity * 0.38;
     this.object.visible = this.currentT > 0;
   }
 
   public dispose(): void {
     this.object.geometry.dispose();
     this.material.dispose();
+    this.glowObject.geometry.dispose();
+    this.glowMaterial.dispose();
     this.featuresById.clear();
   }
 
@@ -187,5 +211,7 @@ export class HologramSelectionLayer {
 
     this.object.geometry.dispose();
     this.object.geometry = geometry;
+    this.glowObject.geometry.dispose();
+    this.glowObject.geometry = geometry.clone();
   }
 }

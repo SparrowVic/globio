@@ -74,12 +74,17 @@ const FRAGMENT_SHADER = `
 varying vec3 vColor;
 varying float vAlpha;
 void main() {
-  // Soft round disc — fade edges via smoothstep so we don't show square sprites.
+  // Hologram stars read as projector sparks: a tight core, faint diamond
+  // aperture, and tiny horizontal/vertical calibration streaks.
   vec2 uv = gl_PointCoord - vec2(0.5);
   float d = length(uv);
-  float disc = smoothstep(0.5, 0.18, d);
-  if (disc <= 0.001) discard;
-  gl_FragColor = vec4(vColor * vAlpha, disc * vAlpha);
+  float core = smoothstep(0.22, 0.0, d);
+  float diamond = smoothstep(0.5, 0.12, abs(uv.x) + abs(uv.y));
+  float hRay = smoothstep(0.032, 0.0, abs(uv.y)) * smoothstep(0.5, 0.08, abs(uv.x));
+  float vRay = smoothstep(0.032, 0.0, abs(uv.x)) * smoothstep(0.5, 0.08, abs(uv.y));
+  float spark = max(max(core, diamond * 0.5), max(hRay, vRay) * 0.46);
+  if (spark <= 0.001) discard;
+  gl_FragColor = vec4(vColor * (0.82 + spark * 0.28) * vAlpha, spark * vAlpha);
 }
 `;
 
@@ -90,8 +95,9 @@ void main() {
  *
  * Each star carries a random phase + size scale + per-star color (sampled
  * from an optional palette). A custom shader animates a sinusoidal twinkle
- * in screen space and renders the points as soft circular discs rather
- * than aliased squares.
+ * in screen space and renders each point as a diamond/cross projector spark
+ * so the backdrop belongs to the hologram language rather than a generic
+ * astronomy sky.
  */
 export class HologramStarfieldLayer {
   public readonly object: Points;

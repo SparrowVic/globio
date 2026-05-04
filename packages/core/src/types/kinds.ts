@@ -653,6 +653,8 @@ export interface PaperConfig {
  *  - `phaseShimmer` — moiré interference pattern; reads as projector phase drift.
  *  - `calibrationTicks` — tiny ticks pulled around the rim every N degrees;
  *    lends a "scientific instrument" calibration vibe.
+ *  - `focusPulse` — layered projection rings fired by focus/click events;
+ *    top-level `GlobeConfig.focusPulse` still controls when they spawn.
  *
  * Sentinel reset semantics match other kinds: empty-string color = "use
  * theme default"; `0` for non-zero numeric defaults = "use construction-
@@ -779,5 +781,16 @@ export interface HologramConfig {
     readonly length?: number;
     /** Tick brightness multiplier. Default 0.9. */
     readonly opacity?: number;
+  };
+  readonly focusPulse?: {
+    readonly durationMs?: number;
+    readonly color?: string;
+    readonly angularRadiusBase?: number;
+    readonly angularBand?: number;
+    readonly scaleMin?: number;
+    readonly scaleMax?: number;
+    readonly peakOpacity?: number;
+    readonly segments?: number;
+    readonly radiusFactor?: number;
   };
 }

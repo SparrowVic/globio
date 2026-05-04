@@ -81,6 +81,15 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             format={(value) => (value <= 0 ? 'theme' : value.toFixed(2))}
             onChange={(hoverStrokeOpacity) => onGlobeChange({ hoverStrokeOpacity })}
           />
+          <SliderField
+            label="Stroke width"
+            value={settings.hoverStrokeWidth}
+            min={0}
+            max={12}
+            step={0.5}
+            format={(value) => (value <= 0 ? 'theme' : `${value.toFixed(1)} px`)}
+            onChange={(hoverStrokeWidth) => onGlobeChange({ hoverStrokeWidth })}
+          />
 
           <SectionHeading>Hover · glow halo</SectionHeading>
           <ColorField
@@ -127,6 +136,15 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             step={0.05}
             format={(value) => (value <= 0 ? 'theme' : value.toFixed(2))}
             onChange={(activeStrokeOpacity) => onGlobeChange({ activeStrokeOpacity })}
+          />
+          <SliderField
+            label="Stroke width"
+            value={settings.activeStrokeWidth}
+            min={0}
+            max={12}
+            step={0.5}
+            format={(value) => (value <= 0 ? 'theme' : `${value.toFixed(1)} px`)}
+            onChange={(activeStrokeWidth) => onGlobeChange({ activeStrokeWidth })}
           />
         </DependsOn>
 
@@ -366,11 +384,13 @@ const preset: PresetModule = {
     'hoverEnabled',
     'hoverOccludeBackSide',
     'hoverStrokeColor',
+    'hoverStrokeWidth',
     'hoverStrokeOpacity',
     'hoverGlowColor',
     'hoverGlowWidth',
     'hoverGlowOpacity',
     'activeStrokeColor',
+    'activeStrokeWidth',
     'activeStrokeOpacity',
     'dottedHoverDots',
     'dottedHoverScale',

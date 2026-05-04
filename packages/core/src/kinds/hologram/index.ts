@@ -7,8 +7,10 @@ import { HologramMarkersLayer } from './markers';
 import { HologramAtmosphereLayer } from './atmosphere';
 import { HologramSelectionLayer } from './selection';
 import { HologramCountryFillLayer } from './country-fill';
-import { buildHologramFocusPulse } from '../shared/focus-pulse-decorators';
+import { HologramCrosshairLayer } from './crosshair';
+import { buildHologramFocusPulse } from './focus-pulse';
 import type { CountryFeature } from '../../renderer/country-feature';
+import type { GlobeConfig } from '../../types';
 import type { HologramConfig } from '../../types/kinds';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
 
@@ -20,6 +22,8 @@ import type { KindBuildContext, KindHandle, KindModule } from '../types';
  */
 export interface HologramKindHandle extends KindHandle {
   setHologramConfig?(partial: HologramConfig): void;
+  setPointerPixel?(x: number, y: number): void;
+  setOutlineConfig?(next: NonNullable<GlobeConfig['outline']>): void;
 }
 
 /**
@@ -198,12 +202,59 @@ export const hologramKind: KindModule = {
     });
     globeGroup.add(borders.group);
 
+    const pulseConfig = cfg?.focusPulse;
     const focusPulse = buildHologramFocusPulse({
       globeGroup,
-      enabled: true,
-      color: tokens['hologram.borderColor'],
-      durationSeconds: 1.0,
+      color:
+        pulseConfig?.color && pulseConfig.color !== ''
+          ? pulseConfig.color
+          : tokens['hologram.borderColor'],
+      durationSeconds:
+        pulseConfig?.durationMs !== undefined ? pulseConfig.durationMs / 1000 : 1.05,
+      overrides: {
+        ...(pulseConfig?.angularRadiusBase !== undefined && {
+          angularRadiusBase: pulseConfig.angularRadiusBase,
+        }),
+        ...(pulseConfig?.angularBand !== undefined && {
+          angularBand: pulseConfig.angularBand,
+        }),
+        ...(pulseConfig?.scaleMin !== undefined && { scaleMin: pulseConfig.scaleMin }),
+        ...(pulseConfig?.scaleMax !== undefined && { scaleMax: pulseConfig.scaleMax }),
+        ...(pulseConfig?.peakOpacity !== undefined && {
+          peakOpacity: pulseConfig.peakOpacity,
+        }),
+        ...(pulseConfig?.radiusFactor !== undefined && {
+          radiusFactor: pulseConfig.radiusFactor,
+        }),
+        ...(pulseConfig?.segments !== undefined && { segments: pulseConfig.segments }),
+      },
     });
+
+    const crosshairConfig = config.outline?.hoverCrosshair;
+    let crosshairEnabledNow = crosshairConfig?.enabled ?? true;
+    const crosshair = new HologramCrosshairLayer({
+      container: config.container,
+      color:
+        crosshairConfig?.color && crosshairConfig.color !== ''
+          ? crosshairConfig.color
+          : tokens['hologram.borderColor'],
+      ...(crosshairConfig?.size !== undefined && { size: crosshairConfig.size }),
+      ...(crosshairConfig?.opacity !== undefined && { opacity: crosshairConfig.opacity }),
+      ...(crosshairConfig?.ringRadiusFactor !== undefined && {
+        ringRadiusFactor: crosshairConfig.ringRadiusFactor,
+      }),
+      ...(crosshairConfig?.cardinalTicks !== undefined && {
+        cardinalTicks: crosshairConfig.cardinalTicks,
+      }),
+      ...(crosshairConfig?.tooltip !== undefined && { tooltip: crosshairConfig.tooltip }),
+      ...(crosshairConfig?.tooltipDecimals !== undefined && {
+        tooltipDecimals: crosshairConfig.tooltipDecimals,
+      }),
+    });
+    crosshair.setEnabled(crosshairEnabledNow);
+    globeGroup.add(crosshair.object);
+    let lastPixelX = 0;
+    let lastPixelY = 0;
 
     return {
       decorations: { focusPulse },
@@ -214,14 +265,53 @@ export const hologramKind: KindModule = {
         borders.dispose();
         globeGroup.remove(borders.group);
         focusPulse.dispose();
+        crosshair.dispose();
+        globeGroup.remove(crosshair.object);
       },
       setVisible(visible: boolean) {
         shell.setVisible(visible);
         borders.setVisible(visible);
+        crosshair.setEnabled(visible && crosshairEnabledNow);
       },
       update(delta: number, elapsedSeconds: number) {
         shell.update(elapsedSeconds);
         borders.update(elapsedSeconds, delta);
+        if (crosshairEnabledNow) crosshair.update(delta);
+      },
+      onPointerMove(point3D, latLng) {
+        if (!crosshairEnabledNow) {
+          crosshair.hide();
+          return;
+        }
+        if (point3D === null || latLng === null) {
+          crosshair.hide();
+        } else {
+          crosshair.showAt(point3D, latLng, lastPixelX, lastPixelY);
+        }
+      },
+      setPointerPixel(x: number, y: number) {
+        lastPixelX = x;
+        lastPixelY = y;
+      },
+      setOutlineConfig(next) {
+        const c = next.hoverCrosshair;
+        if (c === undefined) return;
+        if (c.enabled !== undefined) {
+          crosshairEnabledNow = c.enabled;
+          crosshair.setEnabled(c.enabled);
+          if (!c.enabled) crosshair.hide();
+        }
+        if (c.color !== undefined) {
+          crosshair.setColor(
+            c.color === '' ? tokens['hologram.borderColor'] : c.color,
+          );
+        }
+        if (c.size !== undefined) crosshair.setSize(c.size);
+        if (c.opacity !== undefined) crosshair.setOpacity(c.opacity);
+        if (c.ringRadiusFactor !== undefined) crosshair.setRingRadiusFactor(c.ringRadiusFactor);
+        if (c.cardinalTicks !== undefined) crosshair.setCardinalTicks(c.cardinalTicks);
+        if (c.tooltip !== undefined) crosshair.setTooltipVisible(c.tooltip);
+        if (c.tooltipDecimals !== undefined) crosshair.setTooltipDecimals(c.tooltipDecimals);
       },
       /**
        * Live update for hologram extras. Each top-level branch maps to a
@@ -306,6 +396,22 @@ export const hologramKind: KindModule = {
           if (t.count !== undefined) shell.setCalibrationTicksCount(t.count);
           if (t.length !== undefined) shell.setCalibrationTicksLength(t.length);
           if (t.opacity !== undefined) shell.setCalibrationTicksOpacity(t.opacity);
+        }
+        if (partial.focusPulse !== undefined) {
+          const p = partial.focusPulse;
+          focusPulse.setOptions?.({
+            ...(p.durationMs !== undefined ? { durationSeconds: p.durationMs / 1000 } : {}),
+            ...(p.angularRadiusBase !== undefined && {
+              angularRadiusBase: p.angularRadiusBase,
+            }),
+            ...(p.angularBand !== undefined && { angularBand: p.angularBand }),
+            ...(p.scaleMin !== undefined && { scaleMin: p.scaleMin }),
+            ...(p.scaleMax !== undefined && { scaleMax: p.scaleMax }),
+            ...(p.peakOpacity !== undefined && { peakOpacity: p.peakOpacity }),
+            ...(p.radiusFactor !== undefined && { radiusFactor: p.radiusFactor }),
+            ...(p.segments !== undefined && { segments: p.segments }),
+            ...(p.color !== undefined && { color: p.color }),
+          });
         }
       },
     } satisfies HologramKindHandle;

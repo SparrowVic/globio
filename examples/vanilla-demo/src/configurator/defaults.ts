@@ -251,6 +251,15 @@ export const defaultGlobeSettings: GlobeSettings = {
   hologramCalibrationTicksCount: 36,
   hologramCalibrationTicksLength: 0.04,
   hologramCalibrationTicksOpacity: 0.9,
+  hologramPulseDurationMs: 1050,
+  hologramPulseRadiusBase: 0.075,
+  hologramPulseAngularBand: 0.017,
+  hologramPulseScaleMin: 0.22,
+  hologramPulseScaleMax: 2.9,
+  hologramPulseOpacity: 1.35,
+  hologramPulseSegments: 128,
+  hologramPulseColor: '',
+  hologramPulseRadiusFactor: 1.012,
   // Paper kind defaults — chosen so every effect off → identical to the
   // pre-redesign "minimal" paper. Knobs can dial each one to taste.
   paperSurfaceColor: '',

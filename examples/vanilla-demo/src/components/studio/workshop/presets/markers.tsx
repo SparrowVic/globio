@@ -60,7 +60,13 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           onChange={(markerSize) => onGlobeChange({ markerSize })}
         />
         <SliderField
-          label={settings.kind === 'dotted' ? 'Beacon hover scale' : 'Hover scale'}
+          label={
+            settings.kind === 'dotted'
+              ? 'Beacon hover scale'
+              : settings.kind === 'hologram'
+                ? 'Projector hover scale'
+                : 'Hover scale'
+          }
           value={settings.markerHoverScale}
           min={1}
           max={3}

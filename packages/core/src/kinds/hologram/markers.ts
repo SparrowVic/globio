@@ -1,6 +1,11 @@
 import {
+  AdditiveBlending,
+  BufferGeometry,
   Color,
+  Float32BufferAttribute,
   InstancedMesh,
+  LineBasicMaterial,
+  LineSegments,
   Matrix4,
   MeshBasicMaterial,
   Object3D,
@@ -31,6 +36,8 @@ interface MarkerSlot {
 const DEFAULT_PULSE_SPEED = 1.5;
 const DEFAULT_PULSE_AMPLITUDE = 0.4;
 const HOVER_EASE_SECONDS = 0.15;
+const MARKER_LIFT = GLOBE_RADIUS * 1.008;
+const PYLON_HEIGHT = 0.075;
 
 /** Resolve a per-marker `pulse` config to concrete params, or null if disabled. */
 const pulseParams = (
@@ -59,6 +66,10 @@ export class HologramMarkersLayer {
   private readonly maxMarkers: number;
   private hoveredId: string | null = null;
   private elapsed = 0;
+  private overlay: LineSegments | null = null;
+  private overlayGeometry: BufferGeometry | null = null;
+  private readonly overlayMaterial: LineBasicMaterial;
+  private batchOverlayRebuild = false;
 
   public constructor(options: HologramMarkersLayerOptions) {
     this.maxMarkers = options.maxMarkers ?? 10000;
@@ -67,19 +78,39 @@ export class HologramMarkersLayer {
     this.hoverScale = options.hoverScale ?? 1.5;
 
     this.geometry = new SphereGeometry(1, 8, 8);
-    this.material = new MeshBasicMaterial({ color: 0xffffff });
+    this.material = new MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.74,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      wireframe: true,
+    });
     this.mesh = new InstancedMesh(this.geometry, this.material, this.maxMarkers);
     this.mesh.count = 0;
     this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 8;
 
     for (let i = this.maxMarkers - 1; i >= 0; i--) {
       this.freeIndices.push(i);
     }
+
+    this.overlayMaterial = new LineBasicMaterial({
+      color: 0xffffff,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.82,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
   }
 
   public setMarkers(markers: ReadonlyArray<MarkerConfig>): void {
+    this.batchOverlayRebuild = true;
     this.clearAll();
     markers.forEach((marker) => this.addMarker(marker));
+    this.batchOverlayRebuild = false;
+    this.rebuildOverlay();
   }
 
   public addMarker(marker: MarkerConfig): void {
@@ -95,6 +126,7 @@ export class HologramMarkersLayer {
     this.slots.set(marker.id, { index, marker, currentScale: baseScale });
     this.applyToInstance(index, marker, baseScale);
     this.refreshCount();
+    if (!this.batchOverlayRebuild) this.rebuildOverlay();
   }
 
   public removeMarker(id: string): void {
@@ -107,7 +139,9 @@ export class HologramMarkersLayer {
     this.mesh.instanceMatrix.needsUpdate = true;
     this.slots.delete(id);
     this.freeIndices.push(slot.index);
+    if (this.hoveredId === id) this.hoveredId = null;
     this.refreshCount();
+    this.rebuildOverlay();
   }
 
   public getMarkerByInstanceId(instanceId: number): MarkerConfig | null {
@@ -125,6 +159,7 @@ export class HologramMarkersLayer {
   public setHovered(id: string | null): void {
     if (this.hoveredId === id) return;
     this.hoveredId = id;
+    this.rebuildOverlay();
   }
 
   /** Step pulse and hover-ease tweens. Should be called once per render frame. */
@@ -153,6 +188,8 @@ export class HologramMarkersLayer {
     this.geometry.dispose();
     this.material.dispose();
     this.mesh.dispose();
+    this.disposeOverlay();
+    this.overlayMaterial.dispose();
   }
 
   private updateMarker(marker: MarkerConfig): void {
@@ -161,10 +198,11 @@ export class HologramMarkersLayer {
     const baseScale = this.defaultSize * (marker.size ?? 1);
     this.slots.set(marker.id, { ...slot, marker, currentScale: baseScale });
     this.applyToInstance(slot.index, marker, baseScale);
+    this.rebuildOverlay();
   }
 
   private applyToInstance(index: number, marker: MarkerConfig, scale: number): void {
-    const surface = latLngToVector3(marker.position, GLOBE_RADIUS, this.tempVector);
+    const surface = latLngToVector3(marker.position, MARKER_LIFT, this.tempVector);
 
     this.dummy.position.copy(surface);
     this.dummy.scale.setScalar(scale);
@@ -190,6 +228,7 @@ export class HologramMarkersLayer {
     this.slots.clear();
     this.mesh.instanceMatrix.needsUpdate = true;
     this.refreshCount();
+    this.disposeOverlay();
   }
 
   private refreshCount(): void {
@@ -203,4 +242,101 @@ export class HologramMarkersLayer {
     });
     this.mesh.count = maxIndex + 1;
   }
+
+  private rebuildOverlay(): void {
+    this.disposeOverlay();
+    if (this.slots.size === 0) return;
+
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const center = new Vector3();
+    const normal = new Vector3();
+    const tangent = new Vector3();
+    const bitangent = new Vector3();
+    const top = new Vector3();
+    const tmpA = new Vector3();
+    const tmpB = new Vector3();
+    const color = new Color();
+    const hoverColor = new Color('#ffffff');
+    const white = new Color('#ffffff');
+
+    const pushSegment = (a: Vector3, b: Vector3, c: Color): void => {
+      positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
+    };
+
+    this.slots.forEach((slot, id) => {
+      const markerColor = markerColorFor(slot.marker, this.defaultColor, color);
+      const isHovered = id === this.hoveredId;
+      const drawColor = isHovered
+        ? hoverColor.copy(markerColor).lerp(white, 0.45)
+        : markerColor;
+      latLngToVector3(slot.marker.position, MARKER_LIFT, center);
+      normal.copy(center).normalize();
+      buildBasis(normal, tangent, bitangent);
+      const size = this.defaultSize * (slot.marker.size ?? 1);
+      top.copy(normal).multiplyScalar(MARKER_LIFT + PYLON_HEIGHT + size * 2.2);
+      pushSegment(center, top, drawColor);
+
+      const ringRadius = 0.026 + size * 1.4;
+      const points = 8;
+      for (let i = 0; i < points; i++) {
+        const a0 = (i / points) * Math.PI * 2 + Math.PI / 4;
+        const a1 = ((i + 1) / points) * Math.PI * 2 + Math.PI / 4;
+        tmpA
+          .copy(top)
+          .addScaledVector(tangent, Math.cos(a0) * ringRadius)
+          .addScaledVector(bitangent, Math.sin(a0) * ringRadius);
+        tmpB
+          .copy(top)
+          .addScaledVector(tangent, Math.cos(a1) * ringRadius)
+          .addScaledVector(bitangent, Math.sin(a1) * ringRadius);
+        if (i % 2 === 0 || isHovered) pushSegment(tmpA, tmpB, drawColor);
+      }
+
+      const tick = ringRadius * 0.65;
+      pushSegment(
+        tmpA.copy(top).addScaledVector(tangent, -tick),
+        tmpB.copy(top).addScaledVector(tangent, tick),
+        drawColor,
+      );
+      pushSegment(
+        tmpA.copy(top).addScaledVector(bitangent, -tick),
+        tmpB.copy(top).addScaledVector(bitangent, tick),
+        drawColor,
+      );
+    });
+
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+    this.overlayGeometry = geometry;
+    this.overlay = new LineSegments(geometry, this.overlayMaterial);
+    this.overlay.renderOrder = 9;
+    this.overlay.frustumCulled = false;
+    this.mesh.add(this.overlay);
+  }
+
+  private disposeOverlay(): void {
+    if (this.overlay) {
+      this.mesh.remove(this.overlay);
+      this.overlay = null;
+    }
+    if (this.overlayGeometry) {
+      this.overlayGeometry.dispose();
+      this.overlayGeometry = null;
+    }
+  }
 }
+
+const UP = new Vector3(0, 1, 0);
+const RIGHT = new Vector3(1, 0, 0);
+
+const buildBasis = (normal: Vector3, tangent: Vector3, bitangent: Vector3): void => {
+  const helper = Math.abs(normal.dot(UP)) > 0.96 ? RIGHT : UP;
+  tangent.crossVectors(helper, normal).normalize();
+  bitangent.crossVectors(normal, tangent).normalize();
+};
+
+const markerColorFor = (marker: MarkerConfig, fallback: string, target: Color): Color =>
+  target.set(marker.color ?? fallback);

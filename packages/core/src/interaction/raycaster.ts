@@ -137,8 +137,18 @@ export class PointerRaycaster {
     this.raycaster.setFromCamera(this.pointer, this.options.camera);
 
     for (const target of this.targets) {
-      const intersections = this.raycaster.intersectObject(target.object, true);
+      // Marker layers expose an InstancedMesh as their canonical picking
+      // surface. Some kind-specific marker implementations attach decorative
+      // child Points/LineSegments to that mesh; Three's default ray thresholds
+      // for those primitives are intentionally loose and can swallow clicks
+      // meant for countries. Raycast marker targets non-recursively and only
+      // accept real instance hits.
+      const recursive = target.type !== 'marker';
+      const intersections = this.raycaster.intersectObject(target.object, recursive);
       const first = intersections[0];
+      if (target.type === 'marker' && first?.instanceId === undefined) {
+        continue;
+      }
       if (first) {
         return {
           type: target.type,

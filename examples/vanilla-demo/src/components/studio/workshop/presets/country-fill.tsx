@@ -50,16 +50,13 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   const mode = settings.countryFillMode;
   const dotsMode = settings.dottedDotsMode;
   const isDotted = settings.kind === 'dotted';
-  // Background fill mesh is only mounted on outline + dotted today.
-  // Hologram has its own shell visual, paper has its own parchment
-  // fill aesthetic, wireframe has no country geometry — none of them
-  // get the canonical CountryFillLayer instance via getCountryFillLayer.
-  const supportsBackground = settings.kind === 'outline' || settings.kind === 'dotted';
+  const supportsBackground =
+    settings.kind === 'outline' || settings.kind === 'dotted' || settings.kind === 'hologram';
   return (
     <div className="space-y-4">
       <DependsOn
         when={supportsBackground}
-        because="Background fill is mounted on outline + dotted today. Other kinds use their own surface visual (hologram shell, paper parchment, wireframe grid). Switch to outline or dotted to tune."
+        because="Background fill is mounted on outline, dotted, and hologram today. Paper and wireframe use their own surface visual."
         className="space-y-4"
         variant="hidden"
       >

@@ -305,8 +305,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // Kind-level click hook fires for any surface hit so kinds can launch
       // ripples / pulses from the impact point. We hand it the raycast
       // intersection in globe-local 3D and the same as lat/lng.
+      state.lastClickLatLng = null;
       let clickLatLng: LatLng | null = null;
-      if (hit?.point) {
+      if (hit?.point && hit.type !== 'marker') {
         const localPoint = hit.point.clone();
         globeGroup.updateMatrixWorld();
         const inverse = globeGroup.matrixWorld.clone().invert();
@@ -1215,13 +1216,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       controls.flyTo(globeLocalToWorldLatLng(center), distance, options ?? {});
       state.kindHandle?.onCountryFocus?.(center, id);
       // Focus pulse via decoration. Origin defaults to the country centroid;
-      // 'click' uses the most recent surface-click lat/lng so the pulse
-      // lands exactly where the user pointed (falling back to centroid).
+      // 'click' prefers an explicit caller center (e.g. countryClick point)
+      // and then the most recent surface-click lat/lng, falling back to the
+      // country target if focus was triggered programmatically.
       if (state.config.focusPulse?.enabled === false) return;
       const origin = state.config.focusPulse?.origin ?? 'centroid';
       const pulseLatLng =
-        origin === 'click' && state.lastClickLatLng
-          ? state.lastClickLatLng
+        origin === 'click'
+          ? options?.center ?? state.lastClickLatLng ?? center
           : center;
       state.kindHandle?.decorations?.focusPulse?.spawn(pulseLatLng, 'focus');
     },

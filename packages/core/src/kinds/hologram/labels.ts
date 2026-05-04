@@ -162,6 +162,7 @@ export class HologramLabelsLayer {
   public setColor(color: string): void {
     this.entries.forEach((entry) => {
       entry.element.style.color = color;
+      entry.element.style.borderLeftColor = color;
     });
   }
 
@@ -201,7 +202,7 @@ export class HologramLabelsLayer {
       const next = labels[entry.id] ?? this.lookupDefault(entry.id);
       if (next !== entry.text) {
         entry.text = next;
-        entry.element.textContent = next;
+        entry.element.textContent = formatHologramLabel(next);
       }
     });
   }
@@ -278,7 +279,7 @@ export class HologramLabelsLayer {
 
       const element = document.createElement('div');
       const text = this.labels[feature.id] ?? feature.name;
-      element.textContent = text;
+      element.textContent = formatHologramLabel(text);
       Object.assign(element.style, {
         position: 'absolute',
         left: '0',
@@ -290,8 +291,13 @@ export class HologramLabelsLayer {
         fontSize: `${this.options.fontSize}px`,
         fontFamily: this.options.fontFamily,
         fontWeight: this.options.fontWeight,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        borderLeft: `2px solid ${this.options.color}`,
+        background:
+          'linear-gradient(90deg, rgba(8, 35, 48, 0.58), rgba(8, 35, 48, 0.10))',
         textShadow,
-        ...(padding > 0 ? { padding: `${padding}px` } : {}),
+        padding: `${Math.max(2, padding)}px ${Math.max(6, padding + 4)}px`,
         opacity: '0',
         willChange: 'transform, opacity',
         transition: `opacity ${transitionMs}ms ease-out`,
@@ -337,3 +343,5 @@ const smoothstep = (edge0: number, edge1: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
 };
+
+const formatHologramLabel = (label: string): string => `// ${label}`;

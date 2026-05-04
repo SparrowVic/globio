@@ -75,6 +75,7 @@ export function GlobePreview({
         duration: f.durationMs,
         elevation: f.elevation,
         pauseAutoRotateOnFocus: f.pauseAutoRotate,
+        center: event.point,
       });
       onMessage(`Focus → ${event.country.name ?? event.country.id}`);
     });

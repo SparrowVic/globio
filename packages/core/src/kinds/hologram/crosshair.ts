@@ -42,6 +42,7 @@ const DEFAULT_RING_FACTOR = 0.7;
 const SURFACE_LIFT = GLOBE_RADIUS * 1.0025;
 const FOLLOW_BLEND = 0.8;
 const POSITION_EPSILON = 1e-5;
+const ROTATE_SPEED = 0.72;
 
 /**
  * Pure formatter — `(52.23, 21.01) → '52.23°N, 21.01°E'`. Lat clamped to
@@ -82,6 +83,7 @@ export class HologramCrosshairLayer {
   private tooltipDecimals: number;
   private latestLat = 0;
   private latestLng = 0;
+  private elapsed = 0;
 
   public constructor(options: HologramCrosshairOptions) {
     this.container = options.container;
@@ -112,14 +114,20 @@ export class HologramCrosshairLayer {
       'left:0',
       'top:0',
       `color:${options.color}`,
+      'background:rgba(3,18,28,0.58)',
+      `border:1px solid ${options.color}66`,
+      'padding:3px 7px',
+      'border-radius:2px',
       'font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
       'font-size:11px',
-      'letter-spacing:0.04em',
+      'letter-spacing:0.12em',
       'white-space:nowrap',
       'transform:translate(14px, 32px)',
       'opacity:0',
       'transition:opacity 80ms linear',
-      'text-shadow:0 0 4px rgba(0,0,0,0.6)',
+      `box-shadow:0 0 14px ${options.color}33, inset 0 0 10px ${options.color}1f`,
+      'text-shadow:0 0 7px currentColor',
+      'text-transform:uppercase',
       'z-index:50',
     ].join(';');
     this.tooltip.textContent = '';
@@ -157,19 +165,21 @@ export class HologramCrosshairLayer {
     this.target.copy(point3D).setLength(SURFACE_LIFT);
     this.latestLat = latLng[0];
     this.latestLng = latLng[1];
-    this.tooltip.textContent = formatLatLng(latLng[0], latLng[1], this.tooltipDecimals);
+    this.tooltip.textContent = `HOLO ${formatLatLng(latLng[0], latLng[1], this.tooltipDecimals)}`;
     this.tooltip.style.left = `${pixelX}px`;
     this.tooltip.style.top = `${pixelY}px`;
   }
 
   public update(delta: number): void {
+    this.elapsed += delta;
     const target = this.active ? 1 : 0;
     if (this.fadeT !== target) {
       const step = delta / 0.08;
       const dir = target > this.fadeT ? 1 : -1;
       this.fadeT = Math.max(0, Math.min(1, this.fadeT + dir * step));
     }
-    this.material.opacity = this.fadeT * this.baseOpacity;
+    const projectorFlicker = 0.78 + 0.22 * Math.sin(this.elapsed * 18);
+    this.material.opacity = this.fadeT * this.baseOpacity * projectorFlicker;
     this.tooltip.style.opacity = `${this.fadeT}`;
 
     if (this.active) {
@@ -179,6 +189,7 @@ export class HologramCrosshairLayer {
       if (this.current.lengthSq() < POSITION_EPSILON) this.current.copy(this.target);
       this.object.position.copy(this.current);
       this.object.lookAt(0, 0, 0);
+      this.object.rotateZ(this.elapsed * ROTATE_SPEED);
       this.object.visible = true;
     } else if (this.fadeT === 0) {
       this.object.visible = false;
@@ -191,6 +202,8 @@ export class HologramCrosshairLayer {
   public setColor(color: string): void {
     this.material.color.set(color);
     this.tooltip.style.color = color;
+    this.tooltip.style.borderColor = `${color}66`;
+    this.tooltip.style.boxShadow = `0 0 14px ${color}33, inset 0 0 10px ${color}1f`;
   }
 
   /** Mutate the base opacity multiplier (effective only while reticle is active). */
@@ -229,7 +242,7 @@ export class HologramCrosshairLayer {
   public setTooltipDecimals(decimals: number): void {
     this.tooltipDecimals = decimals;
     if (this.active) {
-      this.tooltip.textContent = formatLatLng(this.latestLat, this.latestLng, decimals);
+      this.tooltip.textContent = `HOLO ${formatLatLng(this.latestLat, this.latestLng, decimals)}`;
     }
   }
 
@@ -248,8 +261,9 @@ export class HologramCrosshairLayer {
 }
 
 /**
- * Build the reticle geometry: a cross + (optional) inner ring + (optional)
- * cardinal tick marks at N/S/E/W just outside the ring.
+ * Build the hologram reticle geometry: square projection brackets, a
+ * broken calibration ring, scan gates, and optional cardinal ticks. It
+ * intentionally avoids the outline kind's simple cross+circle silhouette.
  */
 const buildReticle = (
   size: number,
@@ -257,29 +271,46 @@ const buildReticle = (
   cardinalTicks: boolean,
   material: LineBasicMaterial,
 ): LineSegments => {
-  const arms: Array<number> = [
-    -size, 0, 0, size, 0, 0,
-    0, -size, 0, 0, size, 0,
-  ];
+  const arms: Array<number> = [];
+  const push = (x1: number, y1: number, x2: number, y2: number): void => {
+    arms.push(x1, y1, 0, x2, y2, 0);
+  };
+
+  const gate = size * 0.36;
+  push(-gate, 0, gate, 0);
+  push(0, -gate, 0, gate);
+
+  const box = size * 1.18;
+  const corner = size * 0.34;
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      push(sx * box, sy * box, sx * (box - corner), sy * box);
+      push(sx * box, sy * box, sx * box, sy * (box - corner));
+    }
+  }
+
   const ringR = size * ringRadiusFactor;
   if (ringR > 0) {
-    const ringSegs = 24;
+    const ringSegs = 28;
     for (let i = 0; i < ringSegs; i++) {
+      if (i % 4 === 1) continue;
       const t1 = (i / ringSegs) * Math.PI * 2;
       const t2 = ((i + 1) / ringSegs) * Math.PI * 2;
-      arms.push(Math.cos(t1) * ringR, Math.sin(t1) * ringR, 0);
-      arms.push(Math.cos(t2) * ringR, Math.sin(t2) * ringR, 0);
+      push(Math.cos(t1) * ringR, Math.sin(t1) * ringR, Math.cos(t2) * ringR, Math.sin(t2) * ringR);
     }
   }
   if (cardinalTicks && ringR > 0) {
-    // Four tiny ticks just outside the ring (15% of size length each).
-    const tickLen = size * 0.15;
-    const tickStart = ringR + size * 0.06;
+    const tickLen = size * 0.24;
+    const tickStart = ringR + size * 0.08;
     const tickEnd = tickStart + tickLen;
-    arms.push(tickStart, 0, 0, tickEnd, 0, 0);
-    arms.push(-tickStart, 0, 0, -tickEnd, 0, 0);
-    arms.push(0, tickStart, 0, 0, tickEnd, 0);
-    arms.push(0, -tickStart, 0, 0, -tickEnd, 0);
+    push(tickStart, 0, tickEnd, 0);
+    push(-tickStart, 0, -tickEnd, 0);
+    push(0, tickStart, 0, tickEnd);
+    push(0, -tickStart, 0, -tickEnd);
+
+    const scan = size * 1.42;
+    push(-scan, size * 0.16, -size * 0.62, size * 0.16);
+    push(size * 0.62, -size * 0.16, scan, -size * 0.16);
   }
   const geom = new BufferGeometry();
   geom.setAttribute('position', new Float32BufferAttribute(arms, 3));

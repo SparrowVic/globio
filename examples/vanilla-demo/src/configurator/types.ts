@@ -285,6 +285,15 @@ export interface GlobeSettings {
   readonly hologramCalibrationTicksCount: number;
   readonly hologramCalibrationTicksLength: number;
   readonly hologramCalibrationTicksOpacity: number;
+  readonly hologramPulseDurationMs: number;
+  readonly hologramPulseRadiusBase: number;
+  readonly hologramPulseAngularBand: number;
+  readonly hologramPulseScaleMin: number;
+  readonly hologramPulseScaleMax: number;
+  readonly hologramPulseOpacity: number;
+  readonly hologramPulseSegments: number;
+  readonly hologramPulseColor: string;
+  readonly hologramPulseRadiusFactor: number;
   // -----------------------------------------------------------------
   // Paper kind (vintage atlas) — only honoured when kind === 'paper'.
   // Empty-string color = use theme default. 0 / negative numerics where

@@ -243,6 +243,118 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
           </DependsOn>
         </DependsOn>
+
+        <DependsOn
+          when={settings.kind === 'hologram'}
+          because="Hologram renders focus pulse as layered projection rings. Switch the main globe to hologram kind to tune."
+          className="space-y-4"
+          variant="hidden"
+        >
+          <SectionHeading>Hologram · projection pulse</SectionHeading>
+          <SliderField
+            label="Duration"
+            value={settings.hologramPulseDurationMs}
+            min={250}
+            max={2600}
+            step={50}
+            format={(value) => `${(value / 1000).toFixed(2)} s`}
+            onChange={(hologramPulseDurationMs) =>
+              onGlobeChange({ hologramPulseDurationMs })
+            }
+          />
+          <SliderField
+            label="Emitter radius"
+            value={settings.hologramPulseRadiusBase}
+            min={0.015}
+            max={0.18}
+            step={0.005}
+            format={(value) => `${(value * (180 / Math.PI)).toFixed(1)}°`}
+            onChange={(hologramPulseRadiusBase) =>
+              onGlobeChange({ hologramPulseRadiusBase })
+            }
+          />
+          <SliderField
+            label="Beam thickness"
+            value={settings.hologramPulseAngularBand}
+            min={0.003}
+            max={0.06}
+            step={0.001}
+            format={(value) => `${(value * (180 / Math.PI)).toFixed(2)}°`}
+            onChange={(hologramPulseAngularBand) =>
+              onGlobeChange({ hologramPulseAngularBand })
+            }
+          />
+          <SliderField
+            label="Start scale"
+            value={settings.hologramPulseScaleMin}
+            min={0.05}
+            max={1}
+            step={0.05}
+            format={(value) => `x${value.toFixed(2)}`}
+            onChange={(hologramPulseScaleMin) =>
+              onGlobeChange({ hologramPulseScaleMin })
+            }
+          />
+          <SliderField
+            label="Expansion"
+            value={settings.hologramPulseScaleMax}
+            min={1}
+            max={5}
+            step={0.1}
+            format={(value) => `x${value.toFixed(1)}`}
+            onChange={(hologramPulseScaleMax) =>
+              onGlobeChange({ hologramPulseScaleMax })
+            }
+          />
+          <SliderField
+            label="Peak gain"
+            value={settings.hologramPulseOpacity}
+            min={0.2}
+            max={2.5}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(hologramPulseOpacity) => onGlobeChange({ hologramPulseOpacity })}
+          />
+          <SliderField
+            label="Segments"
+            value={settings.hologramPulseSegments}
+            min={24}
+            max={224}
+            step={4}
+            format={(value) => `${value}`}
+            onChange={(hologramPulseSegments) =>
+              onGlobeChange({ hologramPulseSegments })
+            }
+          />
+          <SliderField
+            label="Surface lift"
+            value={settings.hologramPulseRadiusFactor}
+            min={1}
+            max={1.04}
+            step={0.0005}
+            format={(value) => `${((value - 1) * 100).toFixed(2)}%`}
+            onChange={(hologramPulseRadiusFactor) =>
+              onGlobeChange({ hologramPulseRadiusFactor })
+            }
+          />
+          <ColorField
+            label="Projection color"
+            value={settings.hologramPulseColor || '#67e8f9'}
+            onChange={(hologramPulseColor) => onGlobeChange({ hologramPulseColor })}
+            hint={settings.hologramPulseColor === '' ? 'Theme default' : undefined}
+            {...(settings.hologramPulseColor !== '' ? { preset: '' } : {})}
+            swatches={[
+              '#67e8f9',
+              '#22d3ee',
+              '#a5f3fc',
+              '#5eead4',
+              '#a78bfa',
+              '#f472b6',
+              '#fbbf24',
+              '#ffffff',
+            ]}
+          />
+        </DependsOn>
       </DependsOn>
 
       <p className="rounded-md border border-dashed border-pink-200/[0.16] bg-pink-200/[0.03] px-3 py-2 text-[10.5px] leading-relaxed text-pink-100/80">
@@ -291,6 +403,15 @@ const preset: PresetModule = {
     'dottedRippleWidth',
     'dottedRippleMaxConcurrent',
     'dottedRippleColor',
+    'hologramPulseDurationMs',
+    'hologramPulseRadiusBase',
+    'hologramPulseAngularBand',
+    'hologramPulseScaleMin',
+    'hologramPulseScaleMax',
+    'hologramPulseOpacity',
+    'hologramPulseSegments',
+    'hologramPulseColor',
+    'hologramPulseRadiusFactor',
   ],
   // All band geometry + color / radius factor are live via
   // FocusPulseDecorator.setOptions(). Origin + on-surface-click flip

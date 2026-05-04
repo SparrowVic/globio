@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   BufferGeometry,
   Color,
   DoubleSide,
@@ -413,6 +414,7 @@ export class HologramCountryFillLayer {
         opacity: this.defaultOpacity,
         side: DoubleSide,
         depthWrite: false,
+        blending: AdditiveBlending,
       });
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));

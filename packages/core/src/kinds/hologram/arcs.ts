@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   Color,
   Group,
   Mesh,
@@ -32,18 +33,23 @@ interface ArcEntry {
   readonly config: ArcConfig;
   readonly line: Line2;
   readonly material: LineMaterial;
+  readonly auraLine: Line2;
+  readonly auraMaterial: LineMaterial;
+  readonly packetLine: Line2;
+  readonly packetMaterial: LineMaterial;
   readonly head: Mesh | null;
   readonly samplePoints: Vector3[];
+  readonly phase: number;
 }
 
 const SAMPLES = 64;
 
 /**
- * Connections between lat/lng pairs rendered as great-circle arcs lifted off
- * the globe surface. Curve uses spherical-lerp (slerp) between endpoints +
- * `sin(t·π) * height` radial elevation profile so arcs meet the globe
- * tangentially. Optional moving "head" particle, dashed style, distance-based
- * auto-height — all per-arc.
+ * Hologram-native connection beams. Each route is a layered projection:
+ * a crisp carrier line, a much wider additive aura, a dashed "data packet"
+ * glint riding the same great-circle, and an optional wireframe head probe.
+ * It still honours the canonical ArcConfig fields, but maps them to a
+ * holographic beam language rather than outline-style cartographic strokes.
  */
 export class HologramArcsLayer {
   public readonly group: Group;
@@ -75,7 +81,11 @@ export class HologramArcsLayer {
    */
   public setResolution(width: number, height: number): void {
     this.resolution.set(width, height);
-    this.entries.forEach((entry) => entry.material.resolution.set(width, height));
+    this.entries.forEach((entry) => {
+      entry.material.resolution.set(width, height);
+      entry.auraMaterial.resolution.set(width, height);
+      entry.packetMaterial.resolution.set(width, height);
+    });
   }
 
   public setArcs(arcs: ReadonlyArray<ArcConfig>): void {
@@ -101,30 +111,63 @@ export class HologramArcsLayer {
     for (const p of points) {
       positions.push(p.x, p.y, p.z);
     }
-    const geometry = new LineGeometry();
-    geometry.setPositions(positions);
-
     const color = new Color(config.color ?? this.defaultColor);
     const lineWidth = config.width ?? this.defaultWidth;
     const isDashed = config.style === 'dashed';
+    const carrierGeometry = buildLineGeometry(positions);
     const material = new LineMaterial({
       color: color.getHex(),
       linewidth: lineWidth,
       worldUnits: false, // pixel widths
       transparent: true,
-      opacity: this.defaultOpacity,
+      opacity: this.defaultOpacity * 0.9,
       dashed: isDashed,
       ...(isDashed
         ? { dashSize: config.dashSize ?? 0.04, gapSize: config.dashGap ?? 0.02 }
         : {}),
       resolution: this.resolution.clone(),
     });
+    material.blending = AdditiveBlending;
+    material.depthWrite = false;
     if (isDashed) material.defines.USE_DASH = '';
     material.needsUpdate = true;
 
-    const line = new Line2(geometry, material);
+    const line = new Line2(carrierGeometry, material);
     if (isDashed) line.computeLineDistances();
     this.group.add(line);
+
+    const auraMaterial = new LineMaterial({
+      color: color.getHex(),
+      linewidth: Math.max(lineWidth * 4.2, 4),
+      worldUnits: false,
+      transparent: true,
+      opacity: this.defaultOpacity * 0.18,
+      resolution: this.resolution.clone(),
+    });
+    auraMaterial.blending = AdditiveBlending;
+    auraMaterial.depthWrite = false;
+    auraMaterial.needsUpdate = true;
+    const auraLine = new Line2(buildLineGeometry(positions), auraMaterial);
+    this.group.add(auraLine);
+
+    const packetMaterial = new LineMaterial({
+      color: new Color(this.headColor).getHex(),
+      linewidth: Math.max(1, lineWidth * 0.85),
+      worldUnits: false,
+      transparent: true,
+      opacity: config.animated === false ? this.defaultOpacity * 0.28 : this.defaultOpacity * 0.62,
+      dashed: true,
+      dashSize: config.dashSize ?? 0.055,
+      gapSize: config.dashGap ?? 0.045,
+      resolution: this.resolution.clone(),
+    });
+    packetMaterial.blending = AdditiveBlending;
+    packetMaterial.depthWrite = false;
+    packetMaterial.defines.USE_DASH = '';
+    packetMaterial.needsUpdate = true;
+    const packetLine = new Line2(buildLineGeometry(positions), packetMaterial);
+    packetLine.computeLineDistances();
+    this.group.add(packetLine);
 
     let head: Mesh | null = null;
     if (config.animated) {
@@ -133,12 +176,26 @@ export class HologramArcsLayer {
         color: new Color(this.headColor),
         transparent: true,
         opacity: 1,
+        blending: AdditiveBlending,
+        depthWrite: false,
+        wireframe: true,
       });
       head = new Mesh(headGeo, headMat);
       this.group.add(head);
     }
 
-    this.entries.set(config.id, { config, line, material, head, samplePoints: points });
+    this.entries.set(config.id, {
+      config,
+      line,
+      material,
+      auraLine,
+      auraMaterial,
+      packetLine,
+      packetMaterial,
+      head,
+      samplePoints: points,
+      phase: hashPhase(config.id),
+    });
   }
 
   public removeArc(id: string): void {
@@ -147,6 +204,12 @@ export class HologramArcsLayer {
     entry.line.geometry.dispose();
     entry.material.dispose();
     this.group.remove(entry.line);
+    entry.auraLine.geometry.dispose();
+    entry.auraMaterial.dispose();
+    this.group.remove(entry.auraLine);
+    entry.packetLine.geometry.dispose();
+    entry.packetMaterial.dispose();
+    this.group.remove(entry.packetLine);
     if (entry.head) {
       entry.head.geometry.dispose();
       (entry.head.material as MeshBasicMaterial).dispose();
@@ -158,6 +221,12 @@ export class HologramArcsLayer {
   /** Drive head animation. Pass total elapsed seconds. */
   public update(elapsedSeconds: number): void {
     this.entries.forEach((entry) => {
+      const flicker = 0.82 + 0.18 * Math.sin(elapsedSeconds * 8.7 + entry.phase * 6.28318);
+      entry.material.opacity = this.defaultOpacity * 0.9 * flicker;
+      entry.auraMaterial.opacity = this.defaultOpacity * 0.18 * (0.7 + 0.3 * flicker);
+      entry.packetMaterial.opacity =
+        (entry.config.animated === false ? this.defaultOpacity * 0.28 : this.defaultOpacity * 0.62) *
+        (0.75 + 0.25 * Math.sin(elapsedSeconds * 11.0 + entry.phase * 9.0));
       if (!entry.head) return;
       const duration = entry.config.animationDuration ?? 2;
       const tRaw = (elapsedSeconds % duration) / duration; // 0..1
@@ -180,6 +249,8 @@ export class HologramArcsLayer {
       // Opacity (pulse fades in/out across the cycle; others stay at 1)
       const headMat = entry.head.material as MeshBasicMaterial;
       headMat.opacity = easing === 'pulse' ? Math.sin(tRaw * Math.PI) : 1;
+      const headScale = 1 + 0.28 * Math.sin(elapsedSeconds * 14 + entry.phase * 10);
+      entry.head.scale.setScalar(headScale);
     });
   }
 
@@ -197,6 +268,21 @@ const resolveHeight = (config: ArcConfig): number => {
     return min + (max - min) * (angle / Math.PI);
   }
   return config.height ?? 0.4;
+};
+
+const buildLineGeometry = (positions: ReadonlyArray<number>): LineGeometry => {
+  const geometry = new LineGeometry();
+  geometry.setPositions([...positions]);
+  return geometry;
+};
+
+const hashPhase = (value: string): number => {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0xffffffff;
 };
 
 const angularDistance = (a: LatLng, b: LatLng): number => {

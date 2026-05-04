@@ -149,6 +149,31 @@ export interface ConfiguratorMeta {
   readonly status: (state: ConfiguratorState) => string;
 }
 
+const focusPulseStatus = (state: ConfiguratorState): string => {
+  const settings = state.globe;
+  if (!settings.focusPulse) return 'off';
+  if (settings.kind === 'dotted') {
+    return settings.dottedRipple ? `${settings.focusPulseOrigin} · ripple` : 'trigger only';
+  }
+  if (settings.kind === 'wireframe' || settings.kind === 'paper') {
+    return `${settings.focusPulseOrigin} · kind default`;
+  }
+  const durationMs =
+    settings.kind === 'hologram'
+      ? settings.hologramPulseDurationMs
+      : settings.outlinePulseDurationMs;
+  return `${settings.focusPulseOrigin} · ${(durationMs / 1000).toFixed(1)}s`;
+};
+
+const crosshairStatus = (state: ConfiguratorState): string => {
+  const supported =
+    state.globe.kind === 'outline' ||
+    state.globe.kind === 'dotted' ||
+    state.globe.kind === 'hologram';
+  if (!supported) return 'unavailable';
+  return state.globe.outlineHoverCrosshair ? 'reticle' : 'off';
+};
+
 export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
   {
     id: 'labels',
@@ -167,10 +192,7 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     icon: faCrosshairs,
     accent: '#f472b6',
     description: 'Sci-fi sonar ring fired on focus — origin, size, fade.',
-    status: (s) =>
-      s.globe.focusPulse
-        ? `${s.globe.focusPulseOrigin} · ${(s.globe.outlinePulseDurationMs / 1000).toFixed(1)}s`
-        : 'off',
+    status: focusPulseStatus,
   },
   {
     id: 'stars',
@@ -231,11 +253,6 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     icon: faCircleSmall,
     accent: '#fde68a',
     description: 'Cursor reticle + lat/lng readout — kind decides the visual.',
-    status: (s) =>
-      s.globe.kind === 'outline' || s.globe.kind === 'dotted'
-        ? s.globe.outlineHoverCrosshair
-          ? 'reticle'
-          : 'off'
-        : 'unavailable',
+    status: crosshairStatus,
   },
 ];

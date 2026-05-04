@@ -18,11 +18,9 @@ import type {
  * the reticle's chase-ease and the lat/lng readout's snap to the
  * underlying geography.
  *
- * **Outline-kind only.** The preview mirrors the user's current
- * studio kind, so on hologram / paper / wireframe the reticle won't
- * render at all — the preset's first knob is gated behind a
- * `kind === 'outline'` DependsOn that surfaces a clear "switch to
- * outline" hint to the user.
+ * Outline / dotted / hologram currently mount reticles. The preview
+ * mirrors the user's current studio kind, so each kind renders its
+ * own implementation from the same semantic controls.
  *
  * Knob coverage: master toggle, color, size, opacity, ring radius,
  * cardinal-tick toggle, tooltip on/off, lat/lng decimal precision.
@@ -35,8 +33,12 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   return (
     <div className="space-y-4">
       <DependsOn
-        when={settings.kind === 'outline' || settings.kind === 'dotted'}
-        because="Crosshair is only mounted on the outline + dotted kinds today. Switch the main globe to outline or dotted to tune it."
+        when={
+          settings.kind === 'outline' ||
+          settings.kind === 'dotted' ||
+          settings.kind === 'hologram'
+        }
+        because="Crosshair is mounted on outline, dotted, and hologram today. Switch to one of those kinds to tune it."
         className="space-y-4"
         variant="hidden"
       >

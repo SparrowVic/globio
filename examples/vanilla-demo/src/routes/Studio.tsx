@@ -6,6 +6,7 @@ import {
   registerThemePreset,
   resolveTheme,
   unregisterThemePreset,
+  type GlobeKind,
   type PartialTokenSet,
   type ThemePresetName,
 } from '@your-globe/core';
@@ -54,12 +55,40 @@ import type {
  * finally to the default (`hexbin`) when nothing is specified.
  */
 const initialState = (search: URLSearchParams): ConfiguratorState => {
-  const param = search.get('layer');
-  if (param === 'heatmap' || param === 'hexbin' || param === 'charts' || param === 'none') {
-    return { ...initialStateForPath(`/${param}`), activeLayer: param };
-  }
-  return initialStateForPath(window.location.pathname);
+  const layer = search.get('layer');
+  const base =
+    isActiveLayer(layer)
+      ? { ...initialStateForPath(`/${layer}`), activeLayer: layer }
+      : initialStateForPath(window.location.pathname);
+  const kind = search.get('kind');
+  if (!isGlobeKind(kind)) return base;
+  return {
+    ...base,
+    globe: {
+      ...base.globe,
+      kind,
+      theme: defaultThemeForKind[kind],
+    },
+  };
 };
+
+const defaultThemeForKind: Record<GlobeKind, ThemePresetName> = {
+  outline: 'outline-dark',
+  dotted: 'dotted-dark',
+  wireframe: 'wireframe-tron',
+  paper: 'paper-default',
+  hologram: 'hologram-cyan',
+};
+
+const isGlobeKind = (value: string | null): value is GlobeKind =>
+  value === 'outline' ||
+  value === 'dotted' ||
+  value === 'wireframe' ||
+  value === 'paper' ||
+  value === 'hologram';
+
+const isActiveLayer = (value: string | null): value is ActiveLayer =>
+  value === 'heatmap' || value === 'hexbin' || value === 'charts' || value === 'none';
 
 export default function Studio() {
   const [searchParams] = useSearchParams();

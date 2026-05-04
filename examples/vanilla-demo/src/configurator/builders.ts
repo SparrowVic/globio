@@ -325,6 +325,17 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         length: state.globe.hologramCalibrationTicksLength,
         opacity: state.globe.hologramCalibrationTicksOpacity,
       },
+      focusPulse: {
+        durationMs: state.globe.hologramPulseDurationMs,
+        angularRadiusBase: state.globe.hologramPulseRadiusBase,
+        angularBand: state.globe.hologramPulseAngularBand,
+        scaleMin: state.globe.hologramPulseScaleMin,
+        scaleMax: state.globe.hologramPulseScaleMax,
+        peakOpacity: state.globe.hologramPulseOpacity,
+        segments: state.globe.hologramPulseSegments,
+        radiusFactor: state.globe.hologramPulseRadiusFactor,
+        color: state.globe.hologramPulseColor,
+      },
     },
     // Paper kind (vintage atlas) — every knob is always sent so the
     // workshop's clear-override flow can route through globe.update().

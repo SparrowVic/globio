@@ -27,6 +27,7 @@ import type {
 const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   const settings = state.globe;
   const isDotted = settings.kind === 'dotted';
+  const isHologram = settings.kind === 'hologram';
   return (
     <div className="space-y-4">
       <SectionHeading>Dataset</SectionHeading>
@@ -37,14 +38,18 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         onChange={(arcDataset) => onGlobeChange({ arcDataset })}
       />
 
-      <SectionHeading>{isDotted ? 'Particle stream' : 'Stroke'}</SectionHeading>
+      <SectionHeading>
+        {isDotted ? 'Particle stream' : isHologram ? 'Projection beam' : 'Stroke'}
+      </SectionHeading>
       <SliderField
-        label={isDotted ? 'Particle size' : 'Width'}
+        label={isDotted ? 'Particle size' : isHologram ? 'Beam width' : 'Width'}
         value={settings.arcWidth}
         min={0.5}
         max={8}
         step={0.25}
-        format={(value) => (isDotted ? `x${value.toFixed(2)}` : `${value.toFixed(2)} px`)}
+        format={(value) =>
+          isDotted ? `x${value.toFixed(2)}` : `${value.toFixed(2)} px`
+        }
         onChange={(arcWidth) => onGlobeChange({ arcWidth })}
       />
       <SwitchField
@@ -112,9 +117,11 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
       </DependsOn>
 
-      <SectionHeading>{isDotted ? 'Packet cadence' : 'Line style'}</SectionHeading>
+      <SectionHeading>
+        {isDotted || isHologram ? 'Packet cadence' : 'Line style'}
+      </SectionHeading>
       <ToggleField
-        label={isDotted ? 'Packets' : 'Style'}
+        label={isDotted || isHologram ? 'Packets' : 'Style'}
         value={settings.arcStyle}
         options={arcStyleOptions}
         onChange={(arcStyle) => onGlobeChange({ arcStyle })}
@@ -125,7 +132,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         className="space-y-4"
       >
         <SliderField
-          label={isDotted ? 'Packet size' : 'Dash size'}
+          label={isDotted || isHologram ? 'Packet size' : 'Dash size'}
           value={settings.arcDashSize}
           min={0.005}
           max={0.2}
@@ -134,7 +141,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           onChange={(arcDashSize) => onGlobeChange({ arcDashSize })}
         />
         <SliderField
-          label={isDotted ? 'Packet gap' : 'Dash gap'}
+          label={isDotted || isHologram ? 'Packet gap' : 'Dash gap'}
           value={settings.arcDashGap}
           min={0.005}
           max={0.2}
@@ -166,7 +173,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           onChange={(arcAnimationDuration) => onGlobeChange({ arcAnimationDuration })}
         />
         <ToggleField
-          label={isDotted ? 'Spark profile' : 'Head easing'}
+          label={isDotted || isHologram ? 'Spark profile' : 'Head easing'}
           value={settings.arcHeadEasing}
           options={arcHeadEasingOptions}
           onChange={(arcHeadEasing) => onGlobeChange({ arcHeadEasing })}
