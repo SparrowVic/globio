@@ -4,8 +4,8 @@ import {
   Color,
   Float32BufferAttribute,
   Group,
-  LineBasicMaterial,
-  LineSegments,
+  Points,
+  PointsMaterial,
   Vector3,
 } from 'three';
 import { GLOBE_RADIUS } from '../../utils/coordinates';
@@ -66,7 +66,7 @@ export const formatLatLng = (lat: number, lng: number, decimals = 2): string => 
 export class DottedCrosshairLayer {
   public readonly object: Group;
   private readonly container: HTMLElement;
-  private readonly material: LineBasicMaterial;
+  private readonly material: PointsMaterial;
   private readonly tooltip: HTMLDivElement;
   private readonly target = new Vector3();
   private readonly current = new Vector3();
@@ -92,12 +92,19 @@ export class DottedCrosshairLayer {
     this.tooltipEnabled = options.tooltip ?? true;
     this.tooltipDecimals = options.tooltipDecimals ?? 2;
 
-    this.material = new LineBasicMaterial({
+    // Pixel-space points, not perspective — keeps the reticle the same
+    // size on screen regardless of zoom (a UI overlay feel rather than
+    // a 3D object). Size is scaled-up from the legacy `size` knob:
+    // the original was a fraction of GLOBE_RADIUS for line endpoints,
+    // here it drives screen-pixel diameter directly.
+    this.material = new PointsMaterial({
       color: new Color(options.color),
       transparent: true,
       opacity: 0,
       depthWrite: false,
       blending: AdditiveBlending,
+      size: this.size * 320,
+      sizeAttenuation: true,
     });
 
     this.object = new Group();
@@ -132,7 +139,7 @@ export class DottedCrosshairLayer {
   public dispose(): void {
     this.material.dispose();
     this.object.traverse((obj) => {
-      const seg = obj as LineSegments;
+      const seg = obj as Points;
       if (seg.geometry) seg.geometry.dispose();
     });
     this.object.clear();
@@ -200,10 +207,16 @@ export class DottedCrosshairLayer {
 
   /**
    * Live update for the reticle size. Cheap geometry rebuild — single
-   * LineSegments mesh, ~32 line segments, no GPU buffer churn.
+   * Points mesh, ~32 line segments, no GPU buffer churn.
    */
   public setSize(size: number): void {
     this.size = size;
+    // PointsMaterial has its own `size` field that drives the
+    // pixel-space dot diameter — keep it in sync with the geometry
+    // size so the reticle scales as a whole rather than just having
+    // dots reposition under fixed-size points.
+    this.material.size = size * 320;
+    this.material.needsUpdate = true;
     this.rebuildReticle();
   }
 
@@ -236,7 +249,7 @@ export class DottedCrosshairLayer {
   private rebuildReticle(): void {
     // Dispose existing geometries and rebuild from scratch — small
     // single mesh, this is a cheap operation.
-    const old = this.object.children[0] as LineSegments | undefined;
+    const old = this.object.children[0] as Points | undefined;
     if (old) {
       old.geometry.dispose();
       this.object.remove(old);
@@ -248,40 +261,63 @@ export class DottedCrosshairLayer {
 }
 
 /**
- * Build the reticle geometry: a cross + (optional) inner ring + (optional)
- * cardinal tick marks at N/S/E/W just outside the ring.
+ * Dotted-native reticle. Pure dots, no lines — three concentric rings
+ * of points around the cursor's surface intersection:
+ *
+ *   - inner: 4 dots at N/E/S/W (cardinal targeting cue)
+ *   - mid:   12 dots at every 30° (the main "ring" but as a dotted
+ *            constellation rather than a continuous stroke)
+ *   - outer: 4 cardinal-only ticks just past the mid ring (subtle
+ *            extra direction marker)
+ *
+ * Plus a single bright dot at the cursor centre. Reads as a HUD
+ * targeting reticle from sci-fi rather than a Tron cross + ring;
+ * built from Points so it speaks the same visual vocabulary as the
+ * rest of the dotted kind.
  */
 const buildReticle = (
   size: number,
   ringRadiusFactor: number,
   cardinalTicks: boolean,
-  material: LineBasicMaterial,
-): LineSegments => {
-  const arms: Array<number> = [
-    -size, 0, 0, size, 0, 0,
-    0, -size, 0, 0, size, 0,
-  ];
-  const ringR = size * ringRadiusFactor;
-  if (ringR > 0) {
-    const ringSegs = 24;
-    for (let i = 0; i < ringSegs; i++) {
-      const t1 = (i / ringSegs) * Math.PI * 2;
-      const t2 = ((i + 1) / ringSegs) * Math.PI * 2;
-      arms.push(Math.cos(t1) * ringR, Math.sin(t1) * ringR, 0);
-      arms.push(Math.cos(t2) * ringR, Math.sin(t2) * ringR, 0);
+  material: PointsMaterial,
+): Points => {
+  const positions: Array<number> = [];
+
+  // Centre dot — anchors the reticle even when the user dials the
+  // ring factor down to 0.
+  positions.push(0, 0, 0);
+
+  // Inner ring: 4 cardinal dots at `0.45 * size` from centre.
+  const innerR = size * 0.45;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    positions.push(Math.cos(a) * innerR, Math.sin(a) * innerR, 0);
+  }
+
+  // Mid ring: 12 dots at every 30° around `size * ringRadiusFactor`.
+  // This is the visual successor to the old continuous ring — same
+  // size envelope, dotted instead.
+  const midR = size * ringRadiusFactor;
+  if (midR > 0) {
+    const segs = 12;
+    for (let i = 0; i < segs; i++) {
+      const a = (i / segs) * Math.PI * 2;
+      positions.push(Math.cos(a) * midR, Math.sin(a) * midR, 0);
     }
   }
-  if (cardinalTicks && ringR > 0) {
-    // Four tiny ticks just outside the ring (15% of size length each).
-    const tickLen = size * 0.15;
-    const tickStart = ringR + size * 0.06;
-    const tickEnd = tickStart + tickLen;
-    arms.push(tickStart, 0, 0, tickEnd, 0, 0);
-    arms.push(-tickStart, 0, 0, -tickEnd, 0, 0);
-    arms.push(0, tickStart, 0, 0, tickEnd, 0);
-    arms.push(0, -tickStart, 0, 0, -tickEnd, 0);
+
+  // Outer ticks: 4 dots at N/E/S/W just past the mid ring — same
+  // role as the legacy cardinal ticks (extra orientation cue) but
+  // each tick is a single dot rather than a short line.
+  if (cardinalTicks && midR > 0) {
+    const outerR = midR + size * 0.18;
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      positions.push(Math.cos(a) * outerR, Math.sin(a) * outerR, 0);
+    }
   }
+
   const geom = new BufferGeometry();
-  geom.setAttribute('position', new Float32BufferAttribute(arms, 3));
-  return new LineSegments(geom, material);
+  geom.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  return new Points(geom, material);
 };

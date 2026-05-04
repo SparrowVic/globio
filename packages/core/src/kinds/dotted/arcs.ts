@@ -1,233 +1,319 @@
 import {
+  AdditiveBlending,
+  BufferGeometry,
   Color,
+  Float32BufferAttribute,
   Group,
-  Mesh,
-  MeshBasicMaterial,
-  SphereGeometry,
+  Points,
+  ShaderMaterial,
   Vector2,
   Vector3,
 } from 'three';
-import { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
-import { easeInOutCubic } from '../../utils/easing';
 import type { ArcConfig, LatLng } from '../../types';
 
 export interface DottedArcsLayerOptions {
   readonly defaultColor: string;
+  /** Kept for API parity with the shared `ArcsLayer`; ignored by the dotted variant (line width has no analogue when the path is a particle stream). */
   readonly defaultWidth: number;
   readonly defaultOpacity: number;
   readonly headColor: string;
+  /** Base particle screen size (controls how chunky the dot trail reads). */
   readonly headSize: number;
-  /**
-   * Initial pixel resolution for screen-space line widths. The layer
-   * keeps each arc's `LineMaterial.resolution` uniform in sync via
-   * `setResolution` from the scene manager on resize.
-   */
+  /** Kept for API parity with the shared `ArcsLayer.setResolution`; the dotted variant draws Points (no LineMaterial pixel-resolution dependency). */
   readonly resolution?: Vector2;
 }
 
-interface ArcEntry {
-  readonly config: ArcConfig;
-  readonly line: Line2;
-  readonly material: LineMaterial;
-  readonly head: Mesh | null;
-  readonly samplePoints: Vector3[];
-}
+/** Tuned constants for the particle-stream look. */
+const DEFAULTS = {
+  /** Particles per arc — denser path = stronger "telegraph signal" line, but more GPU. 80 is the sweet spot for ~8-arc demos. */
+  pointsPerArc: 80,
+  /** Sigma of the moving "head" brightness peak (in fraction-of-arc units). Wider = a longer streak; narrower = a sharper spark. */
+  headSigma: 0.06,
+  /** Baseline brightness of "tail" (non-head) dots — the steady glowing path the head rides on. 0 = invisible without head, 0.25 = always readable. */
+  tailBrightness: 0.22,
+  /** Default arc cycle period (seconds) when the caller's arc has no `animationDuration`. */
+  defaultDurationSec: 3.5,
+} as const;
 
-const SAMPLES = 64;
+const VERT_SHADER = /* glsl */ `
+  attribute float aT;          // 0..1 position along the arc
+  attribute float aSpeed;      // 1/duration — per-particle so each arc cycles at its own pace
+  attribute vec3 aTailColor;   // base color (config.color or theme default)
+  attribute vec3 aHeadColor;   // moving-spark color (config.headColor or theme accent)
+  attribute float aAnimated;   // 1.0 if arc is animated, 0.0 = static glow
+  uniform float uTime;
+  uniform float uPointSize;
+  uniform float uPixelRatio;
+  uniform float uOpacity;
+  uniform float uTailBrightness;
+  uniform float uHeadSigma;
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    // Head position along the arc, advancing with time. Wrap to [0,1).
+    float head = mod(uTime * aSpeed, 1.0);
+
+    // Distance to head, wrapped on the unit circle so the spark can
+    // teleport from t=0.99 to t=0.01 without flickering.
+    float d = abs(aT - head);
+    if (d > 0.5) d = 1.0 - d;
+
+    // Sharp Gaussian peak at the head — sigma controls streak length.
+    float sigma = max(uHeadSigma, 1e-4);
+    float headWeight = exp(-(d / sigma) * (d / sigma));
+    // Animated arcs: head spark on top of baseline tail glow. Static
+    // arcs: ignore the head and just show the tail evenly across the path.
+    float brightness = mix(1.0, uTailBrightness + headWeight, aAnimated);
+
+    // Color blend: head dot picks up the head colour near the spark,
+    // fades back to the tail colour along the body. Smoothstep gives a
+    // softer gradient than linear lerp.
+    float tColor = smoothstep(0.0, sigma * 2.0, d);
+    vColor = mix(aHeadColor, aTailColor, tColor);
+    vAlpha = brightness * uOpacity;
+
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    // Size scales with brightness so the head reads visibly bigger
+    // than the tail — same trick the surface dot field uses.
+    gl_PointSize = uPointSize * (0.55 + 0.85 * brightness) * uPixelRatio * (1.0 / -mv.z);
+  }
+`;
+
+const FRAG_SHADER = /* glsl */ `
+  precision mediump float;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    if (vAlpha < 0.001) discard;
+    vec2 uv = gl_PointCoord - vec2(0.5);
+    float d = dot(uv, uv);
+    // Soft round disc with a hot core — same shape family as the
+    // surface dot field so arcs feel like part of the same world.
+    float disc = smoothstep(0.25, 0.0, d);
+    if (disc < 0.001) discard;
+    gl_FragColor = vec4(vColor, disc * vAlpha);
+  }
+`;
 
 /**
- * Connections between lat/lng pairs rendered as great-circle arcs lifted off
- * the globe surface. Curve uses spherical-lerp (slerp) between endpoints +
- * `sin(t·π) * height` radial elevation profile so arcs meet the globe
- * tangentially. Optional moving "head" particle, dashed style, distance-based
- * auto-height — all per-arc.
+ * Dotted-native arcs. Replaces the shared `Line2`-based stroke with a
+ * **particle stream**: every arc is rendered as a chain of glowing
+ * dots tracing the great-circle path, with a brighter "head" spark
+ * sliding along it like a telegraph signal. Static (non-animated)
+ * arcs render the chain at uniform brightness — a steady stippled
+ * trail — while animated ones get the moving spark.
+ *
+ * Why particle streams: the shared line layer reads as foreign material
+ * on a globe that's otherwise nothing but dots. Particles built on the
+ * same Points / additive-blend / soft-disc shader family as the
+ * surface dot field tie arcs visually into the rest of the kind. The
+ * resulting picture reads as "data flowing across the network" rather
+ * than "lines drawn on top of stars".
  */
 export class DottedArcsLayer {
   public readonly group: Group;
-  private readonly defaultColor: string;
-  private readonly defaultWidth: number;
+  private readonly material: ShaderMaterial;
+  private points: Points | null = null;
+  private geometry: BufferGeometry | null = null;
+  private readonly defaultColor: Color;
+  private readonly headColor: Color;
   private readonly defaultOpacity: number;
-  private readonly headColor: string;
-  private readonly headSize: number;
-  private readonly entries = new Map<string, ArcEntry>();
-  // Mutable so resize handlers can keep all arcs in sync without
-  // walking the entries from outside.
-  private resolution: Vector2;
+  private readonly basePointSize: number;
+  // Track the active arc set so `addArc` / `removeArc` can rebuild
+  // the particle stream incrementally without forcing callers to
+  // re-send the whole list each time.
+  private currentArcs: Array<ArcConfig> = [];
 
   public constructor(options: DottedArcsLayerOptions) {
     this.group = new Group();
     this.group.name = 'DottedArcsLayer';
-    this.defaultColor = options.defaultColor;
-    this.defaultWidth = options.defaultWidth;
+    this.defaultColor = new Color(options.defaultColor);
+    this.headColor = new Color(options.headColor);
     this.defaultOpacity = options.defaultOpacity;
-    this.headColor = options.headColor;
-    this.headSize = options.headSize;
-    this.resolution = options.resolution ?? new Vector2(window.innerWidth, window.innerHeight);
+    // headSize from theme tokens lives in lat/lng-radius units (e.g.
+    // 0.012). Multiply into shader-pixel range so a small theme value
+    // becomes a chunky-but-not-huge dot.
+    this.basePointSize = options.headSize * 800;
+
+    const pixelRatio =
+      typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
+    this.material = new ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uPointSize: { value: this.basePointSize },
+        uPixelRatio: { value: pixelRatio },
+        uOpacity: { value: this.defaultOpacity },
+        uTailBrightness: { value: DEFAULTS.tailBrightness },
+        uHeadSigma: { value: DEFAULTS.headSigma },
+      },
+      vertexShader: VERT_SHADER,
+      fragmentShader: FRAG_SHADER,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+  }
+
+  /** No-op for dotted arcs (Points don't depend on screen-pixel resolution like LineMaterial does). Kept so SceneManager's onResize plumbing works without branching. */
+  public setResolution(_width: number, _height: number): void {
+    /* no-op */
   }
 
   /**
-   * Sync the screen-space resolution used by `LineMaterial` for pixel
-   * widths. SceneManager calls this on every resize. Each arc's
-   * material is mutated in-place — no rebuild.
+   * Replace the displayed arc set. Each arc gets `pointsPerArc` particles
+   * baked into a single shared geometry; the shader drives per-arc
+   * timing through per-particle attributes. Calling with `[]` clears
+   * everything in one frame — no leftover ghosts from the previous set.
    */
-  public setResolution(width: number, height: number): void {
-    this.resolution.set(width, height);
-    this.entries.forEach((entry) => entry.material.resolution.set(width, height));
-  }
-
   public setArcs(arcs: ReadonlyArray<ArcConfig>): void {
-    const incomingIds = new Set(arcs.map((a) => a.id));
-    for (const id of [...this.entries.keys()]) {
-      if (!incomingIds.has(id)) this.removeArc(id);
-    }
-    for (const arc of arcs) {
-      this.removeArc(arc.id);
-      this.addArc(arc);
-    }
+    this.currentArcs = [...arcs];
+    this.rebuild();
   }
 
+  /**
+   * Append one arc to the current set without disturbing the others.
+   * Re-runs the geometry build (cheap — `pointsPerArc` particles per
+   * arc, even at 50 arcs that's 4k positions / sub-millisecond bake).
+   */
   public addArc(config: ArcConfig): void {
-    if (this.entries.has(config.id)) this.removeArc(config.id);
-    const heightValue = resolveHeight(config);
-    const points = sampleArc(config.from, config.to, heightValue);
-
-    // Line2 + LineMaterial use a screen-space pixel pipeline (instanced
-    // segments rendered as quads) so `linewidth` is actually honoured —
-    // unlike LineBasicMaterial which on WebGL2 always draws at 1px.
-    const positions: number[] = [];
-    for (const p of points) {
-      positions.push(p.x, p.y, p.z);
-    }
-    const geometry = new LineGeometry();
-    geometry.setPositions(positions);
-
-    const color = new Color(config.color ?? this.defaultColor);
-    const lineWidth = config.width ?? this.defaultWidth;
-    const isDashed = config.style === 'dashed';
-    const material = new LineMaterial({
-      color: color.getHex(),
-      linewidth: lineWidth,
-      worldUnits: false, // pixel widths
-      transparent: true,
-      opacity: this.defaultOpacity,
-      dashed: isDashed,
-      ...(isDashed
-        ? { dashSize: config.dashSize ?? 0.04, gapSize: config.dashGap ?? 0.02 }
-        : {}),
-      resolution: this.resolution.clone(),
-    });
-    if (isDashed) material.defines.USE_DASH = '';
-    material.needsUpdate = true;
-
-    const line = new Line2(geometry, material);
-    if (isDashed) line.computeLineDistances();
-    this.group.add(line);
-
-    let head: Mesh | null = null;
-    if (config.animated) {
-      const headGeo = new SphereGeometry(this.headSize, 12, 12);
-      const headMat = new MeshBasicMaterial({
-        color: new Color(this.headColor),
-        transparent: true,
-        opacity: 1,
-      });
-      head = new Mesh(headGeo, headMat);
-      this.group.add(head);
-    }
-
-    this.entries.set(config.id, { config, line, material, head, samplePoints: points });
+    // Replace by id if it already exists — same semantic as the shared
+    // ArcsLayer so callers can use `addArc` as an upsert.
+    const existing = this.currentArcs.findIndex((a) => a.id === config.id);
+    if (existing >= 0) this.currentArcs[existing] = config;
+    else this.currentArcs.push(config);
+    this.rebuild();
   }
 
+  /** Remove an arc by id. Silently no-ops on unknown ids. */
   public removeArc(id: string): void {
-    const entry = this.entries.get(id);
-    if (!entry) return;
-    entry.line.geometry.dispose();
-    entry.material.dispose();
-    this.group.remove(entry.line);
-    if (entry.head) {
-      entry.head.geometry.dispose();
-      (entry.head.material as MeshBasicMaterial).dispose();
-      this.group.remove(entry.head);
-    }
-    this.entries.delete(id);
+    const idx = this.currentArcs.findIndex((a) => a.id === id);
+    if (idx < 0) return;
+    this.currentArcs.splice(idx, 1);
+    this.rebuild();
   }
 
-  /** Drive head animation. Pass total elapsed seconds. */
+  private rebuild(): void {
+    this.disposeMesh();
+    const arcs = this.currentArcs;
+    if (arcs.length === 0) return;
+
+    const N = DEFAULTS.pointsPerArc;
+    const total = arcs.length * N;
+    const positions = new Float32Array(total * 3);
+    const aT = new Float32Array(total);
+    const aSpeed = new Float32Array(total);
+    const aTailColor = new Float32Array(total * 3);
+    const aHeadColor = new Float32Array(total * 3);
+    const aAnimated = new Float32Array(total);
+
+    const fromVec = new Vector3();
+    const toVec = new Vector3();
+    const interp = new Vector3();
+    const tmp = new Vector3();
+    let writeIdx = 0;
+
+    for (const arc of arcs) {
+      latLngToVector3(arc.from, 1, fromVec);
+      latLngToVector3(arc.to, 1, toVec);
+      // Great-circle angle for slerp + height interpolation.
+      const dot = Math.max(-1, Math.min(1, fromVec.dot(toVec)));
+      const omega = Math.acos(dot);
+      const sinOmega = Math.sin(omega);
+
+      const heightSpec = arc.height ?? 'auto';
+      const minH = arc.minHeight ?? 0.15;
+      const maxH = arc.maxHeight ?? 0.6;
+      const heightFactor =
+        typeof heightSpec === 'number'
+          ? heightSpec
+          : minH + (maxH - minH) * Math.min(1, omega / Math.PI);
+
+      const tail = arc.color ? new Color(arc.color) : this.defaultColor;
+      const animated = arc.animated ?? false;
+      // Per-particle speed = 1 / duration; static arcs get speed 0 so
+      // the head stays put (we suppress its visual via aAnimated=0).
+      const duration = arc.animationDuration ?? DEFAULTS.defaultDurationSec;
+      const speed = animated ? 1 / Math.max(0.05, duration) : 0;
+
+      for (let k = 0; k < N; k++) {
+        const t = k / (N - 1);
+        // slerp for stable curvature on long great-circles
+        if (sinOmega < 1e-6) {
+          // Endpoints coincident — degenerate arc, just place all
+          // particles on `fromVec`. Won't be visible as a line; user
+          // gets a cluster, which is correct for a 0-length arc.
+          interp.copy(fromVec);
+        } else {
+          const a = Math.sin((1 - t) * omega) / sinOmega;
+          const b = Math.sin(t * omega) / sinOmega;
+          interp.copy(fromVec).multiplyScalar(a);
+          tmp.copy(toVec).multiplyScalar(b);
+          interp.add(tmp);
+        }
+        // Height arch — sin(πt) gives a smooth peak at the midpoint.
+        const archLift = 1 + heightFactor * Math.sin(t * Math.PI);
+        const radius = GLOBE_RADIUS * archLift;
+        interp.normalize().multiplyScalar(radius);
+        positions[writeIdx * 3] = interp.x;
+        positions[writeIdx * 3 + 1] = interp.y;
+        positions[writeIdx * 3 + 2] = interp.z;
+
+        aT[writeIdx] = t;
+        aSpeed[writeIdx] = speed;
+        aTailColor[writeIdx * 3] = tail.r;
+        aTailColor[writeIdx * 3 + 1] = tail.g;
+        aTailColor[writeIdx * 3 + 2] = tail.b;
+        aHeadColor[writeIdx * 3] = this.headColor.r;
+        aHeadColor[writeIdx * 3 + 1] = this.headColor.g;
+        aHeadColor[writeIdx * 3 + 2] = this.headColor.b;
+        aAnimated[writeIdx] = animated ? 1 : 0;
+
+        writeIdx++;
+      }
+    }
+
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('aT', new Float32BufferAttribute(aT, 1));
+    geometry.setAttribute('aSpeed', new Float32BufferAttribute(aSpeed, 1));
+    geometry.setAttribute('aTailColor', new Float32BufferAttribute(aTailColor, 3));
+    geometry.setAttribute('aHeadColor', new Float32BufferAttribute(aHeadColor, 3));
+    geometry.setAttribute('aAnimated', new Float32BufferAttribute(aAnimated, 1));
+
+    this.geometry = geometry;
+    const points = new Points(geometry, this.material);
+    points.frustumCulled = false;
+    points.renderOrder = 6;
+    this.points = points;
+    this.group.add(points);
+  }
+
   public update(elapsedSeconds: number): void {
-    this.entries.forEach((entry) => {
-      if (!entry.head) return;
-      const duration = entry.config.animationDuration ?? 2;
-      const tRaw = (elapsedSeconds % duration) / duration; // 0..1
-      const easing = entry.config.headEasing ?? 'linear';
-
-      // Position along arc (eased for easeInOut, linear otherwise)
-      const tPos = easing === 'easeInOut' ? easeInOutCubic(tRaw) : tRaw;
-      const idxFloat = tPos * (entry.samplePoints.length - 1);
-      const idx = Math.floor(idxFloat);
-      const frac = idxFloat - idx;
-      const a = entry.samplePoints[idx];
-      const b = entry.samplePoints[Math.min(idx + 1, entry.samplePoints.length - 1)];
-      if (!a || !b) return;
-      entry.head.position.set(
-        a.x + (b.x - a.x) * frac,
-        a.y + (b.y - a.y) * frac,
-        a.z + (b.z - a.z) * frac
-      );
-
-      // Opacity (pulse fades in/out across the cycle; others stay at 1)
-      const headMat = entry.head.material as MeshBasicMaterial;
-      headMat.opacity = easing === 'pulse' ? Math.sin(tRaw * Math.PI) : 1;
-    });
+    const u = this.material.uniforms['uTime'];
+    if (u) u.value = elapsedSeconds;
   }
 
   public dispose(): void {
-    [...this.entries.keys()].forEach((id) => this.removeArc(id));
-    this.group.clear();
+    this.disposeMesh();
+    this.material.dispose();
+  }
+
+  private disposeMesh(): void {
+    if (this.points) {
+      this.group.remove(this.points);
+      this.points = null;
+    }
+    if (this.geometry) {
+      this.geometry.dispose();
+      this.geometry = null;
+    }
   }
 }
 
-const resolveHeight = (config: ArcConfig): number => {
-  if (config.height === 'auto') {
-    const angle = angularDistance(config.from, config.to);
-    const min = config.minHeight ?? 0.15;
-    const max = config.maxHeight ?? 0.6;
-    return min + (max - min) * (angle / Math.PI);
-  }
-  return config.height ?? 0.4;
-};
-
-const angularDistance = (a: LatLng, b: LatLng): number => {
-  const va = latLngToVector3(a, 1);
-  const vb = latLngToVector3(b, 1);
-  return va.angleTo(vb);
-};
-
-const sampleArc = (from: LatLng, to: LatLng, height: number): Vector3[] => {
-  const fromVec = latLngToVector3(from, 1);
-  const toVec = latLngToVector3(to, 1);
-  const angle = fromVec.angleTo(toVec);
-  const sinAngle = Math.sin(angle);
-  const points: Vector3[] = [];
-  for (let i = 0; i < SAMPLES; i++) {
-    const t = i / (SAMPLES - 1);
-    let interp: Vector3;
-    if (sinAngle < 1e-6) {
-      interp = fromVec.clone();
-    } else {
-      const a = Math.sin((1 - t) * angle) / sinAngle;
-      const b = Math.sin(t * angle) / sinAngle;
-      interp = new Vector3(
-        fromVec.x * a + toVec.x * b,
-        fromVec.y * a + toVec.y * b,
-        fromVec.z * a + toVec.z * b
-      );
-    }
-    const elevation = 1 + Math.sin(t * Math.PI) * height;
-    interp.multiplyScalar(GLOBE_RADIUS * elevation);
-    points.push(interp);
-  }
-  return points;
-};
+// LatLng kept available for callers who set arcs from outside the kind
+// (mirrors the shared layer's import surface).
+export type { LatLng };

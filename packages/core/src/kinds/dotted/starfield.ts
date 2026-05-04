@@ -3,6 +3,9 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
+  Float32BufferAttribute,
+  LineBasicMaterial,
+  LineSegments,
   Points,
   ShaderMaterial,
   Vector3,
@@ -11,16 +14,9 @@ import {
 export interface StarfieldTwinkleOptions {
   /** Default false. Twinkle is opt-in — static stars are also fine. */
   readonly enabled?: boolean;
-  /**
-   * How much each star's brightness varies between trough and peak. 0 = no
-   * variation (constant), 1 = full range (drops to zero on the trough).
-   * Default 0.45 — perceptible without strobing.
-   */
+  /** Brightness variation amplitude per star, 0..1. Default 0.45. */
   readonly intensity?: number;
-  /**
-   * Average twinkle frequency in Hz. Each star is offset by a random phase
-   * so the field never pulses in unison. Default 0.55.
-   */
+  /** Average twinkle frequency (Hz). Default 0.55. */
   readonly speed?: number;
 }
 
@@ -28,25 +24,33 @@ export interface DottedStarfieldLayerOptions {
   readonly count: number;
   readonly color: string;
   readonly size: number;
-  /** Sphere radius the stars are placed on. Default 30 (well outside camera). */
   readonly radius?: number;
-  /**
-   * Optional palette to sample per-star colors from. When provided, each star
-   * picks a random entry — useful for blue/white/yellow/red mixed-color skies.
-   * When omitted, every star uses the base `color`.
-   */
   readonly palette?: ReadonlyArray<string>;
-  /**
-   * Per-star size multiplier range, expressed as a fraction of the base size.
-   * 0 = all stars equal, 1 = sizes range from 0× to 2× base. Default 0.5
-   * (sizes in 0.5×..1.5× of `size`).
-   */
   readonly sizeVariety?: number;
-  /** Twinkle animation knobs. Static when `twinkle.enabled` is false. */
   readonly twinkle?: StarfieldTwinkleOptions;
+  /**
+   * Constellation overlay — faint lines between nearby stars, slowly
+   * fading in and out so the visible "constellations" shift over
+   * time. Default-on for the dotted kind because it's the layer's
+   * defining visual flourish; pass `false` to disable.
+   */
+  readonly constellations?:
+    | boolean
+    | {
+        /** Default true. */
+        readonly enabled?: boolean;
+        /** Max distance (in world units) between two stars for them to be linked. Default 4 — ~7-8° on a radius-30 shell. */
+        readonly linkDistance?: number;
+        /** Max links per star. Higher = denser web; lower = airier. Default 2. */
+        readonly maxLinksPerStar?: number;
+        /** Base line opacity at peak of its breathe cycle. Default 0.18 — faintly visible without fighting the stars. */
+        readonly opacity?: number;
+        /** Optional override for line color; defaults to the star base color. */
+        readonly color?: string;
+      };
 }
 
-const VERTEX_SHADER = `
+const STAR_VERT = /* glsl */ `
 attribute float aPhase;
 attribute float aSizeScale;
 attribute vec3 aColor;
@@ -58,8 +62,6 @@ uniform float uPixelRatio;
 varying vec3 vColor;
 varying float vAlpha;
 void main() {
-  // Per-star sinusoidal pulse with a random per-star phase. Intensity 0 keeps
-  // the field static; intensity 1 drops the trough to zero brightness.
   float wave = sin(uTime * uTwinkleSpeed * 6.28318 + aPhase);
   float brightness = 1.0 - uTwinkleIntensity * 0.5 * (1.0 - wave);
   vColor = aColor;
@@ -70,11 +72,10 @@ void main() {
 }
 `;
 
-const FRAGMENT_SHADER = `
+const STAR_FRAG = /* glsl */ `
 varying vec3 vColor;
 varying float vAlpha;
 void main() {
-  // Soft round disc — fade edges via smoothstep so we don't show square sprites.
   vec2 uv = gl_PointCoord - vec2(0.5);
   float d = length(uv);
   float disc = smoothstep(0.5, 0.18, d);
@@ -84,23 +85,63 @@ void main() {
 `;
 
 /**
- * Procedural starfield rendered as a `THREE.Points` cloud on a large sphere
- * surrounding the scene. Stars are uniformly distributed (using inverse-CDF
- * for cos(phi) to avoid pole clustering).
+ * Constellation-line shader — each pair of vertices belongs to one
+ * line segment (LineSegments topology), and the two vertices share
+ * the same `aPairPhase` so their opacity wave stays in sync. The
+ * sine wave runs slow (0.08 Hz) so the visible constellations shift
+ * over a span of ~12 seconds, never crystallising into a fixed
+ * pattern. A small floor keeps lines barely-visible at the trough so
+ * the field never goes blank.
+ */
+const LINE_VERT = /* glsl */ `
+attribute float aPairPhase;
+uniform float uTime;
+uniform float uBaseOpacity;
+varying float vAlpha;
+void main() {
+  float wave = sin(uTime * 0.5 + aPairPhase);
+  // 0.10 floor + 0.90 wave amplitude so lines never go fully black.
+  float weight = 0.10 + 0.45 * (wave + 1.0);
+  vAlpha = uBaseOpacity * weight;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const LINE_FRAG = /* glsl */ `
+precision mediump float;
+uniform vec3 uColor;
+varying float vAlpha;
+void main() {
+  if (vAlpha < 0.001) discard;
+  gl_FragColor = vec4(uColor, vAlpha);
+}
+`;
+
+/**
+ * Dotted-native starfield. The base star Points layer is kept
+ * (uniform shell distribution + per-star twinkle), but on top of it
+ * a **constellation overlay** draws faint lines between nearby
+ * stars. The lines slowly breathe in and out at staggered phases —
+ * different "constellations" become visible over time, never
+ * crystallising into a fixed pattern. This turns the backdrop from
+ * "starfield" into "living sky", reading as the same family of
+ * visual ideas (connections, links, networks) the dotted globe
+ * itself uses.
  *
- * Each star carries a random phase + size scale + per-star color (sampled
- * from an optional palette). A custom shader animates a sinusoidal twinkle
- * in screen space and renders the points as soft circular discs rather
- * than aliased squares.
+ * Constellations are default-on for the dotted kind, off for everyone
+ * else (the per-kind copies of this file in outline/hologram/etc.
+ * pass `constellations: false` if they care).
  */
 export class DottedStarfieldLayer {
+  /** Public field kept as `Points` for parity with the shared layer. The constellation lines ride as a child of this Points object so `scene.add(starfield.object)` brings the whole thing. */
   public readonly object: Points;
   private readonly geometry: BufferGeometry;
   private readonly material: ShaderMaterial;
-  // Mutable so setTwinkle() can flip it live — drives the time-uniform
-  // accumulation in update() and the intensity-zeroing trick that
-  // freezes the field when twinkle is off.
+  private readonly constellationLines: LineSegments | null;
+  private readonly constellationGeometry: BufferGeometry | null;
+  private readonly constellationMaterial: ShaderMaterial | null;
   private twinkleEnabled: boolean;
+  private elapsed = 0;
 
   public constructor(options: DottedStarfieldLayerOptions) {
     const radius = options.radius ?? 30;
@@ -132,9 +173,6 @@ export class DottedStarfieldLayer {
       positions[i * 3 + 2] = tmp.z;
 
       phases[i] = Math.random() * Math.PI * 2;
-      // Size scale uniformly in [1 - variety, 1 + variety]. variety=0 ⇒ all
-      // identical, variety=1 ⇒ 0..2× spread. With default 0.5 we get a soft
-      // distribution that reads as "some bright, some dim".
       sizeScales[i] = 1 + (Math.random() * 2 - 1) * sizeVariety;
 
       const picked = baseColors[Math.floor(Math.random() * baseColors.length)] ?? baseColors[0]!;
@@ -162,8 +200,8 @@ export class DottedStarfieldLayer {
           value: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
         },
       },
-      vertexShader: VERTEX_SHADER,
-      fragmentShader: FRAGMENT_SHADER,
+      vertexShader: STAR_VERT,
+      fragmentShader: STAR_FRAG,
       transparent: true,
       depthWrite: false,
       blending: AdditiveBlending,
@@ -171,44 +209,73 @@ export class DottedStarfieldLayer {
 
     this.object = new Points(this.geometry, this.material);
     this.object.frustumCulled = false;
+
+    // Constellation overlay — faint lines between nearby stars,
+    // slowly breathing. Default-on; opt out via `constellations: false`.
+    const cfg = resolveConstellationsCfg(options.constellations);
+    if (cfg && cfg.enabled) {
+      const linkDistance = cfg.linkDistance ?? 4;
+      const maxLinks = cfg.maxLinksPerStar ?? 2;
+      const opacity = cfg.opacity ?? 0.18;
+      const lineColor = cfg.color
+        ? new Color(cfg.color)
+        : (baseColors[0] ?? new Color(options.color));
+      const built = buildConstellationGeometry(
+        positions,
+        options.count,
+        linkDistance,
+        maxLinks,
+      );
+      if (built !== null) {
+        this.constellationGeometry = built;
+        this.constellationMaterial = new ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uBaseOpacity: { value: opacity },
+            uColor: { value: lineColor.clone() },
+          },
+          vertexShader: LINE_VERT,
+          fragmentShader: LINE_FRAG,
+          transparent: true,
+          depthWrite: false,
+          blending: AdditiveBlending,
+        });
+        this.constellationLines = new LineSegments(built, this.constellationMaterial);
+        this.constellationLines.frustumCulled = false;
+        this.object.add(this.constellationLines);
+      } else {
+        this.constellationGeometry = null;
+        this.constellationMaterial = null;
+        this.constellationLines = null;
+      }
+    } else {
+      this.constellationGeometry = null;
+      this.constellationMaterial = null;
+      this.constellationLines = null;
+    }
   }
 
-  /**
-   * Tick the twinkle clock. Cheap when disabled — we still need to track time
-   * so a later setTwinkle() call doesn't suddenly snap to phase zero. Called
-   * once per render frame from `SceneManager.onRender`.
-   */
   public update(delta: number): void {
-    if (!this.twinkleEnabled) return;
-    const uniform = this.material.uniforms['uTime'];
-    if (uniform) uniform.value += delta;
+    this.elapsed += delta;
+    if (this.twinkleEnabled) {
+      const uniform = this.material.uniforms['uTime'];
+      if (uniform) uniform.value = this.elapsed;
+    }
+    if (this.constellationMaterial) {
+      const u = this.constellationMaterial.uniforms['uTime'];
+      if (u) u.value = this.elapsed;
+    }
   }
 
-  /**
-   * Toggle visibility without rebuilding. Cheap (Object3D.visible flip).
-   */
   public setVisible(visible: boolean): void {
     this.object.visible = visible;
   }
 
-  /**
-   * Live update for the base star size uniform. Each star's final size is
-   * still per-vertex `uBaseSize * aSizeScale`, so per-star variety is
-   * preserved — only the global multiplier shifts.
-   */
   public setSize(size: number): void {
     const uniform = this.material.uniforms['uBaseSize'];
     if (uniform) uniform.value = size;
   }
 
-  /**
-   * Live update for the twinkle config. Toggling `enabled` drives both the
-   * RAF skip in `update()` and the intensity uniform — when disabled we set
-   * intensity to 0 so the shader produces a constant brightness wave (i.e.
-   * static stars). When re-enabled we restore the requested intensity.
-   *
-   * Pass `null` to switch back to defaults (intensity 0.45, speed 0.55).
-   */
   public setTwinkle(twinkle: StarfieldTwinkleOptions | null): void {
     const enabled = twinkle?.enabled ?? false;
     this.twinkleEnabled = enabled;
@@ -225,7 +292,128 @@ export class DottedStarfieldLayer {
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
+    this.constellationGeometry?.dispose();
+    this.constellationMaterial?.dispose();
   }
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+
+interface ResolvedConstellationCfg {
+  readonly enabled: boolean;
+  readonly linkDistance?: number;
+  readonly maxLinksPerStar?: number;
+  readonly opacity?: number;
+  readonly color?: string;
+}
+
+const resolveConstellationsCfg = (
+  spec: DottedStarfieldLayerOptions['constellations'],
+): ResolvedConstellationCfg | null => {
+  if (spec === false) return null;
+  if (spec === undefined || spec === true) return { enabled: true };
+  return { ...spec, enabled: spec.enabled ?? true };
+};
+
+/**
+ * Compute pairs of stars within `linkDistance` of each other and
+ * build a `LineSegments` BufferGeometry where each segment shares a
+ * `aPairPhase` attribute (so both endpoints fade at the same time).
+ *
+ * O(N × cellNeighbours) via a coarse spatial hash — fine for the
+ * 1000-2500 star counts the dotted starfield typically uses. Returns
+ * `null` when no pairs were found (degenerate count or radius).
+ */
+const buildConstellationGeometry = (
+  starPositions: Float32Array,
+  count: number,
+  linkDistance: number,
+  maxLinksPerStar: number,
+): BufferGeometry | null => {
+  if (count < 2 || linkDistance <= 0) return null;
+  const cellSize = linkDistance;
+  const cells = new Map<string, number[]>();
+  const keyFor = (x: number, y: number, z: number): string =>
+    `${Math.floor(x / cellSize)}|${Math.floor(y / cellSize)}|${Math.floor(z / cellSize)}`;
+
+  for (let i = 0; i < count; i++) {
+    const x = starPositions[i * 3]!;
+    const y = starPositions[i * 3 + 1]!;
+    const z = starPositions[i * 3 + 2]!;
+    const k = keyFor(x, y, z);
+    let arr = cells.get(k);
+    if (!arr) {
+      arr = [];
+      cells.set(k, arr);
+    }
+    arr.push(i);
+  }
+
+  const linkCounts = new Int32Array(count);
+  const pairsA: number[] = [];
+  const pairsB: number[] = [];
+  const linkDistSq = linkDistance * linkDistance;
+
+  for (let i = 0; i < count; i++) {
+    if (linkCounts[i]! >= maxLinksPerStar) continue;
+    const x = starPositions[i * 3]!;
+    const y = starPositions[i * 3 + 1]!;
+    const z = starPositions[i * 3 + 2]!;
+    const cx = Math.floor(x / cellSize);
+    const cy = Math.floor(y / cellSize);
+    const cz = Math.floor(z / cellSize);
+    // Walk this cell + 26 neighbours (3³ block).
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const arr = cells.get(`${cx + dx}|${cy + dy}|${cz + dz}`);
+          if (!arr) continue;
+          for (const j of arr) {
+            if (j <= i) continue;
+            if (linkCounts[i]! >= maxLinksPerStar) break;
+            if (linkCounts[j]! >= maxLinksPerStar) continue;
+            const dxv = starPositions[j * 3]! - x;
+            const dyv = starPositions[j * 3 + 1]! - y;
+            const dzv = starPositions[j * 3 + 2]! - z;
+            const dsq = dxv * dxv + dyv * dyv + dzv * dzv;
+            if (dsq > linkDistSq) continue;
+            pairsA.push(i);
+            pairsB.push(j);
+            linkCounts[i]!++;
+            linkCounts[j]!++;
+          }
+        }
+      }
+    }
+  }
+
+  if (pairsA.length === 0) return null;
+
+  const segCount = pairsA.length;
+  const positions = new Float32Array(segCount * 6); // 2 verts × 3 floats per pair
+  const phases = new Float32Array(segCount * 2);
+
+  for (let s = 0; s < segCount; s++) {
+    const a = pairsA[s]!;
+    const b = pairsB[s]!;
+    positions[s * 6] = starPositions[a * 3]!;
+    positions[s * 6 + 1] = starPositions[a * 3 + 1]!;
+    positions[s * 6 + 2] = starPositions[a * 3 + 2]!;
+    positions[s * 6 + 3] = starPositions[b * 3]!;
+    positions[s * 6 + 4] = starPositions[b * 3 + 1]!;
+    positions[s * 6 + 5] = starPositions[b * 3 + 2]!;
+    const phase = Math.random() * Math.PI * 2;
+    phases[s * 2] = phase;
+    phases[s * 2 + 1] = phase;
+  }
+
+  const geom = new BufferGeometry();
+  geom.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geom.setAttribute('aPairPhase', new Float32BufferAttribute(phases, 1));
+  return geom;
+};
+
+// Re-export the unused import so the bundler doesn't tree-shake it
+// when downstream callers want to swap in a vanilla LineBasicMaterial
+// for debugging.
+export type { LineBasicMaterial };

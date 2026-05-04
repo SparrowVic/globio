@@ -1,14 +1,14 @@
 import {
   AdditiveBlending,
-  BackSide,
   Blending,
+  BufferGeometry,
   Color,
-  DoubleSide,
-  FrontSide,
+  Float32BufferAttribute,
   Mesh,
+  MeshBasicMaterial,
   NormalBlending,
+  Points,
   ShaderMaterial,
-  Side,
   SphereGeometry,
 } from 'three';
 import { GLOBE_RADIUS } from '../../utils/coordinates';
@@ -16,106 +16,151 @@ import { GLOBE_RADIUS } from '../../utils/coordinates';
 export interface DottedAtmosphereOptions {
   readonly color: string;
   readonly intensity: number;
-  /**
-   * Mesh radius as a multiplier of `GLOBE_RADIUS`. Default 1.15 — the
-   * halo extends 15% beyond the globe surface. Range 1.01..1.5 for
-   * tight rim ↔ wide aurora.
-   */
+  /** Mesh radius as a multiplier of `GLOBE_RADIUS`. Default 1.18. */
   readonly radiusScale?: number;
-  /**
-   * Fresnel exponent — controls the falloff sharpness of the rim. 0.5
-   * = soft & diffuse glow that fills most of the silhouette; 4.0 =
-   * razor-thin rim hugging the edge. Default 2.0.
-   */
+  /** Fresnel exponent. Higher = thinner rim. Default 2.0. */
   readonly power?: number;
-  /**
-   * Fresnel threshold — where the rim starts. 0 means the entire
-   * sphere shows tint, 1 means only the silhouette edge. Default 0.6
-   * (rim begins ~40% from the centre normal towards the edge).
-   */
+  /** Fresnel threshold — where the dot halo starts radiating. Default 0.6. */
   readonly threshold?: number;
-  /**
-   * Render side. `back` (default) draws on the inside of the
-   * surrounding shell so it reads as a halo behind the globe; `front`
-   * drops the rim onto the front-facing portion (more like a haze
-   * over the planet); `double` does both for a heavier atmosphere.
-   */
+  /** Kept for API parity with shared layer; dotted variant always renders both sides via the Points cloud's geometry. */
   readonly side?: 'back' | 'front' | 'double';
-  /**
-   * Blend mode. `'additive'` (default) reads as glow on dark themes;
-   * `'normal'` is a flat overlay useful on cream / paper themes where
-   * additive blowouts.
-   */
   readonly blending?: 'additive' | 'normal';
-  /**
-   * Optional time-driven brightness oscillation (atmospheric "breath").
-   * `enabled: false` (default) keeps the halo static.
-   */
   readonly pulse?: {
     readonly enabled?: boolean;
-    /** Frequency in Hz. Default 0.25 (slow, contemplative). */
     readonly speed?: number;
-    /** Brightness amplitude as a fraction of base intensity. Default 0.25. */
     readonly amplitude?: number;
   };
 }
 
 const DEFAULTS = {
-  radiusScale: 1.15,
+  radiusScale: 1.18,
   power: 2.0,
   threshold: 0.6,
   side: 'back' as const,
   blending: 'additive' as const,
 };
 
-const VERTEX_SHADER = `
-  varying vec3 vNormal;
-  void main() {
-    vNormal = normalize(normalMatrix * normal);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
+/**
+ * Number of orbital halo dots. 900 reads as a dense halo at default
+ * radius; can be tuned by feel — too few looks like sparse satellites,
+ * too many fights the surface dot field for attention.
+ */
+const HALO_DOT_COUNT = 900;
+/** Base size for halo dots (shader pixels). The Fresnel weight scales this further. */
+const HALO_POINT_SIZE = 2.6;
+/** Slow rotation speed of the halo cloud independent of globe spin (rev/sec). */
+const HALO_ROTATION_SPEED = 0.012;
 
-// Two extra uniforms (uPower, uThreshold) parameterise the Fresnel
-// curve. uPulseAmp + uPulseTime add a slow brightness oscillation so
-// the halo can "breathe" in and out — set amp to 0 to disable.
-const FRAGMENT_SHADER = `
+const VERTEX_SHADER = /* glsl */ `
+  attribute float aSeed; // per-particle randomness for size variety
+  uniform float uTime;
   uniform vec3 uColor;
   uniform float uIntensity;
   uniform float uPower;
   uniform float uThreshold;
   uniform float uPulseAmp;
   uniform float uPulseTime;
-  varying vec3 vNormal;
+  uniform float uPointSize;
+  uniform float uPixelRatio;
+  uniform float uRotation;
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  // Cheap rotation around Y for the orbital halo so the cloud drifts
+  // independently from globe spin. Keeps the halo feeling like a
+  // separate orbital structure rather than glued to the planet.
+  vec3 rotateY(vec3 p, float a) {
+    float c = cos(a);
+    float s = sin(a);
+    return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
+  }
+
   void main() {
-    float fres = pow(uThreshold - dot(vNormal, vec3(0.0, 0.0, 1.0)), uPower);
-    float breathe = 1.0 + uPulseAmp * sin(uPulseTime);
-    gl_FragColor = vec4(uColor, 1.0) * fres * uIntensity * breathe;
+    vec3 rotated = rotateY(position, uRotation);
+    // Surface normal of the halo shell points outward from origin.
+    vec3 nWorld = normalize(rotated);
+
+    // Fresnel-style weight: dots near the silhouette (perpendicular to
+    // the camera ray) read brightest; dots facing the camera (front
+    // of halo) and behind (occluded by the globe) fade. Computed in
+    // view space by transforming the normal — same shader maths the
+    // shared atmosphere uses, just sampled per-particle.
+    vec3 nView = normalize(normalMatrix * nWorld);
+    // 1 - abs(nView.z) peaks at the silhouette (where the view-space
+    // z component approaches 0) and falls to 0 on the front + back
+    // caps where the normal aligns with the view ray.
+    float silhouette = 1.0 - abs(nView.z);
+    // Apply threshold + power for the same shape as the Fresnel halo.
+    float fres = smoothstep(uThreshold, 1.0, silhouette);
+    fres = pow(fres, uPower);
+
+    // Pulse — same uTime-driven oscillation the shared atmosphere
+    // exposes, applied as a brightness multiplier.
+    float pulse = 1.0 + uPulseAmp * sin(uPulseTime);
+
+    // Per-particle size variety so the halo doesn't read as a uniform
+    // grid. aSeed already in [0,1).
+    float sizeMul = 0.5 + aSeed;
+
+    vAlpha = fres * uIntensity * pulse;
+    vColor = uColor;
+
+    vec4 mv = modelViewMatrix * vec4(rotated, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = uPointSize * sizeMul * uPixelRatio * (1.0 / -mv.z);
   }
 `;
 
-const resolveSide = (mode: DottedAtmosphereOptions['side']): Side => {
-  if (mode === 'front') return FrontSide;
-  if (mode === 'double') return DoubleSide;
-  return BackSide;
-};
+const FRAGMENT_SHADER = /* glsl */ `
+  precision mediump float;
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    if (vAlpha < 0.001) discard;
+    vec2 uv = gl_PointCoord - vec2(0.5);
+    float d = dot(uv, uv);
+    // Soft round disc — same shape family as surface + arcs.
+    float disc = smoothstep(0.25, 0.0, d);
+    if (disc < 0.001) discard;
+    gl_FragColor = vec4(vColor * vAlpha, disc * vAlpha);
+  }
+`;
 
 const resolveBlending = (mode: DottedAtmosphereOptions['blending']): Blending => {
   if (mode === 'normal') return NormalBlending;
   return AdditiveBlending;
 };
 
+/**
+ * Dotted-native atmosphere — a cloud of **orbital halo dots** instead
+ * of the shared Fresnel sphere. The dots are uniformly distributed on
+ * a slightly-larger shell around the globe; a Fresnel-style weight
+ * peaks them at the silhouette and fades them on the front/back
+ * caps, so the visible result is a glittering halo ringing the
+ * planet's profile rather than a smooth gradient. The cloud also
+ * slowly rotates independently of globe spin, adding life and
+ * selling the "this is its own orbital layer" reading.
+ *
+ * The public surface (`mesh: Mesh`, set/reset accessors, side, blending,
+ * pulse, etc.) matches the shared `AtmosphereLayer` so create-globe.ts
+ * mounts and lives-updates this kind exactly the same way. The
+ * mesh itself is an invisible placeholder; the visible Points
+ * cloud is attached as its child so `globeGroup.add(mesh)` brings
+ * the halo with it.
+ */
 export class DottedAtmosphereLayer {
   public readonly mesh: Mesh;
-  private geometry: SphereGeometry;
+  private points: Points;
   private readonly material: ShaderMaterial;
+  private readonly placeholderGeom: SphereGeometry;
+  private readonly placeholderMat: MeshBasicMaterial;
+  private particleGeometry: BufferGeometry;
   // Cached construction values for reset-to-default flows.
   private readonly defaultColor: string;
   private readonly defaultIntensity: number;
   private readonly defaultPower: number;
   private readonly defaultThreshold: number;
   private readonly defaultRadiusScale: number;
-  // Mutable state needed by the per-frame `update(delta)` accumulator.
   private radiusScale: number;
   private pulseEnabled: boolean;
   private pulseSpeed: number;
@@ -130,33 +175,59 @@ export class DottedAtmosphereLayer {
     this.radiusScale = this.defaultRadiusScale;
     this.pulseEnabled = options.pulse?.enabled ?? false;
     this.pulseSpeed = options.pulse?.speed ?? 0.25;
-    this.geometry = new SphereGeometry(GLOBE_RADIUS * this.radiusScale, 64, 64);
+
+    const pixelRatio =
+      typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
     this.material = new ShaderMaterial({
       uniforms: {
+        uTime: { value: 0 },
         uColor: { value: new Color(options.color) },
         uIntensity: { value: options.intensity },
         uPower: { value: this.defaultPower },
         uThreshold: { value: this.defaultThreshold },
         uPulseAmp: { value: this.pulseEnabled ? (options.pulse?.amplitude ?? 0.25) : 0 },
         uPulseTime: { value: 0 },
+        uPointSize: { value: HALO_POINT_SIZE },
+        uPixelRatio: { value: pixelRatio },
+        uRotation: { value: 0 },
       },
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
       blending: resolveBlending(options.blending),
-      side: resolveSide(options.side),
       transparent: true,
       depthWrite: false,
     });
 
-    this.mesh = new Mesh(this.geometry, this.material);
+    this.particleGeometry = this.buildParticleGeometry(this.radiusScale);
+    this.points = new Points(this.particleGeometry, this.material);
+    this.points.frustumCulled = false;
+    this.points.renderOrder = 4; // behind borders/labels, above globe surface
+
+    // Placeholder Mesh — keeps the public `mesh: Mesh` shape that the
+    // shared layer exposes, so create-globe.ts and the registry typing
+    // don't need a kind-specific branch. Geometry is a degenerate
+    // (zero-radius) sphere, the material is fully transparent, so it
+    // contributes no fragments. The Points cloud rides as its child.
+    this.placeholderGeom = new SphereGeometry(0.0001, 4, 4);
+    this.placeholderMat = new MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    this.mesh = new Mesh(this.placeholderGeom, this.placeholderMat);
+    this.mesh.add(this.points);
   }
 
-  /** Tick the brightness oscillator. Called once per render frame. */
+  /** Tick rotation + brightness oscillator. Called once per render frame. */
   public update(delta: number): void {
-    if (!this.pulseEnabled) return;
     this.elapsedSeconds += delta;
-    const uniform = this.material.uniforms['uPulseTime'];
-    if (uniform) uniform.value = this.elapsedSeconds * this.pulseSpeed * 2 * Math.PI;
+    const rot = this.material.uniforms['uRotation'];
+    if (rot) rot.value = this.elapsedSeconds * HALO_ROTATION_SPEED * Math.PI * 2;
+    if (this.pulseEnabled) {
+      const pt = this.material.uniforms['uPulseTime'];
+      if (pt) pt.value = this.elapsedSeconds * this.pulseSpeed * 2 * Math.PI;
+    }
   }
 
   public setColor(color: string): void {
@@ -169,14 +240,12 @@ export class DottedAtmosphereLayer {
     }
   }
 
-  /** Live update for the Fresnel exponent. */
   public setPower(power: number): void {
     if (this.material.uniforms['uPower']) {
       this.material.uniforms['uPower'].value = power;
     }
   }
 
-  /** Live update for the Fresnel threshold. */
   public setThreshold(threshold: number): void {
     if (this.material.uniforms['uThreshold']) {
       this.material.uniforms['uThreshold'].value = threshold;
@@ -184,22 +253,22 @@ export class DottedAtmosphereLayer {
   }
 
   /**
-   * Live update for mesh radius. Disposes the old sphere geometry and
-   * builds a new one — small one-time cost (single mesh, no other
-   * scene ties), no rebuild of the whole atmosphere layer.
+   * Live update for the halo radius. Rebuilds the particle cloud at
+   * the new shell radius; cheap (single Points buffer, ~900 floats).
    */
   public setRadiusScale(scale: number): void {
     if (Math.abs(this.radiusScale - scale) < 1e-4) return;
     this.radiusScale = scale;
-    const next = new SphereGeometry(GLOBE_RADIUS * scale, 64, 64);
-    this.geometry.dispose();
-    this.geometry = next;
-    this.mesh.geometry = next;
+    const next = this.buildParticleGeometry(scale);
+    this.particleGeometry.dispose();
+    this.particleGeometry = next;
+    this.points.geometry = next;
   }
 
-  public setSide(mode: DottedAtmosphereOptions['side']): void {
-    this.material.side = resolveSide(mode);
-    this.material.needsUpdate = true;
+  public setSide(_mode: DottedAtmosphereOptions['side']): void {
+    // The dotted halo's particles render correctly from either side
+    // (Points have no face-culling notion). Kept as a no-op for API
+    // parity so the live-update path doesn't need to branch on kind.
   }
 
   public setBlending(mode: DottedAtmosphereOptions['blending']): void {
@@ -207,11 +276,6 @@ export class DottedAtmosphereLayer {
     this.material.needsUpdate = true;
   }
 
-  /**
-   * Live update for the brightness pulse. `null` or `enabled: false`
-   * freezes the halo at its current value. Otherwise drives a sin
-   * oscillation around the base intensity.
-   */
   public setPulse(pulse: DottedAtmosphereOptions['pulse'] | null): void {
     const enabled = pulse?.enabled ?? false;
     this.pulseEnabled = enabled;
@@ -220,20 +284,14 @@ export class DottedAtmosphereLayer {
     if (ampUniform) ampUniform.value = enabled ? (pulse?.amplitude ?? 0.25) : 0;
   }
 
-  /**
-   * Toggle visibility — `Object3D.visible` flip, no GPU work. Live-
-   * updates the master atmosphere on/off without rebuilding.
-   */
   public setVisible(visible: boolean): void {
     this.mesh.visible = visible;
   }
 
-  /** Restore the construction-time (theme-driven) color. */
   public resetColor(): void {
     this.setColor(this.defaultColor);
   }
 
-  /** Restore the construction-time (theme-driven) intensity. */
   public resetIntensity(): void {
     this.setIntensity(this.defaultIntensity);
   }
@@ -251,7 +309,33 @@ export class DottedAtmosphereLayer {
   }
 
   public dispose(): void {
-    this.geometry.dispose();
+    this.particleGeometry.dispose();
+    this.placeholderGeom.dispose();
+    this.placeholderMat.dispose();
     this.material.dispose();
+  }
+
+  /**
+   * Generate a uniform point distribution on a sphere of radius
+   * `GLOBE_RADIUS * scale`. Uses the inverse-CDF for cos(phi) so the
+   * points don't cluster at the poles (same trick the surface
+   * starfield uses).
+   */
+  private buildParticleGeometry(scale: number): BufferGeometry {
+    const radius = GLOBE_RADIUS * scale;
+    const positions = new Float32Array(HALO_DOT_COUNT * 3);
+    const seeds = new Float32Array(HALO_DOT_COUNT);
+    for (let i = 0; i < HALO_DOT_COUNT; i++) {
+      const theta = Math.random() * 2 * Math.PI;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = radius * Math.cos(phi);
+      positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+      seeds[i] = Math.random();
+    }
+    const geom = new BufferGeometry();
+    geom.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    geom.setAttribute('aSeed', new Float32BufferAttribute(seeds, 1));
+    return geom;
   }
 }

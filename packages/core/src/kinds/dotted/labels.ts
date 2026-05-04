@@ -201,7 +201,9 @@ export class DottedLabelsLayer {
       const next = labels[entry.id] ?? this.lookupDefault(entry.id);
       if (next !== entry.text) {
         entry.text = next;
-        entry.element.textContent = next;
+        // Re-decorate with the dot prefix so the live update path
+        // matches the construction-time format.
+        entry.element.textContent = `· ${next}`;
       }
     });
   }
@@ -277,8 +279,14 @@ export class DottedLabelsLayer {
       const surface = latLngToVector3([lat, lng], GLOBE_RADIUS * 1.001);
 
       const element = document.createElement('div');
-      const text = this.labels[feature.id] ?? feature.name;
-      element.textContent = text;
+      const baseText = this.labels[feature.id] ?? feature.name;
+      // Dotted-native label decoration: monospace caps + a leading dot
+      // marker (`· TOKYO`). Reads as a HUD readout rather than a map
+      // toponym, fitting the dotted kind's particle / data-feed
+      // aesthetic. The base text is uppercased + spaced via CSS so
+      // any user-supplied labels (e.g. mixed-case "São Paulo") still
+      // render with the right glyphs preserved.
+      element.textContent = `· ${baseText}`;
       Object.assign(element.style, {
         position: 'absolute',
         left: '0',
@@ -288,8 +296,16 @@ export class DottedLabelsLayer {
         userSelect: 'none',
         color: this.options.color,
         fontSize: `${this.options.fontSize}px`,
-        fontFamily: this.options.fontFamily,
+        // Monospace family (with system fallbacks) — same family the
+        // crosshair lat/lng readout uses, ties the kind's HUD
+        // typography together.
+        fontFamily:
+          'ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace',
         fontWeight: this.options.fontWeight,
+        // ALL CAPS at low letter-spacing reads as inscription rather
+        // than label.
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
         textShadow,
         ...(padding > 0 ? { padding: `${padding}px` } : {}),
         opacity: '0',
@@ -305,7 +321,9 @@ export class DottedLabelsLayer {
         element,
         worldPosition: surface,
         angularExtent: ext,
-        text,
+        // Cache the *base* (un-decorated) text so `setLabels` can
+        // detect changes without diffing against the decorated form.
+        text: baseText,
       });
     }
   }
