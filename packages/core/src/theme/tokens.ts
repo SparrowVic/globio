@@ -100,7 +100,7 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
   'paper.surfaceNoiseAmount': 0.06,
   'paper.borderColor': '#5b3a1f',
   'paper.borderOpacity': 0.85,
-  'paper.borderRoughness': 0.25,
+  'paper.borderRoughness': 0.12,
   'paper.fillColor': '#e9dcae',
   'paper.fillOpacity': 0.35,
   'paper.gridColor': '#bfa974',

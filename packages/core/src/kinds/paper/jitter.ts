@@ -28,11 +28,52 @@ export const seededJitter = (key: string): number => {
 };
 
 /**
+ * Wavelength of the value noise that drives the border wobble, in
+ * degrees of lng/lat. ~4° picks one peak/trough roughly every country
+ * width — adjacent ring vertices (typically <1° apart in source
+ * GeoJSON) sample positions close in noise space, so the line wobbles
+ * smoothly instead of zig-zagging vertex-to-vertex.
+ */
+const NOISE_WAVELENGTH_DEG = 4;
+
+/**
+ * Bilinear value noise in lng/lat space. Returns a smooth scalar in
+ * [-0.5, 0.5] — same range as `seededJitter` but spatially correlated:
+ * two query points within the wavelength share most of their corner
+ * samples, so the noise drifts continuously instead of jumping at
+ * every vertex.
+ */
+const valueNoise2D = (lng: number, lat: number, seed: string): number => {
+  const w = NOISE_WAVELENGTH_DEG;
+  const ix = Math.floor(lng / w);
+  const iy = Math.floor(lat / w);
+  const fx = lng / w - ix;
+  const fy = lat / w - iy;
+  const v00 = seededJitter(`${seed}|${ix},${iy}`);
+  const v10 = seededJitter(`${seed}|${ix + 1},${iy}`);
+  const v01 = seededJitter(`${seed}|${ix},${iy + 1}`);
+  const v11 = seededJitter(`${seed}|${ix + 1},${iy + 1}`);
+  // Smoothstep in each axis — softens the bilinear seams so we don't
+  // see the underlying noise grid even at high roughness.
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const a = v00 * (1 - sx) + v10 * sx;
+  const b = v01 * (1 - sx) + v11 * sx;
+  return a * (1 - sy) + b * sy;
+};
+
+/**
  * Apply per-vertex jitter perpendicular to the segment direction (lng/lat
  * 2D space). `roughnessDegrees` caps the wobble amplitude (each vertex
- * shifts by `seededJitter() * roughnessDegrees` along the perpendicular).
- * First and last vertices get the same treatment as inner ones — closed
- * rings still close because the seed key is per-vertex-position.
+ * shifts by `valueNoise2D() * roughnessDegrees` along the perpendicular).
+ *
+ * Pre-redesign this used `seededJitter` keyed by the vertex coordinate,
+ * which gave every vertex an *independent* random offset. On long
+ * straight borders (Egypt/Sudan, US/Canada parallels) that read as
+ * mechanical high-frequency zig-zags rather than hand-drawn ink, since
+ * adjacent vertices alternate uncorrelated random shifts. Switching to
+ * spatial value noise keeps neighbouring vertices close in noise space
+ * and gives the soft drifting wobble the paper kind was meant to have.
  */
 export const jitterRing = (
   ring: ReadonlyArray<readonly [number, number]>,
@@ -53,7 +94,7 @@ export const jitterRing = (
     const len = Math.hypot(dLng, dLat) || 1;
     const px = dLat / len;
     const py = -dLng / len;
-    const j = seededJitter(`${seed}|${v[0].toFixed(4)},${v[1].toFixed(4)}`) * roughnessDegrees;
+    const j = valueNoise2D(v[0], v[1], seed) * roughnessDegrees;
     out[i] = [v[0] + px * j, v[1] + py * j] as const;
   }
   return out;
