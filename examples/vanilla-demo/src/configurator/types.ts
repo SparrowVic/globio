@@ -302,6 +302,9 @@ export interface GlobeSettings {
   readonly paperSurfaceColor: string;
   readonly paperSurfaceNoise: number;
   readonly paperSurfaceVignette: number;
+  readonly paperSurfaceFibers: number;
+  readonly paperSurfaceStains: number;
+  readonly paperSurfaceWashColor: string;
   readonly paperBorders: boolean;
   readonly paperBorderColor: string;
   readonly paperBorderOpacity: number;
@@ -348,6 +351,15 @@ export interface GlobeSettings {
   readonly paperWatermarkOpacity: number;
   readonly paperWatermarkSize: number;
   readonly paperWatermarkPosition: 'center' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+  readonly paperPulseDurationMs: number;
+  readonly paperPulseRadiusBase: number;
+  readonly paperPulseAngularBand: number;
+  readonly paperPulseScaleMin: number;
+  readonly paperPulseScaleMax: number;
+  readonly paperPulseOpacity: number;
+  readonly paperPulseSegments: number;
+  readonly paperPulseColor: string;
+  readonly paperPulseRadiusFactor: number;
   /* ───────── Wireframe-kind knobs ───────── */
   /** Empty string = use theme default; otherwise hex override. */
   readonly wireframeColor: string;

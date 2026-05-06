@@ -565,6 +565,12 @@ export interface PaperConfig {
     readonly color?: string;
     readonly noiseAmount?: number;
     readonly vignette?: number;
+    /** Long paper-fiber strokes baked into the parchment texture (0..1). */
+    readonly fiberAmount?: number;
+    /** Watercolor / age-stain wash intensity baked into the texture (0..1). */
+    readonly stainAmount?: number;
+    /** Tint used for the watercolor/stain wash. Empty string = default. */
+    readonly washColor?: string;
   };
   readonly borders?: {
     readonly enabled?: boolean;
@@ -635,6 +641,17 @@ export interface PaperConfig {
     readonly opacity?: number;
     readonly size?: number;
     readonly position?: 'center' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+  };
+  readonly focusPulse?: {
+    readonly durationMs?: number;
+    readonly angularRadiusBase?: number;
+    readonly angularBand?: number;
+    readonly scaleMin?: number;
+    readonly scaleMax?: number;
+    readonly peakOpacity?: number;
+    readonly segments?: number;
+    readonly radiusFactor?: number;
+    readonly color?: string;
   };
 }
 

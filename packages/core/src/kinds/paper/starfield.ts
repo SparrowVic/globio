@@ -1,8 +1,8 @@
 import {
-  AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
   Color,
+  NormalBlending,
   Points,
   ShaderMaterial,
   Vector3,
@@ -84,9 +84,10 @@ void main() {
 `;
 
 /**
- * Procedural starfield rendered as a `THREE.Points` cloud on a large sphere
- * surrounding the scene. Stars are uniformly distributed (using inverse-CDF
- * for cos(phi) to avoid pole clustering).
+ * Paper-native "starfield": a quiet cloud of printed speckles / classroom
+ * pin-pricks around the globe. It keeps the same API as other kinds but uses
+ * normal blending and soft pigment discs so it feels like paper texture in
+ * the stage, not space outside the atmosphere.
  *
  * Each star carries a random phase + size scale + per-star color (sampled
  * from an optional palette). A custom shader animates a sinusoidal twinkle
@@ -166,7 +167,7 @@ export class PaperStarfieldLayer {
       fragmentShader: FRAGMENT_SHADER,
       transparent: true,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: NormalBlending,
     });
 
     this.object = new Points(this.geometry, this.material);

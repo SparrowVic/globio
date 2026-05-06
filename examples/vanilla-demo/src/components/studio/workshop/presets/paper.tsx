@@ -24,7 +24,7 @@ import type {
  * the library — every layer is exposed, every effect is toggleable.
  *
  * Knob inventory (~50):
- *   Surface       3   color, grain, vignette
+ *   Surface       6   color, grain, vignette, fibers, stains, wash tint
  *   Borders      10   toggle, color, opacity, width, roughness, stipple
  *                     (toggle/density/size), ink-bleed (toggle/color/
  *                     opacity/spread)
@@ -37,7 +37,7 @@ import type {
  *   Aging marks   5   toggle, count, color, intensity, seed
  *   Watermark     6   toggle, text, color, opacity, size, position
  *
- * Total: 47 paper-specific knobs, all live-updating via PaperKindHandle
+ * Total: 50+ paper-specific knobs, all live-updating via PaperKindHandle
  * .setPaperConfig + globe.update({ paper: ... }).
  */
 
@@ -87,6 +87,17 @@ const surfaceSwatches = [
   '#fbf2d8',
 ];
 
+const washSwatches = [
+  '#e8b85a',
+  '#d99a35',
+  '#c7834a',
+  '#8fc7b0',
+  '#9fc5e8',
+  '#d9a7c7',
+  '#b8d26f',
+  '#a67c52',
+];
+
 const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   const settings = state.globe;
 
@@ -124,6 +135,32 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           step={0.02}
           format={(value) => value.toFixed(2)}
           onChange={(paperSurfaceVignette) => onGlobeChange({ paperSurfaceVignette })}
+        />
+        <SliderField
+          label="Fibers"
+          value={settings.paperSurfaceFibers < 0 ? 0.45 : settings.paperSurfaceFibers}
+          min={0}
+          max={1}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(paperSurfaceFibers) => onGlobeChange({ paperSurfaceFibers })}
+        />
+        <SliderField
+          label="Watercolor stains"
+          value={settings.paperSurfaceStains < 0 ? 0.2 : settings.paperSurfaceStains}
+          min={0}
+          max={1}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(paperSurfaceStains) => onGlobeChange({ paperSurfaceStains })}
+        />
+        <ColorField
+          label="Wash tint"
+          value={settings.paperSurfaceWashColor || '#e8b85a'}
+          onChange={(paperSurfaceWashColor) => onGlobeChange({ paperSurfaceWashColor })}
+          hint={settings.paperSurfaceWashColor === '' ? 'Layer default' : undefined}
+          {...(settings.paperSurfaceWashColor !== '' ? { preset: '' } : {})}
+          swatches={washSwatches}
         />
 
         {/* BORDERS -------------------------------------------------------- */}
@@ -613,6 +650,9 @@ const preset: PresetModule = {
     'paperSurfaceColor',
     'paperSurfaceNoise',
     'paperSurfaceVignette',
+    'paperSurfaceFibers',
+    'paperSurfaceStains',
+    'paperSurfaceWashColor',
     'paperBorders',
     'paperBorderColor',
     'paperBorderOpacity',

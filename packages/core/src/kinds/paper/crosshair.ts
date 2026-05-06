@@ -1,11 +1,11 @@
 import {
-  AdditiveBlending,
   BufferGeometry,
   Color,
   Float32BufferAttribute,
   Group,
   LineBasicMaterial,
   LineSegments,
+  NormalBlending,
   Vector3,
 } from 'three';
 import { GLOBE_RADIUS } from '../../utils/coordinates';
@@ -58,10 +58,9 @@ export const formatLatLng = (lat: number, lng: number, decimals = 2): string => 
 };
 
 /**
- * Tron-style targeting reticle: a 3D cross + ring tangent to the globe at
- * the cursor's surface intersection, plus a DOM lat/lng readout pinned next
- * to the cursor. The 3D mark chase-eases toward the latest hit so quick
- * cursor moves don't strobe.
+ * Paper-map targeting reticle: a small cartographer loupe + ruler ticks
+ * tangent to the globe at the cursor's surface intersection, plus a DOM
+ * coordinate slip pinned next to the cursor.
  */
 export class PaperCrosshairLayer {
   public readonly object: Group;
@@ -97,7 +96,7 @@ export class PaperCrosshairLayer {
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: NormalBlending,
     });
 
     this.object = new Group();
@@ -112,14 +111,19 @@ export class PaperCrosshairLayer {
       'left:0',
       'top:0',
       `color:${options.color}`,
-      'font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-      'font-size:11px',
-      'letter-spacing:0.04em',
+      'font-family:Georgia, "Times New Roman", serif',
+      'font-size:12px',
+      'letter-spacing:0.02em',
       'white-space:nowrap',
-      'transform:translate(14px, 32px)',
+      'transform:translate(14px, 28px) rotate(-1deg)',
+      'background:rgba(255, 246, 219, 0.82)',
+      'border:1px solid rgba(91, 58, 31, 0.28)',
+      'border-radius:2px',
+      'padding:3px 7px',
       'opacity:0',
       'transition:opacity 80ms linear',
-      'text-shadow:0 0 4px rgba(0,0,0,0.6)',
+      'box-shadow:0 3px 10px rgba(45, 28, 11, 0.16)',
+      'text-shadow:none',
       'z-index:50',
     ].join(';');
     this.tooltip.textContent = '';
@@ -248,8 +252,9 @@ export class PaperCrosshairLayer {
 }
 
 /**
- * Build the reticle geometry: a cross + (optional) inner ring + (optional)
- * cardinal tick marks at N/S/E/W just outside the ring.
+ * Build the reticle geometry: broken loupe ring, small ruler cross, and
+ * optional cardinal ticks. It is intentionally asymmetric so it reads like
+ * hand-inked cartography rather than an outline/hologram targeting HUD.
  */
 const buildReticle = (
   size: number,
@@ -258,13 +263,17 @@ const buildReticle = (
   material: LineBasicMaterial,
 ): LineSegments => {
   const arms: Array<number> = [
-    -size, 0, 0, size, 0, 0,
-    0, -size, 0, 0, size, 0,
+    -size, 0, 0, -size * 0.32, 0, 0,
+    size * 0.32, 0, 0, size, 0, 0,
+    0, -size, 0, 0, -size * 0.32, 0,
+    0, size * 0.32, 0, 0, size, 0,
+    size * 0.58, -size * 0.58, 0, size * 1.22, -size * 1.22, 0,
   ];
   const ringR = size * ringRadiusFactor;
   if (ringR > 0) {
-    const ringSegs = 24;
+    const ringSegs = 28;
     for (let i = 0; i < ringSegs; i++) {
+      if (i === 4 || i === 13 || i === 21) continue;
       const t1 = (i / ringSegs) * Math.PI * 2;
       const t2 = ((i + 1) / ringSegs) * Math.PI * 2;
       arms.push(Math.cos(t1) * ringR, Math.sin(t1) * ringR, 0);

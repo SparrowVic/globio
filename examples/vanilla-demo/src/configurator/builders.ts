@@ -347,6 +347,9 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         color: state.globe.paperSurfaceColor,
         noiseAmount: state.globe.paperSurfaceNoise,
         vignette: state.globe.paperSurfaceVignette,
+        fiberAmount: state.globe.paperSurfaceFibers,
+        stainAmount: state.globe.paperSurfaceStains,
+        washColor: state.globe.paperSurfaceWashColor,
       },
       borders: {
         enabled: state.globe.paperBorders,
@@ -413,6 +416,17 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         opacity: state.globe.paperWatermarkOpacity,
         size: state.globe.paperWatermarkSize,
         position: state.globe.paperWatermarkPosition,
+      },
+      focusPulse: {
+        durationMs: state.globe.paperPulseDurationMs,
+        angularRadiusBase: state.globe.paperPulseRadiusBase,
+        angularBand: state.globe.paperPulseAngularBand,
+        scaleMin: state.globe.paperPulseScaleMin,
+        scaleMax: state.globe.paperPulseScaleMax,
+        peakOpacity: state.globe.paperPulseOpacity,
+        segments: state.globe.paperPulseSegments,
+        radiusFactor: state.globe.paperPulseRadiusFactor,
+        color: state.globe.paperPulseColor,
       },
     },
     // Wireframe-only fine-tune knobs. Always pass the structure so the

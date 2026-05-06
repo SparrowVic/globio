@@ -155,8 +155,11 @@ const focusPulseStatus = (state: ConfiguratorState): string => {
   if (settings.kind === 'dotted') {
     return settings.dottedRipple ? `${settings.focusPulseOrigin} · ripple` : 'trigger only';
   }
-  if (settings.kind === 'wireframe' || settings.kind === 'paper') {
+  if (settings.kind === 'wireframe') {
     return `${settings.focusPulseOrigin} · kind default`;
+  }
+  if (settings.kind === 'paper') {
+    return `${settings.focusPulseOrigin} · ${(settings.paperPulseDurationMs / 1000).toFixed(1)}s`;
   }
   const durationMs =
     settings.kind === 'hologram'
@@ -169,7 +172,8 @@ const crosshairStatus = (state: ConfiguratorState): string => {
   const supported =
     state.globe.kind === 'outline' ||
     state.globe.kind === 'dotted' ||
-    state.globe.kind === 'hologram';
+    state.globe.kind === 'hologram' ||
+    state.globe.kind === 'paper';
   if (!supported) return 'unavailable';
   return state.globe.outlineHoverCrosshair ? 'reticle' : 'off';
 };

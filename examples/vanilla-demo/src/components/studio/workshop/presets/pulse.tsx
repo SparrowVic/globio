@@ -355,6 +355,104 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             ]}
           />
         </DependsOn>
+
+        <DependsOn
+          when={settings.kind === 'paper'}
+          because="Paper renders focus pulse as ink and watercolor rings. Switch the main globe to paper kind to tune."
+          className="space-y-4"
+          variant="hidden"
+        >
+          <SectionHeading>Paper · ink ripple</SectionHeading>
+          <SliderField
+            label="Duration"
+            value={settings.paperPulseDurationMs}
+            min={400}
+            max={3200}
+            step={50}
+            format={(value) => `${(value / 1000).toFixed(2)} s`}
+            onChange={(paperPulseDurationMs) => onGlobeChange({ paperPulseDurationMs })}
+          />
+          <SliderField
+            label="Start radius"
+            value={settings.paperPulseRadiusBase}
+            min={0.015}
+            max={0.18}
+            step={0.005}
+            format={(value) => `${(value * (180 / Math.PI)).toFixed(1)}°`}
+            onChange={(paperPulseRadiusBase) => onGlobeChange({ paperPulseRadiusBase })}
+          />
+          <SliderField
+            label="Ink thickness"
+            value={settings.paperPulseAngularBand}
+            min={0.004}
+            max={0.07}
+            step={0.001}
+            format={(value) => `${(value * (180 / Math.PI)).toFixed(2)}°`}
+            onChange={(paperPulseAngularBand) => onGlobeChange({ paperPulseAngularBand })}
+          />
+          <SliderField
+            label="Start scale"
+            value={settings.paperPulseScaleMin}
+            min={0.05}
+            max={1.2}
+            step={0.05}
+            format={(value) => `x${value.toFixed(2)}`}
+            onChange={(paperPulseScaleMin) => onGlobeChange({ paperPulseScaleMin })}
+          />
+          <SliderField
+            label="Expansion"
+            value={settings.paperPulseScaleMax}
+            min={1}
+            max={4}
+            step={0.1}
+            format={(value) => `x${value.toFixed(1)}`}
+            onChange={(paperPulseScaleMax) => onGlobeChange({ paperPulseScaleMax })}
+          />
+          <SliderField
+            label="Ink opacity"
+            value={settings.paperPulseOpacity}
+            min={0.1}
+            max={1.5}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(paperPulseOpacity) => onGlobeChange({ paperPulseOpacity })}
+          />
+          <SliderField
+            label="Segments"
+            value={settings.paperPulseSegments}
+            min={24}
+            max={192}
+            step={4}
+            format={(value) => `${value}`}
+            onChange={(paperPulseSegments) => onGlobeChange({ paperPulseSegments })}
+          />
+          <SliderField
+            label="Surface lift"
+            value={settings.paperPulseRadiusFactor}
+            min={1}
+            max={1.025}
+            step={0.0005}
+            format={(value) => `${((value - 1) * 100).toFixed(2)}%`}
+            onChange={(paperPulseRadiusFactor) => onGlobeChange({ paperPulseRadiusFactor })}
+          />
+          <ColorField
+            label="Ink color"
+            value={settings.paperPulseColor || '#5b3a1f'}
+            onChange={(paperPulseColor) => onGlobeChange({ paperPulseColor })}
+            hint={settings.paperPulseColor === '' ? 'Theme default' : undefined}
+            {...(settings.paperPulseColor !== '' ? { preset: '' } : {})}
+            swatches={[
+              '#5b3a1f',
+              '#3b2308',
+              '#7a4f2a',
+              '#a83a25',
+              '#2563eb',
+              '#0891b2',
+              '#16a34a',
+              '#d97706',
+            ]}
+          />
+        </DependsOn>
       </DependsOn>
 
       <p className="rounded-md border border-dashed border-pink-200/[0.16] bg-pink-200/[0.03] px-3 py-2 text-[10.5px] leading-relaxed text-pink-100/80">
@@ -412,6 +510,15 @@ const preset: PresetModule = {
     'hologramPulseSegments',
     'hologramPulseColor',
     'hologramPulseRadiusFactor',
+    'paperPulseDurationMs',
+    'paperPulseRadiusBase',
+    'paperPulseAngularBand',
+    'paperPulseScaleMin',
+    'paperPulseScaleMax',
+    'paperPulseOpacity',
+    'paperPulseSegments',
+    'paperPulseColor',
+    'paperPulseRadiusFactor',
   ],
   // All band geometry + color / radius factor are live via
   // FocusPulseDecorator.setOptions(). Origin + on-surface-click flip

@@ -15,7 +15,8 @@ import { PaperMarkersLayer } from './markers';
 import { PaperAtmosphereLayer } from './atmosphere';
 import { PaperSelectionLayer } from './selection';
 import { PaperCountryFillLayer } from './country-fill';
-import { buildPaperFocusPulse } from '../shared/focus-pulse-decorators';
+import { PaperCrosshairLayer } from './crosshair';
+import { buildPaperFocusPulse } from './focus-pulse';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { KindBuildContext, KindHandle, KindModule } from '../types';
 import type { GlobeConfig, PaperConfig } from '../../types';
@@ -51,6 +52,8 @@ const DEFAULTS = {
  */
 export interface PaperKindHandle extends KindHandle {
   setPaperConfig?(partial: PaperConfig): void;
+  setOutlineConfig?(next: NonNullable<GlobeConfig['outline']>): void;
+  setPointerPixel?(x: number, y: number): void;
 }
 
 /**
@@ -88,6 +91,7 @@ export const paperKind: KindModule = {
     const bordersCfg = paper.borders ?? {};
     const fillCfg = paper.fill ?? {};
     const gridCfg = paper.grid ?? {};
+    const pulseCfg = paper.focusPulse ?? {};
     const sepiaCfg = paper.sepia ?? {};
     const vignetteCfg = paper.vignette ?? {};
     const compassCfg = paper.compassRose ?? {};
@@ -118,6 +122,9 @@ export const paperKind: KindModule = {
       color: surfaceCfg.color || tokens['paper.surfaceColor'],
       noiseAmount: surfaceCfg.noiseAmount ?? tokens['paper.surfaceNoiseAmount'],
       vignette: surfaceCfg.vignette ?? DEFAULTS.surfaceVignette,
+      ...(surfaceCfg.fiberAmount !== undefined && { fiberAmount: surfaceCfg.fiberAmount }),
+      ...(surfaceCfg.stainAmount !== undefined && { stainAmount: surfaceCfg.stainAmount }),
+      ...(surfaceCfg.washColor !== undefined && { washColor: surfaceCfg.washColor }),
     });
     globeGroup.add(surface.mesh);
 
@@ -213,10 +220,49 @@ export const paperKind: KindModule = {
 
     const focusPulse = buildPaperFocusPulse({
       globeGroup,
-      enabled: true,
-      color: bordersCfg.color || tokens['paper.borderColor'],
-      durationSeconds: 1.6,
+      color:
+        pulseCfg.color && pulseCfg.color !== ''
+          ? pulseCfg.color
+          : bordersCfg.color || tokens['paper.borderColor'],
+      durationSeconds: pulseCfg.durationMs !== undefined ? pulseCfg.durationMs / 1000 : 1.55,
+      overrides: {
+        ...(pulseCfg.angularRadiusBase !== undefined && {
+          angularRadiusBase: pulseCfg.angularRadiusBase,
+        }),
+        ...(pulseCfg.angularBand !== undefined && { angularBand: pulseCfg.angularBand }),
+        ...(pulseCfg.scaleMin !== undefined && { scaleMin: pulseCfg.scaleMin }),
+        ...(pulseCfg.scaleMax !== undefined && { scaleMax: pulseCfg.scaleMax }),
+        ...(pulseCfg.peakOpacity !== undefined && { peakOpacity: pulseCfg.peakOpacity }),
+        ...(pulseCfg.radiusFactor !== undefined && { radiusFactor: pulseCfg.radiusFactor }),
+        ...(pulseCfg.segments !== undefined && { segments: pulseCfg.segments }),
+      },
     });
+
+    const crosshairConfig = config.outline?.hoverCrosshair;
+    let crosshairEnabledNow = crosshairConfig?.enabled ?? true;
+    const crosshair = new PaperCrosshairLayer({
+      container: config.container,
+      color:
+        crosshairConfig?.color && crosshairConfig.color !== ''
+          ? crosshairConfig.color
+          : tokens['paper.borderColor'],
+      ...(crosshairConfig?.size !== undefined && { size: crosshairConfig.size }),
+      ...(crosshairConfig?.opacity !== undefined && { opacity: crosshairConfig.opacity }),
+      ...(crosshairConfig?.ringRadiusFactor !== undefined && {
+        ringRadiusFactor: crosshairConfig.ringRadiusFactor,
+      }),
+      ...(crosshairConfig?.cardinalTicks !== undefined && {
+        cardinalTicks: crosshairConfig.cardinalTicks,
+      }),
+      ...(crosshairConfig?.tooltip !== undefined && { tooltip: crosshairConfig.tooltip }),
+      ...(crosshairConfig?.tooltipDecimals !== undefined && {
+        tooltipDecimals: crosshairConfig.tooltipDecimals,
+      }),
+    });
+    crosshair.setEnabled(crosshairEnabledNow);
+    globeGroup.add(crosshair.object);
+    let lastPixelX = 0;
+    let lastPixelY = 0;
 
     return {
       decorations: { focusPulse },
@@ -237,6 +283,8 @@ export const paperKind: KindModule = {
         globeGroup.remove(surface.mesh);
         vignette?.dispose();
         watermark?.dispose();
+        crosshair.dispose();
+        globeGroup.remove(crosshair.object);
         for (const m of defaultMeshes) m.visible = true;
         focusPulse.dispose();
       },
@@ -248,10 +296,47 @@ export const paperKind: KindModule = {
         sepia.setVisible(visible);
         compass.setVisible(visible);
         aging.setVisible(visible);
+        crosshair.setEnabled(visible && crosshairEnabledNow);
         // Vignette + watermark are DOM siblings of the canvas so we
         // hide them with the canvas.
         if (vignette) vignette.setEnabled(visible && (paper.vignette?.enabled ?? DEFAULTS.vignette.enabled));
         if (watermark) watermark.setEnabled(visible && (paper.watermark?.enabled ?? DEFAULTS.watermark.enabled));
+      },
+      update(delta: number) {
+        if (crosshairEnabledNow) crosshair.update(delta);
+      },
+      onPointerMove(point3D, latLng) {
+        if (!crosshairEnabledNow) {
+          crosshair.hide();
+          return;
+        }
+        if (point3D === null || latLng === null) {
+          crosshair.hide();
+        } else {
+          crosshair.showAt(point3D, latLng, lastPixelX, lastPixelY);
+        }
+      },
+      setPointerPixel(x: number, y: number) {
+        lastPixelX = x;
+        lastPixelY = y;
+      },
+      setOutlineConfig(next) {
+        const c = next.hoverCrosshair;
+        if (c === undefined) return;
+        if (c.enabled !== undefined) {
+          crosshairEnabledNow = c.enabled;
+          crosshair.setEnabled(c.enabled);
+          if (!c.enabled) crosshair.hide();
+        }
+        if (c.color !== undefined) {
+          crosshair.setColor(c.color === '' ? tokens['paper.borderColor'] : c.color);
+        }
+        if (c.size !== undefined) crosshair.setSize(c.size);
+        if (c.opacity !== undefined) crosshair.setOpacity(c.opacity);
+        if (c.ringRadiusFactor !== undefined) crosshair.setRingRadiusFactor(c.ringRadiusFactor);
+        if (c.cardinalTicks !== undefined) crosshair.setCardinalTicks(c.cardinalTicks);
+        if (c.tooltip !== undefined) crosshair.setTooltipVisible(c.tooltip);
+        if (c.tooltipDecimals !== undefined) crosshair.setTooltipDecimals(c.tooltipDecimals);
       },
 
       /**
@@ -276,6 +361,18 @@ export const paperKind: KindModule = {
           if (s.vignette !== undefined) {
             if (s.vignette < 0) surface.resetVignette();
             else surface.setVignette(s.vignette);
+          }
+          if (s.fiberAmount !== undefined) {
+            if (s.fiberAmount < 0) surface.resetFiberAmount();
+            else surface.setFiberAmount(s.fiberAmount);
+          }
+          if (s.stainAmount !== undefined) {
+            if (s.stainAmount < 0) surface.resetStainAmount();
+            else surface.setStainAmount(s.stainAmount);
+          }
+          if (s.washColor !== undefined) {
+            if (s.washColor === '') surface.resetWashColor();
+            else surface.setWashColor(s.washColor);
           }
         }
 
@@ -459,6 +556,23 @@ export const paperKind: KindModule = {
             else watermark.setSize(w.size);
           }
           if (w.position !== undefined) watermark.setPosition(w.position);
+        }
+
+        if (next.focusPulse) {
+          const p = next.focusPulse;
+          focusPulse.setOptions?.({
+            ...(p.durationMs !== undefined ? { durationSeconds: p.durationMs / 1000 } : {}),
+            ...(p.angularRadiusBase !== undefined && {
+              angularRadiusBase: p.angularRadiusBase,
+            }),
+            ...(p.angularBand !== undefined && { angularBand: p.angularBand }),
+            ...(p.scaleMin !== undefined && { scaleMin: p.scaleMin }),
+            ...(p.scaleMax !== undefined && { scaleMax: p.scaleMax }),
+            ...(p.peakOpacity !== undefined && { peakOpacity: p.peakOpacity }),
+            ...(p.radiusFactor !== undefined && { radiusFactor: p.radiusFactor }),
+            ...(p.segments !== undefined && { segments: p.segments }),
+            ...(p.color !== undefined && { color: p.color }),
+          });
         }
       },
     };
