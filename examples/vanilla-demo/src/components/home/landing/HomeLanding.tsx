@@ -1,0 +1,37 @@
+import { useEffect } from 'react';
+
+import { Nav } from '@/components/home/Nav';
+import { ClickSpark } from '@/components/reactbits';
+import { NoiseOverlay, ScrollProgress } from '@/components/shared';
+
+import { ApiSection } from './ApiSection';
+import { FinalCta } from './FinalCta';
+import { HeroStage } from './HeroStage';
+import { KindShowcaseSection } from './KindShowcaseSection';
+import { StudioWorkflowSection } from './StudioWorkflowSection';
+import { LayerArchitectureSection } from './LayerArchitectureSection';
+
+export function HomeLanding() {
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = 'smooth';
+    return () => {
+      document.documentElement.style.scrollBehavior = '';
+    };
+  }, []);
+
+  return (
+    <ClickSpark sparkColor="#ffd57a" sparkSize={8} sparkRadius={22} sparkCount={12} duration={520}>
+      <main className="relative min-h-screen overflow-x-clip bg-[#02030a] text-slate-100 antialiased">
+        <ScrollProgress />
+        <NoiseOverlay />
+        <Nav />
+        <HeroStage />
+        <KindShowcaseSection />
+        <LayerArchitectureSection />
+        <StudioWorkflowSection />
+        <ApiSection />
+        <FinalCta />
+      </main>
+    </ClickSpark>
+  );
+}

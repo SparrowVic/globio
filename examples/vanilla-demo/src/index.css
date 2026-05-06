@@ -216,6 +216,13 @@
   animation: orbit-slow var(--orbit-duration, 18s) linear infinite;
 }
 
+@keyframes home-scan-x {
+  0%   { transform: translateY(-220px); opacity: 0; }
+  12%  { opacity: 0.75; }
+  86%  { opacity: 0.75; }
+  100% { transform: translateY(220px); opacity: 0; }
+}
+
 @layer components {
   /* Floating glassmorphism panel — see-through enough for the globe to
      show behind it; blur + saturate raise contrast so text stays legible.
