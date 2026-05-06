@@ -24,7 +24,8 @@ import type {
  * the library — every layer is exposed, every effect is toggleable.
  *
  * Knob inventory (~50):
- *   Surface       6   color, grain, vignette, fibers, stains, wash tint
+ *   Surface       8   color, grain, vignette, fibers, stains, wash tint,
+ *                     ocean hatch amount/color
  *   Borders      10   toggle, color, opacity, width, roughness, stipple
  *                     (toggle/density/size), ink-bleed (toggle/color/
  *                     opacity/spread)
@@ -77,25 +78,38 @@ const inkSwatches = [
 ];
 
 const surfaceSwatches = [
+  '#d7e2d2',
+  '#cddfdd',
+  '#dbe8c7',
+  '#d6dcc0',
   '#f4ecd6',
   '#ece1c3',
-  '#e8d9a8',
-  '#f5e9c8',
-  '#fff4d6',
-  '#dec99a',
-  '#cdb87b',
-  '#fbf2d8',
+  '#cbd4b2',
+  '#bfcbb8',
 ];
 
 const washSwatches = [
+  '#7faeac',
+  '#6f9d9a',
+  '#8fc7b0',
+  '#9fc5e8',
   '#e8b85a',
   '#d99a35',
   '#c7834a',
-  '#8fc7b0',
-  '#9fc5e8',
   '#d9a7c7',
   '#b8d26f',
   '#a67c52',
+];
+
+const waterLineSwatches = [
+  '#567f80',
+  '#4c6f7d',
+  '#6f9d9a',
+  '#5f8d78',
+  '#34666f',
+  '#7a8f71',
+  '#3f5d63',
+  '#8aa6a0',
 ];
 
 const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
@@ -111,8 +125,8 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         {/* SURFACE -------------------------------------------------------- */}
         <SectionHeading>Parchment surface</SectionHeading>
         <ColorField
-          label="Paper color"
-          value={settings.paperSurfaceColor || '#f4ecd6'}
+          label="Ocean paper"
+          value={settings.paperSurfaceColor || '#d7e2d2'}
           onChange={(paperSurfaceColor) => onGlobeChange({ paperSurfaceColor })}
           hint={settings.paperSurfaceColor === '' ? 'Theme default' : undefined}
           {...(settings.paperSurfaceColor !== '' ? { preset: '' } : {})}
@@ -156,11 +170,28 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ColorField
           label="Wash tint"
-          value={settings.paperSurfaceWashColor || '#e8b85a'}
+          value={settings.paperSurfaceWashColor || '#7faeac'}
           onChange={(paperSurfaceWashColor) => onGlobeChange({ paperSurfaceWashColor })}
           hint={settings.paperSurfaceWashColor === '' ? 'Layer default' : undefined}
           {...(settings.paperSurfaceWashColor !== '' ? { preset: '' } : {})}
           swatches={washSwatches}
+        />
+        <SliderField
+          label="Ocean hatching"
+          value={settings.paperSurfaceWaterLines < 0 ? 0.58 : settings.paperSurfaceWaterLines}
+          min={0}
+          max={1}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(paperSurfaceWaterLines) => onGlobeChange({ paperSurfaceWaterLines })}
+        />
+        <ColorField
+          label="Ocean ink"
+          value={settings.paperSurfaceWaterLineColor || '#567f80'}
+          onChange={(paperSurfaceWaterLineColor) => onGlobeChange({ paperSurfaceWaterLineColor })}
+          hint={settings.paperSurfaceWaterLineColor === '' ? 'Layer default' : undefined}
+          {...(settings.paperSurfaceWaterLineColor !== '' ? { preset: '' } : {})}
+          swatches={waterLineSwatches}
         />
 
         {/* BORDERS -------------------------------------------------------- */}
@@ -653,6 +684,8 @@ const preset: PresetModule = {
     'paperSurfaceFibers',
     'paperSurfaceStains',
     'paperSurfaceWashColor',
+    'paperSurfaceWaterLines',
+    'paperSurfaceWaterLineColor',
     'paperBorders',
     'paperBorderColor',
     'paperBorderOpacity',

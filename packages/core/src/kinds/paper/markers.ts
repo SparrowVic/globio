@@ -16,6 +16,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { MarkerConfig } from '../../types';
+import { paperPigment } from './pigment';
 
 export interface PaperMarkersLayerOptions {
   readonly maxMarkers?: number;
@@ -39,9 +40,9 @@ const DEFAULT_PULSE_SPEED = 1.5;
 const DEFAULT_PULSE_AMPLITUDE = 0.4;
 const HOVER_EASE_SECONDS = 0.15;
 const MARKER_LIFT = GLOBE_RADIUS * 1.0045;
-const PIN_HEIGHT = 0.07;
-const LABEL_WIDTH = 0.075;
-const LABEL_HEIGHT = 0.026;
+const PIN_HEIGHT = 0.044;
+const LABEL_WIDTH = 0.052;
+const LABEL_HEIGHT = 0.018;
 
 /** Resolve a per-marker `pulse` config to concrete params, or null if disabled. */
 const pulseParams = (
@@ -81,14 +82,14 @@ export class PaperMarkersLayer {
   public constructor(options: PaperMarkersLayerOptions) {
     this.maxMarkers = options.maxMarkers ?? 10000;
     this.defaultColor = options.defaultColor;
-    this.defaultSize = options.defaultSize ?? 0.012;
+    this.defaultSize = options.defaultSize ?? 0.0072;
     this.hoverScale = options.hoverScale ?? 1.5;
 
     this.geometry = new SphereGeometry(1, 10, 10);
     this.material = new MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.82,
+      opacity: 0.7,
       depthWrite: false,
       blending: NormalBlending,
     });
@@ -105,7 +106,7 @@ export class PaperMarkersLayer {
       color: 0xffffff,
       vertexColors: true,
       transparent: true,
-      opacity: 0.86,
+      opacity: 0.78,
       depthWrite: false,
       blending: NormalBlending,
     });
@@ -113,8 +114,8 @@ export class PaperMarkersLayer {
       color: 0xffffff,
       vertexColors: true,
       transparent: true,
-      opacity: 0.88,
-      size: 0.018,
+      opacity: 0.72,
+      size: 0.0115,
       sizeAttenuation: true,
       depthWrite: false,
       blending: NormalBlending,
@@ -222,12 +223,12 @@ export class PaperMarkersLayer {
     const surface = latLngToVector3(marker.position, MARKER_LIFT, this.tempVector);
 
     this.dummy.position.copy(surface);
-    this.dummy.scale.setScalar(scale * 1.15);
+    this.dummy.scale.setScalar(scale * 0.92);
     this.dummy.lookAt(0, 0, 0);
     this.dummy.updateMatrix();
 
     this.mesh.setMatrixAt(index, this.dummy.matrix);
-    this.tempColor.set(marker.color ?? this.defaultColor);
+    this.tempColor.copy(paperPigment(marker.color, this.defaultColor));
     this.mesh.setColorAt(index, this.tempColor);
 
     this.mesh.instanceMatrix.needsUpdate = true;
@@ -286,14 +287,14 @@ export class PaperMarkersLayer {
 
     this.slots.forEach((slot, id) => {
       const isHovered = id === this.hoveredId;
-      color.set(slot.marker.color ?? this.defaultColor);
+      color.copy(paperPigment(slot.marker.color, this.defaultColor));
       const draw = isHovered ? hover.copy(color).lerp(paperWhite, 0.35) : color;
       latLngToVector3(slot.marker.position, MARKER_LIFT, center);
       normal.copy(center).normalize();
       buildBasis(normal, tangent, bitangent);
       const baseSize = this.defaultSize * (slot.marker.size ?? 1);
       const hoverScale = slot.marker.hoverScale ?? this.hoverScale;
-      const lift = PIN_HEIGHT + baseSize * (isHovered ? hoverScale * 3.2 : 2.4);
+      const lift = PIN_HEIGHT + baseSize * (isHovered ? hoverScale * 2.4 : 1.9);
       top.copy(normal).multiplyScalar(MARKER_LIFT + lift);
 
       pushLine(center, top, draw);

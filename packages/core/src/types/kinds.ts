@@ -571,6 +571,10 @@ export interface PaperConfig {
     readonly stainAmount?: number;
     /** Tint used for the watercolor/stain wash. Empty string = default. */
     readonly washColor?: string;
+    /** Wavy engraved ocean hatch intensity (0..1). */
+    readonly waterLineAmount?: number;
+    /** Ink color for the ocean hatch. Empty string = default. */
+    readonly waterLineColor?: string;
   };
   readonly borders?: {
     readonly enabled?: boolean;

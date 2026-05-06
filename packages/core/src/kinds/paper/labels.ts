@@ -2,6 +2,7 @@ import { Vector3, type Object3D, type PerspectiveCamera } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import { angularExtent, boundsCenter, computeMainRingBounds } from '../../utils/country-bounds';
 import type { CountryFeature } from '../../renderer/country-feature';
+import { paperPigment } from './pigment';
 
 export interface PaperLabelsLayerOptions {
   readonly container: HTMLElement;
@@ -160,8 +161,9 @@ export class PaperLabelsLayer {
 
   /** Live update for the label text color — mutates every existing element. */
   public setColor(color: string): void {
+    const ink = toCssColor(paperPigment(color, this.options.color));
     this.entries.forEach((entry) => {
-      entry.element.style.color = color;
+      entry.element.style.color = ink;
     });
   }
 
@@ -286,13 +288,17 @@ export class PaperLabelsLayer {
         pointerEvents: 'none',
         whiteSpace: 'nowrap',
         userSelect: 'none',
-        color: this.options.color,
+        color: toCssColor(paperPigment(this.options.color, '#3a2410')),
         fontSize: `${this.options.fontSize}px`,
         fontFamily: this.options.fontFamily,
         fontWeight: this.options.fontWeight,
+        fontStyle: 'italic',
+        letterSpacing: '0.01em',
         textShadow,
         ...(padding > 0 ? { padding: `${padding}px` } : {}),
         opacity: '0',
+        mixBlendMode: 'multiply',
+        filter: 'saturate(0.9) contrast(1.04)',
         willChange: 'transform, opacity',
         transition: `opacity ${transitionMs}ms ease-out`,
         backfaceVisibility: 'hidden',
@@ -318,20 +324,26 @@ export class PaperLabelsLayer {
    */
   private resolveTextShadow(): string {
     const halo = this.halo;
-    if (!halo) return this.options.textShadow;
-    const color = halo.color ?? 'rgba(0, 0, 0, 0.65)';
-    const radius = halo.radius ?? 2;
-    const steps = Math.max(2, halo.steps ?? 4);
-    const parts: Array<string> = [];
-    for (let i = 0; i < steps; i++) {
-      const angle = (i / steps) * Math.PI * 2;
-      const dx = Math.cos(angle) * radius;
-      const dy = Math.sin(angle) * radius;
-      parts.push(`${dx.toFixed(2)}px ${dy.toFixed(2)}px ${radius}px ${color}`);
+    if (!halo) {
+      return [
+        '0 1px 0 rgba(255, 248, 219, 0.58)',
+        '0 0 1.5px rgba(255, 248, 219, 0.48)',
+        this.options.textShadow,
+      ].join(', ');
     }
-    return parts.join(', ');
+    const radius = Math.max(0.5, Math.min(2.4, halo.radius ?? 1.4));
+    const shadow = toCssColor(paperPigment(halo.color, '#5b3a1f'), 0.28);
+    return [
+      '0 1px 0 rgba(255, 248, 219, 0.68)',
+      `0 0 ${radius.toFixed(2)}px rgba(255, 248, 219, 0.54)`,
+      `0.45px 0.45px 0 ${shadow}`,
+      `-0.35px 0.35px 0 rgba(255, 244, 204, 0.32)`,
+    ].join(', ');
   }
 }
+
+const toCssColor = (color: ReturnType<typeof paperPigment>, opacity = 1): string =>
+  `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}, ${opacity})`;
 
 const smoothstep = (edge0: number, edge1: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));

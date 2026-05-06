@@ -125,6 +125,12 @@ export const paperKind: KindModule = {
       ...(surfaceCfg.fiberAmount !== undefined && { fiberAmount: surfaceCfg.fiberAmount }),
       ...(surfaceCfg.stainAmount !== undefined && { stainAmount: surfaceCfg.stainAmount }),
       ...(surfaceCfg.washColor !== undefined && { washColor: surfaceCfg.washColor }),
+      ...(surfaceCfg.waterLineAmount !== undefined && {
+        waterLineAmount: surfaceCfg.waterLineAmount,
+      }),
+      ...(surfaceCfg.waterLineColor !== undefined && {
+        waterLineColor: surfaceCfg.waterLineColor,
+      }),
     });
     globeGroup.add(surface.mesh);
 
@@ -373,6 +379,14 @@ export const paperKind: KindModule = {
           if (s.washColor !== undefined) {
             if (s.washColor === '') surface.resetWashColor();
             else surface.setWashColor(s.washColor);
+          }
+          if (s.waterLineAmount !== undefined) {
+            if (s.waterLineAmount < 0) surface.resetWaterLineAmount();
+            else surface.setWaterLineAmount(s.waterLineAmount);
+          }
+          if (s.waterLineColor !== undefined) {
+            if (s.waterLineColor === '') surface.resetWaterLineColor();
+            else surface.setWaterLineColor(s.waterLineColor);
           }
         }
 

@@ -23,7 +23,7 @@ import {
   GroupedSelectField,
   type GroupedSelectGroup,
 } from '@/components/shared/controls';
-import { configuratorPresets } from '@/configurator/defaults';
+import { configuratorPresets, globeDefaultsForKind } from '@/configurator/defaults';
 import type { CustomTheme } from '@/lib/custom-themes';
 import type { CustomPreset } from '@/lib/custom-presets';
 import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
@@ -263,11 +263,7 @@ export function TopCommandBar({
             hideLabel
             value={state.globe.kind}
             groups={kindGroups}
-            onChange={(kind) => {
-              const fallback =
-                themeCatalog.find((t) => t.kind === kind)?.value ?? 'outline-dark';
-              onGlobeChange({ kind, theme: fallback });
-            }}
+            onChange={(kind) => onGlobeChange(globeDefaultsForKind(kind))}
             triggerClassName="h-7 w-[120px] rounded-full border-white/[0.08] bg-white/[0.04] text-[11.5px] font-medium text-slate-100"
           />
           <GroupedSelectField<ThemePresetName>

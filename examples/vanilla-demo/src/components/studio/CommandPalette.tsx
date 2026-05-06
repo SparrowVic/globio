@@ -27,7 +27,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command';
-import { configuratorPresets } from '@/configurator/defaults';
+import { configuratorPresets, globeDefaultsForKind } from '@/configurator/defaults';
 import type { CustomPreset } from '@/lib/custom-presets';
 import type { CustomTheme } from '@/lib/custom-themes';
 import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
@@ -191,9 +191,7 @@ export function CommandPalette({
               iconClassName="text-slate-300"
               active={state.globe.kind === kind.value}
               onSelect={run(() => {
-                const fallbackTheme =
-                  themeCatalog.find((t) => t.kind === kind.value)?.value ?? 'outline-dark';
-                onGlobeChange({ kind: kind.value, theme: fallbackTheme });
+                onGlobeChange(globeDefaultsForKind(kind.value));
               })}
             />
           ))}

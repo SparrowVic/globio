@@ -22,7 +22,7 @@ export interface PaperFillLayerOptions {
   readonly mode?: PaperFillMode;
 }
 
-const FILL_RADIUS = GLOBE_RADIUS * 0.9994;
+const FILL_RADIUS = GLOBE_RADIUS * 1.0002;
 
 /**
  * Pastel palette derivation: nudge HSL hue per country so each country

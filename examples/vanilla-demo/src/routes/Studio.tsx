@@ -37,7 +37,11 @@ import {
   type DataLayerCallbacks,
 } from '@/configurator/builders';
 import { getChartDataset, getHeatmapDataset } from '@/configurator/datasets';
-import { configuratorPresets, initialStateForPath } from '@/configurator/defaults';
+import {
+  configuratorPresets,
+  globeDefaultsForKind,
+  initialStateForPath,
+} from '@/configurator/defaults';
 import type {
   ActiveLayer,
   ChartsSettings,
@@ -66,18 +70,9 @@ const initialState = (search: URLSearchParams): ConfiguratorState => {
     ...base,
     globe: {
       ...base.globe,
-      kind,
-      theme: defaultThemeForKind[kind],
+      ...globeDefaultsForKind(kind),
     },
   };
-};
-
-const defaultThemeForKind: Record<GlobeKind, ThemePresetName> = {
-  outline: 'outline-dark',
-  dotted: 'dotted-dark',
-  wireframe: 'wireframe-tron',
-  paper: 'paper-default',
-  hologram: 'hologram-cyan',
 };
 
 const isGlobeKind = (value: string | null): value is GlobeKind =>

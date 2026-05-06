@@ -350,6 +350,8 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         fiberAmount: state.globe.paperSurfaceFibers,
         stainAmount: state.globe.paperSurfaceStains,
         washColor: state.globe.paperSurfaceWashColor,
+        waterLineAmount: state.globe.paperSurfaceWaterLines,
+        waterLineColor: state.globe.paperSurfaceWaterLineColor,
       },
       borders: {
         enabled: state.globe.paperBorders,

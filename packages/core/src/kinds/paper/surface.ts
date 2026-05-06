@@ -15,16 +15,20 @@ export interface PaperSurfaceLayerOptions {
   readonly fiberAmount?: number;
   readonly stainAmount?: number;
   readonly washColor?: string;
+  readonly waterLineAmount?: number;
+  readonly waterLineColor?: string;
   readonly radius?: number;
   readonly segments?: number;
 }
 
-const TEXTURE_W = 512;
-const TEXTURE_H = 256;
+const TEXTURE_W = 1024;
+const TEXTURE_H = 512;
 const DEFAULT_VIGNETTE = 0.18;
 const DEFAULT_FIBERS = 0.45;
 const DEFAULT_STAINS = 0.2;
 const DEFAULT_WASH = '#e7b85f';
+const DEFAULT_WATER_LINES = 0.58;
+const DEFAULT_WATER_LINE_COLOR = '#6f9d9a';
 
 /**
  * Build a procedural paper-grain CanvasTexture: cream base + clusters of
@@ -38,6 +42,8 @@ const createPaperTexture = (
   fiberAmount: number,
   stainAmount: number,
   washColor: string,
+  waterLineAmount: number,
+  waterLineColor: string,
 ): Texture | null => {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
@@ -122,6 +128,62 @@ const createPaperTexture = (
     ctx.restore();
   }
 
+  const waterLines = Math.max(0, Math.min(1, waterLineAmount));
+  if (waterLines > 0) {
+    const rng = mulberry32(0x4791ab);
+    const line = new Color(waterLineColor || DEFAULT_WATER_LINE_COLOR);
+    const rgb = `${Math.round(line.r * 255)}, ${Math.round(line.g * 255)}, ${Math.round(line.b * 255)}`;
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    for (let y = 14; y < TEXTURE_H; y += 13) {
+      const phase = rng() * Math.PI * 2;
+      ctx.strokeStyle = `rgba(${rgb}, ${(0.018 + rng() * 0.018) * waterLines})`;
+      ctx.lineWidth = 0.45 + rng() * 0.55;
+      ctx.beginPath();
+      for (let x = -12; x <= TEXTURE_W + 12; x += 12) {
+        const yy =
+          y +
+          Math.sin(x * 0.045 + phase) * (1.7 + rng() * 1.2) +
+          Math.sin(x * 0.012 + phase * 0.4) * 1.1;
+        if (x === -12) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  const plate = Math.max(0, Math.min(1, fiberAmount * 0.65 + stainAmount * 0.35));
+  if (plate > 0) {
+    const rng = mulberry32(0x2b7c51);
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    for (let y = 10; y < TEXTURE_H; y += 18) {
+      const jitter = (rng() - 0.5) * 5;
+      ctx.strokeStyle = `rgba(96, 67, 30, ${(0.011 + rng() * 0.012) * plate})`;
+      ctx.lineWidth = 0.35 + rng() * 0.45;
+      ctx.beginPath();
+      for (let x = -8; x <= TEXTURE_W + 8; x += 24) {
+        const yy = y + jitter + Math.sin((x + rng() * 40) * 0.035) * (1.2 + rng() * 1.8);
+        if (x === -8) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+    for (let i = 0; i < 44; i++) {
+      const x = rng() * TEXTURE_W;
+      const y = rng() * TEXTURE_H;
+      const h = 18 + rng() * 54;
+      ctx.strokeStyle = `rgba(255, 244, 204, ${(0.012 + rng() * 0.018) * plate})`;
+      ctx.lineWidth = 0.4 + rng() * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x + (rng() - 0.5) * 6, y + h * 0.35, x + (rng() - 0.5) * 5, y + h * 0.72, x, y + h);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // Vignette darkens the equirectangular poles slightly — feels like the
   // sphere's edges when wrapped (which they are, projection-wise).
   const v = Math.max(0, Math.min(1, vignette));
@@ -175,12 +237,16 @@ export class PaperSurfaceLayer {
   private currentFiberAmount: number;
   private currentStainAmount: number;
   private currentWashColor: string;
+  private currentWaterLineAmount: number;
+  private currentWaterLineColor: string;
   private readonly defaultColor: string;
   private readonly defaultNoise: number;
   private readonly defaultVignette: number;
   private readonly defaultFiberAmount: number;
   private readonly defaultStainAmount: number;
   private readonly defaultWashColor: string;
+  private readonly defaultWaterLineAmount: number;
+  private readonly defaultWaterLineColor: string;
 
   public constructor(options: PaperSurfaceLayerOptions) {
     const radius = options.radius ?? GLOBE_RADIUS * 0.999;
@@ -189,6 +255,11 @@ export class PaperSurfaceLayer {
     const fiberAmount = options.fiberAmount ?? DEFAULT_FIBERS;
     const stainAmount = options.stainAmount ?? DEFAULT_STAINS;
     const washColor = options.washColor && options.washColor !== '' ? options.washColor : DEFAULT_WASH;
+    const waterLineAmount = options.waterLineAmount ?? DEFAULT_WATER_LINES;
+    const waterLineColor =
+      options.waterLineColor && options.waterLineColor !== ''
+        ? options.waterLineColor
+        : DEFAULT_WATER_LINE_COLOR;
     this.geometry = new SphereGeometry(radius, segments, segments);
     this.currentColor = options.color;
     this.currentNoise = options.noiseAmount;
@@ -196,12 +267,16 @@ export class PaperSurfaceLayer {
     this.currentFiberAmount = fiberAmount;
     this.currentStainAmount = stainAmount;
     this.currentWashColor = washColor;
+    this.currentWaterLineAmount = waterLineAmount;
+    this.currentWaterLineColor = waterLineColor;
     this.defaultColor = options.color;
     this.defaultNoise = options.noiseAmount;
     this.defaultVignette = vignette;
     this.defaultFiberAmount = fiberAmount;
     this.defaultStainAmount = stainAmount;
     this.defaultWashColor = washColor;
+    this.defaultWaterLineAmount = waterLineAmount;
+    this.defaultWaterLineColor = waterLineColor;
     this.texture = createPaperTexture(
       options.color,
       options.noiseAmount,
@@ -209,6 +284,8 @@ export class PaperSurfaceLayer {
       fiberAmount,
       stainAmount,
       washColor,
+      waterLineAmount,
+      waterLineColor,
     );
     this.material = new MeshBasicMaterial({
       color: new Color(options.color),
@@ -230,6 +307,8 @@ export class PaperSurfaceLayer {
       this.currentFiberAmount,
       this.currentStainAmount,
       this.currentWashColor,
+      this.currentWaterLineAmount,
+      this.currentWaterLineColor,
     );
     const prev = this.texture;
     this.texture = next;
@@ -291,6 +370,24 @@ export class PaperSurfaceLayer {
 
   public resetWashColor(): void {
     this.setWashColor(this.defaultWashColor);
+  }
+
+  public setWaterLineAmount(amount: number): void {
+    this.currentWaterLineAmount = Math.max(0, Math.min(1, amount));
+    this.regenerate();
+  }
+
+  public resetWaterLineAmount(): void {
+    this.setWaterLineAmount(this.defaultWaterLineAmount);
+  }
+
+  public setWaterLineColor(color: string): void {
+    this.currentWaterLineColor = color;
+    this.regenerate();
+  }
+
+  public resetWaterLineColor(): void {
+    this.setWaterLineColor(this.defaultWaterLineColor);
   }
 
   public setVisible(visible: boolean): void {

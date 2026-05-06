@@ -1,3 +1,4 @@
+import type { GlobeKind, ThemePresetName } from '@your-globe/core';
 import type {
   ActiveLayer,
   ConfiguratorState,
@@ -267,7 +268,9 @@ export const defaultGlobeSettings: GlobeSettings = {
   paperSurfaceVignette: 0.22,
   paperSurfaceFibers: 0.58,
   paperSurfaceStains: 0.28,
-  paperSurfaceWashColor: '#e8b85a',
+  paperSurfaceWashColor: '#7faeac',
+  paperSurfaceWaterLines: 0.58,
+  paperSurfaceWaterLineColor: '#567f80',
   paperBorders: true,
   paperBorderColor: '',
   paperBorderOpacity: -1,
@@ -282,7 +285,7 @@ export const defaultGlobeSettings: GlobeSettings = {
   paperInkBleedSpread: 0.0008,
   paperFill: true,
   paperFillColor: '',
-  paperFillOpacity: 0.42,
+  paperFillOpacity: 0.84,
   paperFillMode: 'pastel',
   paperGrid: true,
   paperGridColor: '',
@@ -406,6 +409,48 @@ export const defaultGlobeSettings: GlobeSettings = {
   adaptiveQuality: true,
   antialias: true,
   maxFps: 60,
+};
+
+export const defaultThemeForKind: Record<GlobeKind, ThemePresetName> = {
+  outline: 'outline-dark',
+  dotted: 'dotted-dark',
+  wireframe: 'wireframe-tron',
+  paper: 'paper-default',
+  hologram: 'hologram-cyan',
+};
+
+export const globeDefaultsForKind = (kind: GlobeKind): Partial<GlobeSettings> => {
+  const base = {
+    kind,
+    theme: defaultThemeForKind[kind],
+  };
+  if (kind !== 'paper') return base;
+
+  return {
+    ...base,
+    labelColor: '',
+    labelHaloColor: 'rgba(91, 58, 31, 0.34)',
+    labelFontWeight: '600',
+    atmosphereBlending: 'normal',
+    atmosphereIntensity: 0.42,
+    atmosphereRadiusScale: 1.1,
+    starfieldDensity: 520,
+    starfieldSize: 1.1,
+    starfieldMultiColor: true,
+    starfieldPalette: ['#7a5a2c', '#bfa974', '#d99a35', '#8fc7b0', '#9fc5e8', '#d9a7c7'],
+    countryFillMode: 'none',
+    arcPerArcGradient: false,
+    arcColor: '#7a4f2a',
+    arcWidth: 1.25,
+    arcMaxHeight: 0.32,
+    markerPerMarkerColor: false,
+    markerColor: '#a83a25',
+    markerSize: 1.05,
+    markerPulseAmplitude: 0.18,
+    paperFillOpacity: 0.84,
+    paperSurfaceWaterLines: 0.58,
+    paperSurfaceWaterLineColor: '#567f80',
+  };
 };
 
 export const defaultHeatmapSettings: HeatmapSettings = {
@@ -632,13 +677,20 @@ export const configuratorPresets: ReadonlyArray<{
         starfieldSize: 1.1,
         starfieldMultiColor: true,
         starfieldPalette: ['#7a5a2c', '#bfa974', '#d99a35', '#8fc7b0', '#9fc5e8', '#d9a7c7'],
-        countryFillMode: 'palette',
+        countryFillMode: 'none',
         countryFillDefaultOpacity: 0.42,
         countryFillPalette: ['#f6c56f', '#8fc7b0', '#9fc5e8', '#d9a7c7', '#b8d26f', '#f09a8a'],
         arcPerArcGradient: false,
         arcColor: '#7a4f2a',
+        arcWidth: 1.25,
+        arcMaxHeight: 0.32,
         markerPerMarkerColor: false,
         markerColor: '#a83a25',
+        markerSize: 1.05,
+        markerPulseAmplitude: 0.18,
+        paperFillOpacity: 0.84,
+        paperSurfaceWaterLines: 0.58,
+        paperSurfaceWaterLineColor: '#567f80',
       },
     },
   },

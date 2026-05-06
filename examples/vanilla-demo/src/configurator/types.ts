@@ -305,6 +305,8 @@ export interface GlobeSettings {
   readonly paperSurfaceFibers: number;
   readonly paperSurfaceStains: number;
   readonly paperSurfaceWashColor: string;
+  readonly paperSurfaceWaterLines: number;
+  readonly paperSurfaceWaterLineColor: string;
   readonly paperBorders: boolean;
   readonly paperBorderColor: string;
   readonly paperBorderOpacity: number;

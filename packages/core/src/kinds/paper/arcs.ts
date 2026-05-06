@@ -1,5 +1,4 @@
 import {
-  Color,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -15,6 +14,7 @@ import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import { easeInOutCubic } from '../../utils/easing';
 import type { ArcConfig, LatLng } from '../../types';
 import { seededJitter } from './jitter';
+import { paperPigment } from './pigment';
 
 export interface PaperArcsLayerOptions {
   readonly defaultColor: string;
@@ -41,9 +41,12 @@ interface ArcEntry {
 }
 
 const SAMPLES = 64;
-const ROUTE_LIFT = 1.002;
-const INK_WOBBLE = 0.010;
-const WASH_WIDTH_FACTOR = 2.8;
+const ROUTE_LIFT = 1.0015;
+const INK_WOBBLE = 0.008;
+const WASH_WIDTH_FACTOR = 2.25;
+const PAPER_ARC_HEIGHT_FACTOR = 0.28;
+const PAPER_ARC_MAX_HEIGHT = 0.18;
+const PAPER_ARC_MIN_HEIGHT = 0.014;
 
 /**
  * Paper-native routes. They still follow great circles, but the visual is
@@ -100,7 +103,10 @@ export class PaperArcsLayer {
 
   public addArc(config: ArcConfig): void {
     if (this.entries.has(config.id)) this.removeArc(config.id);
-    const heightValue = resolveHeight(config);
+    const heightValue = Math.max(
+      PAPER_ARC_MIN_HEIGHT,
+      Math.min(PAPER_ARC_MAX_HEIGHT, resolveHeight(config) * PAPER_ARC_HEIGHT_FACTOR),
+    );
     const points = sampleArc(config.id, config.from, config.to, heightValue);
 
     // Line2 + LineMaterial use a screen-space pixel pipeline (instanced
@@ -113,15 +119,15 @@ export class PaperArcsLayer {
     const geometry = new LineGeometry();
     geometry.setPositions(positions);
 
-    const color = new Color(config.color ?? this.defaultColor);
-    const lineWidth = Math.max(0.7, (config.width ?? this.defaultWidth) * 0.82);
+    const color = paperPigment(config.color, this.defaultColor);
+    const lineWidth = Math.max(0.65, (config.width ?? this.defaultWidth) * 0.56);
     const isDashed = config.style === 'dashed';
     const washMaterial = new LineMaterial({
       color: color.getHex(),
-      linewidth: Math.max(2.4, lineWidth * WASH_WIDTH_FACTOR),
+      linewidth: Math.max(1.7, lineWidth * WASH_WIDTH_FACTOR),
       worldUnits: false,
       transparent: true,
-      opacity: Math.min(0.38, this.defaultOpacity * 0.32),
+      opacity: Math.min(0.24, this.defaultOpacity * 0.24),
       dashed: false,
       resolution: this.resolution.clone(),
       blending: NormalBlending,
@@ -139,7 +145,7 @@ export class PaperArcsLayer {
       linewidth: lineWidth,
       worldUnits: false, // pixel widths
       transparent: true,
-      opacity: Math.min(1, this.defaultOpacity * 0.92),
+      opacity: Math.min(0.88, this.defaultOpacity * 0.82),
       dashed: isDashed,
       ...(isDashed
         ? { dashSize: config.dashSize ?? 0.04, gapSize: config.dashGap ?? 0.02 }
@@ -158,11 +164,11 @@ export class PaperArcsLayer {
 
     let head: Mesh | null = null;
     if (config.animated) {
-      const headGeo = new SphereGeometry(this.headSize * 1.25, 12, 12);
+      const headGeo = new SphereGeometry(this.headSize * 0.95, 12, 12);
       const headMat = new MeshBasicMaterial({
-        color: new Color(config.color ?? this.headColor),
+        color: paperPigment(config.color, this.headColor),
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.82,
         depthWrite: false,
         blending: NormalBlending,
       });

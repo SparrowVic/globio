@@ -87,7 +87,7 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
     'countries.borderHover.color': '#1a4880',
     'countries.borderActive.color': '#000000',
     'countries.fill.defaultColor': '#a8c4d8',
-    'countries.fill.opacity': 0.5,
+    'countries.fill.opacity': 0.58,
     'countries.dotted.color': '#3870b0',
     'countries.dotted.opacity': 0.9,
     'countries.label.color': '#1a1a1a',
@@ -251,7 +251,7 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
   // Paper kind — vintage atlas: cream parchment sphere, hand-drawn ink borders.
   'paper-default': Object.freeze({
     'background.color': '#1a1410',
-    'globe.surfaceColor': '#f4ecd6',
+    'globe.surfaceColor': '#d7e2d2',
     'countries.border.color': '#5b3a1f',
     'countries.border.opacity': 0.85,
     'countries.borderHover.color': '#3a2410',
@@ -259,8 +259,8 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> =
     'countries.borderHover.glowColor': '#3a2410',
     'countries.borderHover.glowOpacity': 0.25,
     'countries.borderActive.color': '#1a0e05',
-    'countries.fill.defaultColor': '#e9dcae',
-    'countries.fill.opacity': 0.35,
+    'countries.fill.defaultColor': '#ecd28c',
+    'countries.fill.opacity': 0.5,
     'countries.label.color': '#3a2410',
     'countries.label.fontFamily': 'Georgia, "Times New Roman", serif',
     'countries.label.textShadow': '0 0 4px rgba(244, 236, 214, 0.85)',
