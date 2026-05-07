@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-import { Database, Globe2 } from 'lucide-react';
+import { Globe2 } from 'lucide-react';
 import {
   registerThemePreset,
   resolveTheme,
@@ -15,20 +16,28 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { GlobePreview } from '@/components/studio/GlobePreview';
 import { Panel } from '@/components/studio/panels/Panel';
 import { StagePanel } from '@/components/studio/panels/StagePanel';
+import { StudioInspectorPanel } from '@/components/studio/panels/StudioInspectorPanel';
 import {
-  DataSections,
-  dataBadgeForState,
-} from '@/components/studio/sections/DataSections';
+  getStudioNavItem,
+  type StudioInspectorId,
+} from '@/components/studio/panels/studio-inspector-model';
 import { StatusDock } from '@/components/studio/panels/StatusDock';
 import { TopCommandBar } from '@/components/studio/panels/TopCommandBar';
 import { CustomThemeModal } from '@/components/studio/modals/CustomThemeModal';
 import { ManageSavedModal } from '@/components/studio/modals/ManageSavedModal';
 import { SavePresetModal } from '@/components/studio/modals/SavePresetModal';
 import { CommandPalette } from '@/components/studio/CommandPalette';
-import { Workshop } from '@/components/studio/workshop/Workshop';
 import { resetAllPanelState } from '@/hooks/usePanelState';
-import { bootstrapCustomThemes, deleteCustomTheme, type CustomTheme } from '@/lib/custom-themes';
-import { deleteCustomPreset, loadCustomPresets, type CustomPreset } from '@/lib/custom-presets';
+import {
+  bootstrapCustomThemes,
+  deleteCustomTheme,
+  type CustomTheme,
+} from '@/lib/custom-themes';
+import {
+  deleteCustomPreset,
+  loadCustomPresets,
+  type CustomPreset,
+} from '@/lib/custom-presets';
 import {
   buildDataLayer,
   buildGlobeConfig,
@@ -60,10 +69,9 @@ import type {
  */
 const initialState = (search: URLSearchParams): ConfiguratorState => {
   const layer = search.get('layer');
-  const base =
-    isActiveLayer(layer)
-      ? { ...initialStateForPath(`/${layer}`), activeLayer: layer }
-      : initialStateForPath(window.location.pathname);
+  const base = isActiveLayer(layer)
+    ? { ...initialStateForPath(`/${layer}`), activeLayer: layer }
+    : initialStateForPath(window.location.pathname);
   const kind = search.get('kind');
   if (!isGlobeKind(kind)) return base;
   return {
@@ -83,11 +91,16 @@ const isGlobeKind = (value: string | null): value is GlobeKind =>
   value === 'hologram';
 
 const isActiveLayer = (value: string | null): value is ActiveLayer =>
-  value === 'heatmap' || value === 'hexbin' || value === 'charts' || value === 'none';
+  value === 'heatmap' ||
+  value === 'hexbin' ||
+  value === 'charts' ||
+  value === 'none';
 
 export default function Studio() {
   const [searchParams] = useSearchParams();
-  const [state, setState] = useState<ConfiguratorState>(() => initialState(searchParams));
+  const [state, setState] = useState<ConfiguratorState>(() =>
+    initialState(searchParams)
+  );
 
   // Lock the page to a fixed-viewport mode while the configurator is
   // mounted; remove on unmount so the marketing home / other routes can
@@ -99,18 +112,21 @@ export default function Studio() {
   // User-created themes — bootstrapped from localStorage on first paint
   // and registered with core's theme system synchronously so themed
   // selectors can resolve them on the very first render.
-  const [customThemes, setCustomThemes] = useState<ReadonlyArray<CustomTheme>>(() =>
-    bootstrapCustomThemes(),
+  const [customThemes, setCustomThemes] = useState<ReadonlyArray<CustomTheme>>(
+    () => bootstrapCustomThemes()
   );
-  const [customPresets, setCustomPresets] = useState<ReadonlyArray<CustomPreset>>(() =>
-    loadCustomPresets(),
-  );
+  const [customPresets, setCustomPresets] = useState<
+    ReadonlyArray<CustomPreset>
+  >(() => loadCustomPresets());
   const [themeModalOpen, setThemeModalOpen] = useState(false);
-  const [editingTheme, setEditingTheme] = useState<CustomTheme | undefined>(undefined);
+  const [editingTheme, setEditingTheme] = useState<CustomTheme | undefined>(
+    undefined
+  );
   const [savePresetModalOpen, setSavePresetModalOpen] = useState(false);
   const [manageModalOpen, setManageModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [workshopOpen, setWorkshopOpen] = useState(false);
+  const [activeInspector, setActiveInspector] =
+    useState<StudioInspectorId>('layer-arcs');
   // Theme that was active when the user opened the theme modal — used to
   // restore on Cancel after live-preview swapped the globe to '__preview__'.
   const previewPreviousThemeRef = useRef<ThemePresetName | null>(null);
@@ -120,7 +136,10 @@ export default function Studio() {
     loading: true,
     error: null,
   });
-  const [command, setCommand] = useState<{ readonly type: 'none' | 'replay' | 'home'; readonly nonce: number }>({
+  const [command, setCommand] = useState<{
+    readonly type: 'none' | 'replay' | 'home';
+    readonly nonce: number;
+  }>({
     type: 'none',
     nonce: 0,
   });
@@ -176,14 +195,20 @@ export default function Studio() {
         setStatus((current) => ({
           ...current,
           hover: payload
-            ? `Cell ${payload.cellIndex} / ${payload.empty ? 'empty' : payload.value.toFixed(2)} / ${payload.sampleCount} samples`
+            ? `Cell ${payload.cellIndex} / ${
+                payload.empty ? 'empty' : payload.value.toFixed(2)
+              } / ${payload.sampleCount} samples`
             : 'Hexbin hover cleared',
         }));
       },
       onHexbinClick: (payload) => {
         setStatus((current) => ({
           ...current,
-          hover: `Clicked cell ${payload.cellIndex} at ${payload.position[0].toFixed(1)}, ${payload.position[1].toFixed(1)}`,
+          hover: `Clicked cell ${
+            payload.cellIndex
+          } at ${payload.position[0].toFixed(1)}, ${payload.position[1].toFixed(
+            1
+          )}`,
         }));
       },
       onChartsHover: (payload) => {
@@ -192,7 +217,9 @@ export default function Studio() {
           ...current,
           hover: payload
             ? `${payload.entry.label ?? payload.entry.id ?? 'Chart'} / ${
-                dataset.series.find((series) => series.key === payload.seriesKey)?.label ??
+                dataset.series.find(
+                  (series) => series.key === payload.seriesKey
+                )?.label ??
                 payload.seriesKey ??
                 'value'
               }: ${payload.value}`
@@ -202,21 +229,27 @@ export default function Studio() {
       onChartsClick: (payload) => {
         setStatus((current) => ({
           ...current,
-          hover: `Clicked ${payload.entry.label ?? payload.entry.id ?? 'chart'} / ${payload.value}`,
+          hover: `Clicked ${
+            payload.entry.label ?? payload.entry.id ?? 'chart'
+          } / ${payload.value}`,
         }));
       },
       onHeatmapHover: (entry) => {
         setStatus((current) => ({
           ...current,
           hover: entry
-            ? `${entry.name ?? entry.id ?? 'Heat point'} / ${entry.value.toFixed(2)}`
+            ? `${
+                entry.name ?? entry.id ?? 'Heat point'
+              } / ${entry.value.toFixed(2)}`
             : 'Heatmap hover cleared',
         }));
       },
       onHeatmapClick: (entry) => {
         setStatus((current) => ({
           ...current,
-          hover: `Clicked ${entry.name ?? entry.id ?? 'heat point'} / ${entry.position[0].toFixed(1)}, ${entry.position[1].toFixed(1)}`,
+          hover: `Clicked ${
+            entry.name ?? entry.id ?? 'heat point'
+          } / ${entry.position[0].toFixed(1)}, ${entry.position[1].toFixed(1)}`,
         }));
       },
     }),
@@ -245,8 +278,12 @@ export default function Studio() {
   // last preset" so the top-bar preset selector can show a "(modified)"
   // hint. Applying a preset is the only path that resets dirty back to
   // false (see applyPreset below).
-  const markDirty = (current: ConfiguratorState): Pick<ConfiguratorState, 'dirtySincePreset'> =>
-    current.lastPresetId ? { dirtySincePreset: true } : { dirtySincePreset: false };
+  const markDirty = (
+    current: ConfiguratorState
+  ): Pick<ConfiguratorState, 'dirtySincePreset'> =>
+    current.lastPresetId
+      ? { dirtySincePreset: true }
+      : { dirtySincePreset: false };
 
   const updateGlobe = useCallback((patch: Partial<GlobeSettings>) => {
     setState((current) => ({
@@ -292,10 +329,18 @@ export default function Studio() {
         setState((current) => ({
           ...current,
           activeLayer: builtIn.patch.activeLayer ?? current.activeLayer,
-          globe: builtIn.patch.globe ? { ...current.globe, ...builtIn.patch.globe } : current.globe,
-          heatmap: builtIn.patch.heatmap ? { ...current.heatmap, ...builtIn.patch.heatmap } : current.heatmap,
-          hexbin: builtIn.patch.hexbin ? { ...current.hexbin, ...builtIn.patch.hexbin } : current.hexbin,
-          charts: builtIn.patch.charts ? { ...current.charts, ...builtIn.patch.charts } : current.charts,
+          globe: builtIn.patch.globe
+            ? { ...current.globe, ...builtIn.patch.globe }
+            : current.globe,
+          heatmap: builtIn.patch.heatmap
+            ? { ...current.heatmap, ...builtIn.patch.heatmap }
+            : current.heatmap,
+          hexbin: builtIn.patch.hexbin
+            ? { ...current.hexbin, ...builtIn.patch.hexbin }
+            : current.hexbin,
+          charts: builtIn.patch.charts
+            ? { ...current.charts, ...builtIn.patch.charts }
+            : current.charts,
           lastPresetId: id,
           dirtySincePreset: false,
         }));
@@ -313,7 +358,7 @@ export default function Studio() {
         setRuntimeMessage(`Preset applied: ${custom.name}`);
       }
     },
-    [customPresets, setRuntimeMessage],
+    [customPresets, setRuntimeMessage]
   );
 
   const sendCommand = useCallback((type: 'replay' | 'home') => {
@@ -329,7 +374,9 @@ export default function Studio() {
       .writeText(exportedJson)
       .then(() => setRuntimeMessage('JSON copied'))
       .catch((error: unknown) => {
-        setRuntimeMessage(error instanceof Error ? error.message : 'Copy failed');
+        setRuntimeMessage(
+          error instanceof Error ? error.message : 'Copy failed'
+        );
       });
   }, [exportedJson, setRuntimeMessage]);
 
@@ -342,6 +389,8 @@ export default function Studio() {
     setRuntimeMessage('Configurator reset · reloading…');
     setTimeout(() => window.location.reload(), 200);
   }, [searchParams, setRuntimeMessage]);
+
+  const activeInspectorItem = getStudioNavItem(activeInspector);
 
   return (
     <TooltipProvider>
@@ -375,13 +424,6 @@ export default function Studio() {
           onExport={copyJson}
           onReset={reset}
           onCommandPalette={() => setCommandPaletteOpen(true)}
-          onWorkshop={() => setWorkshopOpen(true)}
-        />
-        <Workshop
-          open={workshopOpen}
-          onOpenChange={setWorkshopOpen}
-          state={state}
-          onGlobeChange={updateGlobe}
         />
         <CommandPalette
           open={commandPaletteOpen}
@@ -421,7 +463,10 @@ export default function Studio() {
             registerThemePreset('__preview__', merged);
             setState((current) => ({
               ...current,
-              globe: { ...current.globe, theme: '__preview__' as ThemePresetName },
+              globe: {
+                ...current.globe,
+                theme: '__preview__' as ThemePresetName,
+              },
             }));
           }}
           onPreviewEnd={() => {
@@ -443,10 +488,15 @@ export default function Studio() {
             // active theme + flag dirty so the preset selector knows.
             unregisterThemePreset('__preview__');
             previewPreviousThemeRef.current = null;
-            setCustomThemes((current) => [theme, ...current.filter((t) => t.id !== theme.id)]);
+            setCustomThemes((current) => [
+              theme,
+              ...current.filter((t) => t.id !== theme.id),
+            ]);
             updateGlobe({ theme: theme.id as never });
             setRuntimeMessage(
-              editingTheme ? `Updated custom theme: ${theme.name}` : `Saved custom theme: ${theme.name}`,
+              editingTheme
+                ? `Updated custom theme: ${theme.name}`
+                : `Saved custom theme: ${theme.name}`
             );
           }}
         />
@@ -500,26 +550,39 @@ export default function Studio() {
         <Panel
           id="stage"
           position="left"
-          title="Stage"
+          title="Interactive Studio"
           icon={<Globe2 className="size-4" />}
-          badge={`${state.globe.kind} · ${state.globe.theme.split('-').slice(-1)[0]}`}
-          defaultCollapsed
-          width={340}
+          badge={`${state.globe.kind} · ${
+            state.globe.theme.split('-').slice(-1)[0]
+          }`}
+          width={286}
         >
-          <StagePanel settings={state.globe} onChange={updateGlobe} />
+          <StagePanel
+            state={state}
+            active={activeInspector}
+            onSelect={setActiveInspector}
+          />
         </Panel>
         <Panel
-          id="data"
+          id="inspector"
           position="right"
-          title="Data Layer"
-          icon={<Database className="size-4" />}
-          badge={dataBadgeForState(state)}
-          width={380}
+          title={activeInspectorItem.label}
+          icon={
+            <FontAwesomeIcon
+              icon={activeInspectorItem.icon}
+              className="size-3.5"
+              style={{ color: activeInspectorItem.accent }}
+            />
+          }
+          badge={activeInspectorItem.status(state)}
+          width={326}
         >
-          <DataSections
+          <StudioInspectorPanel
+            active={activeInspector}
             state={state}
             heatmapLoading={heatmapDataset.loading}
             heatmapError={heatmapDataset.error}
+            onGlobeChange={updateGlobe}
             onLayerChange={updateLayer}
             onHeatmapChange={updateHeatmap}
             onHexbinChange={updateHexbin}

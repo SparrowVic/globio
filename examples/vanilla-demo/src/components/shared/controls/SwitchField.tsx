@@ -36,13 +36,16 @@ export function SwitchField({
   return (
     <div
       className={cn(
-        'flex min-h-8 items-center justify-between gap-3 rounded-md border border-white/8 bg-white/[0.025] px-3 py-2',
-        disabled ? 'pointer-events-none opacity-50' : null,
+        'flex min-h-7 items-center justify-between gap-3 rounded-lg border border-white/[0.055] bg-black/[0.12] px-2.5 py-1.5',
+        'shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]',
+        disabled ? 'pointer-events-none opacity-50' : null
       )}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <Label className="block truncate text-sm text-slate-100">{label}</Label>
+          <Label className="block truncate text-[11px] font-medium text-slate-300">
+            {label}
+          </Label>
           {disabled && disabledReason ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -54,15 +57,28 @@ export function SwitchField({
                   <Info className="size-3" />
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={4} className="max-w-[240px] text-xs">
+              <TooltipContent
+                side="top"
+                sideOffset={4}
+                className="max-w-[240px] text-xs"
+              >
                 {disabledReason}
               </TooltipContent>
             </Tooltip>
           ) : null}
         </div>
-        {value ? <div className="mt-0.5 text-xs text-slate-400">{value}</div> : null}
+        {value ? (
+          <div className="mt-0.5 text-[10px] leading-tight text-slate-500">
+            {value}
+          </div>
+        ) : null}
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} className="data-checked:bg-amber-300" />
+      <Switch
+        size="sm"
+        checked={checked}
+        onCheckedChange={onChange}
+        className="data-checked:bg-emerald-400 data-unchecked:bg-white/[0.10]"
+      />
     </div>
   );
 }

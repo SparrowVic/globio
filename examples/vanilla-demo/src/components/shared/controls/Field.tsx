@@ -48,10 +48,16 @@ export function Field({
   disabledReason,
 }: FieldProps) {
   return (
-    <div className={cn('space-y-2', className, disabled ? 'is-disabled' : null)}>
-      <div className="flex min-h-5 items-center justify-between gap-3">
+    <div
+      className={cn(
+        'flex flex-col gap-1.5',
+        className,
+        disabled ? 'is-disabled' : null
+      )}
+    >
+      <div className="flex min-h-4 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-1.5">
-          <Label className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-300/80">
+          <Label className="text-[11px] font-medium leading-none text-slate-400">
             {label}
           </Label>
           {disabled && disabledReason ? (
@@ -65,15 +71,25 @@ export function Field({
                   <Info className="size-3" />
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={4} className="max-w-[240px] text-xs">
+              <TooltipContent
+                side="top"
+                sideOffset={4}
+                className="max-w-[240px] text-xs"
+              >
                 {disabledReason}
               </TooltipContent>
             </Tooltip>
           ) : null}
         </div>
-        {value ? <div className="shrink-0 text-xs tabular-nums text-slate-100/75">{value}</div> : null}
+        {value ? (
+          <div className="shrink-0 rounded border border-white/[0.06] bg-white/[0.035] px-1.5 py-0.5 font-mono text-[10px] leading-none tabular-nums text-slate-200/80">
+            {value}
+          </div>
+        ) : null}
       </div>
-      <div className={disabled ? 'pointer-events-none opacity-50' : undefined}>{children}</div>
+      <div className={disabled ? 'pointer-events-none opacity-50' : undefined}>
+        {children}
+      </div>
     </div>
   );
 }

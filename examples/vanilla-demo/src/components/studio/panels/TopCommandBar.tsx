@@ -11,25 +11,34 @@ import {
   faBookmark,
   faPlus,
   faCircleSmall,
-  faWandMagicSparkles,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 import { faCommand } from '@fortawesome/sharp-solid-svg-icons';
 import type { GlobeKind, ThemePresetName } from '@your-globe/core';
 
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Kbd } from '@/components/shared/components/Kbd';
 import {
   GroupedSelectField,
   type GroupedSelectGroup,
 } from '@/components/shared/controls';
-import { configuratorPresets, globeDefaultsForKind } from '@/configurator/defaults';
+import {
+  configuratorPresets,
+  globeDefaultsForKind,
+} from '@/configurator/defaults';
 import type { CustomTheme } from '@/lib/custom-themes';
 import type { CustomPreset } from '@/lib/custom-presets';
 import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
 import { cn } from '@/lib/utils';
 
-const kindLabels: ReadonlyArray<{ readonly value: GlobeKind; readonly label: string }> = [
+const kindLabels: ReadonlyArray<{
+  readonly value: GlobeKind;
+  readonly label: string;
+}> = [
   { value: 'outline', label: 'Outline' },
   { value: 'dotted', label: 'Dotted' },
   { value: 'wireframe', label: 'Wireframe' },
@@ -75,7 +84,6 @@ export interface TopCommandBarProps {
   readonly onReset: () => void;
   /** Open the ⌘K command palette (drives the right-side hint chip + button). */
   readonly onCommandPalette: () => void;
-  readonly onWorkshop: () => void;
 }
 
 /**
@@ -103,7 +111,6 @@ export function TopCommandBar({
   onExport,
   onReset,
   onCommandPalette,
-  onWorkshop,
 }: TopCommandBarProps) {
   const themesForKind = themeCatalog
     .filter((t) => t.kind === state.globe.kind)
@@ -149,7 +156,10 @@ export function TopCommandBar({
   }));
   const presetGroups: ReadonlyArray<GroupedSelectGroup<string>> = [
     {
-      label: userPresetOptions.length > 0 ? 'Your presets' : 'Your presets (none yet)',
+      label:
+        userPresetOptions.length > 0
+          ? 'Your presets'
+          : 'Your presets (none yet)',
       options: userPresetOptions,
       footer: {
         content: <SavePresetFooterButton />,
@@ -184,7 +194,7 @@ export function TopCommandBar({
         className={cn(
           'pointer-events-auto relative flex h-12 w-full max-w-[1380px] items-center gap-2 rounded-full pl-2 pr-1.5',
           'border border-white/[0.08] bg-white/[0.04] backdrop-blur-2xl backdrop-saturate-150',
-          'shadow-[0_18px_60px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_0_rgba(255,255,255,0.06)]',
+          'shadow-[0_18px_60px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_0_rgba(255,255,255,0.06)]'
         )}
       >
         {/* Iridescent edge — barely-there gradient that breathes */}
@@ -225,7 +235,7 @@ export function TopCommandBar({
                   className={cn(
                     'relative z-10 flex size-5 items-center justify-center rounded-full',
                     'bg-gradient-to-br from-amber-200 to-orange-300 text-slate-950',
-                    'shadow-[0_0_20px_-2px_rgba(255,200,90,0.7)] transition-shadow group-hover:shadow-[0_0_28px_0_rgba(255,200,90,0.9)]',
+                    'shadow-[0_0_20px_-2px_rgba(255,200,90,0.7)] transition-shadow group-hover:shadow-[0_0_28px_0_rgba(255,200,90,0.9)]'
                   )}
                 >
                   <FontAwesomeIcon icon={faGlobePointer} className="size-2.5" />
@@ -239,12 +249,15 @@ export function TopCommandBar({
                   'inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[9px] font-medium uppercase tracking-[0.18em] transition-colors',
                   ready
                     ? 'border-emerald-300/30 bg-emerald-300/[0.06] text-emerald-200/90'
-                    : 'border-amber-200/30 bg-amber-200/[0.04] text-amber-200/80',
+                    : 'border-amber-200/30 bg-amber-200/[0.04] text-amber-200/80'
                 )}
               >
                 <FontAwesomeIcon
                   icon={faCircleSmall}
-                  className={cn('size-1.5', ready ? 'text-emerald-300' : 'text-amber-300')}
+                  className={cn(
+                    'size-1.5',
+                    ready ? 'text-emerald-300' : 'text-amber-300'
+                  )}
                 />
                 <span>{ready ? 'live' : 'loading'}</span>
               </span>
@@ -287,7 +300,7 @@ export function TopCommandBar({
               'h-7 w-[200px] rounded-full text-[11.5px]',
               state.dirtySincePreset
                 ? 'border-amber-300/40 bg-amber-300/[0.06] text-amber-100'
-                : 'border-white/[0.08] bg-white/[0.04] text-slate-100',
+                : 'border-white/[0.08] bg-white/[0.04] text-slate-100'
             )}
           />
         </div>
@@ -298,7 +311,7 @@ export function TopCommandBar({
           onClick={onCommandPalette}
           className={cn(
             'group hidden h-7 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] pl-2.5 pr-1 text-[11.5px] text-slate-300 transition-colors md:inline-flex',
-            'hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-white',
+            'hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-white'
           )}
         >
           <FontAwesomeIcon icon={faCommand} className="size-2.5 opacity-70" />
@@ -309,44 +322,40 @@ export function TopCommandBar({
           </span>
         </button>
 
-        {/* Workshop trigger — full pill, accent gradient, the headline
-            feature that opens the deep-dive editor. Shadow + hover scale
-            make it feel "important" alongside the more utilitarian icons. */}
-        <button
-          type="button"
-          onClick={onWorkshop}
-          className={cn(
-            'group relative inline-flex h-7 items-center gap-1.5 overflow-hidden rounded-full px-3 text-[11.5px] font-semibold tracking-tight',
-            'border border-amber-200/30 bg-gradient-to-br from-amber-200/[0.14] via-amber-200/[0.08] to-orange-300/[0.10]',
-            'text-amber-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_20px_-6px_rgba(255,200,90,0.5)]',
-            'transition-all duration-300 hover:scale-[1.03] hover:border-amber-200/50 hover:text-white',
-            'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_0_28px_-4px_rgba(255,200,90,0.7)]',
-          )}
-        >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-white/30 opacity-0 transition-all duration-700 group-hover:translate-x-[300%] group-hover:opacity-100"
-          />
-          <FontAwesomeIcon icon={faWandMagicSparkles} className="relative z-10 size-3 text-amber-200" />
-          <span className="relative z-10">Workshop</span>
-        </button>
-
         {/* Divider */}
-        <span aria-hidden="true" className="mx-0.5 hidden h-5 w-px bg-white/[0.08] md:block" />
+        <span
+          aria-hidden="true"
+          className="mx-0.5 hidden h-5 w-px bg-white/[0.08] md:block"
+        />
 
         {/* Action buttons — replay anim, home, manage saved, export, reset.
             Grouped right-side; each gets a glow-on-hover + descriptive
             tooltip so first-time users don't have to guess. */}
         <div className="flex shrink-0 items-center gap-1">
-          <ActionButton label="Replay layer animation" onClick={onReplay} icon={faPlay} accent="emerald" />
-          <ActionButton label="Reset camera to home view" onClick={onHome} icon={faHouseChimney} accent="sky" />
+          <ActionButton
+            label="Replay layer animation"
+            onClick={onReplay}
+            icon={faPlay}
+            accent="emerald"
+          />
+          <ActionButton
+            label="Reset camera to home view"
+            onClick={onHome}
+            icon={faHouseChimney}
+            accent="sky"
+          />
           <ActionButton
             label="Manage saved themes & presets"
             onClick={onManageSaved}
             icon={faFolderOpen}
             accent="amber"
           />
-          <ActionButton label="Export config as JSON" onClick={onExport} icon={faDownload} accent="cyan" />
+          <ActionButton
+            label="Export config as JSON"
+            onClick={onExport}
+            icon={faDownload}
+            accent="cyan"
+          />
           <ActionButton
             label="Reset configurator (reload)"
             onClick={onReset}
@@ -359,10 +368,15 @@ export function TopCommandBar({
   );
 }
 
-const accentClasses: Record<'emerald' | 'sky' | 'amber' | 'cyan' | 'rose', string> = {
-  emerald: 'group-hover:text-emerald-200 group-hover:shadow-[0_0_20px_-4px_rgba(110,231,183,0.55)]',
+const accentClasses: Record<
+  'emerald' | 'sky' | 'amber' | 'cyan' | 'rose',
+  string
+> = {
+  emerald:
+    'group-hover:text-emerald-200 group-hover:shadow-[0_0_20px_-4px_rgba(110,231,183,0.55)]',
   sky: 'group-hover:text-sky-200 group-hover:shadow-[0_0_20px_-4px_rgba(125,211,252,0.55)]',
-  amber: 'group-hover:text-amber-200 group-hover:shadow-[0_0_20px_-4px_rgba(252,211,77,0.55)]',
+  amber:
+    'group-hover:text-amber-200 group-hover:shadow-[0_0_20px_-4px_rgba(252,211,77,0.55)]',
   cyan: 'group-hover:text-cyan-200 group-hover:shadow-[0_0_20px_-4px_rgba(103,232,249,0.55)]',
   rose: 'group-hover:text-rose-200 group-hover:shadow-[0_0_20px_-4px_rgba(252,165,165,0.55)]',
 };
@@ -390,7 +404,7 @@ function ActionButton({
           className={cn(
             'group relative size-8 rounded-full border-white/[0.08] bg-white/[0.025] text-slate-300',
             'transition-all duration-300 hover:bg-white/[0.06]',
-            accentClasses[accent],
+            accentClasses[accent]
           )}
         >
           <FontAwesomeIcon icon={icon} className="size-3.5" />
@@ -411,7 +425,7 @@ function CreateCustomThemeButton() {
     <div
       className={cn(
         'flex items-center justify-center gap-2 rounded-md border border-dashed border-amber-300/40 bg-amber-300/[0.04] px-3 py-2 text-[12px] text-amber-200',
-        'transition-colors hover:border-amber-300/70 hover:bg-amber-300/[0.08]',
+        'transition-colors hover:border-amber-300/70 hover:bg-amber-300/[0.08]'
       )}
     >
       <FontAwesomeIcon icon={faPlus} className="size-3" />
@@ -430,7 +444,7 @@ function SavePresetFooterButton() {
     <div
       className={cn(
         'flex items-center justify-center gap-2 rounded-md border border-dashed border-amber-300/40 bg-amber-300/[0.04] px-3 py-2 text-[12px] text-amber-200',
-        'transition-colors hover:border-amber-300/70 hover:bg-amber-300/[0.08]',
+        'transition-colors hover:border-amber-300/70 hover:bg-amber-300/[0.08]'
       )}
     >
       <FontAwesomeIcon icon={faBookmark} className="size-3" />

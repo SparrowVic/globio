@@ -28,7 +28,10 @@ const zoomOptions = [
   { value: 'repel', label: 'Repel' },
 ] as const;
 
-const pixelRatioOptions: ReadonlyArray<{ readonly value: PixelRatioSetting; readonly label: string }> = [
+const pixelRatioOptions: ReadonlyArray<{
+  readonly value: PixelRatioSetting;
+  readonly label: string;
+}> = [
   { value: 'auto', label: 'Auto' },
   { value: '1', label: '1x' },
   { value: '1.5', label: '1.5x' },
@@ -40,226 +43,236 @@ export interface StageSectionsProps {
   readonly onChange: (patch: Partial<GlobeSettings>) => void;
 }
 
-/**
- * Three accordion sections for the Stage panel — only globals that
- * Workshop doesn't already cover: Camera (axis tilt, zoom, auto-rotate,
- * initial position), Focus (click-to-focus camera flight behaviour),
- * Performance (pixel ratio, FPS cap, antialias, country geometry
- * resolution).
- *
- * Per-layer visual knobs (country labels, atmosphere, starfield, focus
- * pulse, hover stroke, hover crosshair, arcs, markers) all live in
- * the Workshop concept-cards now — duplicating them here just made
- * the left rail noisy. Each is a pure render over `settings` /
- * `onChange`; section collapse persistence lives in `<PanelSection>`
- * via localStorage.
- */
+export type StageSectionId = 'stage-camera' | 'stage-focus' | 'stage-perf';
+
 export function StageSections({ settings, onChange }: StageSectionsProps) {
   return (
     <>
-      <PanelSection
-        id="stage-camera"
-        title="Camera"
-        icon={<FontAwesomeIcon icon={faCompass} className="size-3" />}
-        meta={
-          settings.autoRotate
-            ? `auto-rotate · ${settings.zoomMode}`
-            : `static · ${settings.zoomMode}`
-        }
-        defaultOpen
+      <CameraSection settings={settings} onChange={onChange} />
+      <FocusSection settings={settings} onChange={onChange} />
+      <PerformanceSection settings={settings} onChange={onChange} />
+    </>
+  );
+}
+
+export function CameraSection({ settings, onChange }: StageSectionsProps) {
+  return (
+    <PanelSection
+      id="stage-camera"
+      title="Camera"
+      icon={<FontAwesomeIcon icon={faCompass} className="size-3" />}
+      meta={
+        settings.autoRotate
+          ? `auto-rotate · ${settings.zoomMode}`
+          : `static · ${settings.zoomMode}`
+      }
+      defaultOpen
+    >
+      <SliderField
+        label="Axis tilt"
+        value={settings.axisTilt}
+        min={-35}
+        max={35}
+        step={0.5}
+        format={(value) => `${value.toFixed(1)} deg`}
+        onChange={(axisTilt) => onChange({ axisTilt })}
+      />
+      <ToggleField
+        label="Zoom mode"
+        value={settings.zoomMode}
+        options={zoomOptions}
+        onChange={(zoomMode) => onChange({ zoomMode })}
+      />
+      <SliderField
+        label="Zoom strength"
+        value={settings.zoomStrength}
+        min={0}
+        max={1}
+        step={0.05}
+        onChange={(zoomStrength) => onChange({ zoomStrength })}
+        disabled={settings.zoomMode === 'classic'}
+        disabledReason="Switch zoom mode to attract or repel to enable"
+      />
+      <SwitchField
+        label="Smooth zoom"
+        checked={settings.smoothZoom}
+        onChange={(smoothZoom) => onChange({ smoothZoom })}
+        disabled={settings.zoomMode === 'classic'}
+        disabledReason="Smooth zoom only applies to attract/repel modes"
+      />
+      <SwitchField
+        label="Auto rotate"
+        checked={settings.autoRotate}
+        onChange={(autoRotate) => onChange({ autoRotate })}
+      />
+      <SliderField
+        label="Rotate speed"
+        value={settings.autoRotateSpeed}
+        min={0}
+        max={0.8}
+        step={0.01}
+        onChange={(autoRotateSpeed) => onChange({ autoRotateSpeed })}
+        disabled={!settings.autoRotate}
+        disabledReason="Enable Auto rotate first"
+      />
+      <SliderField
+        label="Min zoom"
+        value={settings.minZoom}
+        min={1}
+        max={3}
+        step={0.05}
+        format={(value) => value.toFixed(2)}
+        onChange={(minZoom) => {
+          // Keep min strictly below max to avoid the camera locking up.
+          const safe = Math.min(minZoom, settings.maxZoom - 0.1);
+          onChange({ minZoom: safe });
+        }}
+      />
+      <SliderField
+        label="Max zoom"
+        value={settings.maxZoom}
+        min={3}
+        max={15}
+        step={0.25}
+        format={(value) => value.toFixed(2)}
+        onChange={(maxZoom) => {
+          const safe = Math.max(maxZoom, settings.minZoom + 0.1);
+          onChange({ maxZoom: safe });
+        }}
+      />
+      {/* Initial camera position — read at boot. Editing these shifts
+            where the globe parks itself on next mount and where the Home
+            button flies to. Doesn't snap the live camera. */}
+      <SliderField
+        label="Initial latitude"
+        value={settings.initialLat}
+        min={-90}
+        max={90}
+        step={1}
+        format={(value) => `${value.toFixed(0)}°`}
+        onChange={(initialLat) => onChange({ initialLat })}
+      />
+      <SliderField
+        label="Initial longitude"
+        value={settings.initialLng}
+        min={-180}
+        max={180}
+        step={1}
+        format={(value) => `${value.toFixed(0)}°`}
+        onChange={(initialLng) => onChange({ initialLng })}
+      />
+    </PanelSection>
+  );
+}
+
+export function FocusSection({ settings, onChange }: StageSectionsProps) {
+  return (
+    <PanelSection
+      id="stage-focus"
+      title="Focus"
+      icon={<FontAwesomeIcon icon={faCrosshairs} className="size-3" />}
+      meta={
+        settings.clickToFocus
+          ? `${(settings.focusPadding * 100).toFixed(0)}% pad`
+          : 'off'
+      }
+    >
+      <SwitchField
+        label="Click country to focus"
+        checked={settings.clickToFocus}
+        onChange={(clickToFocus) => onChange({ clickToFocus })}
+      />
+      <DependsOn
+        when={settings.clickToFocus}
+        because="Enable Click country to focus first"
+        className="space-y-3"
       >
         <SliderField
-          label="Axis tilt"
-          value={settings.axisTilt}
-          min={-35}
-          max={35}
-          step={0.5}
-          format={(value) => `${value.toFixed(1)} deg`}
-          onChange={(axisTilt) => onChange({ axisTilt })}
-        />
-        <ToggleField
-          label="Zoom mode"
-          value={settings.zoomMode}
-          options={zoomOptions}
-          onChange={(zoomMode) => onChange({ zoomMode })}
-        />
-        <SliderField
-          label="Zoom strength"
-          value={settings.zoomStrength}
+          label="Padding"
+          value={settings.focusPadding}
           min={0}
-          max={1}
-          step={0.05}
-          onChange={(zoomStrength) => onChange({ zoomStrength })}
-          disabled={settings.zoomMode === 'classic'}
-          disabledReason="Switch zoom mode to attract or repel to enable"
-        />
-        <SwitchField
-          label="Smooth zoom"
-          checked={settings.smoothZoom}
-          onChange={(smoothZoom) => onChange({ smoothZoom })}
-          disabled={settings.zoomMode === 'classic'}
-          disabledReason="Smooth zoom only applies to attract/repel modes"
-        />
-        <SwitchField
-          label="Auto rotate"
-          checked={settings.autoRotate}
-          onChange={(autoRotate) => onChange({ autoRotate })}
-        />
-        <SliderField
-          label="Rotate speed"
-          value={settings.autoRotateSpeed}
-          min={0}
-          max={0.8}
+          max={0.45}
           step={0.01}
-          onChange={(autoRotateSpeed) => onChange({ autoRotateSpeed })}
-          disabled={!settings.autoRotate}
-          disabledReason="Enable Auto rotate first"
+          format={(value) => `${(value * 100).toFixed(0)}%`}
+          onChange={(focusPadding) => onChange({ focusPadding })}
         />
         <SliderField
-          label="Min zoom"
-          value={settings.minZoom}
-          min={1}
+          label="Flight duration"
+          value={settings.focusDurationMs}
+          min={200}
+          max={3500}
+          step={50}
+          format={(value) => `${(value / 1000).toFixed(2)} s`}
+          onChange={(focusDurationMs) => onChange({ focusDurationMs })}
+        />
+        <SliderField
+          label="Arc elevation"
+          value={settings.focusElevation}
+          min={0}
           max={3}
           step={0.05}
           format={(value) => value.toFixed(2)}
-          onChange={(minZoom) => {
-            // Keep min strictly below max to avoid the camera locking up.
-            const safe = Math.min(minZoom, settings.maxZoom - 0.1);
-            onChange({ minZoom: safe });
-          }}
+          onChange={(focusElevation) => onChange({ focusElevation })}
         />
-        <SliderField
-          label="Max zoom"
-          value={settings.maxZoom}
-          min={3}
-          max={15}
-          step={0.25}
-          format={(value) => value.toFixed(2)}
-          onChange={(maxZoom) => {
-            const safe = Math.max(maxZoom, settings.minZoom + 0.1);
-            onChange({ maxZoom: safe });
-          }}
+        <SwitchField
+          label="Pause auto-rotate"
+          checked={settings.focusPauseAutoRotate}
+          onChange={(focusPauseAutoRotate) =>
+            onChange({ focusPauseAutoRotate })
+          }
         />
-        {/* Initial camera position — read at boot. Editing these shifts
-            where the globe parks itself on next mount and where the Home
-            button flies to. Doesn't snap the live camera. */}
-        <SliderField
-          label="Initial latitude"
-          value={settings.initialLat}
-          min={-90}
-          max={90}
-          step={1}
-          format={(value) => `${value.toFixed(0)}°`}
-          onChange={(initialLat) => onChange({ initialLat })}
-        />
-        <SliderField
-          label="Initial longitude"
-          value={settings.initialLng}
-          min={-180}
-          max={180}
-          step={1}
-          format={(value) => `${value.toFixed(0)}°`}
-          onChange={(initialLng) => onChange({ initialLng })}
-        />
-      </PanelSection>
+      </DependsOn>
+    </PanelSection>
+  );
+}
 
-      <PanelSection
-        id="stage-focus"
-        title="Focus"
-        icon={<FontAwesomeIcon icon={faCrosshairs} className="size-3" />}
-        meta={settings.clickToFocus ? `${(settings.focusPadding * 100).toFixed(0)}% pad` : 'off'}
-      >
-        <SwitchField
-          label="Click country to focus"
-          checked={settings.clickToFocus}
-          onChange={(clickToFocus) => onChange({ clickToFocus })}
-        />
-        <DependsOn
-          when={settings.clickToFocus}
-          because="Enable Click country to focus first"
-          className="space-y-3"
-        >
-          <SliderField
-            label="Padding"
-            value={settings.focusPadding}
-            min={0}
-            max={0.45}
-            step={0.01}
-            format={(value) => `${(value * 100).toFixed(0)}%`}
-            onChange={(focusPadding) => onChange({ focusPadding })}
-          />
-          <SliderField
-            label="Flight duration"
-            value={settings.focusDurationMs}
-            min={200}
-            max={3500}
-            step={50}
-            format={(value) => `${(value / 1000).toFixed(2)} s`}
-            onChange={(focusDurationMs) => onChange({ focusDurationMs })}
-          />
-          <SliderField
-            label="Arc elevation"
-            value={settings.focusElevation}
-            min={0}
-            max={3}
-            step={0.05}
-            format={(value) => value.toFixed(2)}
-            onChange={(focusElevation) => onChange({ focusElevation })}
-          />
-          <SwitchField
-            label="Pause auto-rotate"
-            checked={settings.focusPauseAutoRotate}
-            onChange={(focusPauseAutoRotate) => onChange({ focusPauseAutoRotate })}
-          />
-        </DependsOn>
-      </PanelSection>
-
-      <PanelSection
-        id="stage-perf"
-        title="Performance"
-        icon={<FontAwesomeIcon icon={faGauge} className="size-3" />}
-        meta={
-          <span className="inline-flex items-center gap-1">
-            <FontAwesomeIcon icon={faSparkles} className="size-2.5" />
-            {settings.adaptiveQuality ? 'auto' : 'manual'}
-          </span>
-        }
-      >
-        <ToggleField
-          label="Country resolution"
-          value={settings.countryResolution}
-          options={resolutionOptions}
-          onChange={(countryResolution) => onChange({ countryResolution })}
-        />
-        <SelectField
-          label="Pixel ratio"
-          value={settings.pixelRatio}
-          options={pixelRatioOptions}
-          onChange={(pixelRatio) => onChange({ pixelRatio })}
-          disabled={settings.adaptiveQuality}
-          disabledReason="Adaptive quality auto-overrides this each frame"
-        />
-        <SwitchField
-          label="Adaptive quality"
-          checked={settings.adaptiveQuality}
-          onChange={(adaptiveQuality) => onChange({ adaptiveQuality })}
-          value="60 FPS target"
-        />
-        <SliderField
-          label="Max FPS"
-          value={settings.maxFps}
-          min={15}
-          max={120}
-          step={5}
-          format={(value) => `${value.toFixed(0)} fps`}
-          onChange={(maxFps) => onChange({ maxFps })}
-        />
-        <SwitchField
-          label="Antialiasing"
-          checked={settings.antialias}
-          onChange={(antialias) => onChange({ antialias })}
-        />
-      </PanelSection>
-    </>
+export function PerformanceSection({ settings, onChange }: StageSectionsProps) {
+  return (
+    <PanelSection
+      id="stage-perf"
+      title="Performance"
+      icon={<FontAwesomeIcon icon={faGauge} className="size-3" />}
+      meta={
+        <span className="inline-flex items-center gap-1">
+          <FontAwesomeIcon icon={faSparkles} className="size-2.5" />
+          {settings.adaptiveQuality ? 'auto' : 'manual'}
+        </span>
+      }
+    >
+      <ToggleField
+        label="Country resolution"
+        value={settings.countryResolution}
+        options={resolutionOptions}
+        onChange={(countryResolution) => onChange({ countryResolution })}
+      />
+      <SelectField
+        label="Pixel ratio"
+        value={settings.pixelRatio}
+        options={pixelRatioOptions}
+        onChange={(pixelRatio) => onChange({ pixelRatio })}
+        disabled={settings.adaptiveQuality}
+        disabledReason="Adaptive quality auto-overrides this each frame"
+      />
+      <SwitchField
+        label="Adaptive quality"
+        checked={settings.adaptiveQuality}
+        onChange={(adaptiveQuality) => onChange({ adaptiveQuality })}
+        value="60 FPS target"
+      />
+      <SliderField
+        label="Max FPS"
+        value={settings.maxFps}
+        min={15}
+        max={120}
+        step={5}
+        format={(value) => `${value.toFixed(0)} fps`}
+        onChange={(maxFps) => onChange({ maxFps })}
+      />
+      <SwitchField
+        label="Antialiasing"
+        checked={settings.antialias}
+        onChange={(antialias) => onChange({ antialias })}
+      />
+    </PanelSection>
   );
 }

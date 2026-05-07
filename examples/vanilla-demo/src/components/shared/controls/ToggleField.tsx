@@ -25,7 +25,12 @@ export function ToggleField<T extends string>({
   disabledReason,
 }: ToggleFieldProps<T>) {
   return (
-    <Field label={label} className={className} disabled={disabled} disabledReason={disabledReason}>
+    <Field
+      label={label}
+      className={className}
+      disabled={disabled}
+      disabledReason={disabledReason}
+    >
       <ToggleGroup
         type="single"
         value={value}
@@ -34,13 +39,13 @@ export function ToggleField<T extends string>({
         }}
         variant="outline"
         size="sm"
-        className="flex w-full flex-wrap rounded-lg bg-white/[0.03]"
+        className="flex w-full flex-wrap rounded-lg border border-white/[0.06] bg-black/[0.14] p-0.5"
       >
         {options.map((option) => (
           <ToggleGroupItem
             key={option.value}
             value={option.value}
-            className="min-w-14 flex-1 border-white/10 px-2 text-xs text-slate-200 data-active:border-amber-300/80 data-active:bg-amber-300/15 data-active:text-amber-200"
+            className="min-w-14 flex-1 rounded-md border-transparent px-2 text-[10.5px] text-slate-400 data-active:border-amber-300/40 data-active:bg-amber-300/15 data-active:text-amber-100"
           >
             <span className="truncate">{option.label}</span>
           </ToggleGroupItem>

@@ -27,12 +27,17 @@ export function SelectField<T extends string>({
   disabledReason,
 }: SelectFieldProps<T>) {
   return (
-    <Field label={label} className={className} disabled={disabled} disabledReason={disabledReason}>
+    <Field
+      label={label}
+      className={className}
+      disabled={disabled}
+      disabledReason={disabledReason}
+    >
       <Select value={value} onValueChange={(next) => onChange(next as T)}>
-        <SelectTrigger className="h-8 w-full border-white/10 bg-white/[0.04] text-slate-100">
+        <SelectTrigger className="h-7 w-full rounded-lg border-white/[0.08] bg-black/[0.16] px-2.5 text-[11px] text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="border-white/10 bg-slate-950 text-slate-100">
+        <SelectContent className="border-white/10 bg-slate-950/95 text-slate-100 backdrop-blur-xl">
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}

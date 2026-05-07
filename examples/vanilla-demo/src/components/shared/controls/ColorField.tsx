@@ -93,10 +93,12 @@ export function ColorField({
   const normalised = normaliseHex(value);
 
   return (
-    <div className={cn('space-y-2', disabled ? 'is-disabled' : null)}>
+    <div
+      className={cn('flex flex-col gap-1.5', disabled ? 'is-disabled' : null)}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-1.5">
-          <Label className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-300/80">
+          <Label className="text-[11px] font-medium leading-none text-slate-400">
             {label}
           </Label>
           {disabled && disabledReason ? (
@@ -110,13 +112,21 @@ export function ColorField({
                   <Info className="size-3" />
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={4} className="max-w-[240px] text-xs">
+              <TooltipContent
+                side="top"
+                sideOffset={4}
+                className="max-w-[240px] text-xs"
+              >
                 {disabledReason}
               </TooltipContent>
             </Tooltip>
           ) : null}
         </div>
-        {hint ? <span className="text-[10.5px] text-slate-500">{hint}</span> : null}
+        {hint ? (
+          <span className="text-[10px] leading-none text-slate-500">
+            {hint}
+          </span>
+        ) : null}
       </div>
 
       <div ref={popoverRef} className="relative">
@@ -125,17 +135,17 @@ export function ColorField({
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
           className={cn(
-            'flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-2 py-1.5 transition-colors',
-            'hover:border-white/20',
-            disabled ? 'pointer-events-none opacity-50' : '',
+            'flex h-7 w-full items-center gap-2 rounded-lg border border-white/[0.08] bg-black/[0.16] px-2.5 transition-colors',
+            'shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-white/[0.18]',
+            disabled ? 'pointer-events-none opacity-50' : ''
           )}
         >
           <span
-            className="size-4 rounded-sm border border-white/20 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.4)]"
+            className="size-3.5 rounded-sm border border-white/20 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.4)]"
             style={{ background: normalised }}
             aria-hidden="true"
           />
-          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-slate-200">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.04em] text-slate-200">
             {normalised}
           </span>
           {preset && normalised.toLowerCase() !== preset.toLowerCase() ? (
@@ -145,13 +155,13 @@ export function ColorField({
                 event.stopPropagation();
                 onChange(preset);
               }}
-              className="ml-auto rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300 hover:border-white/20 hover:text-white"
+              className="ml-auto rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em] text-slate-300 hover:border-white/20 hover:text-white"
               title="Restore theme default"
             >
               Reset
             </button>
           ) : (
-            <span className="ml-auto text-[10px] uppercase tracking-[0.18em] text-slate-500">
+            <span className="ml-auto text-[9px] uppercase tracking-[0.16em] text-slate-500">
               {open ? 'Done' : 'Pick'}
             </span>
           )}
@@ -164,7 +174,8 @@ export function ColorField({
             </p>
             <div className="grid grid-cols-6 gap-1.5">
               {swatches.map((c) => {
-                const active = normaliseHex(c).toLowerCase() === normalised.toLowerCase();
+                const active =
+                  normaliseHex(c).toLowerCase() === normalised.toLowerCase();
                 return (
                   <button
                     key={c}
@@ -174,7 +185,7 @@ export function ColorField({
                       'group relative flex h-7 items-center justify-center rounded border transition-all',
                       active
                         ? 'border-white/60 ring-1 ring-white/30'
-                        : 'border-white/10 hover:border-white/30',
+                        : 'border-white/10 hover:border-white/30'
                     )}
                     style={{ background: `${c}26` }}
                     aria-label={c}
