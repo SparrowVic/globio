@@ -24,7 +24,12 @@ import { GlobeEventEmitter } from '../interaction/events';
 import { loadCountries } from '../data/geo-loader';
 import { createLegend, type LegendOptions } from '../data/legend';
 import { resolveTheme } from '../theme/resolver';
-import { GLOBE_RADIUS, latLngToVector3, vector3ToLatLng } from '../utils/coordinates';
+import {
+  GLOBE_RADIUS,
+  isPointVisibleFromCamera,
+  latLngToVector3,
+  vector3ToLatLng,
+} from '../utils/coordinates';
 import { boundsCenter } from '../utils/country-bounds';
 import type {
   CountryData,
@@ -1262,6 +1267,26 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       }),
     resize: () => scene.resize(),
     getCanvas: () => scene.getCanvas(),
+    project: (lat, lng) => {
+      const canvas = scene.getCanvas();
+      if (!canvas) return null;
+      const surface = latLngToVector3([lat, lng], GLOBE_RADIUS);
+      if (!isPointVisibleFromCamera(surface, scene.camera.position)) return null;
+      // Three.js NDC projection mutates the vector in place.
+      surface.project(scene.camera);
+      if (
+        surface.x < -1 ||
+        surface.x > 1 ||
+        surface.y < -1 ||
+        surface.y > 1
+      ) {
+        return null;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const x = ((surface.x + 1) / 2) * rect.width;
+      const y = ((-surface.y + 1) / 2) * rect.height;
+      return [x, y] as const;
+    },
   };
 
   return instance;

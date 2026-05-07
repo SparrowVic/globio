@@ -7,6 +7,16 @@ import {
   type ThemePresetName,
 } from '@your-globe/core';
 
+/**
+ * Imperative API surfaced to consumers via `onReady`. Lets the host page
+ * project lat/lng to screen pixels (HUD anchors), call `flyTo`, mount a
+ * data layer, etc., without recreating the React-managed wrapper.
+ */
+export interface DecorationGlobeReadyApi {
+  readonly instance: GlobeInstance;
+  readonly project: GlobeInstance['project'];
+}
+
 export interface DecorationGlobeProps {
   readonly kind?: GlobeKind;
   readonly theme?: ThemePresetName;
@@ -55,6 +65,13 @@ export interface DecorationGlobeProps {
    * (still no data layers / focus pulse though — those stay off).
    */
   readonly interactive?: boolean;
+  /**
+   * Fired once the globe instance has been created and mounted. Hands the
+   * caller an imperative API for projection (HUD anchors), flyTo, country
+   * data, etc. Don't store the instance across remounts — it's tied to
+   * this DOM node and gets disposed on unmount or kind/theme change.
+   */
+  readonly onReady?: (api: DecorationGlobeReadyApi) => void;
 }
 
 const STARFIELD_DEFAULTS: StarfieldConfig = {
@@ -74,7 +91,9 @@ const STARFIELD_DEFAULTS: StarfieldConfig = {
  * Re-creates the underlying globe whenever any prop in the deps array
  * below changes — most knobs are wired through the initial `createGlobe`
  * call rather than a runtime `update()`, so a fresh instance is the
- * cleanest way to apply them.
+ * cleanest way to apply them. The wrapper carries a 280ms opacity
+ * transition so kind/theme swaps look like a soft crossfade rather than
+ * a jarring snap.
  */
 export function DecorationGlobe({
   kind = 'dotted',
@@ -90,9 +109,15 @@ export function DecorationGlobe({
   lockZoom = true,
   transparent = true,
   interactive = false,
+  onReady,
 }: DecorationGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<GlobeInstance | null>(null);
+  // Pin the latest onReady so the effect's dep array doesn't churn — we
+  // don't want to remount the globe just because the parent re-rendered
+  // with a new closure.
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -128,6 +153,11 @@ export function DecorationGlobe({
     instanceRef.current = globe;
     globe.mount();
 
+    onReadyRef.current?.({
+      instance: globe,
+      project: globe.project,
+    });
+
     return () => {
       globe.destroy();
       if (instanceRef.current === globe) instanceRef.current = null;
@@ -154,7 +184,10 @@ export function DecorationGlobe({
       // Decoration: never absorb pointer events meant for buttons / scroll
       // sitting visually on top. Caller can override by setting
       // `interactive: true` and styling the wrapper themselves.
-      style={interactive ? undefined : { pointerEvents: 'none' }}
+      style={{
+        pointerEvents: interactive ? 'auto' : 'none',
+        transition: 'opacity 280ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
       aria-hidden={interactive ? undefined : 'true'}
     />
   );

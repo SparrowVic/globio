@@ -90,4 +90,11 @@ export interface GlobeInstance {
   readonly toImage: (options?: { width?: number; height?: number }) => Promise<string>;
   readonly resize: () => void;
   readonly getCanvas: () => HTMLCanvasElement;
+  /**
+   * Project a lat/lng pair to canvas-relative pixel coordinates `[x, y]`.
+   * Returns `null` when the point is on the back hemisphere (occluded by
+   * the globe) or projects outside the canvas. Useful for anchoring DOM
+   * overlays to specific points on the surface.
+   */
+  readonly project: (lat: number, lng: number) => readonly [number, number] | null;
 }

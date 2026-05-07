@@ -5,11 +5,12 @@ import { ClickSpark } from '@/components/reactbits';
 import { NoiseOverlay, ScrollProgress } from '@/components/shared';
 
 import { ApiSection } from './ApiSection';
+import { DataStorySection } from './DataStorySection';
 import { FinalCta } from './FinalCta';
 import { HeroStage } from './HeroStage';
-import { KindShowcaseSection } from './KindShowcaseSection';
+import { KindPersonalitiesSection } from './KindPersonalitiesSection';
+import { LayerAnatomySection } from './LayerAnatomySection';
 import { StudioWorkflowSection } from './StudioWorkflowSection';
-import { LayerArchitectureSection } from './LayerArchitectureSection';
 
 export function HomeLanding() {
   useEffect(() => {
@@ -26,9 +27,10 @@ export function HomeLanding() {
         <NoiseOverlay />
         <Nav />
         <HeroStage />
-        <KindShowcaseSection />
-        <LayerArchitectureSection />
+        <KindPersonalitiesSection />
+        <LayerAnatomySection />
         <StudioWorkflowSection />
+        <DataStorySection />
         <ApiSection />
         <FinalCta />
       </main>

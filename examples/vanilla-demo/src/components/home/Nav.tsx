@@ -11,6 +11,7 @@ const navItems: ReadonlyArray<{ readonly label: string; readonly href: string }>
   { label: 'Kinds', href: '#kinds' },
   { label: 'Layers', href: '#architecture' },
   { label: 'Studio', href: '#studio' },
+  { label: 'Data', href: '#data' },
   { label: 'API', href: '#api' },
   { label: 'GitHub', href: 'https://github.com' },
 ];

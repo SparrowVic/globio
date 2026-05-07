@@ -18,6 +18,8 @@ import type { StarfieldConfig } from '@your-globe/core';
 
 import { ShinyText, SpotlightCard } from '@/components/reactbits';
 import { DecorationGlobe, SectionHeader } from '@/components/shared';
+import { WorkshopDial } from './workshop/WorkshopDial';
+import { LiveLogStrip } from './workshop/LiveLogStrip';
 
 const workflowSteps: ReadonlyArray<{
   readonly icon: IconDefinition;
@@ -123,18 +125,13 @@ export function StudioWorkflowSection() {
                   </div>
                   <div className="space-y-3">
                     {layerDials.map((dial) => (
-                      <div key={dial.label} className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-3">
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="inline-flex items-center gap-2 text-xs text-slate-300">
-                            <FontAwesomeIcon icon={dial.icon} className="size-3" style={{ color: dial.color }} />
-                            {dial.label}
-                          </span>
-                          <span className="font-mono text-[10px] text-slate-500">{dial.value}%</span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                          <div className="h-full rounded-full" style={{ width: `${dial.value}%`, background: dial.color }} />
-                        </div>
-                      </div>
+                      <WorkshopDial
+                        key={dial.label}
+                        label={dial.label}
+                        value={dial.value}
+                        icon={dial.icon}
+                        color={dial.color}
+                      />
                     ))}
                   </div>
                 </aside>
@@ -167,6 +164,10 @@ export function StudioWorkflowSection() {
                         </span>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="absolute inset-x-5 bottom-20 z-10">
+                    <LiveLogStrip />
                   </div>
 
                   <div className="absolute bottom-5 right-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-black/45 text-center backdrop-blur-xl">
