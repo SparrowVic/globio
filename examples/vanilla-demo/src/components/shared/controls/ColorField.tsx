@@ -1,14 +1,10 @@
-import { Info } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
-import { Label } from '@/components/ui/label';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
+import { ControlLabel } from './ControlInfo';
 import type { DisableProps } from './Field';
 
 export interface ColorFieldProps extends DisableProps {
@@ -16,10 +12,9 @@ export interface ColorFieldProps extends DisableProps {
   /** Hex value, e.g. `#fbbf24`. The component normalises any input it gets. */
   readonly value: string;
   readonly onChange: (next: string) => void;
-  /**
-   * Optional descriptive sublabel under the field name (e.g. "Theme default").
-   */
+  /** Optional helper text shown from the info icon next to the label. */
   readonly hint?: string;
+  readonly info?: ReactNode | undefined;
   /**
    * Curated swatch palette. Clicking a swatch jumps the value. Optional —
    * omit to render only the native color picker + hex input.
@@ -63,6 +58,7 @@ export function ColorField({
   value,
   onChange,
   hint,
+  info,
   swatches = DEFAULT_SWATCHES,
   preset,
   disabled,
@@ -91,51 +87,26 @@ export function ColorField({
   }, [open]);
 
   const normalised = normaliseHex(value);
+  const canReset = preset !== undefined && value !== preset;
 
   return (
     <div
-      className={cn('flex flex-col gap-1.5', disabled ? 'is-disabled' : null)}
+      className={cn('relative', disabled ? 'is-disabled opacity-50' : null)}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Label className="text-[11px] font-medium leading-none text-slate-400">
-            {label}
-          </Label>
-          {disabled && disabledReason ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className="pointer-events-auto flex size-3.5 cursor-help items-center justify-center rounded-full text-amber-200/90"
-                  aria-label="Why is this disabled?"
-                  role="img"
-                >
-                  <Info className="size-3" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent
-                side="top"
-                sideOffset={4}
-                className="max-w-[240px] text-xs"
-              >
-                {disabledReason}
-              </TooltipContent>
-            </Tooltip>
-          ) : null}
-        </div>
-        {hint ? (
-          <span className="text-[10px] leading-none text-slate-500">
-            {hint}
-          </span>
-        ) : null}
-      </div>
-
-      <div ref={popoverRef} className="relative">
+      <div ref={popoverRef} className="flex items-center justify-between gap-3">
+        <ControlLabel
+          label={label}
+          info={info ?? hint}
+          disabledReason={
+            disabled && disabledReason ? disabledReason : undefined
+          }
+        />
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
           className={cn(
-            'flex h-7 w-full items-center gap-2 rounded-lg border border-white/[0.08] bg-black/[0.16] px-2.5 transition-colors',
+            'flex h-7 min-w-[128px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/[0.16] px-2 transition-colors',
             'shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-white/[0.18]',
             disabled ? 'pointer-events-none opacity-50' : ''
           )}
@@ -148,30 +119,28 @@ export function ColorField({
           <span className="font-mono text-[10.5px] uppercase tracking-[0.04em] text-slate-200">
             {normalised}
           </span>
-          {preset && normalised.toLowerCase() !== preset.toLowerCase() ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onChange(preset);
-              }}
-              className="ml-auto rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em] text-slate-300 hover:border-white/20 hover:text-white"
-              title="Restore theme default"
-            >
-              Reset
-            </button>
-          ) : (
-            <span className="ml-auto text-[9px] uppercase tracking-[0.16em] text-slate-500">
-              {open ? 'Done' : 'Pick'}
-            </span>
-          )}
         </button>
 
         {open ? (
           <div className="absolute right-0 z-30 mt-1.5 w-[244px] rounded-lg border border-white/10 bg-[#0a0d18]/95 p-3 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7),inset_0_1px_0_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
-            <p className="mb-1.5 text-[9.5px] font-medium uppercase tracking-[0.22em] text-slate-400">
-              Swatches
-            </p>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-[9.5px] font-medium uppercase tracking-[0.22em] text-slate-400">
+                Swatches
+              </p>
+              {canReset ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (preset !== undefined) onChange(preset);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
+                  title="Restore theme default"
+                >
+                  <RotateCcw className="size-2.5" />
+                  Reset
+                </button>
+              ) : null}
+            </div>
             <div className="grid grid-cols-6 gap-1.5">
               {swatches.map((c) => {
                 const active =
