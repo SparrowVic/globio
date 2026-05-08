@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
   createGlobe,
+  type ArcConfig,
   type GlobeInstance,
   type GlobeKind,
   type StarfieldConfig,
@@ -39,6 +40,12 @@ export interface DecorationGlobeProps {
    * the starfield layer isn't created at all.
    */
   readonly starfield?: boolean | StarfieldConfig;
+  /**
+   * Optional real core arc layer data. Decoration embeds stay lightweight by
+   * default, but hero/product shots can opt into the active kind's native
+   * arc renderer instead of drawing CSS orbitals around the canvas.
+   */
+  readonly arcs?: ReadonlyArray<ArcConfig>;
   /** Show the soft rim atmosphere. Default true. */
   readonly atmosphere?: boolean;
   /**
@@ -104,6 +111,7 @@ export function DecorationGlobe({
   axisTilt = 23.5,
   className,
   starfield = true,
+  arcs,
   atmosphere = true,
   framingPadding = 0.18,
   lockZoom = true,
@@ -141,6 +149,7 @@ export function DecorationGlobe({
       autoRotate: { enabled: true, speed },
       atmosphere: { enabled: atmosphere },
       starfield: resolvedStarfield,
+      ...(arcs !== undefined && { arcs }),
       focusPulse: { enabled: false },
       axisTilt,
       initialPosition: [initialLat, initialLng],
@@ -170,6 +179,7 @@ export function DecorationGlobe({
     initialLng,
     axisTilt,
     starfield,
+    arcs,
     atmosphere,
     framingPadding,
     lockZoom,

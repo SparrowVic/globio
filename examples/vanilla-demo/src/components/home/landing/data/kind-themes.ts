@@ -14,10 +14,10 @@ export interface KindThemeEntry {
  */
 export const KIND_THEMES: Readonly<Record<GlobeKind, ReadonlyArray<KindThemeEntry>>> = {
   outline: [
-    { preset: 'outline-sunset', label: 'Sunset', swatch: '#fbbf24' },
     { preset: 'outline-dark', label: 'Dark', swatch: '#3b4252' },
-    { preset: 'outline-light', label: 'Light', swatch: '#e2e8f0' },
     { preset: 'outline-cyber', label: 'Cyber', swatch: '#22d3ee' },
+    { preset: 'outline-sunset', label: 'Sunset', swatch: '#fbbf24' },
+    { preset: 'outline-light', label: 'Light', swatch: '#e2e8f0' },
     { preset: 'outline-monochrome', label: 'Mono', swatch: '#94a3b8' },
   ],
   dotted: [{ preset: 'dotted-dark', label: 'Dark', swatch: '#67e8f9' }],

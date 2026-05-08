@@ -1,7 +1,5 @@
 export { Panel } from './Panel';
 export type { PanelProps } from './Panel';
-export { OrbitRing } from './OrbitRing';
-export type { OrbitRingProps } from './OrbitRing';
 export { ThemeSwatch } from './ThemeSwatch';
 export type { ThemeSwatchProps } from './ThemeSwatch';
 export { StatChip } from './StatChip';
