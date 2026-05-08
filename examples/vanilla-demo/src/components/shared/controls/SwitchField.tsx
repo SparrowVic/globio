@@ -45,7 +45,7 @@ export function SwitchField({
         checked={checked}
         onCheckedChange={onChange}
         disabled={disabled}
-        className="data-checked:bg-emerald-400 data-unchecked:bg-white/[0.11] [&_[data-slot=switch-thumb]]:shadow-[0_0_10px_rgba(255,255,255,0.18)]"
+        className="data-checked:bg-amber-300 data-unchecked:bg-white/[0.11] [&_[data-slot=switch-thumb]]:shadow-[0_0_10px_rgba(255,255,255,0.18)]"
       />
     </div>
   );

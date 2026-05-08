@@ -1,5 +1,5 @@
 import {
-  ColorField,
+  ColorListField,
   SliderField,
   SwitchField,
 } from '@/components/shared/controls';
@@ -149,53 +149,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-slate-300/70">
-                Custom swatches
-              </p>
-              <button
-                type="button"
-                onClick={() =>
-                  onGlobeChange({
-                    starfieldPalette: [...settings.starfieldPalette, '#ffffff'],
-                  })
-                }
-                disabled={settings.starfieldPalette.length >= 8}
-                className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300 hover:border-white/20 hover:text-white disabled:opacity-40"
-              >
-                + Add
-              </button>
-            </div>
-            {settings.starfieldPalette.map((c, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="flex-1">
-                  <ColorField
-                    label={`Slot ${i + 1}`}
-                    value={c}
-                    onChange={(next) => {
-                      const list = [...settings.starfieldPalette];
-                      list[i] = next;
-                      onGlobeChange({ starfieldPalette: list });
-                    }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const list = settings.starfieldPalette.filter((_, j) => j !== i);
-                    onGlobeChange({ starfieldPalette: list });
-                  }}
-                  disabled={settings.starfieldPalette.length <= 1}
-                  className="size-7 shrink-0 rounded border border-white/10 bg-white/[0.04] text-[14px] leading-none text-slate-400 hover:border-rose-300/40 hover:text-rose-200 disabled:opacity-40"
-                  aria-label="Remove swatch"
-                  title="Remove swatch"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
+          <ColorListField
+            label="Custom swatches"
+            colors={settings.starfieldPalette}
+            onChange={(starfieldPalette) => onGlobeChange({ starfieldPalette })}
+            maxItems={8}
+            addLabel="Add color"
+            removeLabel={(index) => `Remove swatch ${index + 1}`}
+          />
         </DependsOn>
 
         <SectionHeading>Twinkle</SectionHeading>

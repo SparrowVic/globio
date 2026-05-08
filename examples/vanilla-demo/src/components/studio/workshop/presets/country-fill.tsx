@@ -1,5 +1,6 @@
 import {
   ColorField,
+  ColorListField,
   SliderField,
   ToggleField,
 } from '@/components/shared/controls';
@@ -43,6 +44,19 @@ const dotsModeOptions = [
   // engine-internal "use the theme token" framing.
   { value: 'theme', label: 'Solid' },
   { value: 'palette', label: 'Palette' },
+] as const;
+
+const COUNTRY_FILL_PALETTE_SWATCHES = [
+  '#67e8f9',
+  '#fbbf24',
+  '#f472b6',
+  '#34d399',
+  '#a78bfa',
+  '#fb923c',
+  '#22d3ee',
+  '#facc15',
+  '#ef4444',
+  '#ffffff',
 ] as const;
 
 const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
@@ -99,10 +113,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           because="Palette only matters in Palette mode."
           className="space-y-4"
         >
-          <SectionHeading>Palette</SectionHeading>
-          <PaletteEditor
-            palette={settings.countryFillPalette}
-            onChange={(countryFillPalette) => onGlobeChange({ countryFillPalette })}
+          <ColorListField
+            label="Palette"
+            colors={settings.countryFillPalette}
+            onChange={(countryFillPalette) =>
+              onGlobeChange({ countryFillPalette })
+            }
+            addLabel="Add color"
+            swatches={COUNTRY_FILL_PALETTE_SWATCHES}
           />
         </DependsOn>
 
@@ -194,10 +212,12 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           className="space-y-4"
           variant="hidden"
         >
-          <SectionHeading>Dots palette</SectionHeading>
-          <PaletteEditor
-            palette={settings.dottedDotsPalette}
+          <ColorListField
+            label="Dots palette"
+            colors={settings.dottedDotsPalette}
             onChange={(dottedDotsPalette) => onGlobeChange({ dottedDotsPalette })}
+            addLabel="Add color"
+            swatches={COUNTRY_FILL_PALETTE_SWATCHES}
           />
         </DependsOn>
         <SectionHeading>Dots · hover override</SectionHeading>
@@ -228,66 +248,6 @@ function SectionHeading({ children }: { readonly children: React.ReactNode }) {
     <p className="pt-2 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-orange-200/75">
       {children}
     </p>
-  );
-}
-
-/**
- * Inline palette editor — fixed-length list of swatches the user can
- * recolor or remove. Adds an "+ add color" button at the end so the
- * user can extend the palette without leaving the card.
- */
-function PaletteEditor({
-  palette,
-  onChange,
-}: {
-  readonly palette: ReadonlyArray<string>;
-  readonly onChange: (next: ReadonlyArray<string>) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      {palette.map((color, idx) => (
-        <ColorField
-          key={idx}
-          label={`Slot ${idx + 1}`}
-          value={color}
-          onChange={(next) => {
-            const copy = [...palette];
-            copy[idx] = next;
-            onChange(copy);
-          }}
-          swatches={[
-            '#67e8f9',
-            '#fbbf24',
-            '#f472b6',
-            '#34d399',
-            '#a78bfa',
-            '#fb923c',
-            '#22d3ee',
-            '#facc15',
-            '#ef4444',
-            '#ffffff',
-          ]}
-        />
-      ))}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onChange([...palette, '#ffffff'])}
-          className="flex-1 rounded border border-white/[0.1] bg-white/[0.03] px-2 py-1 text-[11px] text-slate-300 hover:border-white/[0.2] hover:text-white"
-          disabled={palette.length >= 16}
-        >
-          + Add color
-        </button>
-        <button
-          type="button"
-          onClick={() => palette.length > 1 && onChange(palette.slice(0, -1))}
-          className="rounded border border-white/[0.1] bg-white/[0.03] px-2 py-1 text-[11px] text-slate-300 hover:border-white/[0.2] hover:text-white disabled:opacity-40"
-          disabled={palette.length <= 1}
-        >
-          − Remove last
-        </button>
-      </div>
-    </div>
   );
 }
 
