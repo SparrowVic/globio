@@ -245,7 +245,7 @@ function palettesEqual(a: ReadonlyArray<string>, b: ReadonlyArray<string>): bool
 
 function SectionHeading({ children }: { readonly children: React.ReactNode }) {
   return (
-    <p className="pt-2 text-[9.5px] font-medium uppercase tracking-[0.22em] text-violet-200/70">
+    <p className="pt-2 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-violet-200/75">
       {children}
     </p>
   );

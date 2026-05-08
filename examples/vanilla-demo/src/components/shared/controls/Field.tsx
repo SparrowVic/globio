@@ -44,19 +44,19 @@ export function Field({
   return (
     <div
       className={cn(
-        'flex flex-col gap-1.5',
+        'flex flex-col gap-2',
         className,
         disabled ? 'is-disabled' : null
       )}
     >
-      <div className="flex min-h-4 items-center justify-between gap-3">
+      <div className="flex min-h-5 items-center justify-between gap-3">
         <ControlLabel
           label={label}
           info={info}
           disabledReason={disabled && disabledReason ? disabledReason : undefined}
         />
         {value ? (
-          <div className="shrink-0 rounded border border-white/[0.06] bg-white/[0.035] px-1.5 py-0.5 font-mono text-[10px] leading-none tabular-nums text-slate-200/80">
+          <div className="shrink-0 rounded-md border border-white/[0.07] bg-white/[0.045] px-2 py-1 font-mono text-[10.5px] leading-none tabular-nums text-slate-200/85">
             {value}
           </div>
         ) : null}

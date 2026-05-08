@@ -67,7 +67,7 @@ export function SliderField({
       disabled={disabled}
       disabledReason={disabledReason}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_86px] items-center gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_94px] items-center gap-3">
         <Slider
           value={[value]}
           min={min}
@@ -75,9 +75,9 @@ export function SliderField({
           step={step}
           aria-valuetext={format(value)}
           onValueChange={(next) => onChange(next[0] ?? value)}
-          className="[&_[data-slot=slider-track]]:h-0.5 [&_[data-slot=slider-track]]:bg-white/[0.12] [&_[data-slot=slider-range]]:bg-amber-300 [&_[data-slot=slider-thumb]]:size-2.5 [&_[data-slot=slider-thumb]]:border-amber-100 [&_[data-slot=slider-thumb]]:bg-amber-100 [&_[data-slot=slider-thumb]]:shadow-[0_0_10px_rgba(251,191,36,0.55)]"
+          className="[&_[data-slot=slider-track]]:h-[3px] [&_[data-slot=slider-track]]:bg-white/[0.13] [&_[data-slot=slider-range]]:bg-amber-300 [&_[data-slot=slider-thumb]]:size-3.5 [&_[data-slot=slider-thumb]]:border-amber-100 [&_[data-slot=slider-thumb]]:bg-amber-100 [&_[data-slot=slider-thumb]]:shadow-[0_0_12px_rgba(251,191,36,0.62)]"
         />
-        <div className="relative w-[86px]">
+        <div className="relative w-[94px]">
           <Input
             type="text"
             inputMode="decimal"
@@ -117,22 +117,22 @@ export function SliderField({
               }
               onChange(next);
             }}
-            className="h-7 w-[86px] rounded-lg border-white/[0.08] bg-black/[0.18] px-2 pr-[22px] text-right font-mono text-[10.5px] tabular-nums text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]"
+            className="h-8 w-[94px] rounded-lg border-white/[0.09] bg-black/[0.2] px-2.5 pr-[25px] text-right font-mono text-[12px] font-semibold tabular-nums text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
           />
-          <div className="absolute bottom-1 right-1 top-1 grid w-4 overflow-hidden rounded-[5px] border border-white/[0.06] bg-white/[0.035]">
+          <div className="absolute bottom-1 right-1 top-1 grid w-5 overflow-hidden rounded-md border border-white/[0.07] bg-white/[0.045]">
             <StepperButton
               label={`Increase ${label}`}
               disabled={disabled || value >= max}
               onClick={() => stepBy(1)}
             >
-              <ChevronUp className="size-2.5" />
+              <ChevronUp className="size-3" />
             </StepperButton>
             <StepperButton
               label={`Decrease ${label}`}
               disabled={disabled || value <= min}
               onClick={() => stepBy(-1)}
             >
-              <ChevronDown className="size-2.5" />
+              <ChevronDown className="size-3" />
             </StepperButton>
           </div>
         </div>

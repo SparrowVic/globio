@@ -31,7 +31,7 @@ export function SwitchField({
   return (
     <div
       className={cn(
-        'flex min-h-7 items-center justify-between gap-3 px-0.5 py-1',
+        'flex min-h-8 items-center justify-between gap-4 px-0.5 py-1.5',
         disabled ? 'opacity-50' : null
       )}
     >
@@ -41,11 +41,11 @@ export function SwitchField({
         disabledReason={disabled && disabledReason ? disabledReason : undefined}
       />
       <Switch
-        size="sm"
+        size="default"
         checked={checked}
         onCheckedChange={onChange}
         disabled={disabled}
-        className="data-checked:bg-emerald-400 data-unchecked:bg-white/[0.10]"
+        className="data-checked:bg-emerald-400 data-unchecked:bg-white/[0.11] [&_[data-slot=switch-thumb]]:shadow-[0_0_10px_rgba(255,255,255,0.18)]"
       />
     </div>
   );

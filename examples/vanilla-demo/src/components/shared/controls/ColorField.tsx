@@ -106,25 +106,25 @@ export function ColorField({
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
           className={cn(
-            'flex h-7 min-w-[128px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/[0.16] px-2 transition-colors',
-            'shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-white/[0.18]',
+            'flex h-8 min-w-[142px] items-center gap-2.5 rounded-lg border border-white/[0.09] bg-black/[0.18] px-2.5 transition-colors',
+            'shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] hover:border-white/[0.18]',
             disabled ? 'pointer-events-none opacity-50' : ''
           )}
         >
           <span
-            className="size-3.5 rounded-sm border border-white/20 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.4)]"
+            className="size-4 rounded-sm border border-white/20 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.4)]"
             style={{ background: normalised }}
             aria-hidden="true"
           />
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.04em] text-slate-200">
+          <span className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.04em] text-slate-200">
             {normalised}
           </span>
         </button>
 
         {open ? (
-          <div className="absolute right-0 z-30 mt-1.5 w-[244px] rounded-lg border border-white/10 bg-[#0a0d18]/95 p-3 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7),inset_0_1px_0_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
+          <div className="absolute right-0 z-30 mt-2 w-[264px] rounded-lg border border-white/10 bg-[#0a0d18]/95 p-3.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7),inset_0_1px_0_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
             <div className="mb-1.5 flex items-center justify-between gap-2">
-              <p className="text-[9.5px] font-medium uppercase tracking-[0.22em] text-slate-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                 Swatches
               </p>
               {canReset ? (
@@ -133,10 +133,10 @@ export function ColorField({
                   onClick={() => {
                     if (preset !== undefined) onChange(preset);
                   }}
-                  className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
+                  className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[9.5px] uppercase tracking-[0.12em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
                   title="Restore theme default"
                 >
-                  <RotateCcw className="size-2.5" />
+                  <RotateCcw className="size-3" />
                   Reset
                 </button>
               ) : null}
@@ -151,7 +151,7 @@ export function ColorField({
                     type="button"
                     onClick={() => onChange(c)}
                     className={cn(
-                      'group relative flex h-7 items-center justify-center rounded border transition-all',
+                      'group relative flex h-8 items-center justify-center rounded border transition-all',
                       active
                         ? 'border-white/60 ring-1 ring-white/30'
                         : 'border-white/10 hover:border-white/30'
@@ -161,7 +161,7 @@ export function ColorField({
                     title={c}
                   >
                     <span
-                      className="size-3 rounded-full"
+                      className="size-3.5 rounded-full"
                       style={{ background: c, boxShadow: `0 0 8px ${c}99` }}
                     />
                   </button>
@@ -169,7 +169,7 @@ export function ColorField({
               })}
             </div>
 
-            <p className="mb-1.5 mt-3 text-[9.5px] font-medium uppercase tracking-[0.22em] text-slate-400">
+            <p className="mb-1.5 mt-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
               Custom
             </p>
             <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export function ColorField({
                 type="color"
                 value={normalised}
                 onChange={(event) => onChange(event.target.value)}
-                className="size-9 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                className="size-10 cursor-pointer rounded border border-white/10 bg-transparent p-0"
               />
               <input
                 type="text"
@@ -190,7 +190,7 @@ export function ColorField({
                     onChange(`#${next}`);
                   }
                 }}
-                className="min-w-0 flex-1 rounded border border-white/10 bg-black/30 px-2 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-slate-100 outline-none transition-colors focus:border-amber-300/50"
+                className="h-10 min-w-0 flex-1 rounded border border-white/10 bg-black/30 px-2.5 py-2 font-mono text-[12px] uppercase tracking-[0.06em] text-slate-100 outline-none transition-colors focus:border-amber-300/50"
                 spellCheck={false}
               />
             </div>

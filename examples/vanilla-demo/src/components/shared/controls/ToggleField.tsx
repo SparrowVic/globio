@@ -38,14 +38,14 @@ export function ToggleField<T extends string>({
           if (next) onChange(next as T);
         }}
         variant="outline"
-        size="sm"
-        className="flex w-full flex-wrap rounded-lg border border-white/[0.06] bg-black/[0.14] p-0.5"
+        size="default"
+        className="flex w-full flex-wrap rounded-lg border border-white/[0.075] bg-black/[0.16] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]"
       >
         {options.map((option) => (
           <ToggleGroupItem
             key={option.value}
             value={option.value}
-            className="min-w-14 flex-1 rounded-md border-transparent px-2 text-[10.5px] text-slate-400 data-active:border-amber-300/40 data-active:bg-amber-300/15 data-active:text-amber-100"
+            className="min-w-16 flex-1 rounded-md border-transparent px-2.5 text-[11.5px] font-medium text-slate-400 data-active:border-amber-300/45 data-active:bg-amber-300/16 data-active:text-amber-100"
           >
             <span className="truncate">{option.label}</span>
           </ToggleGroupItem>

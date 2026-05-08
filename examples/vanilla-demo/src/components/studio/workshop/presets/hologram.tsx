@@ -608,7 +608,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
 
 function SectionHeading({ children }: { readonly children: React.ReactNode }) {
   return (
-    <p className="pt-2 text-[9.5px] font-medium uppercase tracking-[0.22em] text-cyan-200/70">
+    <p className="pt-2 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-cyan-200/75">
       {children}
     </p>
   );

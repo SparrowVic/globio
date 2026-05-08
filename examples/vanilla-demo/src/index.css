@@ -329,7 +329,7 @@
   .panel-right {
     top: 72px;
     right: 16px;
-    width: min(340px, calc(100vw - 20px));
+    width: min(360px, calc(100vw - 20px));
   }
   .panel-top {
     top: 72px;
@@ -436,7 +436,7 @@
   /* Body scrolls; padding lives here so the header stays fixed-top. */
   .panel-body {
     overflow-y: auto;
-    padding: 9px;
+    padding: 10px;
     scrollbar-color: rgb(255 255 255 / 0.18) transparent;
     scrollbar-width: thin;
   }
@@ -457,7 +457,7 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 7px 5px;
+    padding: 8px 6px;
     font: inherit;
     text-align: left;
     cursor: pointer;
@@ -480,14 +480,14 @@
   .panel-section-title {
     flex: 1;
     min-width: 0;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0;
     color: rgb(226 232 240);
   }
 
   .panel-section-meta {
-    font-size: 9.5px;
+    font-size: 10px;
     color: rgb(148 163 184);
     text-transform: none;
     letter-spacing: 0;
@@ -511,8 +511,8 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 9px;
-    padding: 5px 5px 8px;
+    gap: 11px;
+    padding: 7px 6px 10px;
   }
   .panel-section[data-open='false']
     > .panel-section-body
@@ -640,7 +640,7 @@
   .studio-inspector-form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
 
   .studio-inspector-state {
