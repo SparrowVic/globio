@@ -11,6 +11,7 @@ import type {
 import type { ArcConfig, HtmlMarkerConfig, MarkerConfig } from './markers';
 import type { FlyToOptions, FocusOptions } from './camera';
 import type { GlobeConfig } from './globe-config';
+import type { CinematicDataset } from './kinds';
 // We import the DataLayer type lazily via `import('...')` in method
 // signatures to avoid bundling the data-layers module into anything that
 // only depends on the public type — keeps tree-shaking honest.
@@ -50,6 +51,15 @@ export interface GlobeInstance {
    */
   readonly setDataLayer: (layer: import('../data-layers/types').DataLayer | null) => void;
   readonly getDataLayer: () => import('../data-layers/types').DataLayer | null;
+  /**
+   * Replace the persistent cinematic dataset used by the cinematic kind's
+   * built-in city lights and route network. This does not occupy the
+   * generic `setDataLayer()` overlay slot, so callers can combine it with
+   * heatmaps, choropleths, charts, etc. Non-cinematic kinds store the data
+   * and apply it when the globe switches back to `kind: 'cinematic'`.
+   */
+  readonly setCinematicData: (dataset: CinematicDataset | null) => void;
+  readonly getCinematicData: () => CinematicDataset | null;
   /**
    * Replay the active data layer's mount animation when the current layer
    * supports animation. Returns false when no animated data layer is active.

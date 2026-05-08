@@ -18,7 +18,8 @@ export function HeroCenterStage({
   onReady,
 }: HeroCenterStageProps) {
   const [api, setApi] = useState<DecorationGlobeReadyApi | null>(null);
-  const initialLng = activeKind === 'paper' ? -62 : -42;
+  const initialLng = activeKind === 'cinematic' ? -66 : activeKind === 'paper' ? -62 : -42;
+  const initialLat = activeKind === 'cinematic' ? 32 : 13;
   const heroArcs = useMemo(
     () => buildHeroArcs(activeKind, accent),
     [activeKind, accent],
@@ -27,35 +28,47 @@ export function HeroCenterStage({
     () =>
       activeKind === 'cinematic'
         ? {
+            quality: 'ultra',
+            reactivity: {
+              lightInfluence: 1,
+              cameraInfluence: 1,
+              densityInfluence: 1,
+              terminatorBoost: 1.28,
+              horizonGlow: 1.34,
+              atmosphericScatter: 1.38,
+              surfaceMicroDetail: 1.22,
+              cityNightResponse: 1.34,
+              orbitalFlow: 1.08,
+            },
             surface: {
               lightingMode: 'hero',
-              lightDirection: [-0.52, 0.74, 0.36],
-              terminatorSoftness: 0.38,
-              terminatorContrast: 1.42,
-              keyIntensity: 1.38,
-              fillIntensity: 0.16,
-              rimIntensity: 0.76,
-              rimPower: 2.65,
-              specularIntensity: 0.82,
-              cloudOpacity: 0.16,
-              oceanSheen: 0.44,
+              lightDirection: [-0.68, 0.72, 0.22],
+              terminatorSoftness: 0.34,
+              terminatorContrast: 1.58,
+              keyIntensity: 1.54,
+              fillIntensity: 0.1,
+              rimIntensity: 1.12,
+              rimPower: 2.18,
+              specularIntensity: 0.92,
+              cloudOpacity: 0.09,
+              oceanSheen: 0.58,
             },
             cityLights: {
               enabled: true,
-              intensity: 1.5,
-              count: 8200,
-              size: 0.0068,
+              intensity: 1.62,
+              count: 11800,
+              size: 0.0056,
               twinkle: true,
             },
             network: {
               enabled: true,
-              opacity: 0.28,
-              maxConnections: 46,
-              pulseSpeed: 0.28,
+              opacity: 0.19,
+              maxConnections: 58,
+              pulseSpeed: 0.26,
             },
             borders: {
               enabled: true,
-              intensity: 0.86,
+              intensity: 1.08,
             },
           }
         : undefined,
@@ -79,7 +92,7 @@ export function HeroCenterStage({
           kind={activeKind}
           theme={activeTheme}
           speed={0.055}
-          initialLat={13}
+          initialLat={initialLat}
           initialLng={initialLng}
           axisTilt={23.5}
           starfield={false}

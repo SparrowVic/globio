@@ -12,6 +12,9 @@ import { CinematicSelectionLayer } from './selection';
 import { CinematicStarfieldLayer } from './starfield';
 import { CinematicSurfaceLayer } from './surface';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
+import { buildCinematicSurfaceAtlas, buildDensityTexture } from './atlas';
+import { prepareCinematicData } from './data';
+import { CinematicWorld } from './engine';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type {
   ChoroplethDataLayer,
@@ -20,7 +23,7 @@ import type {
   HeatmapDataLayer,
 } from '../../data-layers/types';
 import type { GlobeConfig } from '../../types';
-import type { CinematicConfig } from '../../types/kinds';
+import type { CinematicConfig, CinematicDataset } from '../../types/kinds';
 import type {
   DataLayerBuilder,
   KindBuildContext,
@@ -34,6 +37,7 @@ const DEFAULT_NETWORK_CONNECTIONS = 44;
 
 export interface CinematicKindHandle extends KindHandle {
   setCinematicConfig?(partial: CinematicConfig): void;
+  setCinematicData?(dataset: CinematicDataset | null): void;
   setOutlineConfig?(next: NonNullable<GlobeConfig['outline']>): void;
   setPointerPixel?(x: number, y: number): void;
   getCountryFillLayer?(): Public<
@@ -58,6 +62,8 @@ export const cinematicKind: KindModule = {
     features,
     tokens,
     config,
+    camera,
+    arcsLayer,
     globeSurfaceMesh,
   }: KindBuildContext): CinematicKindHandle {
     const cinematic = config.cinematic ?? {};
@@ -65,6 +71,28 @@ export const cinematicKind: KindModule = {
     const bordersCfg = cinematic.borders ?? {};
     const cityCfg = cinematic.cityLights ?? {};
     const networkCfg = cinematic.network ?? {};
+    const fallbackLightDirection = [
+      tokens['cinematic.lightDirectionX'],
+      tokens['cinematic.lightDirectionY'],
+      tokens['cinematic.lightDirectionZ'],
+    ] as const;
+    const world = new CinematicWorld({
+      camera,
+      config: cinematic,
+      fallbackLightDirection,
+    });
+    (arcsLayer as unknown as { setWorld?: (world: CinematicWorld) => void } | undefined)
+      ?.setWorld?.(world);
+
+    let currentCityCount = cityCfg.count ?? DEFAULT_CITY_LIGHTS_COUNT;
+    let currentMaxRoutes = networkCfg.maxConnections ?? DEFAULT_NETWORK_CONNECTIONS;
+    let currentDataset = readCinematicDataset(cinematic);
+    let preparedData = prepareCinematicData(currentDataset, {
+      cityCount: currentCityCount,
+      maxRoutes: currentMaxRoutes,
+    });
+    const atlas = buildCinematicSurfaceAtlas(features, preparedData);
+    let currentDensityTexture = atlas.densityTexture;
 
     const previouslyVisible = globeSurfaceMesh.visible;
     globeSurfaceMesh.visible = false;
@@ -74,11 +102,7 @@ export const cinematicKind: KindModule = {
       landColor: pickColor(surfaceCfg.landColor, tokens['cinematic.landColor']),
       cloudColor: pickColor(surfaceCfg.cloudColor, tokens['cinematic.cloudColor']),
       nightColor: pickColor(surfaceCfg.nightColor, tokens['cinematic.nightColor']),
-      lightDirection: surfaceCfg.lightDirection ?? [
-        tokens['cinematic.lightDirectionX'],
-        tokens['cinematic.lightDirectionY'],
-        tokens['cinematic.lightDirectionZ'],
-      ],
+      lightDirection: surfaceCfg.lightDirection ?? fallbackLightDirection,
       lightingMode: surfaceCfg.lightingMode ?? 'hero',
       terminatorSoftness: pickPositive(
         surfaceCfg.terminatorSoftness,
@@ -102,7 +126,10 @@ export const cinematicKind: KindModule = {
           : tokens['cinematic.specularIntensity'],
       ...(surfaceCfg.cloudOpacity !== undefined && { cloudOpacity: surfaceCfg.cloudOpacity }),
       ...(surfaceCfg.oceanSheen !== undefined && { oceanSheen: surfaceCfg.oceanSheen }),
+      landTexture: atlas.landTexture,
+      densityTexture: currentDensityTexture,
     });
+    surface.setWorld(world);
     globeGroup.add(surface.mesh);
 
     const fillCfg = config.countries?.fill;
@@ -140,6 +167,7 @@ export const cinematicKind: KindModule = {
         channelShift: 0,
       },
     });
+    borders.setWorld?.(world);
     borders.setVisible(bordersEnabledNow);
     globeGroup.add(borders.group);
 
@@ -150,7 +178,9 @@ export const cinematicKind: KindModule = {
       count: cityCfg.count ?? DEFAULT_CITY_LIGHTS_COUNT,
       ...(cityCfg.size !== undefined && { size: cityCfg.size }),
       twinkle: cityCfg.twinkle ?? true,
+      data: preparedData,
     });
+    cityLights.setWorld(world);
     cityLights.setVisible(cityLightsEnabledNow);
     globeGroup.add(cityLights.points);
 
@@ -163,7 +193,9 @@ export const cinematicKind: KindModule = {
           : tokens['cinematic.networkOpacity'],
       maxConnections: networkCfg.maxConnections ?? DEFAULT_NETWORK_CONNECTIONS,
       ...(networkCfg.pulseSpeed !== undefined && { pulseSpeed: networkCfg.pulseSpeed }),
+      data: preparedData,
     });
+    network.setWorld(world);
     network.setVisible(networkEnabledNow);
     globeGroup.add(network.lines);
 
@@ -271,6 +303,8 @@ export const cinematicKind: KindModule = {
       },
       getCountryFillLayer: () => fill,
       dispose() {
+        if (currentDensityTexture !== atlas.densityTexture) currentDensityTexture.dispose();
+        atlas.dispose();
         globeSurfaceMesh.visible = previouslyVisible;
         focusPulse.dispose();
         crosshair.dispose();
@@ -295,6 +329,7 @@ export const cinematicKind: KindModule = {
         crosshair.setEnabled(visible && crosshairEnabledNow);
       },
       update(delta: number, elapsedSeconds: number) {
+        world.update(delta, elapsedSeconds);
         surface.update(elapsedSeconds);
         fill.update(delta);
         borders.update(elapsedSeconds, delta);
@@ -310,8 +345,12 @@ export const cinematicKind: KindModule = {
         if (point3D === null || latLng === null) {
           crosshair.hide();
         } else {
+          world.pulseInteraction(0.16);
           crosshair.showAt(point3D, latLng, lastPixelX, lastPixelY);
         }
+      },
+      onPointerDown() {
+        world.pulseInteraction(1);
       },
       setPointerPixel(x: number, y: number) {
         lastPixelX = x;
@@ -334,6 +373,7 @@ export const cinematicKind: KindModule = {
         if (c.tooltipDecimals !== undefined) crosshair.setTooltipDecimals(c.tooltipDecimals);
       },
       setCinematicConfig(partial: CinematicConfig) {
+        world.setConfig(partial);
         if (partial.surface !== undefined) {
           const s = partial.surface;
           if (s.oceanColor !== undefined) surface.setOceanColor(s.oceanColor);
@@ -370,7 +410,17 @@ export const cinematicKind: KindModule = {
           }
           if (c.color !== undefined) cityLights.setColor(c.color);
           if (c.intensity !== undefined) cityLights.setIntensity(c.intensity);
-          if (c.count !== undefined) cityLights.setCount(c.count);
+          if (c.count !== undefined || c.data !== undefined) {
+            if (c.count !== undefined) currentCityCount = c.count;
+            if (c.data !== undefined) {
+              currentDataset = {
+                ...(currentDataset ?? {}),
+                cityLights: c.data,
+              };
+            }
+            rebuildCinematicData(currentDataset);
+            cityLights.setCount(currentCityCount);
+          }
           if (c.size !== undefined) cityLights.setSize(c.size);
           if (c.twinkle !== undefined) cityLights.setTwinkle(c.twinkle);
         }
@@ -382,7 +432,17 @@ export const cinematicKind: KindModule = {
           }
           if (n.color !== undefined) network.setColor(n.color);
           if (n.opacity !== undefined) network.setOpacity(n.opacity);
-          if (n.maxConnections !== undefined) network.setMaxConnections(n.maxConnections);
+          if (n.maxConnections !== undefined || n.routes !== undefined) {
+            if (n.maxConnections !== undefined) currentMaxRoutes = n.maxConnections;
+            if (n.routes !== undefined) {
+              currentDataset = {
+                ...(currentDataset ?? {}),
+                routes: n.routes,
+              };
+            }
+            rebuildCinematicData(currentDataset);
+            network.setMaxConnections(currentMaxRoutes);
+          }
           if (n.pulseSpeed !== undefined) network.setPulseSpeed(n.pulseSpeed);
         }
         if (partial.focusPulse !== undefined) {
@@ -402,7 +462,26 @@ export const cinematicKind: KindModule = {
           });
         }
       },
+      setCinematicData(dataset: CinematicDataset | null) {
+        currentDataset = dataset;
+        rebuildCinematicData(currentDataset);
+      },
     };
+
+    function rebuildCinematicData(
+      dataset: CinematicDataset | null | undefined,
+    ): void {
+      preparedData = prepareCinematicData(dataset, {
+        cityCount: currentCityCount,
+        maxRoutes: currentMaxRoutes,
+      });
+      const previousDensityTexture = currentDensityTexture;
+      currentDensityTexture = buildDensityTexture(preparedData);
+      surface.setDensityTexture(currentDensityTexture);
+      cityLights.setData(preparedData);
+      network.setData(preparedData);
+      if (previousDensityTexture !== atlas.densityTexture) previousDensityTexture.dispose();
+    }
   },
 };
 
@@ -411,6 +490,18 @@ const pickColor = (value: string | undefined, fallback: string): string =>
 
 const pickPositive = (value: number | undefined, fallback: number): number =>
   value !== undefined && value > 0 ? value : fallback;
+
+const readCinematicDataset = (
+  config: CinematicConfig | null | undefined,
+): CinematicDataset | null => {
+  const cityLights = config?.cityLights?.data;
+  const routes = config?.network?.routes;
+  if (!cityLights && !routes) return null;
+  return {
+    ...(cityLights !== undefined && { cityLights }),
+    ...(routes !== undefined && { routes }),
+  };
+};
 
 const withCinematicHeatmapDefaults = (
   layer: HeatmapDataLayer,

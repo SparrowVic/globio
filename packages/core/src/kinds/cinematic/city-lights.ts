@@ -7,7 +7,14 @@ import {
   ShaderMaterial,
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
-import { CINEMATIC_CITY_NODES, hash01 } from './city-data';
+import type { CinematicWorld } from './engine';
+import type { CinematicPreparedData } from './data';
+import {
+  cloneCinematicUniforms,
+  createCinematicUniforms,
+  syncCinematicUniforms,
+  type CinematicUniforms,
+} from './shader-uniforms';
 
 export interface CinematicCityLightsLayerOptions {
   readonly color: string;
@@ -15,6 +22,7 @@ export interface CinematicCityLightsLayerOptions {
   readonly count?: number;
   readonly size?: number;
   readonly twinkle?: boolean;
+  readonly data: CinematicPreparedData;
 }
 
 const DEFAULT_COUNT = 6200;
@@ -25,22 +33,42 @@ const VERTEX_SHADER = /* glsl */ `
   attribute float aSize;
   attribute float aPhase;
   attribute float aIntensity;
-  attribute vec3 aWarmth;
+  attribute float aDensity;
+  attribute float aTemperature;
   uniform float uSize;
   uniform float uIntensity;
-  uniform float uTime;
   uniform float uTwinkle;
+  uniform float uTime;
+  uniform float uCameraDistance;
+  uniform float uLightInfluence;
+  uniform float uCameraInfluence;
+  uniform float uDensityInfluence;
+  uniform float uTerminatorBoost;
+  uniform float uHorizonGlow;
+  uniform float uCityNightResponse;
   uniform vec3 uColor;
+  uniform vec3 uLightDirection;
   varying vec3 vColor;
   varying float vAlpha;
 
   void main() {
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float shimmer = mix(1.0, 0.78 + 0.22 * sin(uTime * 2.7 + aPhase * 6.2831853), uTwinkle);
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vec4 mvPosition = viewMatrix * worldPosition;
+    vec3 normal = normalize(mat3(modelMatrix) * normalize(position));
+    vec3 viewDir = normalize(cameraPosition - worldPosition.xyz);
+    float light = dot(normal, normalize(uLightDirection));
+    float day = smoothstep(-0.32, 0.42, light);
+    float twilight = exp(-pow(light / 0.34, 2.0));
+    float horizon = 1.0 - smoothstep(0.02, 0.42, max(dot(normal, viewDir), 0.0));
+    float nightReactive = mix(1.0, (1.0 - day) * uCityNightResponse + twilight * 0.86 * uTerminatorBoost + horizon * 0.18 * uHorizonGlow, uLightInfluence);
+    float densityBoost = mix(1.0, 0.68 + aDensity * 0.74, uDensityInfluence);
+    float shimmer = mix(1.0, 0.8 + 0.2 * sin(uTime * (2.2 + aDensity * 1.4) + aPhase * 6.2831853), uTwinkle);
     float perspectiveScale = 520.0 / max(-mvPosition.z, 0.001);
-    gl_PointSize = max(1.15, uSize * aSize * perspectiveScale);
-    vColor = uColor * aWarmth;
-    vAlpha = uIntensity * aIntensity * shimmer * (0.88 + aSize * 0.08);
+    float cameraScale = mix(1.0, clamp(uCameraDistance / 2.35, 0.72, 1.45), uCameraInfluence);
+    gl_PointSize = max(0.72, uSize * aSize * perspectiveScale * cameraScale * (0.78 + aDensity * 0.18));
+    vec3 warm = mix(vec3(1.0, 0.56, 0.22), vec3(1.0, 0.82, 0.46), aTemperature);
+    vColor = uColor * warm * (0.82 + twilight * 0.32 + horizon * 0.12 * uHorizonGlow);
+    vAlpha = min(2.4, uIntensity * aIntensity * nightReactive * densityBoost * shimmer);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -54,10 +82,10 @@ const FRAGMENT_SHADER = /* glsl */ `
     vec2 uv = gl_PointCoord * 2.0 - 1.0;
     float dist = dot(uv, uv);
     if (dist > 1.0) discard;
-    float core = smoothstep(0.32, 0.0, dist);
+    float core = smoothstep(0.28, 0.0, dist);
     float halo = smoothstep(1.0, 0.08, dist);
-    float alpha = vAlpha * (core * 1.08 + halo * 0.5);
-    vec3 color = vColor * (0.82 + core * 2.15 + halo * 0.38);
+    float alpha = vAlpha * (core * 1.16 + halo * 0.46);
+    vec3 color = vColor * (0.72 + core * 2.55 + halo * 0.42);
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -66,9 +94,12 @@ export class CinematicCityLightsLayer {
   public readonly points: Points;
   private geometry: BufferGeometry;
   private readonly material: ShaderMaterial;
+  private readonly uniforms: CinematicUniforms;
   private readonly defaultColor: string;
   private readonly defaultIntensity: number;
   private readonly defaultSize: number;
+  private world: CinematicWorld | null = null;
+  private data: CinematicPreparedData;
   private count: number;
   private intensity: number;
   private twinkle: boolean;
@@ -80,14 +111,16 @@ export class CinematicCityLightsLayer {
     this.count = Math.max(0, Math.floor(options.count ?? DEFAULT_COUNT));
     this.intensity = options.intensity;
     this.twinkle = options.twinkle ?? true;
+    this.data = options.data;
+    this.uniforms = createCinematicUniforms();
 
-    this.geometry = buildGeometry(this.count);
+    this.geometry = buildGeometry(this.data, this.count);
     this.material = new ShaderMaterial({
       uniforms: {
+        ...cloneCinematicUniforms(this.uniforms),
         uColor: { value: new Color(options.color) },
         uSize: { value: this.defaultSize },
         uIntensity: { value: options.intensity },
-        uTime: { value: 0 },
         uTwinkle: { value: this.twinkle ? 1 : 0 },
       },
       vertexShader: VERTEX_SHADER,
@@ -102,10 +135,23 @@ export class CinematicCityLightsLayer {
     this.points.renderOrder = 7;
   }
 
+  public setWorld(world: CinematicWorld): void {
+    this.world = world;
+  }
+
   public update(_delta: number, elapsedSeconds: number): void {
-    this.material.uniforms['uTime']!.value = elapsedSeconds;
+    if (this.world) syncCinematicUniforms(this.uniforms, this.world.uniforms);
+    this.uniforms.uTime.value = elapsedSeconds;
+    for (const [key, uniform] of Object.entries(this.uniforms)) {
+      this.material.uniforms[key]!.value = uniform.value;
+    }
     this.material.uniforms['uIntensity']!.value = this.intensity;
     this.material.uniforms['uTwinkle']!.value = this.twinkle ? 1 : 0;
+  }
+
+  public setData(data: CinematicPreparedData): void {
+    this.data = data;
+    this.rebuildGeometry();
   }
 
   public setVisible(visible: boolean): void {
@@ -131,10 +177,7 @@ export class CinematicCityLightsLayer {
     const next = Math.max(0, Math.floor(value));
     if (next === this.count) return;
     this.count = next;
-    const previous = this.geometry;
-    this.geometry = buildGeometry(next);
-    this.points.geometry = this.geometry;
-    previous.dispose();
+    this.rebuildGeometry();
   }
 
   public setTwinkle(enabled: boolean): void {
@@ -146,59 +189,52 @@ export class CinematicCityLightsLayer {
     this.geometry.dispose();
     this.material.dispose();
   }
+
+  private rebuildGeometry(): void {
+    const previous = this.geometry;
+    this.geometry = buildGeometry(this.data, this.count);
+    this.points.geometry = this.geometry;
+    previous.dispose();
+  }
 }
 
-const buildGeometry = (count: number): BufferGeometry => {
-  const positions = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  const phases = new Float32Array(count);
-  const intensities = new Float32Array(count);
-  const warmth = new Float32Array(count * 3);
-  const weights = totalWeight();
-  for (let i = 0; i < count; i++) {
-    const node = chooseNode(hash01(i * 7.13 + 3.1) * weights);
-    const r1 = hash01(i * 11.77 + 0.4);
-    const r2 = hash01(i * 19.31 + 2.9);
-    const r3 = hash01(i * 23.61 + 7.4);
-    const r4 = hash01(i * 29.27 + 1.8);
-    const angle = r1 * Math.PI * 2;
-    const distance = Math.pow(r2, 1.42) * node.spread * 1.85;
-    const lat = clamp(node.lat + Math.cos(angle) * distance, -82, 82);
-    const lngScale = Math.max(0.22, Math.cos((lat * Math.PI) / 180));
-    const lng = node.lng + (Math.sin(angle) * distance) / lngScale;
-    const p = latLngToVector3([lat, wrapLng(lng)], LIGHT_RADIUS);
+const buildGeometry = (data: CinematicPreparedData, count: number): BufferGeometry => {
+  const source = data.cityPoints;
+  const safeCount = Math.min(Math.max(0, Math.floor(count)), source.length);
+  const positions = new Float32Array(safeCount * 3);
+  const sizes = new Float32Array(safeCount);
+  const phases = new Float32Array(safeCount);
+  const intensities = new Float32Array(safeCount);
+  const densities = new Float32Array(safeCount);
+  const temperatures = new Float32Array(safeCount);
+  for (let i = 0; i < safeCount; i++) {
+    const point = source[i]!;
+    const p = latLngToVector3([point.lat, point.lng], LIGHT_RADIUS);
     positions[i * 3] = p.x;
     positions[i * 3 + 1] = p.y;
     positions[i * 3 + 2] = p.z;
-    sizes[i] = 0.52 + Math.pow(r3, 2.35) * 1.42 + Math.min(0.55, node.weight / 24);
-    phases[i] = hash01(i * 31.11 + 4.2);
-    intensities[i] = 0.24 + Math.pow(1 - r2, 1.55) * 0.42 + Math.pow(r4, 5.0) * 0.62;
-    warmth[i * 3] = 0.9 + r4 * 0.25;
-    warmth[i * 3 + 1] = 0.72 + r3 * 0.22;
-    warmth[i * 3 + 2] = 0.34 + r1 * 0.16;
+    const density = sampleDensity(data, point.lat, point.lng);
+    sizes[i] = 0.55 + Math.min(1.55, point.importance * 0.45) + density * 0.48;
+    phases[i] = (i * 0.61803398875) % 1;
+    intensities[i] = 0.26 + Math.min(1.2, point.value) * 0.55 + density * 0.32;
+    densities[i] = density;
+    temperatures[i] = point.temperature;
   }
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geometry.setAttribute('aSize', new Float32BufferAttribute(sizes, 1));
   geometry.setAttribute('aPhase', new Float32BufferAttribute(phases, 1));
   geometry.setAttribute('aIntensity', new Float32BufferAttribute(intensities, 1));
-  geometry.setAttribute('aWarmth', new Float32BufferAttribute(warmth, 3));
+  geometry.setAttribute('aDensity', new Float32BufferAttribute(densities, 1));
+  geometry.setAttribute('aTemperature', new Float32BufferAttribute(temperatures, 1));
   return geometry;
 };
 
-const totalWeight = (): number =>
-  CINEMATIC_CITY_NODES.reduce((sum, node) => sum + node.weight, 0);
-
-const chooseNode = (target: number) => {
-  let cursor = 0;
-  for (const node of CINEMATIC_CITY_NODES) {
-    cursor += node.weight;
-    if (target <= cursor) return node;
-  }
-  return CINEMATIC_CITY_NODES[CINEMATIC_CITY_NODES.length - 1]!;
+const sampleDensity = (data: CinematicPreparedData, lat: number, lng: number): number => {
+  const x = Math.floor(((lng + 180) / 360) * data.densityWidth);
+  const y = Math.floor(((90 - lat) / 180) * data.densityHeight);
+  return data.density[
+    Math.max(0, Math.min(data.densityHeight - 1, y)) * data.densityWidth +
+      ((x + data.densityWidth) % data.densityWidth)
+  ] ?? 0;
 };
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-const wrapLng = (lng: number): number => ((lng + 540) % 360) - 180;

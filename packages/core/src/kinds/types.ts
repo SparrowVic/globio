@@ -1,4 +1,4 @@
-import type { Group, Mesh, PerspectiveCamera, Vector3 } from 'three';
+import type { Group, Mesh, PerspectiveCamera, Vector2, Vector3 } from 'three';
 import type { CountryFeature } from '../renderer/country-feature';
 import type { ResolvedTokens } from '../theme/types';
 import type { CountryDataMap, GlobeConfig, LatLng } from '../types';
@@ -54,6 +54,11 @@ export interface KindBuildContext {
   readonly features: ReadonlyArray<CountryFeature>;
   readonly tokens: ResolvedTokens;
   readonly config: GlobeConfig;
+  readonly camera: PerspectiveCamera;
+  readonly domElement?: HTMLElement;
+  readonly viewport: Vector2;
+  readonly markersLayer?: Public<MarkersLayer>;
+  readonly arcsLayer?: Public<ArcsLayer>;
   /**
    * The default opaque sphere mesh that backs `globeMesh.surfaceColor`. Most
    * kinds add their visible geometry on top of it. Kinds that want a fully

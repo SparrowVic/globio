@@ -340,6 +340,18 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
     // Cinematic-kind foundation. This is the new first-run kind, so the
     // section is always passed for save/load parity and live updates.
     cinematic: {
+      quality: state.globe.cinematicQuality,
+      reactivity: {
+        lightInfluence: state.globe.cinematicLightInfluence,
+        cameraInfluence: state.globe.cinematicCameraInfluence,
+        densityInfluence: state.globe.cinematicDensityInfluence,
+        terminatorBoost: state.globe.cinematicTerminatorBoost,
+        horizonGlow: state.globe.cinematicHorizonGlow,
+        atmosphericScatter: state.globe.cinematicAtmosphericScatter,
+        surfaceMicroDetail: state.globe.cinematicSurfaceMicroDetail,
+        cityNightResponse: state.globe.cinematicCityNightResponse,
+        orbitalFlow: state.globe.cinematicOrbitalFlow,
+      },
       surface: {
         oceanColor: state.globe.cinematicOceanColor,
         landColor: state.globe.cinematicLandColor,

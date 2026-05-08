@@ -1,19 +1,27 @@
 import {
   AdditiveBlending,
+  BufferAttribute,
+  BufferGeometry,
   Color,
+  Float32BufferAttribute,
   Group,
   Mesh,
   MeshBasicMaterial,
+  ShaderMaterial,
   SphereGeometry,
   Vector2,
   Vector3,
 } from 'three';
-import { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
-import { easeInOutCubic } from '../../utils/easing';
 import type { ArcConfig, LatLng } from '../../types';
+import { angularDistance, stableHash01 } from './math';
+import type { CinematicWorld } from './engine';
+import {
+  cloneCinematicUniforms,
+  createCinematicUniforms,
+  syncCinematicUniforms,
+  type CinematicUniforms,
+} from './shader-uniforms';
 
 export interface CinematicArcsLayerOptions {
   readonly defaultColor: string;
@@ -26,29 +34,113 @@ export interface CinematicArcsLayerOptions {
 
 interface ArcEntry {
   readonly config: ArcConfig;
-  readonly carrierLine: Line2;
-  readonly carrierMaterial: LineMaterial;
-  readonly glowLine: Line2;
-  readonly glowMaterial: LineMaterial;
-  readonly tracerLine: Line2;
-  readonly tracerMaterial: LineMaterial;
-  readonly head: Mesh | null;
-  readonly headGlow: Mesh | null;
-  readonly samplePoints: Vector3[];
+  readonly core: Mesh;
+  readonly coreMaterial: ShaderMaterial;
+  readonly glow: Mesh;
+  readonly glowMaterial: ShaderMaterial;
+  readonly contactA: Mesh;
+  readonly contactB: Mesh;
+  readonly contactMaterialA: MeshBasicMaterial;
+  readonly contactMaterialB: MeshBasicMaterial;
+  readonly geometry: BufferGeometry;
   readonly phase: number;
 }
 
-const SAMPLES = 84;
+const SAMPLES = 92;
+const ARC_RADIUS = GLOBE_RADIUS * 1.012;
+
+const VERTEX_SHADER = /* glsl */ `
+  attribute vec3 aPrev;
+  attribute vec3 aNext;
+  attribute float aSide;
+  attribute float aT;
+  attribute float aEndpoint;
+  attribute float aRouteValue;
+  uniform float uWidth;
+  uniform float uCameraDistance;
+  uniform float uCameraInfluence;
+  uniform vec3 uLightDirection;
+  varying float vT;
+  varying float vSide;
+  varying float vEndpoint;
+  varying float vRouteValue;
+  varying float vLight;
+  varying float vHorizon;
+
+  void main() {
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vec4 worldPrev = modelMatrix * vec4(aPrev, 1.0);
+    vec4 worldNext = modelMatrix * vec4(aNext, 1.0);
+    vec4 mvPos = viewMatrix * worldPos;
+    vec4 mvPrev = viewMatrix * worldPrev;
+    vec4 mvNext = viewMatrix * worldNext;
+    vec2 tangent = normalize(mvNext.xy - mvPrev.xy + vec2(0.00001));
+    vec2 normal2 = vec2(-tangent.y, tangent.x);
+    float cameraScale = mix(1.0, clamp(uCameraDistance / 2.5, 0.78, 1.6), uCameraInfluence);
+    float taper = 0.22 + aEndpoint * 0.9;
+    float width = uWidth * (0.0022 + aRouteValue * 0.0007) * cameraScale * taper;
+    mvPos.xy += normal2 * aSide * width;
+    vec3 normal = normalize(worldPos.xyz);
+    vec3 viewDir = normalize(cameraPosition - worldPos.xyz);
+    vT = aT;
+    vSide = aSide;
+    vEndpoint = aEndpoint;
+    vRouteValue = aRouteValue;
+    vLight = dot(normal, normalize(uLightDirection));
+    vHorizon = 1.0 - smoothstep(0.04, 0.48, max(dot(normal, viewDir), 0.0));
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+const FRAGMENT_SHADER = /* glsl */ `
+  precision mediump float;
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  uniform float uTime;
+  uniform float uPhase;
+  uniform float uGlow;
+  uniform float uLightInfluence;
+  uniform float uDensityInfluence;
+  uniform float uTerminatorBoost;
+  uniform float uInteractionEnergy;
+  uniform float uOrbitalFlow;
+  varying float vT;
+  varying float vSide;
+  varying float vEndpoint;
+  varying float vRouteValue;
+  varying float vLight;
+  varying float vHorizon;
+
+  float gaussian(float x, float width) {
+    return exp(-pow(x / width, 2.0));
+  }
+
+  void main() {
+    float edge = smoothstep(1.0, 0.12, abs(vSide));
+    float day = smoothstep(-0.3, 0.42, vLight);
+    float twilight = exp(-pow(vLight / 0.36, 2.0));
+    float lightReactive = mix(1.0, (1.0 - day) * 0.52 + twilight * 0.95 * uTerminatorBoost + vHorizon * 0.28, uLightInfluence);
+    float density = mix(1.0, 0.82 + vRouteValue * 0.16, uDensityInfluence);
+    float flow = fract(vT - uTime * (0.12 + vRouteValue * 0.025) * uOrbitalFlow - uPhase);
+    float tracer = gaussian(min(flow, 1.0 - flow), 0.035 + uGlow * 0.018);
+    float wake = gaussian(min(fract(flow + 0.085), 1.0 - fract(flow + 0.085)), 0.075);
+    float alpha = uOpacity * edge * vEndpoint * lightReactive * density;
+    alpha *= mix(0.56, 0.24, uGlow) + tracer * (1.45 - uGlow * 0.45) + wake * 0.42;
+    alpha += uOpacity * edge * vEndpoint * uInteractionEnergy * 0.12;
+    vec3 color = uColor * (0.72 + twilight * 0.46 + tracer * 1.7 + vHorizon * 0.18);
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
 
 export class CinematicArcsLayer {
   public readonly group: Group;
   private readonly defaultColor: string;
   private readonly defaultWidth: number;
   private readonly defaultOpacity: number;
-  private readonly headColor: string;
   private readonly headSize: number;
   private readonly entries = new Map<string, ArcEntry>();
-  private resolution: Vector2;
+  private readonly uniforms: CinematicUniforms;
+  private world: CinematicWorld | null = null;
 
   public constructor(options: CinematicArcsLayerOptions) {
     this.group = new Group();
@@ -56,18 +148,16 @@ export class CinematicArcsLayer {
     this.defaultColor = options.defaultColor;
     this.defaultWidth = options.defaultWidth;
     this.defaultOpacity = options.defaultOpacity;
-    this.headColor = options.headColor;
     this.headSize = options.headSize;
-    this.resolution = options.resolution ?? new Vector2(window.innerWidth, window.innerHeight);
+    this.uniforms = createCinematicUniforms();
   }
 
-  public setResolution(width: number, height: number): void {
-    this.resolution.set(width, height);
-    this.entries.forEach((entry) => {
-      entry.carrierMaterial.resolution.set(width, height);
-      entry.glowMaterial.resolution.set(width, height);
-      entry.tracerMaterial.resolution.set(width, height);
-    });
+  public setWorld(world: CinematicWorld): void {
+    this.world = world;
+  }
+
+  public setResolution(_width: number, _height: number): void {
+    // Screen-space ribbon widths are derived from camera distance in-shader.
   }
 
   public setArcs(arcs: ReadonlyArray<ArcConfig>): void {
@@ -84,172 +174,72 @@ export class CinematicArcsLayer {
   public addArc(config: ArcConfig): void {
     if (this.entries.has(config.id)) this.removeArc(config.id);
     const heightValue = resolveHeight(config);
-    const points = sampleArc(config.from, config.to, heightValue);
-    const positions = points.flatMap((point) => [point.x, point.y, point.z]);
+    const routeValue = Math.max(0.2, Math.min(2.4, (config.width ?? this.defaultWidth) / 1.2));
+    const geometry = buildArcGeometry(config.from, config.to, heightValue, routeValue);
     const color = new Color(config.color ?? this.defaultColor);
-    const headColor = new Color(this.headColor).lerp(color, 0.32);
-    const lineWidth = config.width ?? this.defaultWidth;
-    const dashed = config.style === 'dashed';
+    const phase = stableHash01(config.id);
+    const width = config.width ?? this.defaultWidth;
+    const coreMaterial = this.buildMaterial(color, width, this.defaultOpacity * 0.72, phase, 0);
+    const glowMaterial = this.buildMaterial(color, width * 3.8, this.defaultOpacity * 0.16, phase, 1);
+    const glow = new Mesh(geometry, glowMaterial);
+    glow.renderOrder = 7;
+    this.group.add(glow);
+    const core = new Mesh(geometry, coreMaterial);
+    core.renderOrder = 9;
+    this.group.add(core);
 
-    const carrierMaterial = new LineMaterial({
-      color: color.getHex(),
-      linewidth: Math.max(1, lineWidth * 0.86),
-      worldUnits: false,
-      transparent: true,
-      opacity: this.defaultOpacity * 0.58,
-      dashed,
-      ...(dashed
-        ? { dashSize: config.dashSize ?? 0.052, gapSize: config.dashGap ?? 0.036 }
-        : {}),
-      resolution: this.resolution.clone(),
-    });
-    carrierMaterial.blending = AdditiveBlending;
-    carrierMaterial.depthWrite = false;
-    if (dashed) carrierMaterial.defines.USE_DASH = '';
-    carrierMaterial.needsUpdate = true;
-    const carrierLine = new Line2(buildLineGeometry(positions), carrierMaterial);
-    if (dashed) carrierLine.computeLineDistances();
-    carrierLine.renderOrder = 8;
-    this.group.add(carrierLine);
-
-    const glowMaterial = new LineMaterial({
-      color: color.getHex(),
-      linewidth: Math.max(4, lineWidth * 3.9),
-      worldUnits: false,
-      transparent: true,
-      opacity: this.defaultOpacity * 0.1,
-      resolution: this.resolution.clone(),
-    });
-    glowMaterial.blending = AdditiveBlending;
-    glowMaterial.depthWrite = false;
-    glowMaterial.needsUpdate = true;
-    const glowLine = new Line2(buildLineGeometry(positions), glowMaterial);
-    glowLine.renderOrder = 7;
-    this.group.add(glowLine);
-
-    const tracerMaterial = new LineMaterial({
-      color: headColor.getHex(),
-      linewidth: Math.max(1, lineWidth * 0.66),
-      worldUnits: false,
-      transparent: true,
-      opacity: config.animated === false ? this.defaultOpacity * 0.18 : this.defaultOpacity * 0.52,
-      dashed: true,
-      dashSize: config.dashSize ?? 0.045,
-      gapSize: config.dashGap ?? 0.07,
-      resolution: this.resolution.clone(),
-    });
-    tracerMaterial.blending = AdditiveBlending;
-    tracerMaterial.depthWrite = false;
-    tracerMaterial.defines.USE_DASH = '';
-    tracerMaterial.needsUpdate = true;
-    const tracerLine = new Line2(buildLineGeometry(positions), tracerMaterial);
-    tracerLine.computeLineDistances();
-    tracerLine.renderOrder = 9;
-    this.group.add(tracerLine);
-
-    let head: Mesh | null = null;
-    let headGlow: Mesh | null = null;
-    if (config.animated) {
-      const headGeo = new SphereGeometry(this.headSize * 0.78, 16, 16);
-      const headMat = new MeshBasicMaterial({
-        color: headColor,
-        transparent: true,
-        opacity: 0.96,
-        depthWrite: false,
-        blending: AdditiveBlending,
-      });
-      head = new Mesh(headGeo, headMat);
-      head.renderOrder = 11;
-      this.group.add(head);
-
-      const glowGeo = new SphereGeometry(this.headSize * 2.2, 18, 18);
-      const glowMat = new MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity: 0.24,
-        depthWrite: false,
-        blending: AdditiveBlending,
-      });
-      headGlow = new Mesh(glowGeo, glowMat);
-      headGlow.renderOrder = 10;
-      this.group.add(headGlow);
-    }
+    const contactGeometry = new SphereGeometry(this.headSize * 1.45, 18, 18);
+    const contactMaterialA = buildContactMaterial(color);
+    const contactMaterialB = buildContactMaterial(color);
+    const contactA = new Mesh(contactGeometry, contactMaterialA);
+    const contactB = new Mesh(contactGeometry.clone(), contactMaterialB);
+    contactA.position.copy(latLngToVector3(config.from, GLOBE_RADIUS * 1.014));
+    contactB.position.copy(latLngToVector3(config.to, GLOBE_RADIUS * 1.014));
+    contactA.renderOrder = 10;
+    contactB.renderOrder = 10;
+    this.group.add(contactA, contactB);
 
     this.entries.set(config.id, {
       config,
-      carrierLine,
-      carrierMaterial,
-      glowLine,
+      core,
+      coreMaterial,
+      glow,
       glowMaterial,
-      tracerLine,
-      tracerMaterial,
-      head,
-      headGlow,
-      samplePoints: points,
-      phase: hashPhase(config.id),
+      contactA,
+      contactB,
+      contactMaterialA,
+      contactMaterialB,
+      geometry,
+      phase,
     });
   }
 
   public removeArc(id: string): void {
     const entry = this.entries.get(id);
     if (!entry) return;
-    entry.carrierLine.geometry.dispose();
-    entry.carrierMaterial.dispose();
-    this.group.remove(entry.carrierLine);
-    entry.glowLine.geometry.dispose();
+    this.group.remove(entry.core, entry.glow, entry.contactA, entry.contactB);
+    entry.geometry.dispose();
+    entry.coreMaterial.dispose();
     entry.glowMaterial.dispose();
-    this.group.remove(entry.glowLine);
-    entry.tracerLine.geometry.dispose();
-    entry.tracerMaterial.dispose();
-    this.group.remove(entry.tracerLine);
-    if (entry.head) {
-      entry.head.geometry.dispose();
-      (entry.head.material as MeshBasicMaterial).dispose();
-      this.group.remove(entry.head);
-    }
-    if (entry.headGlow) {
-      entry.headGlow.geometry.dispose();
-      (entry.headGlow.material as MeshBasicMaterial).dispose();
-      this.group.remove(entry.headGlow);
-    }
+    entry.contactA.geometry.dispose();
+    entry.contactB.geometry.dispose();
+    entry.contactMaterialA.dispose();
+    entry.contactMaterialB.dispose();
     this.entries.delete(id);
   }
 
   public update(elapsedSeconds: number): void {
+    if (this.world) syncCinematicUniforms(this.uniforms, this.world.uniforms);
+    this.uniforms.uTime.value = elapsedSeconds;
     this.entries.forEach((entry) => {
-      const wave = 0.82 + 0.18 * Math.sin(elapsedSeconds * 2.1 + entry.phase * Math.PI * 2);
-      entry.carrierMaterial.opacity = this.defaultOpacity * 0.58 * wave;
-      entry.glowMaterial.opacity = this.defaultOpacity * 0.1 * (0.74 + wave * 0.26);
-      entry.tracerMaterial.opacity =
-        (entry.config.animated === false ? this.defaultOpacity * 0.18 : this.defaultOpacity * 0.52) *
-        (0.72 + 0.28 * Math.sin(elapsedSeconds * 3.4 + entry.phase * 8));
-      setDashOffset(entry.tracerMaterial, -elapsedSeconds * (0.035 + entry.phase * 0.024));
-
-      if (!entry.head) return;
-      const duration = entry.config.animationDuration ?? 2.4;
-      const tRaw = (elapsedSeconds % duration) / duration;
-      const easing = entry.config.headEasing ?? 'linear';
-      const tPos = easing === 'easeInOut' ? easeInOutCubic(tRaw) : tRaw;
-      const idxFloat = tPos * (entry.samplePoints.length - 1);
-      const idx = Math.floor(idxFloat);
-      const frac = idxFloat - idx;
-      const a = entry.samplePoints[idx];
-      const b = entry.samplePoints[Math.min(idx + 1, entry.samplePoints.length - 1)];
-      if (!a || !b) return;
-      entry.head.position.set(
-        a.x + (b.x - a.x) * frac,
-        a.y + (b.y - a.y) * frac,
-        a.z + (b.z - a.z) * frac,
-      );
-      const headOpacity = easing === 'pulse' ? Math.sin(tRaw * Math.PI) : 1;
-      (entry.head.material as MeshBasicMaterial).opacity = 0.94 * headOpacity;
-      const headScale = 1 + 0.22 * Math.sin(elapsedSeconds * 5.5 + entry.phase * 11);
-      entry.head.scale.setScalar(headScale);
-      if (entry.headGlow) {
-        entry.headGlow.position.copy(entry.head.position);
-        entry.headGlow.scale.setScalar(0.9 + headScale * 0.28);
-        (entry.headGlow.material as MeshBasicMaterial).opacity = 0.2 * headOpacity;
-      }
+      syncMaterialUniforms(entry.coreMaterial, this.uniforms);
+      syncMaterialUniforms(entry.glowMaterial, this.uniforms);
+      const endpointPulse = 0.58 + 0.42 * Math.sin(elapsedSeconds * 2.1 + entry.phase * 6.2831853);
+      entry.contactMaterialA.opacity = this.defaultOpacity * 0.34 * endpointPulse;
+      entry.contactMaterialB.opacity = this.defaultOpacity * 0.34 * (1.1 - endpointPulse * 0.35);
+      const scale = 0.82 + endpointPulse * 0.32;
+      entry.contactA.scale.setScalar(scale);
+      entry.contactB.scale.setScalar(1.08 - (scale - 0.82) * 0.28);
     });
   }
 
@@ -257,7 +247,117 @@ export class CinematicArcsLayer {
     [...this.entries.keys()].forEach((id) => this.removeArc(id));
     this.group.clear();
   }
+
+  private buildMaterial(
+    color: Color,
+    width: number,
+    opacity: number,
+    phase: number,
+    glow: number,
+  ): ShaderMaterial {
+    return new ShaderMaterial({
+      uniforms: {
+        ...cloneCinematicUniforms(this.uniforms),
+        uColor: { value: color.clone() },
+        uWidth: { value: Math.max(0.2, width) },
+        uOpacity: { value: opacity },
+        uPhase: { value: phase },
+        uGlow: { value: glow },
+      },
+      vertexShader: VERTEX_SHADER,
+      fragmentShader: FRAGMENT_SHADER,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+    });
+  }
 }
+
+const buildArcGeometry = (
+  from: LatLng,
+  to: LatLng,
+  height: number,
+  routeValue: number,
+): BufferGeometry => {
+  const samples = sampleArc(from, to, height);
+  const vertexCount = samples.length * 2;
+  const positions = new Float32Array(vertexCount * 3);
+  const prev = new Float32Array(vertexCount * 3);
+  const next = new Float32Array(vertexCount * 3);
+  const side = new Float32Array(vertexCount);
+  const tAttr = new Float32Array(vertexCount);
+  const endpoint = new Float32Array(vertexCount);
+  const value = new Float32Array(vertexCount);
+  const indices: number[] = [];
+  let cursor = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const current = samples[i]!;
+    const previous = samples[Math.max(0, i - 1)]!;
+    const following = samples[Math.min(samples.length - 1, i + 1)]!;
+    const t = i / (samples.length - 1);
+    const endpointFade = smoothEndpoint(t);
+    for (let s = 0; s < 2; s++) {
+      const idx = cursor + s;
+      positions[idx * 3] = current.x;
+      positions[idx * 3 + 1] = current.y;
+      positions[idx * 3 + 2] = current.z;
+      prev[idx * 3] = previous.x;
+      prev[idx * 3 + 1] = previous.y;
+      prev[idx * 3 + 2] = previous.z;
+      next[idx * 3] = following.x;
+      next[idx * 3 + 1] = following.y;
+      next[idx * 3 + 2] = following.z;
+      side[idx] = s === 0 ? -1 : 1;
+      tAttr[idx] = t;
+      endpoint[idx] = endpointFade;
+      value[idx] = routeValue;
+    }
+    cursor += 2;
+  }
+  for (let i = 0; i < samples.length - 1; i++) {
+    const a = i * 2;
+    const b = a + 1;
+    const c = a + 2;
+    const d = a + 3;
+    indices.push(a, c, b, b, c, d);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('aPrev', new Float32BufferAttribute(prev, 3));
+  geometry.setAttribute('aNext', new Float32BufferAttribute(next, 3));
+  geometry.setAttribute('aSide', new Float32BufferAttribute(side, 1));
+  geometry.setAttribute('aT', new Float32BufferAttribute(tAttr, 1));
+  geometry.setAttribute('aEndpoint', new Float32BufferAttribute(endpoint, 1));
+  geometry.setAttribute('aRouteValue', new Float32BufferAttribute(value, 1));
+  geometry.setIndex(new BufferAttribute(new Uint16Array(indices), 1));
+  return geometry;
+};
+
+const sampleArc = (from: LatLng, to: LatLng, height: number): Vector3[] => {
+  const fromVec = latLngToVector3(from, 1);
+  const toVec = latLngToVector3(to, 1);
+  const angle = fromVec.angleTo(toVec);
+  const sinAngle = Math.sin(angle);
+  const points: Vector3[] = [];
+  for (let i = 0; i < SAMPLES; i++) {
+    const t = i / (SAMPLES - 1);
+    let point: Vector3;
+    if (sinAngle < 1e-6) {
+      point = fromVec.clone();
+    } else {
+      const a = Math.sin((1 - t) * angle) / sinAngle;
+      const b = Math.sin(t * angle) / sinAngle;
+      point = new Vector3(
+        fromVec.x * a + toVec.x * b,
+        fromVec.y * a + toVec.y * b,
+        fromVec.z * a + toVec.z * b,
+      );
+    }
+    const lift = Math.sin(Math.PI * t) * height;
+    points.push(point.normalize().multiplyScalar(ARC_RADIUS + lift));
+  }
+  return points;
+};
 
 const resolveHeight = (config: ArcConfig): number => {
   if (config.height === 'auto') {
@@ -269,54 +369,31 @@ const resolveHeight = (config: ArcConfig): number => {
   return config.height ?? 0.46;
 };
 
-const buildLineGeometry = (positions: ReadonlyArray<number>): LineGeometry => {
-  const geometry = new LineGeometry();
-  geometry.setPositions([...positions]);
-  return geometry;
+const smoothEndpoint = (t: number): number => {
+  const a = smoothstep(0, 0.24, t);
+  const b = smoothstep(0, 0.24, 1 - t);
+  return a * b;
 };
 
-const hashPhase = (value: string): number => {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+const smoothstep = (edge0: number, edge1: number, value: number): number => {
+  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+};
+
+const buildContactMaterial = (color: Color): MeshBasicMaterial =>
+  new MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+
+const syncMaterialUniforms = (
+  material: ShaderMaterial,
+  uniforms: CinematicUniforms,
+): void => {
+  for (const [key, uniform] of Object.entries(uniforms)) {
+    material.uniforms[key]!.value = uniform.value;
   }
-  return (hash >>> 0) / 0xffffffff;
-};
-
-const angularDistance = (a: LatLng, b: LatLng): number => {
-  const va = latLngToVector3(a, 1);
-  const vb = latLngToVector3(b, 1);
-  return va.angleTo(vb);
-};
-
-const sampleArc = (from: LatLng, to: LatLng, height: number): Vector3[] => {
-  const fromVec = latLngToVector3(from, 1);
-  const toVec = latLngToVector3(to, 1);
-  const angle = fromVec.angleTo(toVec);
-  const sinAngle = Math.sin(angle);
-  const points: Vector3[] = [];
-  for (let i = 0; i < SAMPLES; i++) {
-    const t = i / (SAMPLES - 1);
-    let interp: Vector3;
-    if (sinAngle < 1e-6) {
-      interp = fromVec.clone();
-    } else {
-      const a = Math.sin((1 - t) * angle) / sinAngle;
-      const b = Math.sin(t * angle) / sinAngle;
-      interp = new Vector3(
-        fromVec.x * a + toVec.x * b,
-        fromVec.y * a + toVec.y * b,
-        fromVec.z * a + toVec.z * b,
-      );
-    }
-    const elevation = 1 + Math.sin(t * Math.PI) * height;
-    interp.multiplyScalar(GLOBE_RADIUS * elevation);
-    points.push(interp);
-  }
-  return points;
-};
-
-const setDashOffset = (material: LineMaterial, offset: number): void => {
-  (material as LineMaterial & { dashOffset?: number }).dashOffset = offset;
 };

@@ -828,7 +828,62 @@ export interface HologramConfig {
  * empty-string colors = use theme defaults; non-positive numeric values
  * where the natural domain is positive = use construction/theme default.
  */
+export type CinematicQuality = 'auto' | 'ultra' | 'high' | 'balanced';
+
+export interface CinematicReactivityConfig {
+  readonly lightInfluence?: number;
+  readonly cameraInfluence?: number;
+  readonly densityInfluence?: number;
+  readonly terminatorBoost?: number;
+  readonly horizonGlow?: number;
+  readonly atmosphericScatter?: number;
+  readonly surfaceMicroDetail?: number;
+  readonly cityNightResponse?: number;
+  readonly orbitalFlow?: number;
+}
+
+export interface CinematicCityLightDatum {
+  readonly id?: string;
+  readonly lat: number;
+  readonly lng: number;
+  readonly value?: number;
+  readonly radius?: number;
+  readonly color?: string;
+  readonly temperature?: number;
+  readonly importance?: number;
+  readonly group?: string;
+  readonly payload?: unknown;
+}
+
+export type CinematicRouteEndpoint =
+  | string
+  | readonly [number, number]
+  | {
+      readonly lat: number;
+      readonly lng: number;
+    };
+
+export interface CinematicRouteDatum {
+  readonly id?: string;
+  readonly from: CinematicRouteEndpoint;
+  readonly to: CinematicRouteEndpoint;
+  readonly value?: number;
+  readonly width?: number;
+  readonly color?: string;
+  readonly speed?: number;
+  readonly height?: number;
+  readonly phase?: number;
+  readonly payload?: unknown;
+}
+
+export interface CinematicDataset {
+  readonly cityLights?: ReadonlyArray<CinematicCityLightDatum>;
+  readonly routes?: ReadonlyArray<CinematicRouteDatum>;
+}
+
 export interface CinematicConfig {
+  readonly quality?: CinematicQuality;
+  readonly reactivity?: CinematicReactivityConfig;
   readonly surface?: {
     readonly oceanColor?: string;
     readonly landColor?: string;
@@ -859,6 +914,7 @@ export interface CinematicConfig {
     readonly count?: number;
     readonly size?: number;
     readonly twinkle?: boolean;
+    readonly data?: ReadonlyArray<CinematicCityLightDatum>;
   };
   readonly network?: {
     readonly enabled?: boolean;
@@ -866,6 +922,7 @@ export interface CinematicConfig {
     readonly opacity?: number;
     readonly maxConnections?: number;
     readonly pulseSpeed?: number;
+    readonly routes?: ReadonlyArray<CinematicRouteDatum>;
   };
   readonly focusPulse?: {
     readonly durationMs?: number;

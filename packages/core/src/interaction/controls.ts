@@ -86,6 +86,20 @@ export class GlobeControls {
     this.targetSpherical.copy(endSpherical);
   }
 
+  public jumpTo(position: LatLng, distance?: number): void {
+    const radius = clamp(
+      distance ?? this.spherical.radius,
+      this.minDistance,
+      this.maxDistance,
+    );
+    const targetVec = latLngToVector3(position, radius);
+    this.spherical.setFromVector3(targetVec);
+    this.targetSpherical.copy(this.spherical);
+    this.activeTween = null;
+    this.options.camera.position.setFromSpherical(this.spherical);
+    this.options.camera.lookAt(0, 0, 0);
+  }
+
   public cancelTween(): void {
     if (this.activeTween) {
       this.activeTween = null;

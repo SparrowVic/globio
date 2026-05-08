@@ -49,6 +49,13 @@ const cinematicLightingOptions = [
   { value: 'eclipse', label: 'Eclipse' },
 ] as const;
 
+const cinematicQualityOptions = [
+  { value: 'ultra', label: 'Ultra' },
+  { value: 'high', label: 'High' },
+  { value: 'auto', label: 'Auto' },
+  { value: 'balanced', label: 'Balanced' },
+] as const;
+
 const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   const settings = state.globe;
   return (
@@ -255,6 +262,12 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
 
         <SectionHeading>Cinematic lighting</SectionHeading>
         <ToggleField
+          label="Quality"
+          value={settings.cinematicQuality}
+          options={cinematicQualityOptions}
+          onChange={(cinematicQuality) => onGlobeChange({ cinematicQuality })}
+        />
+        <ToggleField
           label="Lighting mode"
           value={settings.cinematicLightingMode}
           options={cinematicLightingOptions}
@@ -354,6 +367,103 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           step={0.01}
           format={(value) => value.toFixed(2)}
           onChange={(cinematicOceanSheen) => onGlobeChange({ cinematicOceanSheen })}
+        />
+
+        <SectionHeading>Reactive field</SectionHeading>
+        <SliderField
+          label="Light coupling"
+          value={settings.cinematicLightInfluence}
+          min={0}
+          max={2}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicLightInfluence) =>
+            onGlobeChange({ cinematicLightInfluence })
+          }
+        />
+        <SliderField
+          label="Camera coupling"
+          value={settings.cinematicCameraInfluence}
+          min={0}
+          max={2}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicCameraInfluence) =>
+            onGlobeChange({ cinematicCameraInfluence })
+          }
+        />
+        <SliderField
+          label="Density coupling"
+          value={settings.cinematicDensityInfluence}
+          min={0}
+          max={2}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicDensityInfluence) =>
+            onGlobeChange({ cinematicDensityInfluence })
+          }
+        />
+        <SliderField
+          label="Twilight boost"
+          value={settings.cinematicTerminatorBoost}
+          min={0}
+          max={2.5}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicTerminatorBoost) =>
+            onGlobeChange({ cinematicTerminatorBoost })
+          }
+        />
+        <SliderField
+          label="Horizon glow"
+          value={settings.cinematicHorizonGlow}
+          min={0}
+          max={2.5}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicHorizonGlow) => onGlobeChange({ cinematicHorizonGlow })}
+        />
+        <SliderField
+          label="Atmospheric scatter"
+          value={settings.cinematicAtmosphericScatter}
+          min={0}
+          max={2.5}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicAtmosphericScatter) =>
+            onGlobeChange({ cinematicAtmosphericScatter })
+          }
+        />
+        <SliderField
+          label="Surface detail"
+          value={settings.cinematicSurfaceMicroDetail}
+          min={0}
+          max={2.5}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicSurfaceMicroDetail) =>
+            onGlobeChange({ cinematicSurfaceMicroDetail })
+          }
+        />
+        <SliderField
+          label="Night response"
+          value={settings.cinematicCityNightResponse}
+          min={0}
+          max={2.5}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicCityNightResponse) =>
+            onGlobeChange({ cinematicCityNightResponse })
+          }
+        />
+        <SliderField
+          label="Orbital flow"
+          value={settings.cinematicOrbitalFlow}
+          min={0}
+          max={2.5}
+          step={0.02}
+          format={(value) => value.toFixed(2)}
+          onChange={(cinematicOrbitalFlow) => onGlobeChange({ cinematicOrbitalFlow })}
         />
 
         <SectionHeading>City lights</SectionHeading>
@@ -565,6 +675,7 @@ const preset: PresetModule = {
     'cinematicLightY',
     'cinematicLightZ',
     'cinematicLightingMode',
+    'cinematicQuality',
     'cinematicTerminatorSoftness',
     'cinematicTerminatorContrast',
     'cinematicKeyIntensity',
@@ -575,6 +686,15 @@ const preset: PresetModule = {
     'cinematicSpecularIntensity',
     'cinematicCloudOpacity',
     'cinematicOceanSheen',
+    'cinematicLightInfluence',
+    'cinematicCameraInfluence',
+    'cinematicDensityInfluence',
+    'cinematicTerminatorBoost',
+    'cinematicHorizonGlow',
+    'cinematicAtmosphericScatter',
+    'cinematicSurfaceMicroDetail',
+    'cinematicCityNightResponse',
+    'cinematicOrbitalFlow',
     'cinematicBorders',
     'cinematicBorderColor',
     'cinematicBorderIntensity',

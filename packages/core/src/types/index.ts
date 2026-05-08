@@ -33,6 +33,12 @@ export type {
 
 export type {
   CinematicConfig,
+  CinematicCityLightDatum,
+  CinematicDataset,
+  CinematicQuality,
+  CinematicReactivityConfig,
+  CinematicRouteDatum,
+  CinematicRouteEndpoint,
   DottedConfig,
   HologramConfig,
   OutlineConfig,

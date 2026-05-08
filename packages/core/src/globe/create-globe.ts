@@ -33,6 +33,7 @@ import {
 } from '../utils/coordinates';
 import { boundsCenter } from '../utils/country-bounds';
 import type {
+  CinematicDataset,
   CountryData,
   GlobeConfig,
   GlobeEventName,
@@ -65,8 +66,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     onRender: (delta) => {
       state.controls.update(delta);
       state.elapsedSeconds += delta;
-      arcsLayer.update(state.elapsedSeconds);
       state.kindHandle?.update?.(delta, state.elapsedSeconds);
+      arcsLayer.update(state.elapsedSeconds);
       state.kindHandle?.decorations?.focusPulse?.update?.(delta);
       state.dataLayer?.handle.update?.(delta, state.elapsedSeconds);
       state.htmlMarkersLayer.update();
@@ -115,6 +116,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   const globeGroup = new Group();
   globeGroup.rotation.z = (-(config.axisTilt ?? 0) * Math.PI) / 180;
   scene.scene.add(globeGroup);
+
+  // Convert a lat/lng given in globe-local coordinates (the natural
+  // interpretation for users who just see the visible globe) into the WORLD
+  // lat/lng equivalent that the camera controls expect. This compensates for
+  // axisTilt and any future scene-level transforms applied to globeGroup.
+  const globeLocalToWorldLatLng = (position: LatLng): LatLng => {
+    globeGroup.updateMatrixWorld();
+    const localVec = latLngToVector3(position, GLOBE_RADIUS);
+    const worldVec = localVec.applyMatrix4(globeGroup.matrixWorld);
+    return vector3ToLatLng(worldVec);
+  };
 
   // The active globe kind decides every shared-layer constructor below.
   // Resolved up here (rather than after the layer constructions like the
@@ -241,6 +253,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     ...(maxDistance !== undefined && { maxDistance }),
     ...(config.zoom !== undefined && { zoom: config.zoom }),
   });
+  if (config.initialPosition) {
+    controls.jumpTo(globeLocalToWorldLatLng(config.initialPosition), scene.camera.position.length());
+  }
   if (config.autoRotate?.enabled) controls.setAutoRotate(true, config.autoRotate.speed);
 
   // Outline + dotted kinds both expose `setHoveredCountry` to drive their
@@ -452,6 +467,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // active kind's decorators) have loaded. Drained inside `initCountries`
   // once `state.kindHandle` is built.
   let pendingDataLayer: import('../data-layers/types').DataLayer | null = null;
+  let pendingCinematicData: CinematicDataset | null | undefined = undefined;
 
   const initCountries = async (): Promise<void> => {
     if (!config.countries) return;
@@ -469,6 +485,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         features: features as ReadonlyArray<CountryFeature>,
         tokens,
         config,
+        camera: scene.camera,
+        domElement: scene.renderer.domElement,
+        viewport: new Vector2(
+          config.container.clientWidth || window.innerWidth,
+          config.container.clientHeight || window.innerHeight,
+        ),
+        markersLayer,
+        arcsLayer,
         globeSurfaceMesh: globeMesh.mesh,
       });
       // Surface the kind's country-fill layer (if mounted) so the global
@@ -502,6 +526,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         instance.setDataLayer(queued);
       } else if (state.countryData) {
         instance.setDataLayer({ type: 'choropleth', data: state.countryData });
+      }
+      if (pendingCinematicData !== undefined) {
+        const queued = pendingCinematicData;
+        pendingCinematicData = undefined;
+        (state.kindHandle as CinematicKindHandle | null)?.setCinematicData?.(queued);
       }
       // Re-apply pending active country to kind handle (e.g. wireframe ring
       // or dotted pinned-pulse) if user called setActiveCountry before
@@ -650,17 +679,6 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     } catch (error) {
       emitter.emit('error', error instanceof Error ? error : new Error(String(error)));
     }
-  };
-
-  // Helper: convert a lat/lng given in globe-local coordinates (the natural
-  // interpretation for users who just see the visible globe) into the WORLD
-  // lat/lng equivalent that the camera controls expect. This compensates for
-  // axisTilt and any future scene-level transforms applied to globeGroup.
-  const globeLocalToWorldLatLng = (position: LatLng): LatLng => {
-    globeGroup.updateMatrixWorld();
-    const localVec = latLngToVector3(position, GLOBE_RADIUS);
-    const worldVec = localVec.applyMatrix4(globeGroup.matrixWorld);
-    return vector3ToLatLng(worldVec);
   };
 
   // Story orchestration. The adapter bridges StoryController (pure logic) to
@@ -1163,6 +1181,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.dataLayer = { config: layer, handle };
     },
     getDataLayer: () => state.dataLayer?.config ?? null,
+    setCinematicData: (dataset) => {
+      state.config = applyCinematicDatasetToConfig(state.config, dataset);
+      const cinematicHandle = state.kindHandle as CinematicKindHandle | null;
+      if (!cinematicHandle?.setCinematicData) {
+        pendingCinematicData = dataset;
+        return;
+      }
+      pendingCinematicData = undefined;
+      cinematicHandle.setCinematicData(dataset);
+    },
+    getCinematicData: () => getCinematicDatasetFromConfig(state.config),
     playDataLayerAnimation: () => {
       const play = state.dataLayer?.handle.playAnimation;
       if (!play) return false;
@@ -1361,6 +1390,37 @@ const isPlainConfigObject = (value: unknown): value is Record<string, unknown> =
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
+};
+
+const applyCinematicDatasetToConfig = (
+  config: GlobeConfig,
+  dataset: CinematicDataset | null,
+): GlobeConfig => {
+  const current = config.cinematic ?? {};
+  const { data: _previousCityData, ...cityLights } = current.cityLights ?? {};
+  const { routes: _previousRoutes, ...network } = current.network ?? {};
+  return {
+    ...config,
+    cinematic: {
+      ...current,
+      cityLights:
+        dataset?.cityLights !== undefined
+          ? { ...cityLights, data: dataset.cityLights }
+          : cityLights,
+      network:
+        dataset?.routes !== undefined ? { ...network, routes: dataset.routes } : network,
+    },
+  };
+};
+
+const getCinematicDatasetFromConfig = (config: GlobeConfig): CinematicDataset | null => {
+  const cityLights = config.cinematic?.cityLights?.data;
+  const routes = config.cinematic?.network?.routes;
+  if (!cityLights && !routes) return null;
+  return {
+    ...(cityLights !== undefined && { cityLights }),
+    ...(routes !== undefined && { routes }),
+  };
 };
 
 /**

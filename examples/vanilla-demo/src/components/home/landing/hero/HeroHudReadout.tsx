@@ -18,8 +18,8 @@ export function HeroHudReadout() {
 
   return (
     <div className="pointer-events-none absolute right-6 top-6 z-30 rounded-lg border border-white/[0.1] bg-black/55 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-slate-300 backdrop-blur-md">
-      <div>lat: 13.0°N</div>
-      <div>lng: -42.0°W</div>
+      <div>lat: 32.0°N</div>
+      <div>lng: -66.0°W</div>
       <div className="mt-0.5 text-amber-200/85">{fps} fps</div>
     </div>
   );

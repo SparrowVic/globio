@@ -339,6 +339,16 @@ export interface GlobeSettings {
   readonly cinematicPulseSegments: number;
   readonly cinematicPulseColor: string;
   readonly cinematicPulseRadiusFactor: number;
+  readonly cinematicQuality: 'auto' | 'ultra' | 'high' | 'balanced';
+  readonly cinematicLightInfluence: number;
+  readonly cinematicCameraInfluence: number;
+  readonly cinematicDensityInfluence: number;
+  readonly cinematicTerminatorBoost: number;
+  readonly cinematicHorizonGlow: number;
+  readonly cinematicAtmosphericScatter: number;
+  readonly cinematicSurfaceMicroDetail: number;
+  readonly cinematicCityNightResponse: number;
+  readonly cinematicOrbitalFlow: number;
   // -----------------------------------------------------------------
   // Paper kind (vintage atlas) — only honoured when kind === 'paper'.
   // Empty-string color = use theme default. 0 / negative numerics where
