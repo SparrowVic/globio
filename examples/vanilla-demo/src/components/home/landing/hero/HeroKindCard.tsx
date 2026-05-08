@@ -1,12 +1,9 @@
-import type { GlobeKind, StarfieldConfig, ThemePresetName } from '@your-globe/core';
-import { DecorationGlobe } from '@/components/shared';
+import type { CSSProperties } from 'react';
+import type { GlobeKind } from '@your-globe/core';
 import { cn } from '@/lib/utils';
-
-const NO_STARS: StarfieldConfig = { enabled: false };
 
 export interface HeroKindCardProps {
   readonly kind: GlobeKind;
-  readonly theme: ThemePresetName;
   readonly label: string;
   readonly caption: string;
   readonly active: boolean;
@@ -16,7 +13,6 @@ export interface HeroKindCardProps {
 
 export function HeroKindCard({
   kind,
-  theme,
   label,
   caption,
   active,
@@ -39,23 +35,83 @@ export function HeroKindCard({
           : undefined
       }
     >
-      <span className="relative block size-[60px] overflow-hidden rounded-xl border border-white/[0.1] bg-black/35">
-        <DecorationGlobe
-          kind={kind}
-          theme={theme}
-          speed={0.012}
-          initialLat={12}
-          initialLng={kind === 'paper' ? -30 : -44}
-          starfield={NO_STARS}
-          atmosphere
-          framingPadding={0.04}
-          className="absolute inset-0"
-        />
-      </span>
+      <KindStaticPreview kind={kind} accent={accent} />
       <span>
         <span className="block text-sm font-semibold text-white">{label}</span>
         <span className="mt-0.5 block text-xs text-slate-400">{caption}</span>
       </span>
     </button>
+  );
+}
+
+function KindStaticPreview({
+  kind,
+  accent,
+}: {
+  readonly kind: GlobeKind;
+  readonly accent: string;
+}) {
+  const style = {
+    background:
+      kind === 'paper'
+        ? `radial-gradient(circle at 38% 32%, ${accent}80, transparent 30%), linear-gradient(135deg, #6f5a31, #1b160f)`
+        : `radial-gradient(circle at 35% 28%, ${accent}75, transparent 30%), radial-gradient(circle at 65% 70%, ${accent}2e, transparent 34%), linear-gradient(145deg, #101827, #030712)`,
+    borderColor: `${accent}44`,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08), 0 0 24px -14px ${accent}`,
+  } satisfies CSSProperties;
+
+  return (
+    <span
+      className="relative block size-[60px] overflow-hidden rounded-xl border bg-black/35"
+      style={style}
+      aria-hidden="true"
+    >
+      <span className="absolute inset-[9px] rounded-full border border-white/15" />
+      {kind === 'dotted' ? (
+        <span
+          className="absolute inset-3 rounded-full opacity-80"
+          style={{
+            backgroundImage: `radial-gradient(circle, ${accent} 1px, transparent 1.5px)`,
+            backgroundSize: '6px 6px',
+          }}
+        />
+      ) : null}
+      {kind === 'wireframe' ? (
+        <span
+          className="absolute inset-3 rounded-full opacity-75"
+          style={{
+            backgroundImage: `linear-gradient(${accent}55 1px, transparent 1px), linear-gradient(90deg, ${accent}55 1px, transparent 1px)`,
+            backgroundSize: '9px 9px',
+          }}
+        />
+      ) : null}
+      {kind === 'hologram' ? (
+        <span
+          className="absolute inset-2 rounded-full opacity-75"
+          style={{
+            backgroundImage: `repeating-linear-gradient(0deg, transparent 0 5px, ${accent}66 5px 6px)`,
+          }}
+        />
+      ) : null}
+      {kind === 'paper' ? (
+        <span
+          className="absolute inset-2 rounded-full opacity-70"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(28deg, transparent 0 5px, rgba(255,255,255,0.16) 5px 6px)',
+          }}
+        />
+      ) : null}
+      {kind === 'outline' ? (
+        <span
+          className="absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 rotate-[-24deg]"
+          style={{ background: accent, boxShadow: `0 0 10px ${accent}` }}
+        />
+      ) : null}
+      <span
+        className="absolute bottom-2 right-2 size-2 rounded-full"
+        style={{ background: accent, boxShadow: `0 0 12px ${accent}` }}
+      />
+    </span>
   );
 }

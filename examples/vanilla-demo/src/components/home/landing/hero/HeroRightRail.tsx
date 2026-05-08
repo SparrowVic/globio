@@ -38,7 +38,6 @@ export function HeroRightRail({
           <HeroKindCard
             key={kind.id}
             kind={kind.id}
-            theme={KIND_THEMES[kind.id][0].preset}
             label={kind.label}
             caption={kind.caption}
             active={activeKind === kind.id}
