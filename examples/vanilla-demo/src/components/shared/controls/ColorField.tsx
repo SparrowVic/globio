@@ -106,13 +106,13 @@ export function ColorField({
           onClick={() => setOpen((v) => !v)}
           disabled={disabled}
           className={cn(
-            'flex h-8 min-w-[142px] items-center gap-2.5 rounded-lg border border-white/[0.09] bg-black/[0.18] px-2.5 transition-colors',
+            'flex h-8 min-w-[142px] items-center gap-2 rounded-lg border border-white/[0.09] bg-black/[0.18] py-1 pl-1 pr-2.5 transition-colors',
             'shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] hover:border-white/[0.18]',
             disabled ? 'pointer-events-none opacity-50' : ''
           )}
         >
           <span
-            className="size-4 rounded-sm border border-white/20 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.4)]"
+            className="size-6 rounded-md shadow-[inset_0_0_0_1px_rgba(0,0,0,0.28)]"
             style={{ background: normalised }}
             aria-hidden="true"
           />

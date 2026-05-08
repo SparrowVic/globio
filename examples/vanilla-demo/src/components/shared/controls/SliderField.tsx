@@ -67,7 +67,7 @@ export function SliderField({
       disabled={disabled}
       disabledReason={disabledReason}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_94px] items-center gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_98px] items-center gap-3">
         <Slider
           value={[value]}
           min={min}
@@ -77,7 +77,7 @@ export function SliderField({
           onValueChange={(next) => onChange(next[0] ?? value)}
           className="[&_[data-slot=slider-track]]:h-[3px] [&_[data-slot=slider-track]]:bg-white/[0.13] [&_[data-slot=slider-range]]:bg-amber-300 [&_[data-slot=slider-thumb]]:size-3.5 [&_[data-slot=slider-thumb]]:border-amber-100 [&_[data-slot=slider-thumb]]:bg-amber-100 [&_[data-slot=slider-thumb]]:shadow-[0_0_12px_rgba(251,191,36,0.62)]"
         />
-        <div className="relative w-[94px]">
+        <div className="relative w-[98px]">
           <Input
             type="text"
             inputMode="decimal"
@@ -117,9 +117,9 @@ export function SliderField({
               }
               onChange(next);
             }}
-            className="h-8 w-[94px] rounded-lg border-white/[0.09] bg-black/[0.2] px-2.5 pr-[25px] text-right font-mono text-[12px] font-semibold tabular-nums text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+            className="h-8 w-[98px] rounded-lg border-white/[0.09] bg-black/[0.2] px-2.5 pr-[32px] text-right font-sans text-[12px] font-medium tabular-nums text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] focus-visible:border-amber-200/30 focus-visible:ring-1 focus-visible:ring-amber-300/20"
           />
-          <div className="absolute bottom-1 right-1 top-1 grid w-5 overflow-hidden rounded-md border border-white/[0.07] bg-white/[0.045]">
+          <div className="absolute bottom-1 right-1.5 top-1 grid w-5 overflow-hidden rounded-md border border-white/[0.07] bg-white/[0.045]">
             <StepperButton
               label={`Increase ${label}`}
               disabled={disabled || value >= max}
