@@ -337,6 +337,63 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         color: state.globe.hologramPulseColor,
       },
     },
+    // Cinematic-kind foundation. This is the new first-run kind, so the
+    // section is always passed for save/load parity and live updates.
+    cinematic: {
+      surface: {
+        oceanColor: state.globe.cinematicOceanColor,
+        landColor: state.globe.cinematicLandColor,
+        cloudColor: state.globe.cinematicCloudColor,
+        nightColor: state.globe.cinematicNightColor,
+        lightDirection: [
+          state.globe.cinematicLightX,
+          state.globe.cinematicLightY,
+          state.globe.cinematicLightZ,
+        ] as const,
+        lightingMode: state.globe.cinematicLightingMode,
+        terminatorSoftness: state.globe.cinematicTerminatorSoftness,
+        terminatorContrast: state.globe.cinematicTerminatorContrast,
+        keyIntensity: state.globe.cinematicKeyIntensity,
+        fillIntensity: state.globe.cinematicFillIntensity,
+        rimColor: state.globe.cinematicRimColor,
+        rimIntensity: state.globe.cinematicRimIntensity,
+        rimPower: state.globe.cinematicRimPower,
+        specularIntensity: state.globe.cinematicSpecularIntensity,
+        cloudOpacity: state.globe.cinematicCloudOpacity,
+        oceanSheen: state.globe.cinematicOceanSheen,
+      },
+      borders: {
+        enabled: state.globe.cinematicBorders,
+        color: state.globe.cinematicBorderColor,
+        intensity: state.globe.cinematicBorderIntensity,
+      },
+      cityLights: {
+        enabled: state.globe.cinematicCityLights,
+        color: state.globe.cinematicCityLightColor,
+        intensity: state.globe.cinematicCityLightIntensity,
+        count: state.globe.cinematicCityLightCount,
+        size: state.globe.cinematicCityLightSize,
+        twinkle: state.globe.cinematicCityLightTwinkle,
+      },
+      network: {
+        enabled: state.globe.cinematicNetwork,
+        color: state.globe.cinematicNetworkColor,
+        opacity: state.globe.cinematicNetworkOpacity,
+        maxConnections: state.globe.cinematicNetworkConnections,
+        pulseSpeed: state.globe.cinematicNetworkPulseSpeed,
+      },
+      focusPulse: {
+        durationMs: state.globe.cinematicPulseDurationMs,
+        angularRadiusBase: state.globe.cinematicPulseRadiusBase,
+        angularBand: state.globe.cinematicPulseAngularBand,
+        scaleMin: state.globe.cinematicPulseScaleMin,
+        scaleMax: state.globe.cinematicPulseScaleMax,
+        peakOpacity: state.globe.cinematicPulseOpacity,
+        segments: state.globe.cinematicPulseSegments,
+        radiusFactor: state.globe.cinematicPulseRadiusFactor,
+        color: state.globe.cinematicPulseColor,
+      },
+    },
     // Paper kind (vintage atlas) — every knob is always sent so the
     // workshop's clear-override flow can route through globe.update().
     // Sentinels: empty-string color = use theme default, < 0 numeric =

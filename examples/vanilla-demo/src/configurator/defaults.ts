@@ -9,8 +9,8 @@ import type {
 import { defaultArcSettings, defaultMarkerSettings } from './layer-fixtures';
 
 export const defaultGlobeSettings: GlobeSettings = {
-  kind: 'outline',
-  theme: 'outline-dark',
+  kind: 'cinematic',
+  theme: 'cinematic-night',
   countryResolution: 'low',
   hoverEnabled: true,
   hoverOccludeBackSide: true,
@@ -30,12 +30,10 @@ export const defaultGlobeSettings: GlobeSettings = {
   // user picks a mode in the Country fill workshop card or the
   // choropleth data layer fires `setData`. Other defaults are
   // sentinels (empty / 0) so flipping mode picks up the theme tokens.
-  // Subtle 'always' fill on init — countries lift a hair above the
-  // ocean colour without screaming "data layer". Empty string / 0
-  // means "use theme token" (`countries.fill.defaultColor` /
-  // `.opacity`), so the look stays in sync with whatever theme the
-  // user picks; just flipping `mode` is enough to enable the depth.
-  countryFillMode: 'always',
+  // Empty string / 0 means "use theme token" (`countries.fill.defaultColor` /
+  // `.opacity`), so enabling the layer later stays in sync with whichever
+  // theme the user picked.
+  countryFillMode: 'none',
   countryFillDefaultColor: '',
   countryFillDefaultOpacity: 0,
   // Curated palette for the demo's 'palette' mode. Picked so the
@@ -72,12 +70,12 @@ export const defaultGlobeSettings: GlobeSettings = {
   ],
   dottedDotsHoverColor: '',
   dottedDotsActiveColor: '',
-  countryLabels: true,
+  countryLabels: false,
   // High threshold by design — only the ~10-15 biggest countries
   // (Russia, Canada, Brazil, USA, China, Australia, India, …) read
   // labels at the boot zoom. Once the user zooms in, smaller ones
   // fade in. Keeps the first-impression frame clean.
-  labelMinScreenSize: 160,
+  labelMinScreenSize: 300,
   labelSizeFadeRange: 0.5,
   labelTransitionMs: 240,
   // Soft white halo at low radius — readable on the dark ocean
@@ -92,7 +90,7 @@ export const defaultGlobeSettings: GlobeSettings = {
   autoRotate: true,
   autoRotateSpeed: 0.06,
   axisTilt: 23.5,
-  atmosphere: true,
+  atmosphere: false,
   atmosphereColor: '',
   atmosphereIntensity: 0,
   atmosphereRadiusScale: 0,
@@ -148,6 +146,16 @@ export const defaultGlobeSettings: GlobeSettings = {
   outlineHoverCrosshairTooltipDecimals: 2,
   ...defaultArcSettings,
   ...defaultMarkerSettings,
+  arcColor: '#f6b44d',
+  arcWidth: 1.25,
+  arcMinHeight: 0.18,
+  arcMaxHeight: 0.72,
+  markerDataset: 'megacities',
+  markerSize: 0.85,
+  markerHoverScale: 1.45,
+  markerColor: '#ffd36a',
+  markerPerMarkerColor: false,
+  markerPulseAmplitude: 0.18,
   // Dotted defaults — empty-string colors / 0 numerics mean "use theme
   // default" sentinel; sensible booleans default-on so the workshop's
   // baseline preview shows the dot field at full personality.
@@ -261,6 +269,49 @@ export const defaultGlobeSettings: GlobeSettings = {
   hologramPulseSegments: 128,
   hologramPulseColor: '',
   hologramPulseRadiusFactor: 1.012,
+  // Cinematic defaults — first-run hero setup for the new marketing-grade
+  // globe. Empty-string colors inherit the cinematic-night theme.
+  cinematicOceanColor: '',
+  cinematicLandColor: '',
+  cinematicCloudColor: '',
+  cinematicNightColor: '',
+  cinematicLightX: -0.52,
+  cinematicLightY: 0.74,
+  cinematicLightZ: 0.36,
+  cinematicLightingMode: 'hero',
+  cinematicTerminatorSoftness: 0.38,
+  cinematicTerminatorContrast: 1.42,
+  cinematicKeyIntensity: 1.38,
+  cinematicFillIntensity: 0.16,
+  cinematicRimColor: '',
+  cinematicRimIntensity: 0.76,
+  cinematicRimPower: 2.65,
+  cinematicSpecularIntensity: 0.82,
+  cinematicCloudOpacity: 0.16,
+  cinematicOceanSheen: 0.44,
+  cinematicBorders: true,
+  cinematicBorderColor: '',
+  cinematicBorderIntensity: 0,
+  cinematicCityLights: true,
+  cinematicCityLightColor: '',
+  cinematicCityLightIntensity: 1.46,
+  cinematicCityLightCount: 7600,
+  cinematicCityLightSize: 0.0068,
+  cinematicCityLightTwinkle: true,
+  cinematicNetwork: true,
+  cinematicNetworkColor: '',
+  cinematicNetworkOpacity: 0.32,
+  cinematicNetworkConnections: 44,
+  cinematicNetworkPulseSpeed: 0.32,
+  cinematicPulseDurationMs: 1350,
+  cinematicPulseRadiusBase: 0.075,
+  cinematicPulseAngularBand: 0.015,
+  cinematicPulseScaleMin: 0.32,
+  cinematicPulseScaleMax: 2.7,
+  cinematicPulseOpacity: 1.1,
+  cinematicPulseSegments: 128,
+  cinematicPulseColor: '',
+  cinematicPulseRadiusFactor: 1.01,
   // Paper kind defaults — textured, colorful atlas look: rich enough for
   // education / science demos without becoming an antique-only sepia map.
   paperSurfaceColor: '',
@@ -403,8 +454,8 @@ export const defaultGlobeSettings: GlobeSettings = {
   smoothZoom: true,
   minZoom: 1.25,
   maxZoom: 7.5,
-  initialLat: 18,
-  initialLng: 38,
+  initialLat: 16,
+  initialLng: -66,
   pixelRatio: 'auto',
   adaptiveQuality: true,
   antialias: true,
@@ -412,6 +463,7 @@ export const defaultGlobeSettings: GlobeSettings = {
 };
 
 export const defaultThemeForKind: Record<GlobeKind, ThemePresetName> = {
+  cinematic: 'cinematic-night',
   outline: 'outline-dark',
   dotted: 'dotted-dark',
   wireframe: 'wireframe-tron',
@@ -423,7 +475,74 @@ export const globeDefaultsForKind = (kind: GlobeKind): Partial<GlobeSettings> =>
   const base = {
     kind,
     theme: defaultThemeForKind[kind],
+    atmosphere: kind !== 'cinematic',
+    countryLabels: kind !== 'cinematic',
   };
+  if (kind === 'cinematic') {
+    return {
+      ...base,
+      countryFillMode: 'none',
+      countryFillDefaultColor: '',
+      countryFillDefaultOpacity: 0.18,
+      countryLabels: false,
+      labelMinScreenSize: 300,
+      labelColor: '',
+      labelHaloColor: 'rgba(0, 5, 12, 0.85)',
+      labelFontWeight: '500',
+      autoRotate: true,
+      autoRotateSpeed: 0.045,
+      axisTilt: 23.5,
+      atmosphere: false,
+      atmosphereColor: '',
+      atmosphereIntensity: 0,
+      atmosphereRadiusScale: 0,
+      atmospherePower: 0,
+      atmosphereThreshold: 0.6,
+      atmosphereBlending: 'additive',
+      starfield: true,
+      starfieldDensity: 1800,
+      starfieldSize: 1.1,
+      starfieldMultiColor: true,
+      starfieldPalette: ['#ffffff', '#d8ecff', '#9dc8ff', '#fff0b8', '#ffd36a'],
+      focusPulseOrigin: 'click',
+      focusPulseOnSurfaceClick: true,
+      arcColor: '#f6b44d',
+      arcWidth: 1.25,
+      arcMinHeight: 0.18,
+      arcMaxHeight: 0.72,
+      arcPerArcGradient: true,
+      markerDataset: 'megacities',
+      markerColor: '#ffd36a',
+      markerPerMarkerColor: false,
+      markerSize: 0.85,
+      markerHoverScale: 1.45,
+      markerPulse: true,
+      markerPulseAmplitude: 0.18,
+      initialLat: 16,
+      initialLng: -66,
+      cinematicLightX: -0.52,
+      cinematicLightY: 0.74,
+      cinematicLightZ: 0.36,
+      cinematicTerminatorSoftness: 0.38,
+      cinematicTerminatorContrast: 1.42,
+      cinematicKeyIntensity: 1.38,
+      cinematicFillIntensity: 0.16,
+      cinematicRimIntensity: 0.76,
+      cinematicRimPower: 2.65,
+      cinematicSpecularIntensity: 0.82,
+      cinematicCloudOpacity: 0.16,
+      cinematicOceanSheen: 0.44,
+      cinematicCityLights: true,
+      cinematicCityLightIntensity: 1.46,
+      cinematicCityLightCount: 7600,
+      cinematicCityLightSize: 0.0068,
+      cinematicNetwork: true,
+      cinematicNetworkOpacity: 0.32,
+      cinematicNetworkConnections: 44,
+      cinematicBorders: true,
+    };
+  }
+
   if (kind !== 'paper') return base;
 
   return {

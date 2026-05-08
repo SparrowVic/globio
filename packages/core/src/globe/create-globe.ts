@@ -18,6 +18,7 @@ import type { GlobeKind, KindHandle, KindLayerRegistry, Public } from '../kinds/
 import type { OutlineKindHandle } from '../kinds/outline';
 import type { DottedKindHandle } from '../kinds/dotted';
 import type { HologramKindHandle } from '../kinds/hologram';
+import type { CinematicKindHandle } from '../kinds/cinematic';
 import { GlobeControls } from '../interaction/controls';
 import { PointerRaycaster } from '../interaction/raycaster';
 import { GlobeEventEmitter } from '../interaction/events';
@@ -1035,6 +1036,14 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         hologramHandle?.setHologramConfig?.(state.config.hologram ?? partial.hologram);
       }
 
+      // Cinematic-kind decorations — physically-lit surface uniforms,
+      // city-light point cloud, network overlay, border intensity and
+      // focus-pulse tuning are all live-routed through the kind handle.
+      if (partial.cinematic !== undefined) {
+        const cinematicHandle = state.kindHandle as CinematicKindHandle | null;
+        cinematicHandle?.setCinematicConfig?.(state.config.cinematic ?? partial.cinematic);
+      }
+
       // Wireframe-kind extras — every knob in WireframeConfig is routed
       // through the kindHandle's setWireframeConfig live setter (color,
       // density, click pulse, emphasis, equator beam, glitch, active
@@ -1313,6 +1322,7 @@ const mergeRuntimeConfig = (
   assignMergedSection(merged, 'wireframe', prev.wireframe, partial.wireframe);
   assignMergedSection(merged, 'paper', prev.paper, partial.paper);
   assignMergedSection(merged, 'hologram', prev.hologram, partial.hologram);
+  assignMergedSection(merged, 'cinematic', prev.cinematic, partial.cinematic);
   assignMergedSection(merged, 'starfield', prev.starfield, partial.starfield);
   assignMergedSection(merged, 'autoRotate', prev.autoRotate, partial.autoRotate);
   assignMergedSection(merged, 'performance', prev.performance, partial.performance);

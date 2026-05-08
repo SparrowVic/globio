@@ -65,12 +65,15 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
   const dotsMode = settings.dottedDotsMode;
   const isDotted = settings.kind === 'dotted';
   const supportsBackground =
-    settings.kind === 'outline' || settings.kind === 'dotted' || settings.kind === 'hologram';
+    settings.kind === 'cinematic' ||
+    settings.kind === 'outline' ||
+    settings.kind === 'dotted' ||
+    settings.kind === 'hologram';
   return (
     <div className="space-y-4">
       <DependsOn
         when={supportsBackground}
-        because="Background fill is mounted on outline, dotted, and hologram today. Paper and wireframe use their own surface visual."
+        because="Background fill is mounted on cinematic, outline, dotted, and hologram today. Paper and wireframe use their own surface visual."
         className="space-y-4"
         variant="hidden"
       >

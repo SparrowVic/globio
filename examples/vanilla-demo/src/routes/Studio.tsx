@@ -84,6 +84,7 @@ const initialState = (search: URLSearchParams): ConfiguratorState => {
 };
 
 const isGlobeKind = (value: string | null): value is GlobeKind =>
+  value === 'cinematic' ||
   value === 'outline' ||
   value === 'dotted' ||
   value === 'wireframe' ||

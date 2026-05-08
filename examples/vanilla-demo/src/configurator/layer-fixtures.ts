@@ -123,8 +123,20 @@ const ARC_ACCENTS: ReadonlyArray<string> = [
   '#fbbf24',
 ];
 
+const CINEMATIC_ARC_ACCENTS: ReadonlyArray<string> = [
+  '#f7b84d',
+  '#55d7ff',
+  '#ff6fc8',
+  '#89f57a',
+  '#ffd36a',
+];
+
 export const buildArcs = (settings: ArcWorkshopSettings): ReadonlyArray<ArcConfig> => {
   const fixtures = arcFixtures[settings.arcDataset] ?? arcFixtures.hubs;
+  const accents =
+    (settings as ArcWorkshopSettings & { readonly kind?: string }).kind === 'cinematic'
+      ? CINEMATIC_ARC_ACCENTS
+      : ARC_ACCENTS;
   return fixtures.map((arc, i) => ({
     id: arc.id,
     from: arc.from,
@@ -134,7 +146,7 @@ export const buildArcs = (settings: ArcWorkshopSettings): ReadonlyArray<ArcConfi
     minHeight: settings.arcMinHeight,
     maxHeight: settings.arcMaxHeight,
     color: settings.arcPerArcGradient
-      ? ARC_ACCENTS[i % ARC_ACCENTS.length]!
+      ? accents[i % accents.length]!
       : settings.arcColor,
     style: settings.arcStyle,
     ...(settings.arcStyle === 'dashed'

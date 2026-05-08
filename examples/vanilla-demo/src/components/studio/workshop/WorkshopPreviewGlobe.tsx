@@ -116,6 +116,10 @@ export function WorkshopPreviewGlobe({
     // shows them what they're shipping rather than a different look.
     const previewKind = cinematography.kind ?? state.globe.kind;
     const previewTheme = cinematography.theme ?? state.globe.theme;
+    const previewAtmosphereEnabled =
+      previewKind === 'cinematic'
+        ? false
+        : cinematography.atmosphere ?? baseConfig.atmosphere?.enabled ?? true;
     const globe = createGlobe({
       ...baseConfig,
       container,
@@ -123,7 +127,7 @@ export function WorkshopPreviewGlobe({
       theme: previewTheme,
       transparent: true,
       framing: { padding: cinematography.framingPadding ?? 0.18, lockZoom: true },
-      atmosphere: { enabled: cinematography.atmosphere ?? true },
+      atmosphere: { ...baseConfig.atmosphere, enabled: previewAtmosphereEnabled },
       starfield:
         cinematography.starfield === false
           ? { enabled: false }
@@ -185,13 +189,14 @@ export function WorkshopPreviewGlobe({
         ? { focusPulse: baseConfig.focusPulse }
         : {}),
       // Per-kind config sub-trees — without these, knobs in the
-      // dotted / hologram / paper / wireframe presets don't propagate
+      // dotted / hologram / cinematic / paper / wireframe presets don't propagate
       // to the running preview globe (the core's `update()` reads
       // `partial.dotted` / `.hologram` / `.paper` / `.wireframe` and
       // dispatches to the active kind's handle, but if the workshop
       // never spreads them in, the kindHandle setter is never called).
       ...(baseConfig.dotted !== undefined ? { dotted: baseConfig.dotted } : {}),
       ...(baseConfig.hologram !== undefined ? { hologram: baseConfig.hologram } : {}),
+      ...(baseConfig.cinematic !== undefined ? { cinematic: baseConfig.cinematic } : {}),
       ...(baseConfig.paper !== undefined ? { paper: baseConfig.paper } : {}),
       ...(baseConfig.wireframe !== undefined ? { wireframe: baseConfig.wireframe } : {}),
     });

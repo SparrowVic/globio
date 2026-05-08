@@ -18,8 +18,8 @@ import type {
  * the reticle's chase-ease and the lat/lng readout's snap to the
  * underlying geography.
  *
- * Outline / dotted / hologram / paper currently mount reticles. The preview
- * mirrors the user's current studio kind, so each kind renders its
+ * Outline / cinematic / dotted / hologram / paper currently mount reticles.
+ * The preview mirrors the user's current studio kind, so each kind renders its
  * own implementation from the same semantic controls.
  *
  * Knob coverage: master toggle, color, size, opacity, ring radius,
@@ -35,11 +35,12 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <DependsOn
         when={
           settings.kind === 'outline' ||
+          settings.kind === 'cinematic' ||
           settings.kind === 'dotted' ||
           settings.kind === 'hologram' ||
           settings.kind === 'paper'
         }
-        because="Crosshair is mounted on outline, dotted, hologram, and paper today. Switch to one of those kinds to tune it."
+        because="Crosshair is mounted on cinematic, outline, dotted, hologram, and paper today. Switch to one of those kinds to tune it."
         className="space-y-4"
         variant="hidden"
       >

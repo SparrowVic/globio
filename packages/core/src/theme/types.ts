@@ -115,7 +115,28 @@ export type TokenKey =
   | 'hologram.glitchAmount'
   | 'hologram.glitchIntervalMin'
   | 'hologram.glitchIntervalMax'
-  | 'hologram.outerGlowOpacity';
+  | 'hologram.outerGlowOpacity'
+  | 'cinematic.oceanColor'
+  | 'cinematic.landColor'
+  | 'cinematic.cloudColor'
+  | 'cinematic.nightColor'
+  | 'cinematic.lightDirectionX'
+  | 'cinematic.lightDirectionY'
+  | 'cinematic.lightDirectionZ'
+  | 'cinematic.terminatorSoftness'
+  | 'cinematic.terminatorContrast'
+  | 'cinematic.keyIntensity'
+  | 'cinematic.fillIntensity'
+  | 'cinematic.rimColor'
+  | 'cinematic.rimIntensity'
+  | 'cinematic.rimPower'
+  | 'cinematic.specularIntensity'
+  | 'cinematic.cityLightColor'
+  | 'cinematic.cityLightIntensity'
+  | 'cinematic.networkColor'
+  | 'cinematic.networkOpacity'
+  | 'cinematic.borderColor'
+  | 'cinematic.borderIntensity';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -233,6 +254,27 @@ export interface TokenSet {
   readonly 'hologram.glitchIntervalMin': number;
   readonly 'hologram.glitchIntervalMax': number;
   readonly 'hologram.outerGlowOpacity': number;
+  readonly 'cinematic.oceanColor': string;
+  readonly 'cinematic.landColor': string;
+  readonly 'cinematic.cloudColor': string;
+  readonly 'cinematic.nightColor': string;
+  readonly 'cinematic.lightDirectionX': number;
+  readonly 'cinematic.lightDirectionY': number;
+  readonly 'cinematic.lightDirectionZ': number;
+  readonly 'cinematic.terminatorSoftness': number;
+  readonly 'cinematic.terminatorContrast': number;
+  readonly 'cinematic.keyIntensity': number;
+  readonly 'cinematic.fillIntensity': number;
+  readonly 'cinematic.rimColor': string;
+  readonly 'cinematic.rimIntensity': number;
+  readonly 'cinematic.rimPower': number;
+  readonly 'cinematic.specularIntensity': number;
+  readonly 'cinematic.cityLightColor': string;
+  readonly 'cinematic.cityLightIntensity': number;
+  readonly 'cinematic.networkColor': string;
+  readonly 'cinematic.networkOpacity': number;
+  readonly 'cinematic.borderColor': string;
+  readonly 'cinematic.borderIntensity': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;

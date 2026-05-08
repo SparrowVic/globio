@@ -13,6 +13,7 @@ export interface KindThemeEntry {
  * them. Don't invent presets; the call would log a warning at runtime.
  */
 export const KIND_THEMES: Readonly<Record<GlobeKind, ReadonlyArray<KindThemeEntry>>> = {
+  cinematic: [{ preset: 'cinematic-night', label: 'Night', swatch: '#ffd36a' }],
   outline: [
     { preset: 'outline-dark', label: 'Dark', swatch: '#3b4252' },
     { preset: 'outline-cyber', label: 'Cyber', swatch: '#22d3ee' },
@@ -33,6 +34,7 @@ export const KIND_THEMES: Readonly<Record<GlobeKind, ReadonlyArray<KindThemeEntr
  * outline family chromatically).
  */
 export const KIND_ACCENT: Readonly<Record<GlobeKind, string>> = {
+  cinematic: '#ffd36a',
   outline: '#fbbf24',
   dotted: '#67e8f9',
   wireframe: '#a78bfa',

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   createGlobe,
   type ArcConfig,
+  type CinematicConfig,
   type GlobeInstance,
   type GlobeKind,
   type StarfieldConfig,
@@ -48,6 +49,7 @@ export interface DecorationGlobeProps {
   readonly arcs?: ReadonlyArray<ArcConfig>;
   /** Show the soft rim atmosphere. Default true. */
   readonly atmosphere?: boolean;
+  readonly cinematic?: CinematicConfig;
   /**
    * Reserve a fraction of the viewport as margin around the globe so the
    * atmosphere halo has room to fade. 0..0.5. Default 0.18 — chosen for
@@ -113,6 +115,7 @@ export function DecorationGlobe({
   starfield = true,
   arcs,
   atmosphere = true,
+  cinematic,
   framingPadding = 0.18,
   lockZoom = true,
   transparent = true,
@@ -150,6 +153,7 @@ export function DecorationGlobe({
       atmosphere: { enabled: atmosphere },
       starfield: resolvedStarfield,
       ...(arcs !== undefined && { arcs }),
+      ...(cinematic !== undefined && { cinematic }),
       focusPulse: { enabled: false },
       axisTilt,
       initialPosition: [initialLat, initialLng],
@@ -181,6 +185,7 @@ export function DecorationGlobe({
     starfield,
     arcs,
     atmosphere,
+    cinematic,
     framingPadding,
     lockZoom,
     transparent,

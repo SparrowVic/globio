@@ -146,3 +146,19 @@ export const buildHologramFocusPulse = (
     peakOpacity: 1.4,
     radiusFactor: 1.012,
   });
+
+/**
+ * Cinematic — broad warm shockwave with a lifted radius so it reads as a
+ * luminous atmosphere ripple rather than a flat UI ring.
+ */
+export const buildCinematicFocusPulse = (
+  opts: FocusPulseDecoratorBuildOptions
+): FocusPulseDecorator =>
+  makeBandDecorator(opts, {
+    angularRadiusBase: 0.075,
+    angularBand: 0.015,
+    scaleMin: 0.32,
+    scaleMax: 2.7,
+    peakOpacity: 1.1,
+    radiusFactor: 1.01,
+  });

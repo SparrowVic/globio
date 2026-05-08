@@ -4,7 +4,14 @@ import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import type { GlobeKind } from '@your-globe/core';
 import { KIND_ACCENT } from '../data/kind-themes';
 
-const KINDS: ReadonlyArray<GlobeKind> = ['outline', 'dotted', 'wireframe', 'hologram', 'paper'];
+const KINDS: ReadonlyArray<GlobeKind> = [
+  'cinematic',
+  'outline',
+  'dotted',
+  'wireframe',
+  'hologram',
+  'paper',
+];
 
 export interface LayerCardProps {
   readonly name: string;
@@ -16,7 +23,7 @@ export interface LayerCardProps {
 /**
  * One layer card in the 3×3 anatomy grid. Each card declares the layer's
  * canonical name, its one-line contract, and the universal indicator
- * "native in {five kind dots}" — every kind implements every canonical
+ * "native in {kind dots}" — every kind implements every canonical
  * layer, just in its own renderer.
  */
 export function LayerCard({ name, contract, icon, accent }: LayerCardProps) {

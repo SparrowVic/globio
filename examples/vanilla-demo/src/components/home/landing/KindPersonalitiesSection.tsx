@@ -11,39 +11,46 @@ interface KindCopy {
 
 const KINDS: ReadonlyArray<KindCopy> = [
   {
-    id: 'outline',
+    id: 'cinematic',
     index: '01',
+    tagline: 'Marketing-grade night Earth.',
+    description:
+      'Physically lit oceans, warm borders, city-light constellations and native data overlays. Built for hero sections, investor decks and polished product storytelling.',
+  },
+  {
+    id: 'outline',
+    index: '02',
     tagline: 'Editorial command center.',
     description:
       'Crisp continent borders, glowing seas, sunrise terminator. The default flagship for product dashboards and reportage that needs to look like it belongs above the fold.',
   },
   {
     id: 'dotted',
-    index: '02',
+    index: '03',
     tagline: 'Stippled data atlas.',
     description:
       'Continents rendered as quietly-tuned dot fields. Choropleth and tinting modes feel native, ripple animations propagate cleanly. Pairs especially well with point-data visualizations.',
   },
   {
     id: 'wireframe',
-    index: '03',
+    index: '04',
     tagline: 'Pure topology.',
     description:
       'Geometric line work over a translucent shell. Made for engineering-side narratives — performance dashboards, network visualization, structural storytelling.',
   },
   {
     id: 'hologram',
-    index: '04',
+    index: '05',
     tagline: 'Future-tense projection.',
     description:
       'Animated scanlines, fresnel atmospheres, subtle holographic shimmer. The cinematic option — works on dark backgrounds and looks sharper at large scale.',
   },
   {
     id: 'paper',
-    index: '05',
+    index: '06',
     tagline: 'Tactile educational atlas.',
     description:
-      'Hand-drawn ink, paper grain, vintage labels. The most editorial of the five. Use it for storytelling, education, museum work, or anything that wants to feel earned.',
+      'Hand-drawn ink, paper grain, vintage labels. The most editorial kind. Use it for storytelling, education, museum work, or anything that wants to feel earned.',
   },
 ];
 
@@ -54,9 +61,9 @@ export function KindPersonalitiesSection() {
 
       <div className="mx-auto mb-16 max-w-7xl">
         <SectionHeader
-          eyebrow="Five personalities"
-          title="Same engine. Five distinct globes."
-          sub="Outline, dotted, wireframe, hologram, paper — each one is a real renderer, not a colorway. Pick the personality that fits the story."
+          eyebrow="Six personalities"
+          title="Same engine. Six distinct globes."
+          sub="Cinematic, outline, dotted, wireframe, hologram, paper — each one is a real renderer, not a colorway. Pick the personality that fits the story."
         />
       </div>
 

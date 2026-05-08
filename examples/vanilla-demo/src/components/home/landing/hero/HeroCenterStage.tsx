@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ArcConfig, GlobeKind, ThemePresetName } from '@your-globe/core';
+import type { ArcConfig, CinematicConfig, GlobeKind, ThemePresetName } from '@your-globe/core';
 import { DecorationGlobe, type DecorationGlobeReadyApi } from '@/components/shared';
 import { HeroHudReadout } from './HeroHudReadout';
 import { HeroDataAnchors } from './HeroDataAnchors';
@@ -22,6 +22,44 @@ export function HeroCenterStage({
   const heroArcs = useMemo(
     () => buildHeroArcs(activeKind, accent),
     [activeKind, accent],
+  );
+  const cinematic = useMemo<CinematicConfig | undefined>(
+    () =>
+      activeKind === 'cinematic'
+        ? {
+            surface: {
+              lightingMode: 'hero',
+              lightDirection: [-0.52, 0.74, 0.36],
+              terminatorSoftness: 0.38,
+              terminatorContrast: 1.42,
+              keyIntensity: 1.38,
+              fillIntensity: 0.16,
+              rimIntensity: 0.76,
+              rimPower: 2.65,
+              specularIntensity: 0.82,
+              cloudOpacity: 0.16,
+              oceanSheen: 0.44,
+            },
+            cityLights: {
+              enabled: true,
+              intensity: 1.5,
+              count: 8200,
+              size: 0.0068,
+              twinkle: true,
+            },
+            network: {
+              enabled: true,
+              opacity: 0.28,
+              maxConnections: 46,
+              pulseSpeed: 0.28,
+            },
+            borders: {
+              enabled: true,
+              intensity: 0.86,
+            },
+          }
+        : undefined,
+    [activeKind],
   );
 
   return (
@@ -46,7 +84,8 @@ export function HeroCenterStage({
           axisTilt={23.5}
           starfield={false}
           arcs={heroArcs}
-          atmosphere
+          atmosphere={activeKind !== 'cinematic'}
+          cinematic={cinematic}
           framingPadding={0.06}
           interactive
           onReady={(readyApi) => {

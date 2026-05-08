@@ -10,7 +10,7 @@ import { StatChip } from '../atoms';
 import { cn } from '@/lib/utils';
 
 const STATS = [
-  { icon: faGrid2, value: '5', label: 'Visual kinds' },
+  { icon: faGrid2, value: '6', label: 'Visual kinds' },
   { icon: faLayerGroup, value: '9', label: 'Canonical layers' },
   { icon: faBolt, value: '4', label: 'Frameworks' },
   { icon: faGaugeHigh, value: '60 FPS', label: 'WebGL engine' },

@@ -122,6 +122,7 @@ export function GlobePreview({
       ...(config.focusPulse !== undefined ? { focusPulse: config.focusPulse } : {}),
       ...(config.dotted !== undefined ? { dotted: config.dotted } : {}),
       ...(config.hologram !== undefined ? { hologram: config.hologram } : {}),
+      ...(config.cinematic !== undefined ? { cinematic: config.cinematic } : {}),
       ...(config.paper !== undefined ? { paper: config.paper } : {}),
       ...(config.wireframe !== undefined ? { wireframe: config.wireframe } : {}),
     };
@@ -142,6 +143,7 @@ export function GlobePreview({
     config.focusPulse,
     config.dotted,
     config.hologram,
+    config.cinematic,
     config.paper,
     config.wireframe,
   ]);

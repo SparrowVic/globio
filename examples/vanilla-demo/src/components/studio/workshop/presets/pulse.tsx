@@ -357,6 +357,117 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         </DependsOn>
 
         <DependsOn
+          when={settings.kind === 'cinematic'}
+          because="Cinematic renders focus pulse as a warm atmospheric shockwave. Switch the main globe to cinematic kind to tune."
+          className="space-y-4"
+          variant="hidden"
+        >
+          <SectionHeading>Cinematic · atmosphere wave</SectionHeading>
+          <SliderField
+            label="Duration"
+            value={settings.cinematicPulseDurationMs}
+            min={300}
+            max={3200}
+            step={50}
+            format={(value) => `${(value / 1000).toFixed(2)} s`}
+            onChange={(cinematicPulseDurationMs) =>
+              onGlobeChange({ cinematicPulseDurationMs })
+            }
+          />
+          <SliderField
+            label="Start radius"
+            value={settings.cinematicPulseRadiusBase}
+            min={0.015}
+            max={0.2}
+            step={0.005}
+            format={(value) => `${(value * (180 / Math.PI)).toFixed(1)}°`}
+            onChange={(cinematicPulseRadiusBase) =>
+              onGlobeChange({ cinematicPulseRadiusBase })
+            }
+          />
+          <SliderField
+            label="Band thickness"
+            value={settings.cinematicPulseAngularBand}
+            min={0.003}
+            max={0.06}
+            step={0.001}
+            format={(value) => `${(value * (180 / Math.PI)).toFixed(2)}°`}
+            onChange={(cinematicPulseAngularBand) =>
+              onGlobeChange({ cinematicPulseAngularBand })
+            }
+          />
+          <SliderField
+            label="Start scale"
+            value={settings.cinematicPulseScaleMin}
+            min={0.05}
+            max={1.2}
+            step={0.05}
+            format={(value) => `x${value.toFixed(2)}`}
+            onChange={(cinematicPulseScaleMin) =>
+              onGlobeChange({ cinematicPulseScaleMin })
+            }
+          />
+          <SliderField
+            label="Expansion"
+            value={settings.cinematicPulseScaleMax}
+            min={1}
+            max={5}
+            step={0.1}
+            format={(value) => `x${value.toFixed(1)}`}
+            onChange={(cinematicPulseScaleMax) =>
+              onGlobeChange({ cinematicPulseScaleMax })
+            }
+          />
+          <SliderField
+            label="Peak glow"
+            value={settings.cinematicPulseOpacity}
+            min={0.1}
+            max={2.2}
+            step={0.05}
+            format={(value) => value.toFixed(2)}
+            onChange={(cinematicPulseOpacity) => onGlobeChange({ cinematicPulseOpacity })}
+          />
+          <SliderField
+            label="Segments"
+            value={settings.cinematicPulseSegments}
+            min={24}
+            max={224}
+            step={4}
+            format={(value) => `${value}`}
+            onChange={(cinematicPulseSegments) =>
+              onGlobeChange({ cinematicPulseSegments })
+            }
+          />
+          <SliderField
+            label="Surface lift"
+            value={settings.cinematicPulseRadiusFactor}
+            min={1}
+            max={1.04}
+            step={0.0005}
+            format={(value) => `${((value - 1) * 100).toFixed(2)}%`}
+            onChange={(cinematicPulseRadiusFactor) =>
+              onGlobeChange({ cinematicPulseRadiusFactor })
+            }
+          />
+          <ColorField
+            label="Wave color"
+            value={settings.cinematicPulseColor || '#ffd36a'}
+            onChange={(cinematicPulseColor) => onGlobeChange({ cinematicPulseColor })}
+            hint={settings.cinematicPulseColor === '' ? 'Theme default' : undefined}
+            {...(settings.cinematicPulseColor !== '' ? { preset: '' } : {})}
+            swatches={[
+              '#ffd36a',
+              '#f6b44d',
+              '#fff0b8',
+              '#7df9ff',
+              '#67e8f9',
+              '#f472b6',
+              '#ffffff',
+            ]}
+          />
+        </DependsOn>
+
+        <DependsOn
           when={settings.kind === 'paper'}
           because="Paper renders focus pulse as ink and watercolor rings. Switch the main globe to paper kind to tune."
           className="space-y-4"
@@ -510,6 +621,15 @@ const preset: PresetModule = {
     'hologramPulseSegments',
     'hologramPulseColor',
     'hologramPulseRadiusFactor',
+    'cinematicPulseDurationMs',
+    'cinematicPulseRadiusBase',
+    'cinematicPulseAngularBand',
+    'cinematicPulseScaleMin',
+    'cinematicPulseScaleMax',
+    'cinematicPulseOpacity',
+    'cinematicPulseSegments',
+    'cinematicPulseColor',
+    'cinematicPulseRadiusFactor',
     'paperPulseDurationMs',
     'paperPulseRadiusBase',
     'paperPulseAngularBand',

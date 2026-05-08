@@ -172,7 +172,7 @@ export function StudioWorkflowSection() {
 
                   <div className="absolute bottom-5 right-5 grid grid-cols-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-black/45 text-center backdrop-blur-xl">
                     {[
-                      ['kinds', 5],
+                      ['kinds', 6],
                       ['layers', 9],
                       ['fps', 60],
                     ].map(([label, value]) => (

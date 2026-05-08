@@ -1,5 +1,5 @@
 /**
- * Five tiny CSS-only animations, one per kind. Each fits the 128px card
+ * Tiny CSS-only animations, one per legacy kind. Each fits the 128px card
  * preview slot and runs forever — they're pure decoration. Built with
  * SVG + CSS @keyframes so the cost is zero on idle frames.
  */

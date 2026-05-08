@@ -37,6 +37,7 @@ const kindOptions: ReadonlyArray<{
   readonly label: string;
   readonly icon: typeof faCircleDashed;
 }> = [
+  { value: 'cinematic', label: 'Cinematic', icon: faStars },
   { value: 'outline', label: 'Outline', icon: faCircleDashed },
   { value: 'dotted', label: 'Dotted', icon: faGrid },
   { value: 'wireframe', label: 'Wireframe', icon: faGrid2 },
@@ -49,6 +50,7 @@ const themeCatalog: ReadonlyArray<{
   readonly label: string;
   readonly kind: GlobeKind;
 }> = [
+  { value: 'cinematic-night', label: 'Cinematic · night', kind: 'cinematic' },
   { value: 'outline-dark', label: 'Outline · dark', kind: 'outline' },
   { value: 'outline-light', label: 'Outline · light', kind: 'outline' },
   { value: 'outline-sunset', label: 'Outline · sunset', kind: 'outline' },
@@ -83,7 +85,7 @@ export interface CommandPaletteProps {
  *     manage-saved modal, export JSON, reset configurator. The Top
  *     Command Bar duplicates these as icons; the palette adds keyboard
  *     access + fuzzy-discoverable labels.
- *  2. **Switch kind** — five options, applied instantly. Theme falls
+ *  2. **Switch kind** — visual kind options, applied instantly. Theme falls
  *     back to the first valid one for the chosen kind.
  *  3. **Switch theme** — themes valid for the *current* kind only.
  *  4. **Apply preset** — built-in + user-saved presets, in that order.

@@ -27,11 +27,11 @@ export function HeroLeftRail() {
           </span>
           Live
         </span>
-        <span className="px-3 py-1.5">Five visual personalities</span>
+        <span className="px-3 py-1.5">Six visual personalities</span>
       </div>
 
       <h1 className="max-w-[540px] text-balance text-[clamp(3.6rem,5vw,5.6rem)] font-semibold leading-[0.94] tracking-tight text-white">
-        Five globes.{' '}
+        Six globes.{' '}
         <span
           style={{
             color: 'var(--hero-accent)',
@@ -44,7 +44,7 @@ export function HeroLeftRail() {
         Zero ceiling.
       </h1>
       <p className="mt-7 max-w-[440px] text-base leading-relaxed text-slate-300 sm:text-lg">
-        A modern WebGL globe library with five visual personalities, nine canonical layers, and a typed runtime that ships in production.
+        A modern WebGL globe library with six visual personalities, nine canonical layers, and a typed runtime that ships in production.
       </p>
 
       <div className="mt-9 flex flex-wrap items-center gap-3">

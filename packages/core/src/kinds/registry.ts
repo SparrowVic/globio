@@ -1,4 +1,5 @@
 import type { ThemePresetName } from '../theme/presets';
+import { cinematicKind } from './cinematic';
 import { dottedKind } from './dotted';
 import { hologramKind } from './hologram';
 import { outlineKind } from './outline';
@@ -11,6 +12,7 @@ import type { GlobeKind, KindModule } from './types';
  * dispatchable from `globe.ts` without touching the dispatcher itself.
  */
 export const KIND_MODULES: Readonly<Record<GlobeKind, KindModule>> = Object.freeze({
+  cinematic: cinematicKind,
   outline: outlineKind,
   dotted: dottedKind,
   wireframe: wireframeKind,
@@ -24,6 +26,7 @@ export const KIND_MODULES: Readonly<Record<GlobeKind, KindModule>> = Object.free
  * kind module to mount. Missing entries fall through to `'outline'`.
  */
 export const PRESET_DEFAULT_KIND: Readonly<Record<ThemePresetName, GlobeKind>> = Object.freeze({
+  'cinematic-night': 'cinematic',
   'outline-dark': 'outline',
   'outline-light': 'outline',
   'outline-sunset': 'outline',

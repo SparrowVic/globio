@@ -815,3 +815,67 @@ export interface HologramConfig {
     readonly radiusFactor?: number;
   };
 }
+
+/**
+ * Cinematic kind — realistic/marketing-oriented globe identity. This kind
+ * is still driven by the same canonical layers, but adds a richer base
+ * stack: physically-lit ocean shell, warm land wash, city-light point data
+ * and a subtle surface connection network. Data layers keep the same
+ * semantic contracts (`choropleth`, `heatmap`, etc.) and render through
+ * the kind's own visual language.
+ *
+ * Sentinel reset semantics match the rest of the engine:
+ * empty-string colors = use theme defaults; non-positive numeric values
+ * where the natural domain is positive = use construction/theme default.
+ */
+export interface CinematicConfig {
+  readonly surface?: {
+    readonly oceanColor?: string;
+    readonly landColor?: string;
+    readonly cloudColor?: string;
+    readonly nightColor?: string;
+    readonly lightDirection?: readonly [number, number, number];
+    readonly lightingMode?: 'hero' | 'natural' | 'eclipse';
+    readonly terminatorSoftness?: number;
+    readonly terminatorContrast?: number;
+    readonly keyIntensity?: number;
+    readonly fillIntensity?: number;
+    readonly rimColor?: string;
+    readonly rimIntensity?: number;
+    readonly rimPower?: number;
+    readonly specularIntensity?: number;
+    readonly cloudOpacity?: number;
+    readonly oceanSheen?: number;
+  };
+  readonly borders?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly intensity?: number;
+  };
+  readonly cityLights?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly intensity?: number;
+    readonly count?: number;
+    readonly size?: number;
+    readonly twinkle?: boolean;
+  };
+  readonly network?: {
+    readonly enabled?: boolean;
+    readonly color?: string;
+    readonly opacity?: number;
+    readonly maxConnections?: number;
+    readonly pulseSpeed?: number;
+  };
+  readonly focusPulse?: {
+    readonly durationMs?: number;
+    readonly color?: string;
+    readonly angularRadiusBase?: number;
+    readonly angularBand?: number;
+    readonly scaleMin?: number;
+    readonly scaleMax?: number;
+    readonly peakOpacity?: number;
+    readonly segments?: number;
+    readonly radiusFactor?: number;
+  };
+}

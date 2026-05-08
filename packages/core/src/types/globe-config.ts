@@ -8,6 +8,7 @@ import type {
 import type { ArcConfig, HtmlMarkerConfig, MarkerConfig } from './markers';
 import type { AtmosphereConfig, StarfieldConfig } from './atmosphere';
 import type {
+  CinematicConfig,
   DottedConfig,
   HologramConfig,
   OutlineConfig,
@@ -61,6 +62,7 @@ export interface GlobeConfig {
     readonly pulseOnSurfaceClick?: boolean;
   };
   readonly outline?: OutlineConfig;
+  readonly cinematic?: CinematicConfig;
   readonly dotted?: DottedConfig;
   readonly wireframe?: WireframeConfig;
   readonly paper?: PaperConfig;

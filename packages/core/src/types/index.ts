@@ -32,6 +32,7 @@ export type {
 } from './atmosphere';
 
 export type {
+  CinematicConfig,
   DottedConfig,
   HologramConfig,
   OutlineConfig,

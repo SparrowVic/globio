@@ -9,6 +9,7 @@ export type {
   CountryDataMap,
   CountryEvent,
   CountryLabelsConfig,
+  CinematicConfig,
   DottedConfig,
   EasingFunction,
   EasingName,

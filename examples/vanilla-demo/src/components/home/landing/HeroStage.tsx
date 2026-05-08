@@ -15,8 +15,8 @@ import { HeroStatInstruments } from './hero/HeroStatInstruments';
  * feature that wants to drive the hero globe imperatively.
  */
 export function HeroStage() {
-  const [activeKind, setActiveKind] = useState<GlobeKind>('outline');
-  const [activeTheme, setActiveTheme] = useState<ThemePresetName>(KIND_THEMES.outline[0].preset);
+  const [activeKind, setActiveKind] = useState<GlobeKind>('cinematic');
+  const [activeTheme, setActiveTheme] = useState<ThemePresetName>(KIND_THEMES.cinematic[0].preset);
   const globeApiRef = useRef<DecorationGlobeReadyApi | null>(null);
   const accent = KIND_ACCENT[activeKind];
 

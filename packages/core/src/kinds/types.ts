@@ -27,12 +27,15 @@ import type {
  * - `dotted` — Apple/Stripe-style: glowing dots fill each country, no borders
  * - `wireframe` — Tron-style: pure lat/lng grid, no country geometry
  * - `hologram` — sci-fi command-deck: transparent shell, scanlines, Fresnel rim
+ * - `cinematic` — marketing/night-earth: physically lit ocean, city lights,
+ *   luminous borders and data-network overlays
  *
  * Future kinds: `paper`, `choropleth`. New kinds get a
  * `kinds/<name>/` folder with their own layer + index.ts exporting a
  * `KindModule`, then a registry entry in `kinds/registry.ts`.
  */
 export type GlobeKind =
+  | 'cinematic'
   | 'outline'
   | 'dotted'
   | 'wireframe'

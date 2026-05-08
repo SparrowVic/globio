@@ -295,6 +295,51 @@ export interface GlobeSettings {
   readonly hologramPulseColor: string;
   readonly hologramPulseRadiusFactor: number;
   // -----------------------------------------------------------------
+  // Cinematic kind — realistic/marketing globe. These fields map to
+  // config.cinematic and are ignored by other kinds.
+  // -----------------------------------------------------------------
+  readonly cinematicOceanColor: string;
+  readonly cinematicLandColor: string;
+  readonly cinematicCloudColor: string;
+  readonly cinematicNightColor: string;
+  readonly cinematicLightX: number;
+  readonly cinematicLightY: number;
+  readonly cinematicLightZ: number;
+  readonly cinematicLightingMode: 'hero' | 'natural' | 'eclipse';
+  readonly cinematicTerminatorSoftness: number;
+  readonly cinematicTerminatorContrast: number;
+  readonly cinematicKeyIntensity: number;
+  readonly cinematicFillIntensity: number;
+  readonly cinematicRimColor: string;
+  readonly cinematicRimIntensity: number;
+  readonly cinematicRimPower: number;
+  readonly cinematicSpecularIntensity: number;
+  readonly cinematicCloudOpacity: number;
+  readonly cinematicOceanSheen: number;
+  readonly cinematicBorders: boolean;
+  readonly cinematicBorderColor: string;
+  readonly cinematicBorderIntensity: number;
+  readonly cinematicCityLights: boolean;
+  readonly cinematicCityLightColor: string;
+  readonly cinematicCityLightIntensity: number;
+  readonly cinematicCityLightCount: number;
+  readonly cinematicCityLightSize: number;
+  readonly cinematicCityLightTwinkle: boolean;
+  readonly cinematicNetwork: boolean;
+  readonly cinematicNetworkColor: string;
+  readonly cinematicNetworkOpacity: number;
+  readonly cinematicNetworkConnections: number;
+  readonly cinematicNetworkPulseSpeed: number;
+  readonly cinematicPulseDurationMs: number;
+  readonly cinematicPulseRadiusBase: number;
+  readonly cinematicPulseAngularBand: number;
+  readonly cinematicPulseScaleMin: number;
+  readonly cinematicPulseScaleMax: number;
+  readonly cinematicPulseOpacity: number;
+  readonly cinematicPulseSegments: number;
+  readonly cinematicPulseColor: string;
+  readonly cinematicPulseRadiusFactor: number;
+  // -----------------------------------------------------------------
   // Paper kind (vintage atlas) — only honoured when kind === 'paper'.
   // Empty-string color = use theme default. 0 / negative numerics where
   // the natural domain is positive = "use theme default" sentinel.

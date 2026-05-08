@@ -161,6 +161,9 @@ const focusPulseStatus = (state: ConfiguratorState): string => {
   if (settings.kind === 'paper') {
     return `${settings.focusPulseOrigin} · ${(settings.paperPulseDurationMs / 1000).toFixed(1)}s`;
   }
+  if (settings.kind === 'cinematic') {
+    return `${settings.focusPulseOrigin} · ${(settings.cinematicPulseDurationMs / 1000).toFixed(1)}s`;
+  }
   const durationMs =
     settings.kind === 'hologram'
       ? settings.hologramPulseDurationMs
@@ -171,6 +174,7 @@ const focusPulseStatus = (state: ConfiguratorState): string => {
 const crosshairStatus = (state: ConfiguratorState): string => {
   const supported =
     state.globe.kind === 'outline' ||
+    state.globe.kind === 'cinematic' ||
     state.globe.kind === 'dotted' ||
     state.globe.kind === 'hologram' ||
     state.globe.kind === 'paper';
@@ -248,8 +252,13 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     name: 'Atmosphere',
     icon: faWandMagicSparkles,
     accent: '#67e8f9',
-    description: 'Soft Fresnel halo — toggle (tint comes from theme).',
-    status: (s) => (s.globe.atmosphere ? 'on' : 'off'),
+    description: 'Halo and cinematic planet lighting — rim, terminator, glow.',
+    status: (s) =>
+      s.globe.kind === 'cinematic'
+        ? `${s.globe.cinematicLightingMode} · rim`
+        : s.globe.atmosphere
+          ? 'on'
+          : 'off',
   },
   {
     id: 'crosshair',

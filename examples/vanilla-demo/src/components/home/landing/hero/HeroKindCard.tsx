@@ -108,6 +108,24 @@ function KindStaticPreview({
           style={{ background: accent, boxShadow: `0 0 10px ${accent}` }}
         />
       ) : null}
+      {kind === 'cinematic' ? (
+        <>
+          <span
+            className="absolute inset-2 rounded-full"
+            style={{
+              background:
+                'radial-gradient(circle at 34% 28%, rgba(190,238,255,0.45), transparent 24%), radial-gradient(circle at 58% 52%, rgba(255,211,106,0.48), transparent 42%)',
+            }}
+          />
+          <span
+            className="absolute inset-[14px] rounded-full opacity-80"
+            style={{
+              backgroundImage: `radial-gradient(circle, ${accent} 1px, transparent 1.5px)`,
+              backgroundSize: '8px 8px',
+            }}
+          />
+        </>
+      ) : null}
       <span
         className="absolute bottom-2 right-2 size-2 rounded-full"
         style={{ background: accent, boxShadow: `0 0 12px ${accent}` }}

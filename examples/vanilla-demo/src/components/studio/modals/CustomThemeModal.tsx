@@ -48,6 +48,7 @@ const NUMBER_TOKENS = [
 ] as const;
 
 const BUILT_IN_BASES: ReadonlyArray<{ readonly value: ThemePresetName; readonly label: string }> = [
+  { value: 'cinematic-night', label: 'Cinematic · night' },
   { value: 'outline-dark', label: 'Outline · dark' },
   { value: 'outline-light', label: 'Outline · light' },
   { value: 'outline-sunset', label: 'Outline · sunset' },

@@ -9,6 +9,7 @@ const KIND_LIST: ReadonlyArray<{
   readonly label: string;
   readonly caption: string;
 }> = [
+  { id: 'cinematic', label: 'Cinematic', caption: 'Night Earth hero' },
   { id: 'outline', label: 'Outline', caption: 'Crisp borders & glow' },
   { id: 'dotted', label: 'Dotted', caption: 'Stippled data feel' },
   { id: 'wireframe', label: 'Wireframe', caption: 'Pure topology' },

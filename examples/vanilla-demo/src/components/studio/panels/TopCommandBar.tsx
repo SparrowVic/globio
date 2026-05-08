@@ -39,6 +39,7 @@ const kindLabels: ReadonlyArray<{
   readonly value: GlobeKind;
   readonly label: string;
 }> = [
+  { value: 'cinematic', label: 'Cinematic' },
   { value: 'outline', label: 'Outline' },
   { value: 'dotted', label: 'Dotted' },
   { value: 'wireframe', label: 'Wireframe' },
@@ -56,6 +57,7 @@ const themeCatalog: ReadonlyArray<{
   readonly label: string;
   readonly kind: GlobeKind;
 }> = [
+  { value: 'cinematic-night', label: 'Cinematic · night', kind: 'cinematic' },
   { value: 'outline-dark', label: 'Outline · dark', kind: 'outline' },
   { value: 'outline-light', label: 'Outline · light', kind: 'outline' },
   { value: 'outline-sunset', label: 'Outline · sunset', kind: 'outline' },

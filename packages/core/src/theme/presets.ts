@@ -8,6 +8,7 @@ import type { PartialTokenSet } from './types';
  * user picking `'dotted-dark'` gets the dotted kind automatically.
  */
 export type ThemePresetName =
+  | 'cinematic-night'
   | 'outline-dark'
   | 'outline-light'
   | 'outline-sunset'
@@ -33,6 +34,62 @@ export type ThemePresetName =
  * override what differs from `DEFAULT_TOKENS`.
  */
 export const THEME_PRESETS: Readonly<Record<ThemePresetName, PartialTokenSet>> = Object.freeze({
+  // Cinematic kind — night-earth hero look: dark oceans, warm land/city
+  // detail, blue-white limb light, and restrained gold data overlays.
+  'cinematic-night': Object.freeze({
+    'background.color': '#02050b',
+    'globe.surfaceColor': '#031622',
+    'countries.border.color': '#f6b44d',
+    'countries.border.opacity': 0.78,
+    'countries.borderHover.color': '#fff0b8',
+    'countries.borderHover.width': 2.2,
+    'countries.borderHover.glowColor': '#ffc85a',
+    'countries.borderHover.glowOpacity': 0.42,
+    'countries.borderActive.color': '#7df9ff',
+    'countries.fill.defaultColor': '#6e4724',
+    'countries.fill.opacity': 0.24,
+    'countries.label.color': '#d7e8ff',
+    'countries.label.fontSize': 11,
+    'countries.label.fontWeight': '500',
+    'countries.label.textShadow':
+      '0 0 4px rgba(0, 5, 12, 0.92), 0 0 10px rgba(246, 180, 77, 0.35)',
+    'tooltip.backgroundColor': 'rgba(3, 7, 14, 0.92)',
+    'tooltip.textColor': '#fff0b8',
+    'lights.ambient.intensity': 0.34,
+    'lights.directional.intensity': 1.2,
+    'markers.defaultColor': '#ffd36a',
+    'atmosphere.color': '#8bd8ff',
+    'atmosphere.intensity': 1.25,
+    'starfield.color': '#d8ecff',
+    'starfield.density': 1800,
+    'starfield.size': 1.1,
+    'arcs.color': '#f6b44d',
+    'arcs.width': 1.35,
+    'arcs.opacity': 0.86,
+    'arcs.headColor': '#7df9ff',
+    'cinematic.oceanColor': '#02121f',
+    'cinematic.landColor': '#7d552e',
+    'cinematic.cloudColor': '#c8f0ff',
+    'cinematic.nightColor': '#020612',
+    'cinematic.lightDirectionX': -0.55,
+    'cinematic.lightDirectionY': 0.72,
+    'cinematic.lightDirectionZ': 0.42,
+    'cinematic.terminatorSoftness': 0.38,
+    'cinematic.terminatorContrast': 1.42,
+    'cinematic.keyIntensity': 1.38,
+    'cinematic.fillIntensity': 0.16,
+    'cinematic.rimColor': '#b9ecff',
+    'cinematic.rimIntensity': 0.76,
+    'cinematic.rimPower': 2.65,
+    'cinematic.specularIntensity': 0.82,
+    'cinematic.cityLightColor': '#ffd36a',
+    'cinematic.cityLightIntensity': 1.08,
+    'cinematic.networkColor': '#f7b84d',
+    'cinematic.networkOpacity': 0.34,
+    'cinematic.borderColor': '#f6b44d',
+    'cinematic.borderIntensity': 0.94,
+  }),
+
   'outline-dark': Object.freeze({
     'background.color': '#000814',
     'globe.surfaceColor': '#0a1c38',
