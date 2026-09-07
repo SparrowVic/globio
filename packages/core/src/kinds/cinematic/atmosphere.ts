@@ -100,6 +100,7 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform vec3  uAuroraColor;
   uniform vec3  uAuroraTopColor;
   uniform float uInteractionEnergy;
+  uniform float uQuality;
 
   varying vec3 vWorldPos;
 
@@ -127,8 +128,10 @@ const FRAGMENT_SHADER = /* glsl */ `
     vec3 inscatter = vec3(0.0);
     float night = 0.0;
     float mu = dot(rd, sun);
+    int samples = uQuality > 0.8 ? SAMPLES : 4;
     for (int i = 0; i < SAMPLES; i++) {
-      float t = tEnter + pathLen * (float(i) + 0.5) / float(SAMPLES);
+      if (i >= samples) break;
+      float t = tEnter + pathLen * (float(i) + 0.5) / float(samples);
       vec3 p = ro + rd * t;
       vec3 up = normalize(p);
       float alt = clamp((length(p) - uPlanetRadius) / shellDepth, 0.0, 1.0);
@@ -144,7 +147,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     // on the limb, where the path runs through the whole shell.
     float limbness = smoothstep(0.15, 1.0, pathLen / (shellDepth * 2.4));
     float hazeWeight = mix(0.14, 1.0, limbness);
-    float norm = pathLen / shellDepth / float(SAMPLES) * hazeWeight;
+    float norm = pathLen / shellDepth / float(samples) * hazeWeight;
     inscatter *= norm;
     night *= norm;
 

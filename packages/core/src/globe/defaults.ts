@@ -16,6 +16,7 @@ export const DEFAULT_PERFORMANCE: Required<PerformanceConfig> = {
   pixelRatio: 'auto',
   maxFps: 60,
   adaptiveQuality: true,
+  pauseWhenHidden: true,
 };
 
 /**

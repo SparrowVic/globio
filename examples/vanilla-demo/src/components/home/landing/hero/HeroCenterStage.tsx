@@ -28,7 +28,7 @@ export function HeroCenterStage({
     () =>
       activeKind === 'cinematic'
         ? {
-            quality: 'ultra',
+            quality: 'auto',
             reactivity: {
               lightInfluence: 1,
               cameraInfluence: 1,

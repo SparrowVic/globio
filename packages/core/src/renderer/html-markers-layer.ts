@@ -29,6 +29,8 @@ export class HtmlMarkersLayer {
   private readonly host: HTMLDivElement;
   private readonly entries = new Map<string, HtmlMarkerEntry>();
   private readonly tempScreen = new Vector3();
+  private readonly tempCameraDir = new Vector3();
+  private readonly tempNormal = new Vector3();
 
   public constructor(private readonly options: HtmlMarkersLayerOptions) {
     this.host = document.createElement('div');
@@ -92,6 +94,7 @@ export class HtmlMarkersLayer {
 
   /** Project world positions to screen space and update DOM transforms. */
   public update(): void {
+    if (this.entries.size === 0) return;
     const camera = this.options.camera;
     // Critical: Three.js updates matrixWorldInverse only in renderer.render(),
     // which runs AFTER this method. Without forcing the update here, project()
@@ -104,7 +107,7 @@ export class HtmlMarkersLayer {
     if (rect.width === 0 || rect.height === 0) return;
     const halfW = rect.width / 2;
     const halfH = rect.height / 2;
-    const cameraDir = camera.position.clone().normalize();
+    const cameraDir = this.tempCameraDir.copy(camera.position).normalize();
     this.options.globeGroup.updateMatrixWorld();
 
     this.entries.forEach((entry) => {
@@ -113,7 +116,7 @@ export class HtmlMarkersLayer {
       this.tempScreen
         .copy(entry.worldPosition)
         .applyMatrix4(this.options.globeGroup.matrixWorld);
-      const worldNormal = this.tempScreen.clone().normalize();
+      const worldNormal = this.tempNormal.copy(this.tempScreen).normalize();
       this.tempScreen.project(camera);
       const x = this.tempScreen.x * halfW + halfW;
       const y = -this.tempScreen.y * halfH + halfH;

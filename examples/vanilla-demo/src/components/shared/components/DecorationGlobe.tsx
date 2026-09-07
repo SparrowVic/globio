@@ -158,9 +158,15 @@ export function DecorationGlobe({
       axisTilt,
       initialPosition: [initialLat, initialLng],
       performance: {
-        antialias: true,
+        // The cinematic kind anti-aliases inside its post pipeline (MSAA
+        // target), so a second canvas-level AA pass would only cost fill.
+        antialias: kind !== 'cinematic',
         adaptiveQuality: true,
-        maxFps: 60,
+        // Decorations share the page's frame budget with the hero: 30 fps
+        // reads as smooth for a slow auto-rotate and halves their cost.
+        maxFps: interactive ? 60 : 30,
+        pixelRatio: Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5),
+        pauseWhenHidden: true,
       },
     });
     instanceRef.current = globe;

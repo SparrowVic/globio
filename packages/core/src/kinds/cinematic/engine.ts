@@ -104,7 +104,9 @@ export class CinematicWorld {
   private cloudShadowStrength = 0.45;
   // Adaptive quality bookkeeping (only consulted when quality === 'auto').
   private fpsEma = 60;
-  private tier: CinematicQualityTier = 'ultra';
+  // Auto starts one tier down and climbs after a sustained good frame rate,
+  // so the first seconds never stall on a device that cannot hold ultra.
+  private tier: CinematicQualityTier = 'high';
   private tierDropClock = 0;
   private tierRaiseClock = 0;
   private tierListener: ((tier: CinematicQualityTier) => void) | null = null;

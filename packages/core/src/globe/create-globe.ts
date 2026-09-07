@@ -45,7 +45,7 @@ import type {
   StarfieldConfig,
 } from '../types';
 import type { ResolvedTokens } from '../theme';
-import type { Object3D, Vector3, WebGLRenderer } from 'three';
+import type { Camera, Object3D, Vector3, WebGLRenderer } from 'three';
 import { DEFAULT_COUNTRIES, DEFAULT_PERFORMANCE, resolveActiveKind } from './defaults';
 import { canUpdateInPlace } from './data-layer-diff';
 import { computeFocusDistance } from './focus-distance';
@@ -507,6 +507,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         globeSurfaceMesh: globeMesh.mesh,
         atmosphereLayer,
       });
+      // Compile the freshly mounted layers' shaders in the background
+      // (KHR_parallel_shader_compile where available) instead of letting the
+      // next frame block the main thread on a synchronous compile. Frames
+      // are held meanwhile; the canvas keeps its last image.
+      scene.holdRendering(compileSceneAsync(scene));
       // Adaptive quality: the cinematic kind measures FPS and halves the
       // bloom chain on the low tier.
       (state.kindHandle as CinematicKindHandle | null)?.onQualityTier?.((tier) => {
@@ -1377,6 +1382,15 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
  * float render targets, context loss during setup, …) degrades to a plain
  * forward render rather than taking the whole globe down with it.
  */
+/** `renderer.compileAsync` when the three build has it; resolves immediately otherwise. */
+const compileSceneAsync = (scene: SceneManager): Promise<unknown> => {
+  const renderer = scene.renderer as {
+    compileAsync?: (target: Object3D, camera: Camera) => Promise<unknown>;
+  };
+  if (typeof renderer.compileAsync !== 'function') return Promise.resolve();
+  return renderer.compileAsync(scene.scene, scene.camera).catch(() => undefined);
+};
+
 const createPostFxPipeline = (
   renderer: WebGLRenderer,
   config: GlobeConfig,

@@ -33,9 +33,11 @@ export const buildCinematicSurfaceAtlas = (
   features: ReadonlyArray<CountryFeature>,
   prepared: CinematicPreparedData,
 ): CinematicSurfaceAtlas => {
+  const bake = getLandBake(features);
   const land = buildLandTexture(features);
   const densityTexture = buildDensityTexture(prepared);
-  const terrainTexture = buildTerrainTexture(land.landMask, land.landDist);
+  if (bake.terrainCanvas === null) bake.terrainCanvas = bakeTerrainCanvas(bake.landMask, bake.landDist);
+  const terrainTexture = configureTexture(new CanvasTexture(bake.terrainCanvas));
   return {
     landTexture: land.texture,
     densityTexture,
@@ -86,7 +88,37 @@ interface LandRaster {
  * transform (see `distanceTransform`) run once on the land mask and once on
  * its inverse.
  */
+// The rasterise + distance-transform + terrain bake is ~150 ms of pure CPU
+// work that depends only on the feature set, which every globe on a page
+// shares (see geo-loader's cache). Cache the baked canvases per feature
+// array; each globe still gets its own textures (GPU uploads are per
+// renderer), so disposing one globe never touches another.
+interface LandBake {
+  readonly landCanvas: HTMLCanvasElement;
+  readonly landMask: Uint8Array;
+  readonly landDist: Float32Array;
+  terrainCanvas: HTMLCanvasElement | null;
+}
+const bakeCache = new WeakMap<ReadonlyArray<CountryFeature>, LandBake>();
+
+const getLandBake = (features: ReadonlyArray<CountryFeature>): LandBake => {
+  const cached = bakeCache.get(features);
+  if (cached) return cached;
+  const bake = bakeLand(features);
+  bakeCache.set(features, bake);
+  return bake;
+};
+
 const buildLandTexture = (features: ReadonlyArray<CountryFeature>): LandRaster => {
+  const bake = getLandBake(features);
+  return {
+    texture: configureTexture(new CanvasTexture(bake.landCanvas)),
+    landMask: bake.landMask,
+    landDist: bake.landDist,
+  };
+};
+
+const bakeLand = (features: ReadonlyArray<CountryFeature>): LandBake => {
   const landMask = rasterizeLandMask(features);
 
   // Distance to the nearest LAND pixel — 0 exactly on land, grows over ocean.
@@ -116,7 +148,7 @@ const buildLandTexture = (features: ReadonlyArray<CountryFeature>): LandRaster =
     image.data[index + 3] = 255;
   }
   ctx.putImageData(image, 0, 0);
-  return { texture: configureTexture(new CanvasTexture(canvas)), landMask, landDist };
+  return { landCanvas: canvas, landMask, landDist, terrainCanvas: null };
 };
 
 const normalizeCoastDistance = (distancePx: number): number =>
@@ -207,7 +239,7 @@ const distanceTransform = (
 // Terrain atlas (height / moisture / ridge mask)
 // ────────────────────────────────────────────────────────────────────────────
 
-const buildTerrainTexture = (landMask: Uint8Array, landDist: Float32Array): Texture => {
+const bakeTerrainCanvas = (landMask: Uint8Array, landDist: Float32Array): HTMLCanvasElement => {
   const width = TERRAIN_ATLAS_SIZE.width;
   const height = TERRAIN_ATLAS_SIZE.height;
   const canvas = document.createElement('canvas');
@@ -254,7 +286,7 @@ const buildTerrainTexture = (landMask: Uint8Array, landDist: Float32Array): Text
   }
 
   ctx.putImageData(image, 0, 0);
-  return configureTexture(new CanvasTexture(canvas));
+  return canvas;
 };
 
 const clamp01Local = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : value);

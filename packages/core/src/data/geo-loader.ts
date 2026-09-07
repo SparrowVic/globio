@@ -18,12 +18,30 @@ export interface GeoLoaderOptions {
   readonly fetchFn?: typeof fetch;
 }
 
-export const loadCountries = async (
+// One fetch + parse per URL for the whole page: features are immutable, so
+// every globe at the same resolution shares the same array (which also lets
+// per-feature caches, e.g. the cinematic atlas bake, hit across instances).
+const inflight = new Map<string, Promise<ReadonlyArray<CountryFeature>>>();
+
+export const loadCountries = (
   options: GeoLoaderOptions
 ): Promise<ReadonlyArray<CountryFeature>> => {
-  const { feature } = await import('topojson-client');
   const url = options.customUrl ?? RESOLUTION_URLS[options.resolution];
-  const fetcher = options.fetchFn ?? fetch;
+  // Custom fetchers (tests, offline bundles) bypass the shared cache.
+  if (options.fetchFn) return loadCountriesUncached(url, options.fetchFn);
+  const cached = inflight.get(url);
+  if (cached) return cached;
+  const pending = loadCountriesUncached(url, fetch);
+  inflight.set(url, pending);
+  pending.catch(() => inflight.delete(url));
+  return pending;
+};
+
+const loadCountriesUncached = async (
+  url: string,
+  fetcher: typeof fetch,
+): Promise<ReadonlyArray<CountryFeature>> => {
+  const { feature } = await import('topojson-client');
 
   const response = await fetcher(url);
   if (!response.ok) {

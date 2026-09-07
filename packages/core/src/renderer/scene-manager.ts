@@ -8,6 +8,7 @@ import {
   type WebGLRendererParameters,
 } from 'three';
 import { AdaptiveQualityController } from '../utils/adaptive-quality';
+import { getFrameScheduler, type FrameClient } from './frame-scheduler';
 import type { PostFxPipeline } from './postfx/pipeline';
 import type { PerformanceConfig } from '../types';
 
@@ -34,9 +35,15 @@ export class SceneManager {
   public readonly camera: PerspectiveCamera;
   public readonly renderer: WebGLRenderer;
 
-  private rafId = 0;
+  private running = false;
   private lastTime = 0;
   private destroyed = false;
+  // Pause levers — any of them stops frames without tearing anything down.
+  private held = 0;
+  private inViewport = true;
+  private pageVisible = true;
+  private intersectionObserver: IntersectionObserver | null = null;
+  private readonly frameClient: FrameClient;
   private readonly resizeObserver: ResizeObserver;
   private readonly adaptiveQuality: AdaptiveQualityController | null;
   /**
@@ -92,19 +99,65 @@ export class SceneManager {
 
     this.resizeObserver = new ResizeObserver(() => this.handleResize());
     this.resizeObserver.observe(options.container);
+
+    this.frameClient = {
+      onFrame: (now) => this.frame(now),
+      isPaused: () => this.isPaused(),
+      targetFps: () => this.options.performance.maxFps,
+    };
+
+    if (options.performance.pauseWhenHidden) {
+      if (typeof IntersectionObserver === 'function') {
+        this.intersectionObserver = new IntersectionObserver(
+          (entries) => {
+            const last = entries[entries.length - 1];
+            if (!last) return;
+            this.inViewport = last.isIntersecting;
+            if (this.inViewport) getFrameScheduler().wake();
+          },
+          // A little lead so a globe scrolling in already has its first frame.
+          { rootMargin: '15%', threshold: 0 },
+        );
+        this.intersectionObserver.observe(options.container);
+      }
+      if (typeof document !== 'undefined') {
+        this.pageVisible = !document.hidden;
+        document.addEventListener('visibilitychange', this.handleVisibility);
+      }
+    }
   }
 
   public start(): void {
-    if (this.rafId !== 0) return;
+    if (this.running || this.destroyed) return;
+    this.running = true;
     this.lastTime = performance.now();
-    this.tick();
+    getFrameScheduler().register(this.frameClient);
   }
 
   public stop(): void {
-    if (this.rafId !== 0) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = 0;
-    }
+    if (!this.running) return;
+    this.running = false;
+    getFrameScheduler().unregister(this.frameClient);
+  }
+
+  /**
+   * Skip frames until `work` settles — used while shaders compile in the
+   * background so the main thread never blocks on a synchronous compile.
+   * The canvas keeps showing its last frame meanwhile.
+   */
+  public holdRendering(work: Promise<unknown>): void {
+    this.held += 1;
+    const release = (): void => {
+      this.held = Math.max(0, this.held - 1);
+      this.lastTime = performance.now();
+      getFrameScheduler().wake();
+    };
+    work.then(release, release);
+  }
+
+  /** True while the globe is off-screen, on a hidden tab, or holding for work. */
+  public isPaused(): boolean {
+    return this.destroyed || !this.running || this.held > 0 || !this.inViewport || !this.pageVisible;
   }
 
   public resize(): void {
@@ -144,6 +197,11 @@ export class SceneManager {
     this.destroyed = true;
     this.stop();
     this.resizeObserver.disconnect();
+    this.intersectionObserver?.disconnect();
+    this.intersectionObserver = null;
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibility);
+    }
     this.postfx?.dispose();
     this.postfx = null;
     this.renderer.dispose();
@@ -156,18 +214,25 @@ export class SceneManager {
     return this.renderer.domElement;
   }
 
-  private tick = (): void => {
+  private readonly handleVisibility = (): void => {
+    this.pageVisible = !document.hidden;
+    if (this.pageVisible) {
+      this.lastTime = performance.now();
+      getFrameScheduler().wake();
+    }
+  };
+
+  private frame(now: number): void {
     if (this.destroyed) return;
-    const now = performance.now();
-    const delta = (now - this.lastTime) / 1000;
+    // Clamp the step so the first frame after a pause (or a throttled
+    // client's long gap) advances animation smoothly instead of jumping.
+    const delta = Math.min(0.1, Math.max(0, (now - this.lastTime) / 1000));
     this.lastTime = now;
 
     this.adaptiveQuality?.tick(now);
     this.options.onRender(delta);
     this.renderFrame();
-
-    this.rafId = requestAnimationFrame(this.tick);
-  };
+  }
 
   private handleResize(): void {
     const { clientWidth, clientHeight } = this.options.container;
