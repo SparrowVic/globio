@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
+import type { FeatureProps } from './ControlInfo';
 import { Field, type DisableProps } from './Field';
 
-export interface SliderFieldProps extends DisableProps {
+export interface SliderFieldProps extends DisableProps, FeatureProps {
   readonly label: string;
   readonly value: number;
   readonly min: number;
@@ -35,6 +36,8 @@ export function SliderField({
   className,
   disabled,
   disabledReason,
+  feature,
+  configPath,
 }: SliderFieldProps) {
   const [draft, setDraft] = useState(() => formatNumericValue(value, step));
   const [editing, setEditing] = useState(false);
@@ -66,6 +69,8 @@ export function SliderField({
       className={className}
       disabled={disabled}
       disabledReason={disabledReason}
+      feature={feature}
+      configPath={configPath}
     >
       <div className="grid grid-cols-[minmax(0,1fr)_98px] items-center gap-3">
         <Slider

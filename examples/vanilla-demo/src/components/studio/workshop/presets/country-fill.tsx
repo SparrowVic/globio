@@ -82,6 +82,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         </SectionHeading>
         <ToggleField
           label="Mode"
+          configPath="countries.fill.mode"
           value={mode === 'data' ? 'none' : mode}
           options={modeOptions}
           onChange={(countryFillMode) => onGlobeChange({ countryFillMode })}
@@ -95,6 +96,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Base</SectionHeading>
         <ColorField
           label="Default color"
+          configPath="countries.fill.defaultColor"
           value={settings.countryFillDefaultColor || '#1c3866'}
           onChange={(countryFillDefaultColor) => onGlobeChange({ countryFillDefaultColor })}
           hint={settings.countryFillDefaultColor === '' ? 'Theme default' : undefined}
@@ -103,6 +105,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Default opacity"
+          configPath="countries.fill.defaultOpacity"
           value={settings.countryFillDefaultOpacity}
           min={0}
           max={1}
@@ -118,6 +121,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorListField
             label="Palette"
+            configPath="countries.fill.palette"
             colors={settings.countryFillPalette}
             onChange={(countryFillPalette) =>
               onGlobeChange({ countryFillPalette })
@@ -130,6 +134,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Hover override</SectionHeading>
         <ColorField
           label="Hover color"
+          configPath="countries.fill.hoverColor"
           value={settings.countryFillHoverColor || '#a5f3fc'}
           onChange={(countryFillHoverColor) => onGlobeChange({ countryFillHoverColor })}
           hint={settings.countryFillHoverColor === '' ? 'No override' : undefined}
@@ -138,6 +143,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Hover opacity"
+          configPath="countries.fill.hoverOpacity"
           value={settings.countryFillHoverOpacity}
           min={0}
           max={1}
@@ -149,6 +155,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Pinned override</SectionHeading>
         <ColorField
           label="Active color"
+          configPath="countries.fill.activeColor"
           value={settings.countryFillActiveColor || '#fcd34d'}
           onChange={(countryFillActiveColor) => onGlobeChange({ countryFillActiveColor })}
           hint={settings.countryFillActiveColor === '' ? 'No override' : undefined}
@@ -157,6 +164,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Active opacity"
+          configPath="countries.fill.activeOpacity"
           value={settings.countryFillActiveOpacity}
           min={0}
           max={1}

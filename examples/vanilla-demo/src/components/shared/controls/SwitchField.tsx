@@ -3,10 +3,10 @@ import type { ReactNode } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
-import { ControlLabel } from './ControlInfo';
+import { ControlLabel, type FeatureProps } from './ControlInfo';
 import type { DisableProps } from './Field';
 
-export interface SwitchFieldProps extends DisableProps {
+export interface SwitchFieldProps extends DisableProps, FeatureProps {
   readonly label: string;
   readonly checked: boolean;
   readonly onChange: (checked: boolean) => void;
@@ -27,6 +27,8 @@ export function SwitchField({
   info,
   disabled,
   disabledReason,
+  feature,
+  configPath,
 }: SwitchFieldProps) {
   return (
     <div
@@ -38,6 +40,8 @@ export function SwitchField({
       <ControlLabel
         label={label}
         info={info ?? value}
+        feature={feature}
+        configPath={configPath}
         disabledReason={disabled && disabledReason ? disabledReason : undefined}
       />
       <Switch

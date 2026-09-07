@@ -6,9 +6,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+import type { FeatureProps } from './ControlInfo';
 import { Field, type DisableProps, type SelectOption } from './Field';
 
-export interface SelectFieldProps<T extends string> extends DisableProps {
+export interface SelectFieldProps<T extends string> extends DisableProps, FeatureProps {
   readonly label: string;
   readonly value: T;
   readonly options: ReadonlyArray<SelectOption<T>>;
@@ -25,6 +26,8 @@ export function SelectField<T extends string>({
   className,
   disabled,
   disabledReason,
+  feature,
+  configPath,
 }: SelectFieldProps<T>) {
   return (
     <Field
@@ -32,6 +35,8 @@ export function SelectField<T extends string>({
       className={className}
       disabled={disabled}
       disabledReason={disabledReason}
+      feature={feature}
+      configPath={configPath}
     >
       <Select value={value} onValueChange={(next) => onChange(next as T)}>
         <SelectTrigger className="h-8 w-full rounded-lg border-white/[0.09] bg-black/[0.18] px-3 text-[12px] font-medium text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">

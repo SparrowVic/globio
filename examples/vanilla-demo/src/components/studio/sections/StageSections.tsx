@@ -60,6 +60,7 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
     <PanelSection
       id="stage-camera"
       title="Camera"
+      feature="initial-position"
       icon={<FontAwesomeIcon icon={faCompass} className="size-3" />}
       meta={
         settings.autoRotate
@@ -70,6 +71,7 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
     >
       <SliderField
         label="Axis tilt"
+        configPath="axisTilt"
         value={settings.axisTilt}
         min={-35}
         max={35}
@@ -79,12 +81,14 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
       />
       <ToggleField
         label="Zoom mode"
+        configPath="zoom.mode"
         value={settings.zoomMode}
         options={zoomOptions}
         onChange={(zoomMode) => onChange({ zoomMode })}
       />
       <SliderField
         label="Zoom strength"
+        configPath="zoom.strength"
         value={settings.zoomStrength}
         min={0}
         max={1}
@@ -95,6 +99,7 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
       />
       <SwitchField
         label="Smooth zoom"
+        configPath="zoom.smooth"
         checked={settings.smoothZoom}
         onChange={(smoothZoom) => onChange({ smoothZoom })}
         disabled={settings.zoomMode === 'classic'}
@@ -102,11 +107,13 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
       />
       <SwitchField
         label="Auto rotate"
+        configPath="autoRotate.enabled"
         checked={settings.autoRotate}
         onChange={(autoRotate) => onChange({ autoRotate })}
       />
       <SliderField
         label="Rotate speed"
+        configPath="autoRotate.speed"
         value={settings.autoRotateSpeed}
         min={0}
         max={0.8}
@@ -117,6 +124,7 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
       />
       <SliderField
         label="Min zoom"
+        configPath="minZoom"
         value={settings.minZoom}
         min={1}
         max={3}
@@ -130,6 +138,7 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
       />
       <SliderField
         label="Max zoom"
+        configPath="maxZoom"
         value={settings.maxZoom}
         min={3}
         max={15}
@@ -145,6 +154,7 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
             button flies to. Doesn't snap the live camera. */}
       <SliderField
         label="Initial latitude"
+        configPath="initialPosition"
         value={settings.initialLat}
         min={-90}
         max={90}
@@ -154,6 +164,7 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
       />
       <SliderField
         label="Initial longitude"
+        configPath="initialPosition"
         value={settings.initialLng}
         min={-180}
         max={180}
@@ -170,6 +181,7 @@ export function FocusSection({ settings, onChange }: StageSectionsProps) {
     <PanelSection
       id="stage-focus"
       title="Focus"
+      feature="focus-on-country"
       icon={<FontAwesomeIcon icon={faCrosshairs} className="size-3" />}
       meta={
         settings.clickToFocus
@@ -216,6 +228,7 @@ export function FocusSection({ settings, onChange }: StageSectionsProps) {
         />
         <SwitchField
           label="Pause auto-rotate"
+          feature="auto-rotate"
           checked={settings.focusPauseAutoRotate}
           onChange={(focusPauseAutoRotate) =>
             onChange({ focusPauseAutoRotate })
@@ -231,6 +244,7 @@ export function PerformanceSection({ settings, onChange }: StageSectionsProps) {
     <PanelSection
       id="stage-perf"
       title="Performance"
+      feature="performance"
       icon={<FontAwesomeIcon icon={faGauge} className="size-3" />}
       meta={
         <span className="inline-flex items-center gap-1">
@@ -241,12 +255,14 @@ export function PerformanceSection({ settings, onChange }: StageSectionsProps) {
     >
       <ToggleField
         label="Country resolution"
+        configPath="countries.resolution"
         value={settings.countryResolution}
         options={resolutionOptions}
         onChange={(countryResolution) => onChange({ countryResolution })}
       />
       <SelectField
         label="Pixel ratio"
+        configPath="performance.pixelRatio"
         value={settings.pixelRatio}
         options={pixelRatioOptions}
         onChange={(pixelRatio) => onChange({ pixelRatio })}
@@ -255,12 +271,14 @@ export function PerformanceSection({ settings, onChange }: StageSectionsProps) {
       />
       <SwitchField
         label="Adaptive quality"
+        configPath="performance.adaptiveQuality"
         checked={settings.adaptiveQuality}
         onChange={(adaptiveQuality) => onChange({ adaptiveQuality })}
         value="60 FPS target"
       />
       <SliderField
         label="Max FPS"
+        configPath="performance.maxFps"
         value={settings.maxFps}
         min={15}
         max={120}
@@ -270,6 +288,7 @@ export function PerformanceSection({ settings, onChange }: StageSectionsProps) {
       />
       <SwitchField
         label="Antialiasing"
+        configPath="performance.antialias"
         checked={settings.antialias}
         onChange={(antialias) => onChange({ antialias })}
       />

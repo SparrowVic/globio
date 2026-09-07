@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown } from '@fortawesome/sharp-duotone-solid-svg-icons';
 
+import { FeatureScopeProvider } from '@/components/shared/controls/feature-scope';
 import { cn } from '@/lib/utils';
 import { usePanelState } from '@/hooks/usePanelState';
 
@@ -22,6 +23,8 @@ export interface PanelSectionProps {
   readonly meta?: ReactNode;
   readonly defaultOpen?: boolean;
   readonly hidden?: boolean;
+  /** Feature the controls inside belong to, for their help tips. A control can still name its own. */
+  readonly feature?: string;
   readonly children: ReactNode;
 }
 
@@ -32,6 +35,7 @@ export function PanelSection({
   meta,
   defaultOpen = false,
   hidden = false,
+  feature,
   children,
 }: PanelSectionProps) {
   // Collapsed=false means OPEN; we invert so localStorage stores the
@@ -55,7 +59,9 @@ export function PanelSection({
         />
       </button>
       <div className="panel-section-body" aria-hidden={!open}>
-        <div className="panel-section-body-inner">{children}</div>
+        <div className="panel-section-body-inner">
+          {feature ? <FeatureScopeProvider feature={feature}>{children}</FeatureScopeProvider> : children}
+        </div>
       </div>
     </section>
   );

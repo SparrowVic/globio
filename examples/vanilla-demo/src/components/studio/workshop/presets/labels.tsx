@@ -40,6 +40,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
     <div className="space-y-4">
       <SwitchField
         label="Enable country labels"
+        configPath="countryLabels.enabled"
         checked={settings.countryLabels}
         onChange={(countryLabels) => onGlobeChange({ countryLabels })}
       />
@@ -52,6 +53,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Density</SectionHeading>
         <SliderField
           label="Min screen size"
+          configPath="countryLabels.minScreenSize"
           value={settings.labelMinScreenSize}
           min={30}
           max={150}
@@ -61,6 +63,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Fade range"
+          configPath="countryLabels.sizeFadeRange"
           value={settings.labelSizeFadeRange}
           min={0}
           max={1}
@@ -72,6 +75,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Motion</SectionHeading>
         <SliderField
           label="Transition"
+          configPath="countryLabels.transitionMs"
           value={settings.labelTransitionMs}
           min={0}
           max={800}
@@ -83,6 +87,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Typography</SectionHeading>
         <ColorField
           label="Text color"
+          configPath="countryLabels.color"
           value={settings.labelColor || '#ffffff'}
           onChange={(labelColor) => onGlobeChange({ labelColor })}
           hint={settings.labelColor === '' ? 'Theme default' : undefined}
@@ -90,6 +95,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Font size"
+          configPath="countryLabels.fontSize"
           value={settings.labelFontSize}
           min={8}
           max={20}
@@ -99,6 +105,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SelectField
           label="Font weight"
+          configPath="countryLabels.fontWeight"
           value={settings.labelFontWeight}
           options={fontWeightOptions}
           onChange={(labelFontWeight) => onGlobeChange({ labelFontWeight })}
@@ -107,6 +114,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Halo</SectionHeading>
         <SwitchField
           label="Halo"
+          configPath="countryLabels.halo"
           checked={settings.labelHaloEnabled}
           onChange={(labelHaloEnabled) => onGlobeChange({ labelHaloEnabled })}
           value="Stacked text-shadow outline for legibility"
@@ -118,6 +126,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Halo radius"
+            configPath="countryLabels.halo.radius"
             value={settings.labelHaloRadius}
             min={0.5}
             max={6}
@@ -127,6 +136,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Halo steps"
+            configPath="countryLabels.halo.steps"
             value={settings.labelHaloSteps}
             min={2}
             max={12}
@@ -136,6 +146,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Halo color"
+            configPath="countryLabels.halo.color"
             value={settings.labelHaloColor}
             onChange={(labelHaloColor) => onGlobeChange({ labelHaloColor })}
             swatches={[

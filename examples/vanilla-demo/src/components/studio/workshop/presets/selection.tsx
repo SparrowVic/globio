@@ -30,6 +30,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
     <div className="space-y-4">
       <SwitchField
         label="Hover detection"
+        configPath="countries.hoverEnabled"
         checked={settings.hoverEnabled}
         onChange={(hoverEnabled) => onGlobeChange({ hoverEnabled })}
         value="Drag the cursor across countries on the preview"
@@ -43,6 +44,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Behaviour</SectionHeading>
         <SwitchField
           label="Occlude back side"
+          configPath="countries.hoverOccludeBackSide"
           checked={settings.hoverOccludeBackSide}
           onChange={(hoverOccludeBackSide) => onGlobeChange({ hoverOccludeBackSide })}
           value="Hide highlight on the far hemisphere"
@@ -66,6 +68,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Hover · stroke</SectionHeading>
           <ColorField
             label="Stroke color"
+            configPath="countries.borderHover.color"
             value={settings.hoverStrokeColor || '#a5f3fc'}
             onChange={(hoverStrokeColor) => onGlobeChange({ hoverStrokeColor })}
             hint={settings.hoverStrokeColor === '' ? 'Theme default' : undefined}
@@ -74,6 +77,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Stroke opacity"
+            configPath="countries.borderHover.opacity"
             value={settings.hoverStrokeOpacity}
             min={0}
             max={1.5}
@@ -83,6 +87,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Stroke width"
+            configPath="countries.borderHover.width"
             value={settings.hoverStrokeWidth}
             min={0}
             max={12}
@@ -94,6 +99,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Hover · glow halo</SectionHeading>
           <ColorField
             label="Glow color"
+            configPath="countries.borderHover.glowColor"
             value={settings.hoverGlowColor || '#67e8f9'}
             onChange={(hoverGlowColor) => onGlobeChange({ hoverGlowColor })}
             hint={settings.hoverGlowColor === '' ? 'Theme default' : undefined}
@@ -102,6 +108,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Glow width"
+            configPath="countries.borderHover.glowWidth"
             value={settings.hoverGlowWidth}
             min={0}
             max={16}
@@ -111,6 +118,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Glow opacity"
+            configPath="countries.borderHover.glowOpacity"
             value={settings.hoverGlowOpacity}
             min={0}
             max={1.5}
@@ -122,6 +130,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Pinned · stroke</SectionHeading>
           <ColorField
             label="Stroke color"
+            configPath="countries.borderActive.color"
             value={settings.activeStrokeColor || '#fcd34d'}
             onChange={(activeStrokeColor) => onGlobeChange({ activeStrokeColor })}
             hint={settings.activeStrokeColor === '' ? 'Theme default' : undefined}
@@ -130,6 +139,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Stroke opacity"
+            configPath="countries.borderActive.opacity"
             value={settings.activeStrokeOpacity}
             min={0}
             max={1.5}
@@ -139,6 +149,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Stroke width"
+            configPath="countries.borderActive.width"
             value={settings.activeStrokeWidth}
             min={0}
             max={12}

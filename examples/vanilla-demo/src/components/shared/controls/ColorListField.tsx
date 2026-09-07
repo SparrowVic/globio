@@ -4,6 +4,10 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 import { ColorField } from './ColorField';
+import { FeatureTip, resolveFeature } from '@/components/shared/components/FeatureTip';
+
+import type { FeatureProps } from './ControlInfo';
+import { useFeatureScope } from './feature-scope';
 
 const DEFAULT_ADD_COLORS = [
   '#ffffff',
@@ -20,7 +24,7 @@ const DEFAULT_ADD_COLORS = [
   '#fde68a',
 ] as const;
 
-export interface ColorListFieldProps {
+export interface ColorListFieldProps extends FeatureProps {
   readonly label?: ReactNode;
   readonly colors: ReadonlyArray<string>;
   readonly onChange: (next: ReadonlyArray<string>) => void;
@@ -46,7 +50,11 @@ export function ColorListField({
   removeLabel = (index) => `Remove ${itemLabel(index)}`,
   swatches,
   className,
+  feature,
+  configPath,
 }: ColorListFieldProps) {
+  const scope = useFeatureScope();
+  const resolved = resolveFeature({ feature, configPath, scopeFeature: scope?.feature });
   const canAdd = colors.length < maxItems;
   const canRemove = colors.length > minItems;
 
@@ -55,8 +63,11 @@ export function ColorListField({
       {label || maxItems > minItems ? (
         <div className="flex items-center justify-between gap-3">
           {label ? (
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-300/70">
+            <p className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-300/70">
               {label}
+              {resolved && (
+                <FeatureTip feature={resolved} configPath={configPath ?? scope?.configPath} label={typeof label === 'string' ? label : undefined} />
+              )}
             </p>
           ) : (
             <span aria-hidden="true" />

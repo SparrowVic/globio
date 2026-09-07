@@ -13,6 +13,7 @@ export const CAMERA_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'framing',
+    tip: () => import('./tips/FramingTip'),
     title: 'Framing',
     configPaths: ['framing'],
     summary: 'Margin reserved around the globe so the atmosphere halo can fade, and an optional zoom lock for decorative embeds.',
@@ -22,6 +23,7 @@ export const CAMERA_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'auto-rotate',
+    tip: () => import('./tips/AutoRotateTip'),
     title: 'Auto-rotate',
     configPaths: ['autoRotate'],
     summary: 'Ambient rotation at a set speed. It yields while the pointer drags and resumes afterwards; stories and focus calls can pause it.',
@@ -31,6 +33,7 @@ export const CAMERA_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'zoom',
+    tip: () => import('./tips/ZoomModesTip'),
     title: 'Zoom and limits',
     configPaths: ['zoom', 'minZoom', 'maxZoom'],
     summary: 'Wheel and pinch zoom in classic, repel or attract mode with smoothing, plus the camera distance limits. A locked zoom lets the page scroll through the globe.',

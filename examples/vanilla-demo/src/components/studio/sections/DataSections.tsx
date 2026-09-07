@@ -203,6 +203,7 @@ export function DataSections({
   return (
     <>
       <PanelSection
+        feature="data-layers"
         id="data-active-layer"
         title="Active Layer"
         icon={<FontAwesomeIcon icon={faLayerGroup} className="size-3" />}
@@ -255,12 +256,14 @@ function HexbinSections({
       <PanelSection id="hexbin-dataset" title="Dataset" icon={<FontAwesomeIcon icon={faDatabase} className="size-3" />} defaultOpen>
         <SelectField
           label="Dataset"
+          feature="data-layers"
           value={settings.dataset}
           options={hexbinDatasetOptions}
           onChange={(dataset) => onChange({ dataset })}
         />
         <SelectField
           label="Aggregate"
+          feature="data-layers"
           value={settings.aggregate}
           options={aggregateOptions}
           onChange={(aggregate) => onChange({ aggregate })}
@@ -268,6 +271,7 @@ function HexbinSections({
       </PanelSection>
 
       <PanelSection
+        feature="data-layers"
         id="hexbin-visual"
         title="Visual"
         icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
@@ -337,6 +341,7 @@ function HexbinSections({
       />
 
       <PanelSection
+        feature="data-layers"
         id="hexbin-interaction"
         title="Interaction"
         icon={<FontAwesomeIcon icon={faHand} className="size-3" />}
@@ -389,6 +394,7 @@ function HeatmapSections({
   return (
     <>
       <PanelSection
+        feature="data-layers"
         id="heatmap-dataset"
         title="Dataset"
         icon={<FontAwesomeIcon icon={faFire} className="size-3" />}
@@ -430,6 +436,7 @@ function HeatmapSections({
       </PanelSection>
 
       <PanelSection
+        feature="data-layers"
         id="heatmap-visual"
         title="Visual"
         icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
@@ -562,6 +569,7 @@ function HeatmapSections({
       </PanelSection>
 
       <PanelSection
+        feature="data-layers"
         id="heatmap-dome"
         title="Country domes"
         icon={<FontAwesomeIcon icon={faSparkles} className="size-3" />}
@@ -672,6 +680,7 @@ function ChartsSections({
   return (
     <>
       <PanelSection
+        feature="data-layers"
         id="charts-dataset"
         title="Dataset & Type"
         icon={<FontAwesomeIcon icon={faChartColumn} className="size-3" />}
@@ -692,6 +701,7 @@ function ChartsSections({
       </PanelSection>
 
       <PanelSection
+        feature="data-layers"
         id="charts-visual"
         title="Visual"
         icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
@@ -754,6 +764,7 @@ function ChartsSections({
         extras={
           <SliderField
             label="Segment stagger"
+            feature="data-layers"
             value={settings.segmentStaggerMs}
             min={0}
             max={180}
@@ -776,6 +787,7 @@ function ChartsSections({
       />
 
       <PanelSection
+        feature="data-layers"
         id="charts-interaction"
         title="Interaction"
         icon={<FontAwesomeIcon icon={faHand} className="size-3" />}
@@ -846,6 +858,7 @@ function AnimationSection({
     : 'off';
   return (
     <PanelSection
+        feature="data-layers"
       id={`${idPrefix}-animation`}
       title="Animation"
       icon={<FontAwesomeIcon icon={faSparkles} className="size-3" />}

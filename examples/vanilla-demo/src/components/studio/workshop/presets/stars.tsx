@@ -62,6 +62,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
     <div className="space-y-4">
       <SwitchField
         label="Enable starfield"
+        configPath="starfield.enabled"
         checked={settings.starfield}
         onChange={(starfield) => onGlobeChange({ starfield })}
       />
@@ -74,6 +75,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Density & size</SectionHeading>
         <SliderField
           label="Star count"
+          configPath="starfield.density"
           value={settings.starfieldDensity}
           min={300}
           max={6000}
@@ -83,6 +85,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Star size"
+          configPath="starfield.size"
           value={settings.starfieldSize}
           min={0.5}
           max={4}
@@ -92,6 +95,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Size variety"
+          configPath="starfield.sizeVariety"
           value={settings.starfieldSizeVariety}
           min={0}
           max={1}
@@ -103,6 +107,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Color</SectionHeading>
         <SwitchField
           label="Mixed colors"
+          configPath="starfield.palette"
           checked={settings.starfieldMultiColor}
           onChange={(starfieldMultiColor) => onGlobeChange({ starfieldMultiColor })}
           value="Sample per-star colors from the palette below"
@@ -162,6 +167,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Twinkle</SectionHeading>
         <SwitchField
           label="Twinkle"
+          configPath="starfield.twinkle.enabled"
           checked={settings.starfieldTwinkle}
           onChange={(starfieldTwinkle) => onGlobeChange({ starfieldTwinkle })}
         />
@@ -172,6 +178,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Intensity"
+            configPath="starfield.twinkle.intensity"
             value={settings.starfieldTwinkleIntensity}
             min={0}
             max={1}
@@ -183,6 +190,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="starfield.twinkle.speed"
             value={settings.starfieldTwinkleSpeed}
             min={0.1}
             max={2}

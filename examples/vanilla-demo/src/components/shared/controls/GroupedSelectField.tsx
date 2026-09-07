@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
+import type { FeatureProps } from './ControlInfo';
 import { Field, type DisableProps, type SelectOption } from './Field';
 
 /**
@@ -36,7 +37,7 @@ export interface GroupedSelectGroup<T extends string = string> {
   };
 }
 
-export interface GroupedSelectFieldProps<T extends string> extends DisableProps {
+export interface GroupedSelectFieldProps<T extends string> extends DisableProps, FeatureProps {
   readonly label: string;
   readonly value?: T | undefined;
   readonly groups: ReadonlyArray<GroupedSelectGroup<T>>;
@@ -64,6 +65,8 @@ export function GroupedSelectField<T extends string>({
   hideLabel = false,
   disabled,
   disabledReason,
+  feature,
+  configPath,
 }: GroupedSelectFieldProps<T>) {
   const [open, setOpen] = useState(false);
   const trigger = (
@@ -147,7 +150,7 @@ export function GroupedSelectField<T extends string>({
     return <div className={className}>{trigger}</div>;
   }
   return (
-    <Field label={label} className={className} disabled={disabled} disabledReason={disabledReason}>
+    <Field label={label} className={className} disabled={disabled} disabledReason={disabledReason} feature={feature} configPath={configPath}>
       {trigger}
     </Field>
   );

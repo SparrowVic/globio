@@ -24,6 +24,7 @@ export const RUNTIME_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'performance',
+    tip: () => import('./tips/PixelRatioTip'),
     title: 'Performance settings',
     configPaths: ['performance'],
     summary: 'Antialiasing, pixel ratio, a per-globe frame-rate ceiling and adaptive quality that lowers the pixel ratio on slow frames.',
@@ -33,6 +34,7 @@ export const RUNTIME_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'pausing',
+    tip: () => import('./tips/PausingTip'),
     title: 'Pausing',
     configPaths: ['performance.pauseWhenHidden'],
     methods: ['setPaused'],
@@ -56,6 +58,14 @@ export const RUNTIME_FEATURES: ReadonlyArray<FeatureDoc> = [
     kinds: 'all',
     docs: { slug: 'api/country-ids' },
     related: ['country-data'],
+  },
+  {
+    id: 'studio-presets',
+    title: 'Studio presets',
+    summary: 'Complete Studio states per kind: the built-in ones ship with the demo, yours are saved in this browser and listed next to them.',
+    kinds: 'all',
+    docs: { slug: 'studio/presets' },
+    related: ['theme', 'kind'],
   },
   {
     id: 'wrapper-react',

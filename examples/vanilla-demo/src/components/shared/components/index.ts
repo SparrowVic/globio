@@ -10,3 +10,4 @@ export {
 export { DependsOn, type DependsOnProps } from './DependsOn';
 export { InteractiveCard, type InteractiveCardProps } from './InteractiveCard';
 export { Kbd, type KbdProps } from './Kbd';
+export { FeatureTip, resolveFeature, type FeatureTipProps } from './FeatureTip';

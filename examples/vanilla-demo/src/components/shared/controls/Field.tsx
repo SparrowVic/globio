@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { ControlLabel } from './ControlInfo';
+import { ControlLabel, type FeatureProps } from './ControlInfo';
 
 export interface SelectOption<T extends string = string> {
   readonly value: T;
@@ -20,7 +20,7 @@ export interface DisableProps {
   readonly disabledReason?: string | undefined;
 }
 
-export interface FieldProps extends DisableProps {
+export interface FieldProps extends DisableProps, FeatureProps {
   readonly label: string;
   readonly info?: ReactNode | undefined;
   readonly value?: ReactNode;
@@ -40,6 +40,8 @@ export function Field({
   className,
   disabled,
   disabledReason,
+  feature,
+  configPath,
 }: FieldProps) {
   return (
     <div
@@ -53,6 +55,8 @@ export function Field({
         <ControlLabel
           label={label}
           info={info}
+          feature={feature}
+          configPath={configPath}
           disabledReason={disabled && disabledReason ? disabledReason : undefined}
         />
         {value ? (

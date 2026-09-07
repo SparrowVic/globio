@@ -11,6 +11,7 @@ import type {
   PresetModule,
 } from '../configurators';
 import { CinematicControls } from './cinematic-controls';
+import { FeatureScopeProvider } from '@/components/shared/controls/feature-scope';
 
 /**
  * Atmosphere configurator preset.
@@ -68,6 +69,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       >
         <SwitchField
           label="Atmosphere halo"
+          configPath="atmosphere.enabled"
           checked={settings.atmosphere}
           onChange={(atmosphere) => onGlobeChange({ atmosphere })}
           value="Soft Fresnel rim glow around the silhouette"
@@ -81,6 +83,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Color</SectionHeading>
           <ColorField
             label="Halo tint"
+            configPath="atmosphere.color"
             value={settings.atmosphereColor || '#67e8f9'}
             onChange={(atmosphereColor) => onGlobeChange({ atmosphereColor })}
             hint={settings.atmosphereColor === '' ? 'Theme default' : undefined}
@@ -102,6 +105,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Brightness"
+            configPath="atmosphere.intensity"
             value={settings.atmosphereIntensity}
             min={0}
             max={3}
@@ -113,6 +117,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Geometry</SectionHeading>
         <SliderField
           label="Mesh radius scale"
+          configPath="atmosphere.radiusScale"
           value={settings.atmosphereRadiusScale}
           min={0}
           max={1.5}
@@ -126,6 +131,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Fresnel shape</SectionHeading>
         <SliderField
           label="Sharpness"
+          configPath="atmosphere.power"
           value={settings.atmospherePower}
           min={0}
           max={6}
@@ -137,6 +143,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Rim threshold"
+          configPath="atmosphere.threshold"
           value={settings.atmosphereThreshold}
           min={0.1}
           max={1.5}
@@ -148,12 +155,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Render</SectionHeading>
         <ToggleField
           label="Side"
+          configPath="atmosphere.side"
           value={settings.atmosphereSide}
           options={sideOptions}
           onChange={(atmosphereSide) => onGlobeChange({ atmosphereSide })}
         />
         <ToggleField
           label="Blending"
+          configPath="atmosphere.blending"
           value={settings.atmosphereBlending}
           options={blendingOptions}
           onChange={(atmosphereBlending) => onGlobeChange({ atmosphereBlending })}
@@ -162,6 +171,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Pulse</SectionHeading>
         <SwitchField
           label="Brightness oscillation"
+          configPath="atmosphere.pulse.enabled"
           checked={settings.atmospherePulse}
           onChange={(atmospherePulse) => onGlobeChange({ atmospherePulse })}
           value="Halo breathes in and out — atmospheric alive feel"
@@ -173,6 +183,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Speed"
+            configPath="atmosphere.pulse.speed"
             value={settings.atmospherePulseSpeed}
             min={0.05}
             max={2}
@@ -182,6 +193,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Amplitude"
+            configPath="atmosphere.pulse.amplitude"
             value={settings.atmospherePulseAmplitude}
             min={0.05}
             max={1}
@@ -605,7 +617,9 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
 
         {/* Realism pass: sun rig, clouds, surface detail, aurora,
             scattering, sky and the shared post-processing pipeline. */}
-        <CinematicControls state={state} onGlobeChange={onGlobeChange} />
+        <FeatureScopeProvider feature="kind-cinematic" configPath="cinematic">
+          <CinematicControls state={state} onGlobeChange={onGlobeChange} />
+        </FeatureScopeProvider>
       </DependsOn>
 
       <DependsOn when={settings.kind !== 'cinematic'} variant="hidden">

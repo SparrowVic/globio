@@ -56,6 +56,24 @@ export type ConfiguratorId =
   | 'atmosphere'
   | 'crosshair';
 
+/**
+ * The documentation feature each configurator's knobs belong to. The knob
+ * components are rendered inside a matching FeatureScope, so every control
+ * gets a help tip without naming one; a control that edits a specific
+ * config key still passes `configPath` for a precise tip.
+ */
+export const configuratorFeature: Readonly<Record<ConfiguratorId, string>> = {
+  labels: 'country-labels',
+  pulse: 'focus-pulse',
+  stars: 'starfield',
+  selection: 'country-borders',
+  'country-fill': 'country-fill',
+  arcs: 'arcs',
+  markers: 'markers',
+  atmosphere: 'atmosphere',
+  crosshair: 'kind-outline',
+};
+
 export interface PreviewCinematography {
   /**
    * Optional kind override. When omitted (the default), the preview

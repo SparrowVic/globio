@@ -8,7 +8,9 @@ export {
   ControlInfoTooltip,
   ControlLabel,
   type ControlLabelProps,
+  type FeatureProps,
 } from './ControlInfo';
+export { FeatureScopeProvider, useFeatureScope, type FeatureScope } from './feature-scope';
 export { ColorField, type ColorFieldProps } from './ColorField';
 export { ColorListField, type ColorListFieldProps } from './ColorListField';
 export { SelectField, type SelectFieldProps } from './SelectField';

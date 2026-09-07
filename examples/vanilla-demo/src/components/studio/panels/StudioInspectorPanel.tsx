@@ -11,8 +11,9 @@ import {
   FocusSection,
   PerformanceSection,
 } from '@/components/studio/sections/StageSections';
+import { FeatureScopeProvider } from '@/components/shared/controls/feature-scope';
 import { loadPreset } from '@/components/studio/workshop/preset-loader';
-import type { PresetModule } from '@/components/studio/workshop/configurators';
+import { configuratorFeature, type PresetModule } from '@/components/studio/workshop/configurators';
 import type { GlobeSettings } from '@/configurator/types';
 
 import {
@@ -107,7 +108,9 @@ export function StudioInspectorPanel({
   const Knobs = preset.KnobsComponent;
   return (
     <div className="studio-inspector-form">
-      <Knobs state={state} onGlobeChange={onGlobeChange} />
+      <FeatureScopeProvider feature={layerId ? configuratorFeature[layerId] : 'lifecycle'}>
+        <Knobs state={state} onGlobeChange={onGlobeChange} />
+      </FeatureScopeProvider>
     </div>
   );
 }

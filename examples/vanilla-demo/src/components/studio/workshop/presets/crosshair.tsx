@@ -46,6 +46,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       >
         <SwitchField
           label="Hover crosshair"
+          configPath="outline.hoverCrosshair.enabled"
           checked={settings.outlineHoverCrosshair}
           onChange={(outlineHoverCrosshair) => onGlobeChange({ outlineHoverCrosshair })}
           value="Targeting reticle + lat/lng readout while hovering"
@@ -59,6 +60,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Color</SectionHeading>
           <ColorField
             label="Reticle color"
+            configPath="outline.hoverCrosshair.color"
             value={settings.outlineHoverCrosshairColor || '#fbbf24'}
             onChange={(outlineHoverCrosshairColor) =>
               onGlobeChange({ outlineHoverCrosshairColor })
@@ -82,6 +84,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Opacity"
+            configPath="outline.hoverCrosshair.opacity"
             value={settings.outlineHoverCrosshairOpacity}
             min={0.1}
             max={1}
@@ -95,6 +98,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Geometry</SectionHeading>
           <SliderField
             label="Reticle size"
+            configPath="outline.hoverCrosshair.size"
             value={settings.outlineHoverCrosshairSize}
             min={0.005}
             max={0.04}
@@ -106,6 +110,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Ring radius"
+            configPath="outline.hoverCrosshair.ringRadiusFactor"
             value={settings.outlineHoverCrosshairRingRadiusFactor}
             min={0}
             max={1}
@@ -117,6 +122,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SwitchField
             label="Cardinal ticks"
+            configPath="outline.hoverCrosshair.cardinalTicks"
             checked={settings.outlineHoverCrosshairCardinalTicks}
             onChange={(outlineHoverCrosshairCardinalTicks) =>
               onGlobeChange({ outlineHoverCrosshairCardinalTicks })
@@ -127,6 +133,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Readout</SectionHeading>
           <SwitchField
             label="Lat / lng tooltip"
+            configPath="outline.hoverCrosshair.tooltip"
             checked={settings.outlineHoverCrosshairTooltip}
             onChange={(outlineHoverCrosshairTooltip) =>
               onGlobeChange({ outlineHoverCrosshairTooltip })
@@ -140,6 +147,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Decimals"
+              configPath="outline.hoverCrosshair.tooltipDecimals"
               value={settings.outlineHoverCrosshairTooltipDecimals}
               min={0}
               max={6}

@@ -9,6 +9,7 @@ import { DependsOn } from '@/components/shared/components/DependsOn';
 import type { KnobsComponentProps } from '../configurators';
 
 import { CinematicPostFxControls } from './cinematic-postfx-controls';
+import { FeatureScopeProvider } from '@/components/shared/controls/feature-scope';
 
 /**
  * Cinematic realism knobs — the second half of the Atmosphere workshop
@@ -414,7 +415,9 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         onChange={(cinematicTextures) => onGlobeChange({ cinematicTextures })}
       />
 
-      <CinematicPostFxControls state={state} onGlobeChange={onGlobeChange} />
+      <FeatureScopeProvider feature="postprocessing" configPath="postprocessing">
+        <CinematicPostFxControls state={state} onGlobeChange={onGlobeChange} />
+      </FeatureScopeProvider>
     </div>
   );
 }

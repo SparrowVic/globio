@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { ControlLabel } from './ControlInfo';
+import { ControlLabel, type FeatureProps } from './ControlInfo';
 import type { DisableProps } from './Field';
 
-export interface ColorFieldProps extends DisableProps {
+export interface ColorFieldProps extends DisableProps, FeatureProps {
   readonly label: string;
   /** Hex value, e.g. `#fbbf24`. The component normalises any input it gets. */
   readonly value: string;
@@ -63,6 +63,8 @@ export function ColorField({
   preset,
   disabled,
   disabledReason,
+  feature,
+  configPath,
 }: ColorFieldProps) {
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -97,6 +99,8 @@ export function ColorField({
         <ControlLabel
           label={label}
           info={info ?? hint}
+          feature={feature}
+          configPath={configPath}
           disabledReason={
             disabled && disabledReason ? disabledReason : undefined
           }

@@ -278,6 +278,7 @@ export function TopCommandBar({
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <GroupedSelectField<GlobeKind>
             label="Kind"
+            feature="kind"
             hideLabel
             value={state.globe.kind}
             groups={kindGroups}
@@ -286,6 +287,7 @@ export function TopCommandBar({
           />
           <GroupedSelectField<ThemePresetName>
             label="Theme"
+            feature="theme"
             hideLabel
             value={state.globe.theme}
             groups={themeGroups}
@@ -294,6 +296,7 @@ export function TopCommandBar({
           />
           <GroupedSelectField<string>
             label="Preset"
+            feature="studio-presets"
             hideLabel
             // Force-render the placeholder by leaving `value` undefined —
             // we want every preset re-application (even the same id) to

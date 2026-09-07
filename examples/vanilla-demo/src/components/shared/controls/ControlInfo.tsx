@@ -1,6 +1,7 @@
 import { Info } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { FeatureTip, resolveFeature } from '@/components/shared/components/FeatureTip';
 import { Label } from '@/components/ui/label';
 import {
   Tooltip,
@@ -9,29 +10,50 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-export interface ControlLabelProps {
+import { useFeatureScope } from './feature-scope';
+
+/** Props every control forwards so its label can show the right help tip. */
+export interface FeatureProps {
+  /** Registry id of the feature this control belongs to. Overrides the enclosing scope. */
+  readonly feature?: string | undefined;
+  /** The GlobeConfig key this control edits, e.g. `atmosphere.power`. Picks the feature and shows the key's type and default. */
+  readonly configPath?: string | undefined;
+}
+
+export interface ControlLabelProps extends FeatureProps {
   readonly label: string;
   readonly info?: ReactNode | undefined;
   readonly disabledReason?: ReactNode | undefined;
   readonly className?: string | undefined;
 }
 
+/**
+ * Label row of every control. The glyph next to the label is, in order of
+ * precedence: the reason the control is disabled, the feature help card
+ * (when a feature resolves from the control or its scope), or the plain
+ * info tooltip.
+ */
 export function ControlLabel({
   label,
   info,
   disabledReason,
+  feature,
+  configPath,
   className,
 }: ControlLabelProps) {
-  const tooltip = disabledReason ?? info;
+  const scope = useFeatureScope();
+  const resolved = resolveFeature({ feature, configPath, scopeFeature: scope?.feature });
   return (
     <div className={cn('flex min-w-0 items-center gap-2', className)}>
       <Label className="truncate text-[12px] font-medium leading-none text-slate-300">
         {label}
       </Label>
-      {tooltip ? (
-        <ControlInfoTooltip tone={disabledReason ? 'warning' : 'neutral'}>
-          {tooltip}
-        </ControlInfoTooltip>
+      {disabledReason ? (
+        <ControlInfoTooltip tone="warning">{disabledReason}</ControlInfoTooltip>
+      ) : resolved ? (
+        <FeatureTip feature={resolved} configPath={configPath ?? scope?.configPath} label={label} note={info} />
+      ) : info ? (
+        <ControlInfoTooltip tone="neutral">{info}</ControlInfoTooltip>
       ) : null}
     </div>
   );

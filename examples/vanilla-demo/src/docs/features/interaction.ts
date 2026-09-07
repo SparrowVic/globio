@@ -24,6 +24,7 @@ export const INTERACTION_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'country-hover',
+    tip: () => import('./tips/HoverOccludeTip'),
     title: 'Hover',
     configPaths: ['countries.hoverEnabled', 'countries.hoverOccludeBackSide'],
     summary: 'Pointer hover over countries: on by default, with the far side of a country hidden unless you want the x-ray look.',
@@ -42,6 +43,7 @@ export const INTERACTION_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'focus-pulse',
+    tip: () => import('./tips/FocusPulseTip'),
     title: 'Focus pulse',
     configPaths: ['focusPulse'],
     summary: 'The ring that fires when a country is focused: from its centroid or the clicked point, optionally on any surface click. Each kind draws its own.',

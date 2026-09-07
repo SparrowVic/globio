@@ -35,6 +35,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
     <div className="space-y-4">
       <SwitchField
         label="Enable focus pulse"
+        configPath="focusPulse.enabled"
         checked={settings.focusPulse}
         onChange={(focusPulse) => onGlobeChange({ focusPulse })}
       />
@@ -47,12 +48,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Trigger</SectionHeading>
         <ToggleField
           label="Pulse origin"
+          configPath="focusPulse.origin"
           value={settings.focusPulseOrigin}
           options={focusPulseOriginOptions}
           onChange={(focusPulseOrigin) => onGlobeChange({ focusPulseOrigin })}
         />
         <SwitchField
           label="Fire on ocean / void clicks"
+          configPath="focusPulse.pulseOnSurfaceClick"
           checked={settings.focusPulseOnSurfaceClick}
           onChange={(focusPulseOnSurfaceClick) => onGlobeChange({ focusPulseOnSurfaceClick })}
           value="Click anywhere on the surface to test"

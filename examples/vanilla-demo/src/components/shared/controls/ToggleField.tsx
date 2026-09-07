@@ -1,8 +1,9 @@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
+import type { FeatureProps } from './ControlInfo';
 import { Field, type DisableProps, type SelectOption } from './Field';
 
-export interface ToggleFieldProps<T extends string> extends DisableProps {
+export interface ToggleFieldProps<T extends string> extends DisableProps, FeatureProps {
   readonly label: string;
   readonly value: T;
   readonly options: ReadonlyArray<SelectOption<T>>;
@@ -23,6 +24,8 @@ export function ToggleField<T extends string>({
   className,
   disabled,
   disabledReason,
+  feature,
+  configPath,
 }: ToggleFieldProps<T>) {
   return (
     <Field
@@ -30,6 +33,8 @@ export function ToggleField<T extends string>({
       className={className}
       disabled={disabled}
       disabledReason={disabledReason}
+      feature={feature}
+      configPath={configPath}
     >
       <ToggleGroup
         type="single"

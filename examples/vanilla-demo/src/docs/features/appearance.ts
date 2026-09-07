@@ -20,6 +20,7 @@ export const APPEARANCE_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'atmosphere',
+    tip: () => import('./tips/AtmosphereShapeTip'),
     title: 'Atmosphere',
     configPaths: ['atmosphere'],
     summary: 'The Fresnel rim glow around the globe: colour, intensity, radius, softness, which side it renders on and an optional slow pulse.',
@@ -56,6 +57,7 @@ export const APPEARANCE_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'countries-resolution',
+    tip: () => import('./tips/ResolutionTip'),
     title: 'Country resolution',
     configPaths: ['countries.resolution'],
     summary: 'Which country geometry loads: low, medium or high. Decides download size, build time and border fidelity.',
@@ -74,6 +76,7 @@ export const APPEARANCE_FEATURES: ReadonlyArray<FeatureDoc> = [
   },
   {
     id: 'country-fill',
+    tip: () => import('./tips/FillModesTip'),
     title: 'Country fills',
     configPaths: ['countries.fill'],
     summary: 'Solid fills under the borders: hidden, a single colour for every country, a palette by index, or driven by data.',

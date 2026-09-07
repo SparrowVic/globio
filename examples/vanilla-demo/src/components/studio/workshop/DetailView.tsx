@@ -14,6 +14,8 @@ import {
 } from './configurators';
 import { loadPreset } from './preset-loader';
 import { WorkshopPreviewGlobe } from './WorkshopPreviewGlobe';
+import { configuratorFeature } from './configurators';
+import { FeatureScopeProvider } from '@/components/shared/controls/feature-scope';
 
 export interface DetailViewProps {
   readonly configurator: ConfiguratorMeta;
@@ -214,7 +216,9 @@ function KnobsPane({
       </header>
       <div className="flex-1 overflow-y-auto p-5">
         {preset && preset !== 'loading' ? (
-          <preset.KnobsComponent state={state} onGlobeChange={onGlobeChange} />
+          <FeatureScopeProvider feature={configuratorFeature[configurator.id]}>
+            <preset.KnobsComponent state={state} onGlobeChange={onGlobeChange} />
+          </FeatureScopeProvider>
         ) : (
           <div
             className={cn(
