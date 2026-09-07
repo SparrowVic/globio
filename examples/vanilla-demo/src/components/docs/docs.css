@@ -1151,6 +1151,90 @@
     color: var(--ice);
   }
 
+  /* ---- Generated reference ---------------------------------------- */
+  .docs-row-note {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: var(--mist);
+  }
+  .docs-row-note a {
+    color: var(--atm);
+    text-decoration: none;
+  }
+  .docs-row-note a:hover {
+    text-decoration: underline;
+  }
+  .docs-nested-group {
+    margin-top: 22px;
+    scroll-margin-top: 88px;
+  }
+  .docs-h4 {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--ice);
+  }
+  .docs-h4 code {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: inherit;
+  }
+  .docs-type-extends {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.84rem;
+    color: var(--mist);
+  }
+  .docs-api-loading {
+    height: 120px;
+    margin: 18px 0;
+    border: 1px dashed var(--hair);
+    border-radius: 14px;
+  }
+  .docs-table td .docs-prose-inline p {
+    margin: 0;
+  }
+
+  .docs-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 8px 0 -24px;
+  }
+  .docs-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--mist);
+  }
+  .docs-select select {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 1px solid var(--hair-strong);
+    background: rgba(220, 235, 255, 0.03);
+    color: var(--ice);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+  .docs-select select:focus-visible {
+    outline: 2px solid var(--atm);
+    outline-offset: 2px;
+  }
+  .docs-key-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 14px 0;
+  }
+  .docs-key-cloud code {
+    font-size: 0.74rem;
+  }
+
   /* ---- Footer, misc ---------------------------------------------- */
   .docs-footer {
     margin-top: 48px;

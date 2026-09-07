@@ -1,0 +1,60 @@
+import type { FeatureDoc } from './types';
+import { FLY_TO } from '../snippets';
+
+export const CAMERA_FEATURES: ReadonlyArray<FeatureDoc> = [
+  {
+    id: 'initial-position',
+    title: 'Initial position and tilt',
+    configPaths: ['initialPosition', 'axisTilt'],
+    summary: 'What faces the camera on mount, and the axial tilt of the globe in degrees. Tilt is visual only; picking and coordinates keep working.',
+    kinds: 'all',
+    docs: { slug: 'camera/position' },
+    related: ['framing', 'auto-rotate'],
+  },
+  {
+    id: 'framing',
+    title: 'Framing',
+    configPaths: ['framing'],
+    summary: 'Margin reserved around the globe so the atmosphere halo can fade, and an optional zoom lock for decorative embeds.',
+    kinds: 'all',
+    docs: { slug: 'camera/position', anchor: 'framing' },
+    related: ['zoom', 'transparent-canvas'],
+  },
+  {
+    id: 'auto-rotate',
+    title: 'Auto-rotate',
+    configPaths: ['autoRotate'],
+    summary: 'Ambient rotation at a set speed. It yields while the pointer drags and resumes afterwards; stories and focus calls can pause it.',
+    kinds: 'all',
+    docs: { slug: 'camera/auto-rotate' },
+    related: ['initial-position', 'story'],
+  },
+  {
+    id: 'zoom',
+    title: 'Zoom and limits',
+    configPaths: ['zoom', 'minZoom', 'maxZoom'],
+    summary: 'Wheel and pinch zoom in classic, repel or attract mode with smoothing, plus the camera distance limits. A locked zoom lets the page scroll through the globe.',
+    kinds: 'all',
+    docs: { slug: 'camera/zoom' },
+    related: ['framing'],
+  },
+  {
+    id: 'fly-to',
+    title: 'flyTo and setRotation',
+    methods: ['flyTo', 'setRotation'],
+    summary: 'Animated camera moves to a coordinate with duration, easing and an optional fly-over elevation; setRotation snaps or eases without changing distance.',
+    kinds: 'all',
+    docs: { slug: 'camera/fly-to' },
+    example: FLY_TO,
+    related: ['focus-on-country', 'story'],
+  },
+  {
+    id: 'focus-on-country',
+    title: 'focusOnCountry',
+    methods: ['focusOnCountry'],
+    summary: 'Fly to a country and fit its bounds with a padding fraction. Pauses auto-rotate by default and can aim at a clicked point instead of the centroid.',
+    kinds: 'all',
+    docs: { slug: 'camera/fly-to', anchor: 'focusoncountry' },
+    related: ['fly-to', 'active-country', 'focus-pulse'],
+  },
+];

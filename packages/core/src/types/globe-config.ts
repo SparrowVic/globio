@@ -24,7 +24,12 @@ import type { PerformanceConfig } from './performance';
 import type { PostProcessingConfig } from './postfx';
 
 export interface GlobeConfig {
+  /** The element the canvas fills. Size it with CSS; the globe follows it. */
   readonly container: HTMLElement;
+  /**
+   * Scene projection. Only `'sphere'` renders today; `'flat'` is reserved
+   * for a future map view. Default `'sphere'`.
+   */
   readonly mode?: GlobeMode;
   /**
    * Visual identity of the rendered globe. Each kind owns its renderer
@@ -34,13 +39,27 @@ export interface GlobeConfig {
    * falling back to `'outline'` for custom themes.
    */
   readonly kind?: GlobeKind;
+  /**
+   * A built-in or registered preset name, or `{ extends, tokens }` to
+   * override individual tokens on top of a preset. Defaults to the active
+   * kind's first preset.
+   */
   readonly theme?: ThemeInput;
+  /** Country geometry resolution, hover behaviour and per-instance border and fill styling. */
   readonly countries?: CountriesConfig;
   readonly countryLabels?: CountryLabelsConfig;
+  /**
+   * Initial per-country colours and values, keyed by zero-padded ISO 3166-1
+   * numeric id. Same shape as `setCountryData()`.
+   */
   readonly countryData?: CountryDataMap;
+  /** Initial pins. Replace or edit later with `setMarkers()`, `addMarker()` and `removeMarker()`. */
   readonly markers?: ReadonlyArray<MarkerConfig>;
+  /** Initial DOM-anchored markers. */
   readonly htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
+  /** Initial great-circle connections. */
   readonly arcs?: ReadonlyArray<ArcConfig>;
+  /** The Fresnel rim glow. Rendered unless `enabled` is `false`. */
   readonly atmosphere?: AtmosphereConfig;
   /**
    * Cross-kind behaviour for the focus-pulse decoration. Visual style still
@@ -62,12 +81,19 @@ export interface GlobeConfig {
     readonly origin?: 'centroid' | 'click';
     readonly pulseOnSurfaceClick?: boolean;
   };
+  /** Options read only when `kind` is `'outline'`. */
   readonly outline?: OutlineConfig;
+  /** Options read only when `kind` is `'cinematic'`. */
   readonly cinematic?: CinematicConfig;
+  /** Options read only when `kind` is `'dotted'`. */
   readonly dotted?: DottedConfig;
+  /** Options read only when `kind` is `'wireframe'`. */
   readonly wireframe?: WireframeConfig;
+  /** Options read only when `kind` is `'paper'`. */
   readonly paper?: PaperConfig;
+  /** Options read only when `kind` is `'hologram'`. */
   readonly hologram?: HologramConfig;
+  /** Background stars. The layer is created only when `enabled` is `true`. */
   readonly starfield?: StarfieldConfig;
   /**
    * Shared HDR post-processing (bloom, anamorphic streak, vignette,
@@ -85,11 +111,17 @@ export interface GlobeConfig {
    * inside a tilted parent group. Default 0.
    */
   readonly axisTilt?: number;
+  /** Ambient rotation. Off unless `enabled` is `true`. */
   readonly autoRotate?: AutoRotateConfig;
+  /** Antialiasing, pixel ratio, frame-rate ceiling, adaptive quality and pausing. */
   readonly performance?: PerformanceConfig;
+  /** The `[lat, lng]` that faces the camera on mount. Default `[0, 0]`. */
   readonly initialPosition?: LatLng;
+  /** Closest camera distance in globe radii. Default 1.5. */
   readonly minZoom?: number;
+  /** Farthest camera distance in globe radii. Default 6. */
   readonly maxZoom?: number;
+  /** Wheel and pinch zoom behaviour. */
   readonly zoom?: ZoomConfig;
   /**
    * Render with a transparent canvas — the host page bleeds through.

@@ -4,7 +4,7 @@
 
 **Second goal:** one description of every feature, shared by the documentation and the Studio help tips, so the two never disagree.
 
-**Status:** skeleton shipped on branch `feat/docs-site` (component library, manifest, route, landing links, 24 dedicated pages + a generic fallback). This plan covers the content passes that replace the skeleton.
+**Status:** skeleton merged to `main` on 2026-09-07 (component library, manifest, route, landing links). Phase 1 executed the same day on `feat/docs-phase-1`: the Vue and Angular wrappers now forward the whole `GlobeConfig` and every event (`GLOBE_CONFIG_KEYS` + `pickGlobeConfig` in the core), `examples/vanilla-demo/scripts/docs-extract.mjs` writes `src/docs/generated/api.json` (548 config keys, 43 methods, 10 events, 60 types, wrapper surfaces) with a vitest that fails when it is stale, the feature registry lives in `src/docs/features/` (44 features, coverage-tested), and every page in the manifest has real content generated from `api.json` or written by hand. Remaining: phase 2 (Studio `FeatureTip`) and phase 3.
 
 ---
 

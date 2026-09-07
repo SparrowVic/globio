@@ -1,41 +1,75 @@
-import { Callout, DocPage, DocSection, TokenSwatches } from '@/components/docs';
+import { useMemo, useState } from 'react';
+import { DEFAULT_TOKENS, THEME_PRESETS, resolveTheme, type ThemePresetName } from '@your-globe/core';
+import { Callout, CodePanel, DocPage, DocSection, TokenSwatches, type TokenEntry } from '@/components/docs';
 import type { DocLocation } from '@/docs/manifest';
+import { THEME_EXTEND } from '@/docs/snippets';
+
+const GROUP_LABEL: Readonly<Record<string, string>> = {
+  background: 'Background',
+  globe: 'Globe surface',
+  countries: 'Countries',
+  markers: 'Markers',
+  arcs: 'Arcs',
+  atmosphere: 'Atmosphere',
+  starfield: 'Starfield',
+  tooltip: 'Tooltip',
+  legend: 'Legend',
+  labels: 'Labels',
+  lights: 'Lights',
+};
+
+const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+const groupOf = (key: string): string => key.split('.')[0] ?? key;
 
 export function Tokens({ tab, group, page }: DocLocation) {
+  const presets = Object.keys(THEME_PRESETS) as ReadonlyArray<ThemePresetName>;
+  const [preset, setPreset] = useState<ThemePresetName | 'defaults'>('defaults');
+  const resolved = useMemo(() => (preset === 'defaults' ? DEFAULT_TOKENS : resolveTheme(preset)), [preset]);
+  const declared = useMemo(() => new Set(preset === 'defaults' ? [] : Object.keys(THEME_PRESETS[preset])), [preset]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, TokenEntry[]>();
+    for (const [key, value] of Object.entries(resolved)) {
+      const g = groupOf(key);
+      const list = map.get(g) ?? [];
+      list.push({ name: key, value: value as string | number, description: declared.has(key) ? 'set by this preset' : undefined });
+      map.set(g, list);
+    }
+    return [...map.entries()];
+  }, [resolved, declared]);
+
   return (
-    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead={page.summary}>
-      <Callout tone="note">Values shown are the resolved tokens of <code>outline-dark</code>. The content pass will list every preset's resolved set.</Callout>
-      <DocSection title="Surface and background" eyebrow="background · globe">
-        <TokenSwatches
-          tokens={[
-            { name: 'background.color', value: '#050608', description: 'Canvas clear colour when the globe is not transparent.' },
-            { name: 'globe.surfaceColor', value: '#0d1420', description: 'Ocean and land base.' },
-          ]}
-        />
-      </DocSection>
-      <DocSection title="Countries" eyebrow="countries.*">
-        <TokenSwatches
-          tokens={[
-            { name: 'countries.border.color', value: '#5b6b85' },
-            { name: 'countries.border.width', value: 1 },
-            { name: 'countries.border.opacity', value: 0.9 },
-            { name: 'countries.borderHover.color', value: '#dcebff' },
-            { name: 'countries.borderHover.glowColor', value: '#6fb4ff', description: 'Soft halo behind the hovered border.' },
-            { name: 'countries.borderActive.color', value: '#ff8a4c' },
-            { name: 'countries.fill.defaultColor', value: '#15181d', description: 'Fill for countries without data.' },
-            { name: 'countries.fill.opacity', value: 0.85 },
-          ]}
-        />
-      </DocSection>
-      <DocSection title="Labels and tooltip" eyebrow="countries.label · tooltip">
-        <TokenSwatches
-          tokens={[
-            { name: 'countries.label.color', value: '#dcebff' },
-            { name: 'countries.label.fontSize', value: 12 },
-            { name: 'countries.label.fontFamily', value: 'inherit' },
-            { name: 'tooltip.backgroundColor', value: '#0b0e14' },
-          ]}
-        />
+    <DocPage
+      crumbs={[tab.label, group.label]}
+      eyebrow={page.eyebrow}
+      title={page.title}
+      lead={`${Object.keys(DEFAULT_TOKENS).length} token paths, read live from the engine. Pick a preset to see the values it resolves to; rows a preset declares are marked.`}
+    >
+      <div className="docs-toolbar">
+        <label className="docs-select">
+          <span>Preset</span>
+          <select value={preset} onChange={(e) => setPreset(e.target.value as ThemePresetName | 'defaults')}>
+            <option value="defaults">defaults</option>
+            {presets.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {groups.map(([g, tokens]) => (
+        <DocSection key={g} id={`tokens-${g}`} title={GROUP_LABEL[g] ?? titleCase(g)} eyebrow={`${g}.*`}>
+          <TokenSwatches tokens={tokens} />
+        </DocSection>
+      ))}
+      <DocSection title="Override a token" id="override">
+        <CodePanel code={THEME_EXTEND} />
+        <Callout tone="note">
+          Some renderers also accept per-instance overrides in their config (for example <code>countries.borderHover</code>); those win over the theme for
+          that globe only.
+        </Callout>
       </DocSection>
     </DocPage>
   );

@@ -27,5 +27,9 @@ export { ApiTable, PropsTable, EventsTable, MethodsTable, type ApiColumn, type A
 export { Signature } from './reference/Signature';
 export { SupportMatrix, type MatrixFeature, type Support } from './reference/SupportMatrix';
 export { TokenSwatches, type TokenEntry } from './reference/TokenSwatches';
+export { ConfigTree, type ConfigTreeProps } from './reference/ConfigTree';
+export { TypeReference, type TypeReferenceProps } from './reference/TypeReference';
+export { ApiLoading, ConfigKeys, Methods, Events, Types, type ConfigKeysProps } from './reference/ApiSections';
+export { DocText, renderInline } from './primitives/DocText';
 // Preview
 export { LivePreview, type LivePreviewProps } from './preview/LivePreview';

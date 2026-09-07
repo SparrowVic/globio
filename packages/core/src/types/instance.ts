@@ -17,18 +17,28 @@ import type { CinematicDataset } from './kinds';
 // only depends on the public type — keeps tree-shaking honest.
 
 export interface GlobeInstance {
+  /** Attach the canvas to the container, load country geometry and start rendering. */
   readonly mount: () => void;
+  /** Release the WebGL context, workers and listeners. The instance is unusable afterwards. */
   readonly destroy: () => void;
+  /** Patch the running config. A new `kind` rebuilds the renderer in place; every other key is applied live. */
   readonly update: (config: Partial<GlobeConfig>) => void;
+  /** Subscribe to an event. Returns the function that unsubscribes. */
   readonly on: <K extends GlobeEventName>(
     event: K,
     handler: GlobeEvents[K]
   ) => GlobeEventUnsubscribe;
+  /** Unsubscribe a handler passed to `on()`. */
   readonly off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => void;
+  /** Point the globe at a `[lat, lng]` without changing distance; eased when `animate` is true. */
   readonly setRotation: (position: LatLng, animate?: boolean) => void;
+  /** Animate the camera to a `[lat, lng]`; `distance` in globe radii keeps the current zoom when omitted. */
   readonly flyTo: (position: LatLng, distance?: number, options?: FlyToOptions) => void;
+  /** Fly to a country and fit its bounds. Pauses auto-rotate unless told otherwise. */
   readonly focusOnCountry: (id: string, options?: FocusOptions) => void;
+  /** Pin a country as selected, or clear the selection with `null`. */
   readonly setActiveCountry: (id: string | null) => void;
+  /** The pinned country id, if any. */
   readonly getActiveCountry: () => string | null;
   /**
    * Apply a country-data map. When `scale` is provided, entries' `value` is
@@ -37,6 +47,7 @@ export interface GlobeInstance {
    * Pass `null` to hide the fill layer.
    */
   readonly setCountryData: (data: CountryDataMap | null, scale?: ScaleConfig) => void;
+  /** The map last passed to `setCountryData()`. */
   readonly getCountryData: () => CountryDataMap | null;
   /**
    * Mount or replace the active **data layer** — the high-level data
@@ -50,6 +61,7 @@ export interface GlobeInstance {
    * single console.warn). See `FEATURES.md` section 5c for the catalogue.
    */
   readonly setDataLayer: (layer: import('../data-layers/types').DataLayer | null) => void;
+  /** The active data layer config, if any. */
   readonly getDataLayer: () => import('../data-layers/types').DataLayer | null;
   /**
    * Replace the persistent cinematic dataset used by the cinematic kind's
@@ -59,6 +71,7 @@ export interface GlobeInstance {
    * and apply it when the globe switches back to `kind: 'cinematic'`.
    */
   readonly setCinematicData: (dataset: CinematicDataset | null) => void;
+  /** The dataset last passed to `setCinematicData()`. */
   readonly getCinematicData: () => CinematicDataset | null;
   /**
    * Replay the active data layer's mount animation when the current layer
@@ -79,24 +92,43 @@ export interface GlobeInstance {
    * categorical → swatch list). Calling again replaces the active legend.
    */
   readonly showLegend: (scale: ScaleConfig, options?: LegendOptions) => void;
+  /** Remove the legend. */
   readonly hideLegend: () => void;
+  /** Load a story, or clear it with `null`. Starts playing when `autoPlay` is set. */
   readonly setStory: (story: StoryConfig | null) => void;
+  /** Start or resume auto-advancing from the current scene. */
   readonly playStory: () => void;
+  /** Stop auto-advancing; the current scene stays. */
   readonly pauseStory: () => void;
+  /** Advance to the next scene. */
   readonly nextScene: () => void;
+  /** Go back one scene. */
   readonly prevScene: () => void;
+  /** Jump to a scene by id. */
   readonly goToScene: (id: string) => void;
+  /** The scene the story is in, or `null` without a story. */
   readonly getCurrentScene: () => SceneConfig | null;
+  /** Whether the story is auto-advancing. */
   readonly isStoryPlaying: () => boolean;
+  /** Replace every marker. */
   readonly setMarkers: (markers: ReadonlyArray<MarkerConfig>) => void;
+  /** Add one marker; an existing id is replaced. */
   readonly addMarker: (marker: MarkerConfig) => void;
+  /** Remove a marker by id. */
   readonly removeMarker: (id: string) => void;
+  /** Replace every DOM-anchored marker. */
   readonly setHtmlMarkers: (markers: ReadonlyArray<HtmlMarkerConfig>) => void;
+  /** Add one DOM-anchored marker. */
   readonly addHtmlMarker: (marker: HtmlMarkerConfig) => void;
+  /** Remove a DOM-anchored marker by id. */
   readonly removeHtmlMarker: (id: string) => void;
+  /** Replace every arc. */
   readonly setArcs: (arcs: ReadonlyArray<ArcConfig>) => void;
+  /** Add one arc; an existing id is replaced. */
   readonly addArc: (arc: ArcConfig) => void;
+  /** Remove an arc by id. */
   readonly removeArc: (id: string) => void;
+  /** A PNG data URL of the current frame, optionally rendered at another size. */
   readonly toImage: (options?: { width?: number; height?: number }) => Promise<string>;
   /**
    * Pause or resume rendering without tearing anything down. A paused globe
@@ -106,7 +138,9 @@ export interface GlobeInstance {
    * automatic and independent of this switch.
    */
   readonly setPaused: (paused: boolean) => void;
+  /** Re-measure the container. A ResizeObserver does this automatically; call it after a CSS transform. */
   readonly resize: () => void;
+  /** The canvas element. */
   readonly getCanvas: () => HTMLCanvasElement;
   /**
    * Project a lat/lng pair to canvas-relative pixel coordinates `[x, y]`.

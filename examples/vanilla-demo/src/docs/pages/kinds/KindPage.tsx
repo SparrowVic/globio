@@ -1,42 +1,15 @@
-import type { GlobeKind } from '@your-globe/core';
 import { KIND_CHAPTERS } from '@/components/home/landing/data/kinds';
 import { KIND_THEMES } from '@/components/home/landing/data/kind-themes';
-import { Callout, CardGrid, CodePanel, DocPage, DocSection, DocSubsection, KindDot, LinkCard, LivePreview, Pill, PropsTable, SupportMatrix, type PropRow } from '@/components/docs';
+import { Callout, CardGrid, CodePanel, ConfigKeys, DocPage, DocSection, DocSubsection, KindDot, LinkCard, LivePreview, Pill, SupportMatrix } from '@/components/docs';
+import { getFeature } from '@/docs/features';
+import { KIND_DATA_LAYER_SUPPORT, KIND_LAYER_SUPPORT } from '@/docs/kind-support';
 import { pageHref, type DocLocation } from '@/docs/manifest';
 import { kindSnippet } from '@/docs/snippets';
-import { KIND_FEATURES } from '../start/ChoosingAKind';
-
-const OPTIONS: Readonly<Record<GlobeKind, ReadonlyArray<PropRow>>> = {
-  cinematic: [
-    { name: 'cinematic.sun.mode', type: "'fixed' | 'realtime' | 'orbit'", default: "'fixed'", description: 'Where the light comes from: a pinned position, the real sun for the current time, or a slow orbit.' },
-    { name: 'cinematic.clouds.enabled', type: 'boolean', default: 'true', description: 'The drifting cloud shell with cast shadows.' },
-    { name: 'cinematic.textures', type: 'CinematicTextureSet', default: 'procedural', description: 'Swap the procedural surface for real 2k textures.' },
-  ],
-  outline: [
-    { name: 'outline.crosshair', type: 'boolean', default: 'true', description: 'Reads latitude and longitude under the cursor.' },
-    { name: 'countries.borderHover', type: 'BorderStyle', default: 'theme', description: 'Colour, width and glow of the hovered border.' },
-  ],
-  dotted: [
-    { name: 'dotted.density', type: 'number', default: '1', description: 'Dots per degree at the equator; rows thin towards the poles.' },
-    { name: 'dotted.ripple', type: 'boolean', default: 'true', description: 'Ripple pulses through the dot field on hover and data change.' },
-  ],
-  wireframe: [
-    { name: 'wireframe.pulses', type: 'number', default: '6', description: 'Packets travelling along the grid at any time.' },
-    { name: 'wireframe.streams', type: 'boolean', default: 'true', description: 'Pole-to-pole streams.' },
-  ],
-  hologram: [
-    { name: 'hologram.scanlines', type: 'number', default: '0.35', description: 'Scanline strength, 0 to 1.' },
-    { name: 'hologram.shimmer', type: 'number', default: '1', description: 'Speed of the shimmer sweep.' },
-  ],
-  paper: [
-    { name: 'paper.grain', type: 'number', default: '0.6', description: 'Paper grain strength.' },
-    { name: 'paper.labels', type: 'boolean', default: 'true', description: 'Atlas-style country labels.' },
-  ],
-};
 
 export function KindPage({ tab, group, page }: DocLocation) {
   const kind = page.kind ?? 'outline';
   const chapter = KIND_CHAPTERS.find((c) => c.kind === kind);
+  const feature = getFeature(`kind-${kind}`);
   const themes = KIND_THEMES[kind];
   const accent = themes[0]?.swatch;
   const preset = themes[0]?.preset ?? 'outline-dark';
@@ -47,7 +20,7 @@ export function KindPage({ tab, group, page }: DocLocation) {
       crumbs={[tab.label, group.label]}
       eyebrow={page.eyebrow}
       title={chapter?.tagline ?? page.title}
-      lead={chapter?.description ?? page.summary}
+      lead={chapter?.description ?? feature?.summary ?? page.summary}
       accent={accent}
       meta={
         <>
@@ -65,12 +38,12 @@ export function KindPage({ tab, group, page }: DocLocation) {
       }
     >
       <div className="docs-two-col">
-        <LivePreview kind={kind} theme={preset} caption={`kind: '${kind}' with its default theme.`} />
+        <LivePreview kind={kind} theme={preset} caption={`kind: '${kind}' with ${preset}.`} />
         <CodePanel code={kindSnippet(kind, preset)} caption="The kind is one key; switching it keeps every other setting." />
       </div>
 
       <DocSection title="Themes" eyebrow="theme">
-        <p>Every preset is a partial token set over the defaults. Pick one by name, or extend it with your own tokens.</p>
+        <p>Every preset is a partial token set over the defaults. Pick one by name, or extend it with your own tokens on the themes page.</p>
         <div className="flex flex-wrap gap-2">
           {themes.map((t) => (
             <Pill key={t.preset} title={t.label}>
@@ -81,19 +54,28 @@ export function KindPage({ tab, group, page }: DocLocation) {
         </div>
       </DocSection>
 
-      <DocSection title="Options" eyebrow={`${kind}`}>
-        <PropsTable rows={OPTIONS[kind]} />
+      <DocSection title="Options" eyebrow={kind} lead={`Everything under the ${kind} key of GlobeConfig, generated from the types. Other kinds ignore this section.`}>
+        <ConfigKeys path={kind} />
         <DocSubsection title="Shared keys">
           <p>
-            Countries, markers, arcs, atmosphere, camera and performance keys are the same for every kind. The support matrix below shows what this kind draws.
+            Countries, markers, arcs, atmosphere, starfield, camera and performance keys are the same for every kind and documented on their own pages;
+            the GlobeConfig reference lists them all.
           </p>
         </DocSubsection>
       </DocSection>
 
-      <DocSection title="What it supports">
-        <SupportMatrix features={KIND_FEATURES} kinds={[kind]} />
+      <DocSection title="What it renders">
+        <SupportMatrix features={KIND_LAYER_SUPPORT} kinds={[kind]} />
+        <DocSubsection title="Data layers">
+          <SupportMatrix features={KIND_DATA_LAYER_SUPPORT} kinds={[kind]} />
+          <p>
+            <code>setDataLayer()</code> with a type this kind does not render logs a warning and draws nothing; <code>setCountryData()</code> works on every
+            kind.
+          </p>
+        </DocSubsection>
         <Callout tone="perf">
-          Representative build cost and frame budget for this kind will be listed here, measured with the engine's own timing marks.
+          Build time depends on <code>countries.resolution</code> more than on the kind: 60 to 400 ms at medium resolution on a 2023 laptop, measured by the
+          engine's own timing marks. Use low resolution for decorative globes.
         </Callout>
       </DocSection>
 

@@ -1,34 +1,35 @@
-import { Callout, CodePanel, DocPage, DocSection, EventsTable } from '@/components/docs';
+import { Callout, CodePanel, DocPage, DocSection, Events, LivePreview } from '@/components/docs';
 import type { DocLocation } from '@/docs/manifest';
 import { EVENTS } from '@/docs/snippets';
 
-export const EVENT_ROWS = [
-  { name: 'ready', payload: '()', description: 'Shaders compiled, first frame drawn. Reveal the element now.' },
-  { name: 'error', payload: '(error: Error)', description: 'Geometry failed to load or WebGL is unavailable.' },
-  { name: 'countryClick', payload: '(event: CountryEvent)', description: 'A country was clicked. Carries id, name, centroid and the pointer position.' },
-  { name: 'countryHover', payload: '(event: CountryEvent | null)', description: 'Pointer entered a country, or left all of them (null).' },
-  { name: 'markerClick', payload: '(event: MarkerEvent)', description: 'A pin was clicked. Carries the MarkerConfig you passed in.' },
-  { name: 'markerHover', payload: '(event: MarkerEvent | null)', description: 'Pointer entered or left a pin.' },
-  { name: 'surfaceClick', payload: '(event: SurfaceClickEvent)', description: 'A click on the globe that hit no country: ocean or empty space. Never fires together with countryClick.' },
-  { name: 'sceneEnter', payload: '(event: StorySceneEvent)', description: 'The story engine entered a scene.' },
-  { name: 'sceneExit', payload: '(event: StorySceneEvent)', description: 'The story engine left a scene.' },
-  { name: 'storyComplete', payload: '(event: StoryCompleteEvent)', description: 'The last scene finished and the story does not loop.' },
-];
-
-export function Events({ tab, group, page }: DocLocation) {
+export function EventsGuide({ tab, group, page }: DocLocation) {
   return (
-    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead={page.summary}>
-      <DocSection title="Subscribe" eyebrow="globe.on()">
-        <CodePanel code={EVENTS} caption="Hover payloads are null on leave, so one handler covers both directions." />
+    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Ten events cover interaction, lifecycle and the story engine. Subscribe by name; the wrappers expose the same set as callbacks, emits and outputs.">
+      <div className="docs-two-col">
+        <CodePanel code={EVENTS} caption="A hover tooltip and a fly-to on empty-surface clicks." />
+        <LivePreview kind="outline" theme="outline-cyber" interactive caption="Interactive: hover and click fire the events documented here." />
+      </div>
+      <DocSection title="Subscribe" id="subscribe" eyebrow="globe.on()">
         <p>
-          <code>on()</code> returns nothing; pass the same function to <code>off()</code> to unsubscribe. The wrappers expose every event as a callback prop
-          and unsubscribe on unmount.
+          <code>on()</code> returns the unsubscribe function; <code>off()</code> takes the same handler. Hover events fire only when the country or marker under
+          the pointer changes and pass <code>null</code> on leave, so one handler covers both directions.
         </p>
       </DocSection>
-      <DocSection title="All events" eyebrow="GlobeEvents">
-        <EventsTable rows={EVENT_ROWS} />
-        <Callout tone="note">
-          Hover events are throttled to the frame rate and only fire when the country under the pointer changes; they are safe to bind to React state.
+      <DocSection title="Interaction events" id="interaction">
+        <Events names={['countryClick', 'countryHover', 'markerClick', 'markerHover']} guide={false} />
+      </DocSection>
+      <DocSection title="Surface clicks" id="surface-clicks" eyebrow="surfaceClick">
+        <p>
+          A click that lands on the globe but on no country. Use it to fly to the clicked point, to clear a selection, or to place a marker. It never fires
+          together with <code>countryClick</code>.
+        </p>
+        <Events names={['surfaceClick']} guide={false} />
+      </DocSection>
+      <DocSection title="Lifecycle and story events" id="lifecycle">
+        <Events names={['ready', 'error', 'sceneEnter', 'sceneExit', 'storyComplete']} guide={false} />
+        <Callout tone="tip">
+          Reveal the container on <code>ready</code>, not on mount: it fires once countries are loaded and the shaders are compiled, so the first frame the
+          reader sees is a finished one.
         </Callout>
       </DocSection>
     </DocPage>

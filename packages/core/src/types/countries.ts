@@ -1,14 +1,19 @@
 import type { LatLng, ResolutionLevel } from './primitives';
 
+/** A country as the engine knows it. */
 export interface CountryData {
+  /** Zero-padded ISO 3166-1 numeric id, e.g. `'616'`. */
   readonly id: string;
+  /** English short name from the geometry source. */
   readonly name: string;
   readonly iso2?: string;
   readonly iso3?: string;
 }
 
+/** Payload of `countryClick` and `countryHover`. */
 export interface CountryEvent {
   readonly country: CountryData;
+  /** `[lat, lng]` under the pointer. */
   readonly point: LatLng;
 }
 
@@ -19,15 +24,20 @@ export interface CountryEvent {
  * color via a future scale system; for now the explicit `color` field wins.
  */
 export interface CountryDataEntry {
+  /** Explicit fill colour. Wins over any scale. Defaults to the `countries.fill.defaultColor` token. */
   readonly color?: string;
+  /** Numeric value; mapped to a colour when `setCountryData()` receives a scale, and returned in events. */
   readonly value?: number;
+  /** Fill opacity. Defaults to the `countries.fill.opacity` token. */
   readonly opacity?: number;
 }
 
 export type CountryDataMap = Readonly<Record<string, CountryDataEntry>>;
 
 export interface CountriesConfig {
+  /** Which country geometry loads: `'low'` (about 90 kB), `'medium'` or `'high'`. Default `'medium'`. */
   readonly resolution?: ResolutionLevel;
+  /** Pick and highlight the country under the pointer. Default true. */
   readonly hoverEnabled?: boolean;
   /**
    * When true (default), the hover highlight respects the globe's depth —
@@ -94,6 +104,7 @@ export interface CountriesConfig {
  * via the same occlusion smoothstep as HTML markers.
  */
 export interface CountryLabelsConfig {
+  /** Show the labels. Default false. */
   readonly enabled?: boolean;
   /**
    * Override the theme-driven label text color. CSS-style hex / rgb /

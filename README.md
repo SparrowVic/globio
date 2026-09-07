@@ -129,13 +129,13 @@ import { Globe } from '@your-globe/react';
 />
 ```
 
-## Angular
+All three wrappers forward every `GlobeConfig` key (the list lives in
+`GLOBE_CONFIG_KEYS`, exported from the core) and expose every globe event. Anything
+imperative — `flyTo`, `focusOnCountry`, `setStory`, `showLegend`, data layers — goes
+through the instance: `ref.current.getInstance()` in React, `getInstance()` on the
+component ref in Vue and on the `GlobeComponent` in Angular.
 
-> The Angular and Vue wrappers currently expose a subset of the core config (`mode`,
-> `countries`, `markers`, `atmosphere`, `autoRotate`, `performance`, `initialPosition`,
-> zoom limits). `kind`, `theme`, `cinematic`, `postprocessing`, data layers and the Story
-> API are available through the core API and the React wrapper (which forwards the whole
-> `GlobeConfig`) until the other wrappers catch up.
+## Angular
 
 ```ts
 import { GlobeComponent } from '@your-globe/angular';
@@ -144,6 +144,8 @@ import { GlobeComponent } from '@your-globe/angular';
   imports: [GlobeComponent],
   template: `
     <ng-globe
+      kind="outline"
+      theme="outline-dark"
       [countries]="{ resolution: 'medium' }"
       [markers]="markers"
       [atmosphere]="{ enabled: true }"
@@ -164,6 +166,8 @@ import { VueGlobe } from '@your-globe/vue';
 
 <template>
   <VueGlobe
+    kind="outline"
+    theme="outline-dark"
     :countries="{ resolution: 'medium' }"
     :markers="[{ id: '1', position: [52.23, 21.01] }]"
     :atmosphere="{ enabled: true }"

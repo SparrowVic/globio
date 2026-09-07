@@ -1,7 +1,9 @@
 import type { LatLng } from './primitives';
 
 export interface AutoRotateConfig {
+  /** Turn ambient rotation on. It yields while the pointer drags and resumes afterwards. Default false. */
   readonly enabled?: boolean;
+  /** Rotation speed; 1 is roughly one revolution per 30 seconds. Default 0.5. */
   readonly speed?: number;
 }
 
@@ -17,8 +19,9 @@ export interface AutoRotateConfig {
 export type ZoomMode = 'classic' | 'repel' | 'attract';
 
 export interface ZoomConfig {
+  /** How a scroll step moves the camera. Default `'classic'`. */
   readonly mode?: ZoomMode;
-  /** 0..1 — intensity of repel/attract correction. Ignored for `classic`. */
+  /** 0..1 — intensity of repel/attract correction. Ignored for `classic`. Default 0.5. */
   readonly strength?: number;
   /**
    * When true (default), the camera interpolates smoothly toward its

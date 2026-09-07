@@ -17,18 +17,46 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import {
   createGlobe,
+  pickGlobeConfig,
+  type ArcConfig,
   type AtmosphereConfig,
   type AutoRotateConfig,
+  type CinematicConfig,
   type CountriesConfig,
+  type CountryDataMap,
   type CountryEvent,
+  type CountryLabelsConfig,
+  type DottedConfig,
+  type FramingConfig,
   type GlobeConfig,
+  type GlobeConfigInput,
   type GlobeInstance,
+  type GlobeKind,
+  type GlobeMode,
+  type HologramConfig,
+  type HtmlMarkerConfig,
   type LatLng,
   type MarkerConfig,
   type MarkerEvent,
+  type OutlineConfig,
+  type PaperConfig,
   type PerformanceConfig,
+  type PostProcessingConfig,
+  type StarfieldConfig,
+  type StoryCompleteEvent,
+  type StorySceneEvent,
+  type SurfaceClickEvent,
+  type ThemeInput,
+  type WireframeConfig,
+  type ZoomConfig,
 } from '@your-globe/core';
 
+/**
+ * `<ng-globe>` — every `GlobeConfig` key is an input, every globe event an
+ * output (`error` is exposed as `globeError` so it does not shadow the DOM
+ * event), and `getInstance()` returns the engine instance for imperative
+ * calls. The globe runs outside Angular's zone; outputs re-enter it.
+ */
 @Component({
   selector: 'ng-globe',
   standalone: true,
@@ -39,20 +67,43 @@ import {
 export class GlobeComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('host', { static: true }) private readonly host!: ElementRef<HTMLDivElement>;
 
-  @Input() public mode: GlobeConfig['mode'];
+  @Input() public mode?: GlobeMode;
+  @Input() public kind?: GlobeKind;
+  @Input() public theme?: ThemeInput;
   @Input() public countries?: CountriesConfig;
-  @Input() public markers: ReadonlyArray<MarkerConfig> = [];
+  @Input() public countryLabels?: CountryLabelsConfig;
+  @Input() public countryData?: CountryDataMap;
+  @Input() public markers?: ReadonlyArray<MarkerConfig>;
+  @Input() public htmlMarkers?: ReadonlyArray<HtmlMarkerConfig>;
+  @Input() public arcs?: ReadonlyArray<ArcConfig>;
   @Input() public atmosphere?: AtmosphereConfig;
+  @Input() public focusPulse?: GlobeConfig['focusPulse'];
+  @Input() public outline?: OutlineConfig;
+  @Input() public cinematic?: CinematicConfig;
+  @Input() public dotted?: DottedConfig;
+  @Input() public wireframe?: WireframeConfig;
+  @Input() public paper?: PaperConfig;
+  @Input() public hologram?: HologramConfig;
+  @Input() public starfield?: StarfieldConfig;
+  @Input() public postprocessing?: PostProcessingConfig;
+  @Input() public axisTilt?: number;
   @Input() public autoRotate?: AutoRotateConfig;
   @Input() public performance?: PerformanceConfig;
   @Input() public initialPosition?: LatLng;
   @Input() public minZoom?: number;
   @Input() public maxZoom?: number;
+  @Input() public zoom?: ZoomConfig;
+  @Input() public transparent?: boolean;
+  @Input() public framing?: FramingConfig;
 
   @Output() public readonly countryClick = new EventEmitter<CountryEvent>();
   @Output() public readonly countryHover = new EventEmitter<CountryEvent | null>();
   @Output() public readonly markerClick = new EventEmitter<MarkerEvent>();
   @Output() public readonly markerHover = new EventEmitter<MarkerEvent | null>();
+  @Output() public readonly surfaceClick = new EventEmitter<SurfaceClickEvent>();
+  @Output() public readonly sceneEnter = new EventEmitter<StorySceneEvent>();
+  @Output() public readonly sceneExit = new EventEmitter<StorySceneEvent>();
+  @Output() public readonly storyComplete = new EventEmitter<StoryCompleteEvent>();
   @Output() public readonly ready = new EventEmitter<void>();
   @Output() public readonly globeError = new EventEmitter<Error>();
 
@@ -73,6 +124,10 @@ export class GlobeComponent implements AfterViewInit, OnChanges, OnDestroy {
       instance.on('countryHover', (e) => this.ngZone.run(() => this.countryHover.emit(e)));
       instance.on('markerClick', (e) => this.ngZone.run(() => this.markerClick.emit(e)));
       instance.on('markerHover', (e) => this.ngZone.run(() => this.markerHover.emit(e)));
+      instance.on('surfaceClick', (e) => this.ngZone.run(() => this.surfaceClick.emit(e)));
+      instance.on('sceneEnter', (e) => this.ngZone.run(() => this.sceneEnter.emit(e)));
+      instance.on('sceneExit', (e) => this.ngZone.run(() => this.sceneExit.emit(e)));
+      instance.on('storyComplete', (e) => this.ngZone.run(() => this.storyComplete.emit(e)));
       instance.on('ready', () => this.ngZone.run(() => this.ready.emit()));
       instance.on('error', (err) => this.ngZone.run(() => this.globeError.emit(err)));
 
@@ -94,6 +149,11 @@ export class GlobeComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.instance = null;
   }
 
+  /** The underlying engine instance, or null before the view is initialised / after destroy. */
+  public getInstance(): GlobeInstance | null {
+    return this.instance;
+  }
+
   public setRotation(position: LatLng, animate?: boolean): void {
     this.instance?.setRotation(position, animate);
   }
@@ -110,17 +170,7 @@ export class GlobeComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.instance?.resize();
   }
 
-  private buildConfig(): Omit<GlobeConfig, 'container'> {
-    return {
-      ...(this.mode !== undefined && { mode: this.mode }),
-      ...(this.countries !== undefined && { countries: this.countries }),
-      markers: this.markers,
-      ...(this.atmosphere !== undefined && { atmosphere: this.atmosphere }),
-      ...(this.autoRotate !== undefined && { autoRotate: this.autoRotate }),
-      ...(this.performance !== undefined && { performance: this.performance }),
-      ...(this.initialPosition !== undefined && { initialPosition: this.initialPosition }),
-      ...(this.minZoom !== undefined && { minZoom: this.minZoom }),
-      ...(this.maxZoom !== undefined && { maxZoom: this.maxZoom }),
-    };
+  private buildConfig(): GlobeConfigInput {
+    return pickGlobeConfig(this as unknown as Record<string, unknown>);
   }
 }

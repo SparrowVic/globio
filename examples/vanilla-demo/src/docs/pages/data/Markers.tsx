@@ -1,4 +1,4 @@
-import { Callout, CodePanel, DocPage, DocSection, DocSubsection, PropsTable } from '@/components/docs';
+import { Callout, CodePanel, DocPage, DocSection, DocSubsection, Events, LivePreview, Methods, Types } from '@/components/docs';
 import type { DocLocation } from '@/docs/manifest';
 import { MARKERS } from '@/docs/snippets';
 
@@ -7,46 +7,49 @@ const HTML_MARKERS = {
   {
     id: 'hq',
     position: [51.11, 17.03],
-    element: card,          // any HTMLElement you own
-    occlude: true,          // hides behind the globe
+    content: () => card,          // an HTMLElement you own, or an HTML string
+    anchor: 'bottom',
+    offset: [0, -8],
+    hideWhenOccluded: true,
   },
 ]);`,
-  react: `<Globe htmlMarkers={[{ id: 'hq', position: [51.11, 17.03], element: cardRef.current!, occlude: true }]} />`,
+  react: `<Globe htmlMarkers={[{ id: 'hq', position: [51.11, 17.03], content: () => cardRef.current!, anchor: 'bottom' }]} />`,
   vue: `<VueGlobe :html-markers="htmlMarkers" />`,
   angular: `<ng-globe [htmlMarkers]="htmlMarkers" />`,
 };
 
 export function Markers({ tab, group, page }: DocLocation) {
   return (
-    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead={page.summary}>
-      <DocSection title="Pins" eyebrow="MarkerConfig">
-        <CodePanel code={MARKERS} caption="Two markers, one pulsing, one custom-coloured." />
-        <PropsTable
-          rows={[
-            { name: 'id', type: 'string', description: 'Stable identity for add, remove and events.', required: true },
-            { name: 'position', type: '[lat, lng]', description: 'Degrees.', required: true },
-            { name: 'color', type: 'string', default: 'theme accent', description: 'Pin colour.' },
-            { name: 'size', type: 'number', default: '1', description: 'Scale factor relative to the theme size.' },
-            { name: 'hoverScale', type: 'number', default: '1.25', description: 'Scale on hover.' },
-            { name: 'label', type: 'string', description: 'Text drawn next to the pin.' },
-            { name: 'pulse', type: 'boolean | PulseConfig', default: 'false', description: 'Expanding rings under the pin.' },
-            { name: 'data', type: 'Record<string, unknown>', description: 'Anything you want back in marker events.' },
-          ]}
-        />
+    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Pins drawn by the kind, and DOM elements anchored to coordinates when a pin is not enough.">
+      <div className="docs-two-col">
+        <CodePanel code={MARKERS} caption="Two pins, one pulsing, one custom-coloured, and a click handler." />
+        <LivePreview kind="outline" theme="outline-cyber" caption="Pins scale up on hover and show their label in a tooltip." />
+      </div>
+
+      <DocSection title="Pins" id="pins" eyebrow="markers">
+        <p>
+          Markers are one instanced mesh per kind, so thousands cost the same as ten. Each kind draws them in its own style. Hover scales a pin up and shows
+          a tooltip with its <code>label</code>; click and hover events return the marker you passed in, <code>data</code> included.
+        </p>
+        <Types names={['MarkerConfig']} />
+        <Methods names={['setMarkers', 'addMarker', 'removeMarker']} guide={false} />
+        <Events names={['markerClick', 'markerHover']} guide={false} />
       </DocSection>
 
-      <DocSection title="HTML markers" eyebrow="htmlMarkers">
-        <p>When a pin is not enough, anchor your own element to a coordinate. The engine positions it every frame and can hide it behind the globe.</p>
+      <DocSection title="HTML markers" id="html-markers" eyebrow="htmlMarkers">
+        <p>
+          Your own element, positioned every frame at a coordinate and faded out when it passes the limb. Use it for cards, badges and anything with its own
+          interaction.
+        </p>
         <CodePanel code={HTML_MARKERS} />
-        <DocSubsection title="Occlusion">
-          <p>
-            With <code>occlude: true</code> the element fades as its anchor passes the limb. Turn it off for labels that must always be readable.
-          </p>
+        <Types names={['HtmlMarkerConfig']} />
+        <Methods names={['setHtmlMarkers', 'addHtmlMarker', 'removeHtmlMarker']} guide={false} />
+        <DocSubsection title="Cost">
+          <Callout tone="perf">
+            Hundreds of pins are fine; hundreds of HTML markers are not, because each is a DOM node repositioned per frame. Prefer pins with{' '}
+            <code>data</code> and one shared tooltip, or <code>project()</code> for a handful of overlays you position yourself.
+          </Callout>
         </DocSubsection>
-        <Callout tone="perf">
-          Hundreds of pins are fine; hundreds of HTML markers are not, because each is a DOM node repositioned per frame. Use pins with{' '}
-          <code>data</code> and one shared tooltip instead.
-        </Callout>
       </DocSection>
     </DocPage>
   );

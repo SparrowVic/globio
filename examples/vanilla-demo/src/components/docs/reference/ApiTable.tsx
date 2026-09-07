@@ -57,11 +57,14 @@ const anchorId = (prefix: string, name: string): string => `${prefix}-${name.rep
 
 export interface PropRow {
   readonly name: string;
-  readonly type: string;
+  /** Anchor id; defaults to `prop-<name>`. */
+  readonly id?: string;
+  readonly type: ReactNode;
   readonly default?: string;
   readonly description: ReactNode;
   readonly required?: boolean;
   readonly since?: string;
+  readonly deprecated?: string;
   readonly kinds?: ReadonlyArray<GlobeKind> | 'all';
 }
 
@@ -78,13 +81,18 @@ export function PropsTable({ rows, caption, className }: { readonly rows: Readon
         { key: 'description', label: 'Description' },
       ]}
       rows={rows.map((r) => ({
-        id: anchorId('prop', r.name),
+        id: r.id ?? anchorId('prop', r.name),
         cells: {
           name: (
             <span className="docs-prop-name">
               <code>{r.name}</code>
               {r.required && <span className="docs-req">required</span>}
               {r.since && <span className="docs-since">{r.since}</span>}
+              {r.deprecated && (
+                <span className="docs-since" title={r.deprecated}>
+                  deprecated
+                </span>
+              )}
             </span>
           ),
           type: <code className="docs-type">{r.type}</code>,

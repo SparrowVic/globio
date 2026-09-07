@@ -1,37 +1,30 @@
-import { Callout, CodePanel, DocPage, DocSection, DocSubsection, LivePreview, PropsTable, Signature } from '@/components/docs';
+import { Callout, CodePanel, DocPage, DocSection, DocSubsection, LivePreview, Methods, Types } from '@/components/docs';
 import type { DocLocation } from '@/docs/manifest';
 import { FLY_TO } from '@/docs/snippets';
 
 export function FlyTo({ tab, group, page }: DocLocation) {
   return (
-    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead={page.summary}>
+    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Animated camera moves: to a coordinate, or to a country framed with padding. Both interrupt on drag and both respect the zoom limits.">
       <div className="docs-two-col">
-        <CodePanel code={FLY_TO} caption="Fly to Warsaw, then select Poland when the move completes." />
-        <LivePreview kind="paper" caption="Paper kind, ambient rotation; flights interrupt it and it resumes." />
+        <CodePanel code={FLY_TO} caption="Fly to Warsaw, then frame Australia with generous padding." />
+        <LivePreview kind="paper" caption="Paper kind. Focus calls pause the ambient rotation by default." />
       </div>
 
-      <DocSection title="flyTo">
-        <Signature code="flyTo(position: LatLng, distance?: number, options?: FlyToOptions): void" />
-        <p>
-          Animates the camera to look at a coordinate. <code>distance</code> is the camera distance in globe radii; omit it to keep the current zoom.
-        </p>
-        <PropsTable
-          rows={[
-            { name: 'duration', type: 'number', default: '1200', description: 'Milliseconds. Zero snaps.' },
-            { name: 'easing', type: 'EasingFunction', default: 'easeInOutCubic', description: 'Any (t) => t curve; three are exported.' },
-            { name: 'onComplete', type: '() => void', description: 'Called once the camera settles. Not called if another move interrupts.' },
-          ]}
-        />
+      <DocSection title="Methods" id="methods">
+        <Methods names={['flyTo', 'focusOnCountry', 'setRotation']} guide={false} />
+        <DocSubsection title="Distance and elevation">
+          <p>
+            <code>distance</code> is the camera distance in globe radii, clamped to the zoom limits; omit it to keep the current zoom. The optional{' '}
+            <code>elevation</code> adds height at the midpoint of the flight, a fly-over arc that reads better than a straight slerp on long jumps.
+          </p>
+        </DocSubsection>
       </DocSection>
 
-      <DocSection title="focusOnCountry">
-        <Signature code="focusOnCountry(id: string, options?: FocusOptions): void" />
-        <p>Flies to a country's centroid and fits its bounds, with a padding fraction around it.</p>
-        <DocSubsection title="Interrupting">
-          <p>Any pointer drag cancels a running move; auto-rotate resumes after the configured idle delay.</p>
-        </DocSubsection>
+      <DocSection title="Options" id="options">
+        <Types names={['FlyToOptions', 'FocusOptions']} />
         <Callout tone="tip">
-          Combine with <code>setActiveCountry()</code> in <code>onComplete</code> so the highlight appears when the camera arrives, not while it is moving.
+          Pair a focus with <code>setActiveCountry()</code> so the highlight and the framing tell the same story; the story engine does exactly this per
+          scene.
         </Callout>
       </DocSection>
     </DocPage>

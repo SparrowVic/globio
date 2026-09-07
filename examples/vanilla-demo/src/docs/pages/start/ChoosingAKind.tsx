@@ -1,17 +1,7 @@
 import { KIND_CHAPTERS } from '@/components/home/landing/data/kinds';
 import { CardGrid, DocPage, DocSection, KindDot, LinkCard, SupportMatrix } from '@/components/docs';
+import { KIND_DATA_LAYER_SUPPORT, KIND_LAYER_SUPPORT } from '@/docs/kind-support';
 import { pageHref, type DocLocation } from '@/docs/manifest';
-
-export const KIND_FEATURES = [
-  { label: 'Country fills (choropleth)', support: { outline: true, dotted: true, paper: true, cinematic: true, hologram: 'partial' as const } },
-  { label: 'Country borders', support: { outline: true, paper: true, cinematic: true, hologram: true } },
-  { label: 'Hover and active states', support: { outline: true, dotted: true, paper: true, cinematic: true, hologram: true, wireframe: 'partial' as const } },
-  { label: 'Markers and HTML markers', support: { outline: true, dotted: true, wireframe: true, hologram: true, paper: true, cinematic: true } },
-  { label: 'Arcs', support: { outline: true, dotted: true, wireframe: true, hologram: true, paper: true, cinematic: true } },
-  { label: 'Country labels', support: { outline: true, paper: true, cinematic: 'partial' as const } },
-  { label: 'Atmosphere', support: { outline: true, dotted: true, hologram: true, cinematic: true } },
-  { label: 'Post-processing', support: { cinematic: true, hologram: 'partial' as const } },
-];
 
 export function ChoosingAKind({ tab, group, page }: DocLocation) {
   return (
@@ -19,7 +9,8 @@ export function ChoosingAKind({ tab, group, page }: DocLocation) {
       <DocSection title="By job">
         <ul>
           <li>
-            <strong>Dashboards and choropleths</strong> — Outline or Dotted. Fills read best on a quiet surface.
+            <strong>Dashboards and choropleths</strong> — Outline or Dotted. Fills read best on a quiet surface, and both render every data layer they
+            need.
           </li>
           <li>
             <strong>Hero sections and product shots</strong> — Cinematic. Bloom, clouds and a sun you can time.
@@ -34,7 +25,9 @@ export function ChoosingAKind({ tab, group, page }: DocLocation) {
       </DocSection>
 
       <DocSection title="By feature">
-        <SupportMatrix features={KIND_FEATURES} />
+        <SupportMatrix features={KIND_LAYER_SUPPORT} />
+        <p>Data layers narrow the choice further: Outline renders all six types, Dotted and Cinematic a subset.</p>
+        <SupportMatrix features={KIND_DATA_LAYER_SUPPORT} />
       </DocSection>
 
       <DocSection title="The six kinds">

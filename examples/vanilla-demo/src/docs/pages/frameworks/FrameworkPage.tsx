@@ -1,39 +1,38 @@
 import { CopyCommand } from '@/components/home/landing/atoms';
-import { Callout, CodePanel, DocPage, DocSection, DocSubsection, LinkCard, CardGrid, Pill, PropsTable } from '@/components/docs';
+import { ApiLoading, ApiTable, Callout, CardGrid, CodePanel, DocPage, DocSection, DocSubsection, DocText, LinkCard, MethodsTable, Pill, PropsTable } from '@/components/docs';
+import { useApi } from '@/docs/api';
+import { featureForConfigPath } from '@/docs/features';
 import { frameworkMeta, type FrameworkId } from '@/docs/frameworks';
 import { pageHref, type DocLocation } from '@/docs/manifest';
 import { FLY_TO, QUICK_START } from '@/docs/snippets';
 
-const MAPPING: Readonly<Record<FrameworkId, ReadonlyArray<{ name: string; type: string; description: string; default?: string }>>> = {
-  vanilla: [
-    { name: 'createGlobe(config)', type: 'GlobeInstance', description: 'The factory. Every key of GlobeConfig, plus container.' },
-    { name: 'globe.on(event, handler)', type: 'void', description: 'Events by name.' },
-    { name: 'globe.update(partial)', type: 'void', description: 'Change anything after mount.' },
-  ],
-  react: [
-    { name: 'kind, theme, markers, …', type: 'GlobeConfig keys', description: 'Every config key is a prop. Changing a prop calls update() with just that key.' },
-    { name: 'onCountryClick', type: '(event: CountryEvent) => void', description: 'Every event is an on* callback.' },
-    { name: 'onCountryHover', type: '(event: CountryEvent | null) => void', description: 'Null on leave.' },
-    { name: 'onReady / onError', type: '() => void / (error) => void', description: 'Lifecycle callbacks.' },
-    { name: 'ref', type: 'GlobeHandle', description: 'The instance and the container element.' },
-  ],
-  vue: [
-    { name: 'kind, theme, :markers, …', type: 'GlobeConfig keys', description: 'Props in kebab-case; objects bound with the colon.' },
-    { name: '@country-click', type: '(event: CountryEvent) => void', description: 'Events as emits.' },
-    { name: '@ready / @error', type: '() => void / (error) => void', description: 'Lifecycle emits.' },
-    { name: 'ref.instance', type: 'GlobeInstance', description: 'The instance through a template ref.' },
-  ],
-  angular: [
-    { name: '[kind], [theme], [markers], …', type: 'GlobeConfig keys', description: 'Inputs for every config key.' },
-    { name: '(countryClick)', type: 'EventEmitter<CountryEvent>', description: 'Outputs for every event.' },
-    { name: '(ready) / (error)', type: 'EventEmitter', description: 'Lifecycle outputs.' },
-    { name: 'ViewChild(GlobeComponent).instance', type: 'GlobeInstance', description: 'The instance from the component.' },
-  ],
+const propName = (id: FrameworkId, key: string): string => {
+  if (id === 'vue') return `:${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+  if (id === 'angular') return `[${key}]`;
+  return key;
+};
+
+const eventName = (id: FrameworkId, name: string): string => {
+  if (id === 'react') return `on${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+  if (id === 'vue') return `@${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+  if (id === 'angular') return `(${name === 'error' ? 'globeError' : name})`;
+  return `globe.on('${name}')`;
+};
+
+const INSTANCE_ACCESS: Readonly<Record<FrameworkId, string>> = {
+  vanilla: 'createGlobe() returns the instance; everything is a method on it.',
+  react: 'Pass a ref; ref.current.getInstance() returns the GlobeInstance once mounted.',
+  vue: 'Put a template ref on <VueGlobe>; ref.value.getInstance() returns the GlobeInstance once mounted.',
+  angular: 'Query the component with @ViewChild(GlobeComponent); globe.getInstance() returns the GlobeInstance after ngAfterViewInit.',
 };
 
 export function FrameworkPage({ tab, group, page }: DocLocation) {
   const id = page.framework ?? 'vanilla';
   const meta = frameworkMeta(id);
+  const api = useApi();
+  const configKeys = api ? api.config.filter((e) => e.name !== 'container') : [];
+  const wrapper = api?.wrappers;
+
   return (
     <DocPage
       crumbs={[tab.label, group.label]}
@@ -43,7 +42,7 @@ export function FrameworkPage({ tab, group, page }: DocLocation) {
       meta={
         <>
           <Pill tone="accent">{meta.pkg}</Pill>
-          <Pill>peer: @your-globe/core</Pill>
+          {id !== 'vanilla' && <Pill>peer: @your-globe/core</Pill>}
           <Pill>peer: three</Pill>
         </>
       }
@@ -53,17 +52,65 @@ export function FrameworkPage({ tab, group, page }: DocLocation) {
       </DocSection>
 
       <DocSection title="Component">
-        <CodePanel code={QUICK_START} pinned={id} caption="Same config as everywhere else; this page shows only this framework." />
-        <DocSubsection title="Props and events">
-          <PropsTable rows={MAPPING[id]} />
+        <CodePanel code={QUICK_START} pinned={id} caption="The same config as everywhere else, in this framework's idiom." />
+        <DocSubsection title="Props">
+          <p>
+            {id === 'vanilla'
+              ? 'Every key of GlobeConfig, passed to createGlobe() and later to update().'
+              : 'Every key of GlobeConfig is a prop; changing one calls update() with that key. Generated from the wrapper source.'}
+          </p>
+          {api ? (
+            <PropsTable
+              rows={configKeys.map((e) => ({
+                name: propName(id, e.name),
+                id: `prop-${e.name}`,
+                type: e.ref ?? e.type,
+                default: e.default,
+                description: e.description ? <DocText text={e.description} inline /> : featureForConfigPath(e.name)?.summary ?? '',
+              }))}
+            />
+          ) : (
+            <ApiLoading />
+          )}
+        </DocSubsection>
+        <DocSubsection title="Events">
+          {api ? (
+            <ApiTable
+              columns={[
+                { key: 'name', label: id === 'react' ? 'Callback' : id === 'vue' ? 'Emit' : id === 'angular' ? 'Output' : 'Event', className: 'docs-col-name' },
+                { key: 'payload', label: 'Payload', className: 'docs-col-type' },
+                { key: 'description', label: 'Description' },
+              ]}
+              rows={api.events.map((e) => ({
+                id: `event-${e.name}`,
+                cells: {
+                  name: <code>{eventName(id, e.name)}</code>,
+                  payload: <code className="docs-type">{e.payload}</code>,
+                  description: <DocText text={e.description || 'See the events guide.'} inline />,
+                },
+              }))}
+            />
+          ) : (
+            <ApiLoading />
+          )}
         </DocSubsection>
       </DocSection>
 
       <DocSection title="Reach the instance">
-        <p>Anything the component does not expose declaratively — camera moves, legends, stories — is available on the instance.</p>
+        <p>{INSTANCE_ACCESS[id]}</p>
         <CodePanel code={FLY_TO} pinned={id} />
+        {wrapper && id === 'react' && (
+          <MethodsTable rows={wrapper.react.handle.map((h) => ({ name: h.name, signature: `${h.name}: ${h.type}`, description: h.name === 'getInstance' ? 'The whole GlobeInstance.' : 'Forwarded to the instance.' }))} />
+        )}
+        {wrapper && id === 'vue' && (
+          <MethodsTable rows={wrapper.vue.exposed.map((n) => ({ name: n, signature: `${n}()`, description: n === 'getInstance' ? 'The whole GlobeInstance.' : 'Forwarded to the instance.' }))} />
+        )}
+        {wrapper && id === 'angular' && (
+          <MethodsTable rows={wrapper.angular.methods.map((m) => ({ name: m.name, signature: m.signature, description: m.name === 'getInstance' ? 'The whole GlobeInstance.' : 'Forwarded to the instance.' }))} />
+        )}
         <Callout tone="note" title="Server rendering">
-          The engine touches <code>window</code> on creation. Render the component on the client only; the SSR guide has the pattern for each framework.
+          The engine touches <code>window</code> on creation. Render the component on the client only; the server rendering guide has the pattern for each
+          framework.
         </Callout>
       </DocSection>
 

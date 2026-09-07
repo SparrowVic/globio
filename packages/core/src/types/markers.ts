@@ -1,16 +1,23 @@
 import type { LatLng } from './primitives';
 
+/** A pin on the surface, drawn by the active kind's instanced marker layer. */
 export interface MarkerConfig {
+  /** Stable identity for `removeMarker()` and events. */
   readonly id: string;
+  /** `[lat, lng]` in degrees. */
   readonly position: LatLng;
+  /** Override the `markers.color` token for this pin. */
   readonly color?: string;
+  /** Size multiplier relative to the theme's marker size. Default 1. */
   readonly size?: number;
   /**
    * Multiplier applied while this marker is hovered. Defaults to the
    * active kind layer's own hover scale (currently 1.5 for dot markers).
    */
   readonly hoverScale?: number;
+  /** Text for the hover tooltip; falls back to `id`. */
   readonly label?: string;
+  /** Any payload; comes back untouched in `markerClick` and `markerHover`. */
   readonly data?: Readonly<Record<string, unknown>>;
   /**
    * Pulse animation — the marker oscillates in size to draw attention.
@@ -24,7 +31,9 @@ export interface MarkerConfig {
   };
 }
 
+/** Payload of `markerClick` and `markerHover`. */
 export interface MarkerEvent {
+  /** The marker as it was passed in, including `data`. */
   readonly marker: MarkerConfig;
 }
 
@@ -33,8 +42,11 @@ export interface MarkerEvent {
  * lifted off the globe surface to form a curve.
  */
 export interface ArcConfig {
+  /** Stable identity for `removeArc()`. */
   readonly id: string;
+  /** Start `[lat, lng]`. */
   readonly from: LatLng;
+  /** End `[lat, lng]`. */
   readonly to: LatLng;
   /** Override `arcs.color` token for this arc. */
   readonly color?: string;
@@ -82,7 +94,9 @@ export interface ArcConfig {
  * automatically hides when on the far side of the globe (occluded by sphere).
  */
 export interface HtmlMarkerConfig {
+  /** Stable identity for `removeHtmlMarker()`. */
   readonly id: string;
+  /** `[lat, lng]` the element is anchored to. */
   readonly position: LatLng;
   /**
    * Either a static HTML string (set as innerHTML once), or a factory that

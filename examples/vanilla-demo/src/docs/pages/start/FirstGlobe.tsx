@@ -12,8 +12,8 @@ export function FirstGlobe({ tab, group, page }: DocLocation) {
 
       <DocSection title="Mount">
         <p>
-          <code>createGlobe()</code> only builds the scene. <code>mount()</code> attaches the canvas, loads country geometry and starts the frame loop. The
-          <code>ready</code> event fires once the shaders are compiled, which is the moment to reveal the element.
+          <code>createGlobe()</code> only builds the scene. <code>mount()</code> attaches the canvas, loads the country geometry and starts the shared frame
+          loop. The <code>ready</code> event fires once the countries are loaded and the shaders are compiled, which is the moment to reveal the element.
         </p>
         <PropsTable
           rows={[
@@ -21,6 +21,7 @@ export function FirstGlobe({ tab, group, page }: DocLocation) {
             { name: 'kind', type: 'GlobeKind', default: "'outline'", description: 'Which renderer draws the globe.' },
             { name: 'theme', type: 'ThemePresetName | ThemeInput', default: 'kind default', description: 'A preset name or a preset extended with your tokens.' },
             { name: 'autoRotate', type: 'AutoRotateConfig', default: '{ enabled: false }', description: 'Ambient rotation. Yields to the pointer and resumes.' },
+            { name: 'countries.resolution', type: "'low' | 'medium' | 'high'", default: "'medium'", description: 'Geometry detail; low for decoration, medium for a hero.' },
           ]}
         />
       </DocSection>

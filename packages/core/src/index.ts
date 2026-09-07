@@ -1,4 +1,5 @@
 export { createGlobe } from './globe/index';
+export { GLOBE_CONFIG_KEYS, pickGlobeConfig, type GlobeConfigInput, type GlobeConfigKey } from './globe/config-keys';
 export type {
   ArcConfig,
   AtmosphereConfig,

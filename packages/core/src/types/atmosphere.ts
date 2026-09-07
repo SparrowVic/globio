@@ -1,4 +1,5 @@
 export interface AtmosphereConfig {
+  /** Render the rim glow. Default true. */
   readonly enabled?: boolean;
   /**
    * Override the theme-driven Fresnel halo color. Any CSS-style hex /
@@ -53,6 +54,7 @@ export interface AtmosphereConfig {
 }
 
 export interface StarfieldConfig {
+  /** Create the star layer. Default false. */
   readonly enabled?: boolean;
   /**
    * Star count override. Defaults to the active theme's `starfield.density`.

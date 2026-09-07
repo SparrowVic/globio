@@ -105,6 +105,7 @@ export const DOCS_TABS: ReadonlyArray<DocTab> = [
           page('data/arcs', 'Arcs', 'Great-circle connections with height, dashes and animation.', { eyebrow: 'arcs' }),
           page('data/labels', 'Labels', 'Country labels and custom label maps.', { eyebrow: 'countryLabels' }),
           page('data/legends', 'Scales and legends', 'Colour scales and the built-in legend overlay.', { eyebrow: 'ScaleConfig' }),
+          page('data/data-layers', 'Data layers', 'Bars, extruded countries, heatmaps, hex bins and charts on top of any kind.', { eyebrow: 'globe.setDataLayer()' }),
         ],
       },
       {
@@ -214,9 +215,9 @@ export const DOCS_TABS: ReadonlyArray<DocTab> = [
         label: 'Studio',
         pages: [
           page('studio/overview', 'Studio overview', 'What the panels do and how a session turns into code.', { eyebrow: '/studio' }),
-          page('studio/export', 'Export code', 'Copy a config for Vanilla, React, Vue or Angular.', { eyebrow: 'Export' }),
-          page('studio/presets', 'Presets and snapshots', 'Start from a preset, save snapshots, compare them.', { eyebrow: 'Presets' }),
-          page('studio/shortcuts', 'Keyboard shortcuts', 'The command palette and every chord it answers to.', { eyebrow: '⌘K' }),
+          page('studio/export', 'Export the config', 'Download the globe config and data layer as JSON, and drop it into any framework.', { eyebrow: 'Export config as JSON' }),
+          page('studio/presets', 'Presets and saved themes', 'Start from a preset, save your own themes and presets in the browser.', { eyebrow: 'Apply preset' }),
+          page('studio/shortcuts', 'Command palette', 'Every action, kind, theme and preset from one keyboard chord.', { eyebrow: '⌘K' }),
         ],
       },
     ],
