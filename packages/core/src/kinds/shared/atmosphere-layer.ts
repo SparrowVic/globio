@@ -11,7 +11,7 @@ import {
   Side,
   SphereGeometry,
 } from 'three';
-import { GLOBE_RADIUS } from '../utils/coordinates';
+import { GLOBE_RADIUS } from '../../utils/coordinates';
 
 export interface AtmosphereOptions {
   readonly color: string;

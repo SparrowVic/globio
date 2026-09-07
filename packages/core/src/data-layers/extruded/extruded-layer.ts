@@ -19,7 +19,7 @@ const DEFAULT_MIN_HEIGHT = 0.005;
 const DEFAULT_MAX_HEIGHT = 0.18;
 const DEFAULT_MOUNT_DURATION_MS = 700;
 const DEFAULT_FALLBACK_COLOR = '#ffffff';
-const TOP_RADIUS_LIFT = 1.0008; // sit just above the underlying surface like CountriesFillLayer.
+const TOP_RADIUS_LIFT = 1.0008; // sit just above the underlying surface like CountryFillLayer.
 
 interface ExtrudedEntry {
   readonly mesh: Mesh;

@@ -2,22 +2,13 @@ import type { Group, Mesh, PerspectiveCamera, Vector2, Vector3 } from 'three';
 import type { CountryFeature } from '../renderer/country-feature';
 import type { ResolvedTokens } from '../theme/types';
 import type { CountryDataMap, GlobeConfig, LatLng } from '../types';
-import type {
-  CountryLabelsLayer,
-  CountryLabelsLayerOptions,
-} from '../renderer/country-labels-layer';
-import type { StarfieldLayer, StarfieldLayerOptions } from '../renderer/starfield-layer';
-import type { ArcsLayer, ArcsLayerOptions } from '../renderer/arcs-layer';
-import type { MarkersLayer, MarkersLayerOptions } from '../renderer/markers-layer';
-import type { AtmosphereLayer, AtmosphereOptions } from '../renderer/atmosphere-layer';
-import type {
-  CountryHighlightLayer,
-  CountryHighlightLayerOptions,
-} from '../renderer/country-highlight-layer';
-import type {
-  CountriesFillLayer,
-  CountriesFillLayerOptions,
-} from '../renderer/countries-fill-layer';
+import type { LabelsLayer, LabelsLayerOptions } from './shared/labels-layer';
+import type { StarfieldLayer, StarfieldLayerOptions } from './shared/starfield-layer';
+import type { ArcsLayer, ArcsLayerOptions } from './shared/arcs-layer';
+import type { MarkersLayer, MarkersLayerOptions } from './shared/markers-layer';
+import type { AtmosphereLayer, AtmosphereOptions } from './shared/atmosphere-layer';
+import type { SelectionLayer, SelectionLayerOptions } from './shared/selection-layer';
+import type { CountryFillLayer, CountryFillLayerOptions } from './shared/country-fill-layer';
 
 /**
  * Globe kinds — the high-level visual identity of the rendered globe.
@@ -211,12 +202,12 @@ export interface KindDecorations {
  * the user switches kind, the rebuild instantiates the new kind's
  * classes automatically.
  *
- * Each kind ships its own copy of these classes under `kinds/<kind>/
- * {labels,starfield,arcs,markers,atmosphere,hover}.ts`. The constructor
- * shapes are typed against `renderer/*` (the original implementations)
- * since every kind is currently a structural copy of those — once a
- * kind diverges, replace the shared type alias with a kind-specific
- * one.
+ * The constructor shapes are typed against the shared base classes in
+ * `kinds/shared/*-layer.ts`. Each kind's `kinds/<kind>/{labels,starfield,
+ * arcs,markers,atmosphere,selection,country-fill}.ts` is either a thin
+ * subclass of the matching base or a styled variant that keeps the same
+ * public surface — once a kind diverges structurally, replace the shared
+ * type alias with a kind-specific one.
  *
  * Focus pulse + crosshair are intentionally *not* in this registry:
  * both live entirely inside the kind's `build()` (the focus pulse via
@@ -235,12 +226,12 @@ export interface KindDecorations {
 export type Public<T> = Pick<T, keyof T>;
 
 export interface KindLayerRegistry {
-  readonly LabelsLayer: new (opts: CountryLabelsLayerOptions) => Public<CountryLabelsLayer>;
+  readonly LabelsLayer: new (opts: LabelsLayerOptions) => Public<LabelsLayer>;
   readonly StarfieldLayer: new (opts: StarfieldLayerOptions) => Public<StarfieldLayer>;
   readonly ArcsLayer: new (opts: ArcsLayerOptions) => Public<ArcsLayer>;
   readonly MarkersLayer: new (opts: MarkersLayerOptions) => Public<MarkersLayer>;
   readonly AtmosphereLayer: new (opts: AtmosphereOptions) => Public<AtmosphereLayer>;
-  readonly SelectionLayer: new (opts: CountryHighlightLayerOptions) => Public<CountryHighlightLayer>;
+  readonly SelectionLayer: new (opts: SelectionLayerOptions) => Public<SelectionLayer>;
   /**
    * Per-country filled meshes — `'none'` mode hides the layer (legacy
    * behaviour, only choropleth callers used it before), `'always'`
@@ -249,8 +240,8 @@ export interface KindLayerRegistry {
    * Plus state-driven hover/active fill overrides.
    */
   readonly CountryFillLayer: new (
-    opts: CountriesFillLayerOptions
-  ) => Public<CountriesFillLayer>;
+    opts: CountryFillLayerOptions
+  ) => Public<CountryFillLayer>;
 }
 
 /**
@@ -276,7 +267,7 @@ export interface KindModule {
    */
   readonly hasCountryInteraction: boolean;
   /**
-   * Whether this kind opts in to the *standard* `CountryHighlightLayer` —
+   * Whether this kind opts in to the *standard* `SelectionLayer` —
    * the LineSegments-based stroke around the hovered + active country. The
    * default (true) is the right call for outline / wireframe / paper /
    * hologram which all read "fine" as a continuous line on top of their

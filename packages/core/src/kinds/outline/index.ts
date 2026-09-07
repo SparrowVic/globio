@@ -123,7 +123,7 @@ export interface OutlineKindHandle extends KindHandle {
    * surface is what `create-globe.ts` actually consumes.
    */
   getCountryFillLayer?(): import('../types').Public<
-    import('../../renderer/countries-fill-layer').CountriesFillLayer
+    import('../shared/country-fill-layer').CountryFillLayer
   >;
 }
 
@@ -134,7 +134,8 @@ export interface OutlineKindHandle extends KindHandle {
  *
  * Extras shipped on top of the base mesh:
  *  - `OutlineHoverGlowLayer` — soft additive halo that wraps the hovered country.
- *  - `OutlineFocusPulseLayer` — sonar ring that fires from `onCountryFocus`.
+ *  - Focus pulse — sonar ring that fires from `onCountryFocus` (the shared
+ *    `FocusPulseBand`, tuned via `buildOutlineFocusPulse`).
  *  - `OutlineCrosshairLayer` — Tron-style targeting reticle + lat/lng readout
  *    that tracks the cursor across the globe surface.
  *  - Continent dim — when hovering a country, borders on other continents
@@ -630,5 +631,4 @@ export const outlineKind: KindModule = {
 export { OutlineBordersLayer } from './borders';
 export { continentOf } from './continent-of';
 export { formatLatLng, OutlineCrosshairLayer } from './crosshair';
-export { OutlineFocusPulseLayer, computePulseFrame } from './focus-pulse';
 export { OutlineHoverGlowLayer } from './hover-glow';

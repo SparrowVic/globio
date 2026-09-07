@@ -7,8 +7,8 @@ import {
   SphereGeometry,
   Vector3,
 } from 'three';
-import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
-import type { MarkerConfig } from '../types';
+import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
+import type { MarkerConfig } from '../../types';
 
 export interface MarkersLayerOptions {
   readonly maxMarkers?: number;

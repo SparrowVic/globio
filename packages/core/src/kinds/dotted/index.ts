@@ -66,7 +66,7 @@ export interface DottedKindHandle extends KindHandle {
    * Pin a country as "active" — its dots get a steady brightness boost
    * plus a slow sine pulse, independent of the transient hover signal.
    * Surfaced as the dotted analogue of the standard
-   * `CountryHighlightLayer.activeLayer` outline (which dotted opts out
+   * `SelectionLayer.activeLayer` outline (which dotted opts out
    * of).
    */
   setActiveCountry?(id: string | null): void;
@@ -96,7 +96,7 @@ export interface DottedKindHandle extends KindHandle {
    * focused country glow under its dots in real time.
    */
   getCountryFillLayer?(): import('../types').Public<
-    import('../../renderer/countries-fill-layer').CountriesFillLayer
+    import('../shared/country-fill-layer').CountryFillLayer
   >;
 }
 
@@ -130,7 +130,7 @@ export const dottedKind: KindModule = {
   // the country's dots brighten + scale via `hoverDots` and (optionally)
   // a constellation/border-dot layer fades in. A LineSegments stroke on
   // top of dots reads as foreign material — opt out of the shared
-  // CountryHighlightLayer entirely.
+  // SelectionLayer entirely.
   usesStandardCountryHighlight: false,
   build({ globeGroup, features, tokens, config }: KindBuildContext): DottedKindHandle {
     const dottedCfg = config.dotted;

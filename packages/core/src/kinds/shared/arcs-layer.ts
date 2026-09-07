@@ -10,9 +10,9 @@ import {
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
-import { easeInOutCubic } from '../utils/easing';
-import type { ArcConfig, LatLng } from '../types';
+import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
+import { easeInOutCubic } from '../../utils/easing';
+import type { ArcConfig, LatLng } from '../../types';
 
 export interface ArcsLayerOptions {
   readonly defaultColor: string;

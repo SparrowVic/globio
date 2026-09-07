@@ -12,7 +12,7 @@ import {
 import type {
   StarfieldLayerOptions,
   StarfieldTwinkleOptions,
-} from '../../renderer/starfield-layer';
+} from '../shared/starfield-layer';
 
 export interface CinematicMilkyWayOptions {
   /** Default true for the cinematic kind. */

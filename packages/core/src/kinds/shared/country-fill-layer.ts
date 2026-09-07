@@ -6,13 +6,15 @@ import {
   Group,
   Mesh,
   MeshBasicMaterial,
+  NormalBlending,
   Uint32BufferAttribute,
+  type Blending,
 } from 'three';
-import { GLOBE_RADIUS } from '../utils/coordinates';
-import { triangulatePolygon } from '../utils/triangulate-ring';
-import type { CountryFeature } from './country-feature';
-import type { CountryDataMap } from '../types';
-import { colorForValue, dataExtentFor, type ScaleConfig } from '../data/scales';
+import { GLOBE_RADIUS } from '../../utils/coordinates';
+import { triangulatePolygon } from '../../utils/triangulate-ring';
+import type { CountryFeature } from '../../renderer/country-feature';
+import type { CountryDataMap } from '../../types';
+import { colorForValue, dataExtentFor, type ScaleConfig } from '../../data/scales';
 
 /**
  * Mode the layer renders in. Each mode picks a different way of computing
@@ -28,7 +30,7 @@ import { colorForValue, dataExtentFor, type ScaleConfig } from '../data/scales';
  */
 export type CountryFillMode = 'none' | 'always' | 'palette' | 'data';
 
-export interface CountriesFillLayerOptions {
+export interface CountryFillLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;
   readonly defaultColor: string;
   readonly defaultOpacity: number;
@@ -88,7 +90,7 @@ interface FillEntry {
  * pinned country can recolor in place. Active wins over hover when
  * both fall on the same country (matches stroke-layer semantics).
  */
-export class CountriesFillLayer {
+export class CountryFillLayer {
   public readonly group: Group;
   private readonly entries = new Map<string, FillEntry>();
   // Mutable so live setters can patch the values that `applyMode` and
@@ -112,9 +114,20 @@ export class CountriesFillLayer {
   private currentT = 0;
   private targetOpacities = new Map<string, number>();
 
-  public constructor(options: CountriesFillLayerOptions) {
+  /**
+   * Blending mode for the per-country fill materials. `NormalBlending`
+   * (three's default) paints a plain tint; kinds whose fills should glow
+   * through a transparent shell override this (hologram uses
+   * `AdditiveBlending`). A prototype hook rather than a constructor option
+   * so `KindLayerRegistry`'s constructor contract stays untouched.
+   */
+  protected get blending(): Blending {
+    return NormalBlending;
+  }
+
+  public constructor(options: CountryFillLayerOptions) {
     this.group = new Group();
-    this.group.name = 'CountriesFillLayer';
+    this.group.name = 'CountryFillLayer';
     this.defaultColor = options.defaultColor;
     this.defaultOpacity = options.defaultOpacity;
     this.fadeDuration = options.fadeDuration ?? 0.25;
@@ -279,7 +292,11 @@ export class CountriesFillLayer {
       const target = this.targetOpacities.get(id) ?? this.defaultOpacity;
       entry.material.opacity = target * this.currentT;
     });
-    if (this.currentT === 0) this.group.visible = false;
+    // Only a completed fade-out hides the group. A zero-delta frame right
+    // after `setData` (the first frame after a render hold, or two frames
+    // sharing a timestamp) used to leave `currentT` at 0 and hide the layer
+    // for good, even though it was fading in.
+    if (this.currentT === 0 && this.targetT === 0) this.group.visible = false;
   }
 
   public dispose(): void {
@@ -413,6 +430,7 @@ export class CountriesFillLayer {
         opacity: this.defaultOpacity,
         side: DoubleSide,
         depthWrite: false,
+        blending: this.blending,
       });
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
