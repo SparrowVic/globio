@@ -2,6 +2,7 @@ import {
   BufferGeometry,
   Color,
   DoubleSide,
+  EqualDepth,
   Float32BufferAttribute,
   Group,
   Mesh,
@@ -88,6 +89,12 @@ export class PaperFillLayer {
     this.build();
   }
 
+  private readonly depthMaterial = new MeshBasicMaterial({
+    colorWrite: false,
+    depthWrite: true,
+    side: DoubleSide,
+  });
+
   private buildSharedMaterial(): MeshBasicMaterial {
     return new MeshBasicMaterial({
       color: new Color(this.currentColor),
@@ -95,6 +102,7 @@ export class PaperFillLayer {
       opacity: this.currentOpacity,
       side: DoubleSide,
       depthWrite: false,
+      depthFunc: EqualDepth,
     });
   }
 
@@ -107,6 +115,7 @@ export class PaperFillLayer {
       opacity: this.currentOpacity,
       side: DoubleSide,
       depthWrite: false,
+      depthFunc: EqualDepth,
     });
     this.perCountryMaterials.push(mat);
     return mat;
@@ -122,6 +131,11 @@ export class PaperFillLayer {
         geometry.setIndex(new Uint32BufferAttribute(tri.indices, 1));
         this.geometries.push(geometry);
         const mat = this.materialFor(feature.id);
+        // Depth-only prepass + EQUAL colour pass: one fragment per pixel, so
+        // slightly overlapping sliver triangles never double-blend.
+        const depthMesh = new Mesh(geometry, this.depthMaterial);
+        depthMesh.userData['countryId'] = feature.id;
+        this.group.add(depthMesh);
         const mesh = new Mesh(geometry, mat);
         mesh.userData['countryId'] = feature.id;
         this.group.add(mesh);
@@ -190,6 +204,7 @@ export class PaperFillLayer {
   public dispose(): void {
     this.geometries.forEach((g) => g.dispose());
     this.singleMaterial.dispose();
+    this.depthMaterial.dispose();
     for (const m of this.perCountryMaterials) m.dispose();
     this.perCountryMaterials.length = 0;
     this.meshes.length = 0;

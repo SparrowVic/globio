@@ -42,7 +42,7 @@ export const KIND_CHAPTERS: ReadonlyArray<KindChapterData> = [
     title: 'Wireframe',
     tagline: 'Pure topology on a translucent shell.',
     description:
-      'A latitude and longitude grid with country linework over glass. Select a country and it gets a spinning geodesic ring. Made for network, infrastructure and status views.',
+      'A latitude and longitude grid over glass, with pulses, data packets and pole-to-pole streams running along it. Select a country and it gets a spinning geodesic ring. Made for network, infrastructure and status views.',
     traits: ['geodesic active ring', 'grid pulses', 'Tron palette'],
   },
   {

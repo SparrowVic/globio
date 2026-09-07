@@ -1,6 +1,6 @@
 import { CanvasTexture, LinearFilter, RepeatWrapping } from 'three';
 import type { Texture } from 'three';
-import { ringBounds, ringBoundsForPolygon } from '../../data-layers/heatmap/polygon-utils';
+import { normalizePolygon } from '../../utils/polygon-normalize';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type { CinematicPreparedData } from './data';
 import { fbm2D, ridged2D } from './noise';
@@ -339,29 +339,31 @@ export const rasterizeLandMask = (features: ReadonlyArray<CountryFeature>): Uint
  * all rings, whereas the old test was outer-minus-holes — they only differ
  * for nested or overlapping holes, which country data never contains.
  *
- * Antimeridian: a polygon whose outer ring spans more than 180° of
- * longitude is treated as crossing the seam; every ring gets +360 on its
- * negative longitudes (Russia's Chukotka, Fiji, …), the fill runs in that
- * unwrapped 0..2×width px space and pixel indices wrap back into the atlas.
+ * Rings come pre-normalised (utils/polygon-normalize.ts): antimeridian
+ * crossings are unwrapped so the fill runs in a continuous longitude space
+ * (pixel indices wrap back into the atlas), and Antarctica arrives closed
+ * over the South Pole, so the cap is land all the way down.
  */
 const rasterizePolygon = (
   mask: Uint8Array,
   polygon: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
 ): void => {
-  const outer = polygon[0];
+  const normalized = normalizePolygon(polygon);
+  const outer = normalized.rings[0];
   if (!outer || outer.length < 3) return;
-  const rawBounds = ringBounds(outer);
-  const crossesAnti = rawBounds.maxLng - rawBounds.minLng > 180;
-  // `ringBoundsForPolygon` applies the same +360 shift when the ring spans
-  // the seam, so these bounds are already in the unwrapped space.
-  const bounds = crossesAnti ? ringBoundsForPolygon(outer) : rawBounds;
-  const yStart = clampPixelY(latToY(bounds.maxLat));
-  const yEnd = clampPixelY(latToY(bounds.minLat));
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  for (const p of outer) {
+    if (p[1] < minLat) minLat = p[1];
+    if (p[1] > maxLat) maxLat = p[1];
+  }
+  const yStart = clampPixelY(latToY(maxLat));
+  const yEnd = clampPixelY(latToY(minLat));
   if (yEnd < yStart) return;
   const rowCount = yEnd - yStart + 1;
   const crossings: Array<number[] | undefined> = new Array<number[] | undefined>(rowCount);
 
-  for (const ring of polygon) {
+  for (const ring of normalized.rings) {
     const n = ring.length;
     if (n < 2) continue;
     for (let i = 0; i < n; i++) {
@@ -370,12 +372,8 @@ const rasterizePolygon = (
       const lat0 = a[1];
       const lat1 = b[1];
       if (lat0 === lat1) continue; // horizontal edges never straddle a row centre
-      let lng0 = a[0];
-      let lng1 = b[0];
-      if (crossesAnti) {
-        if (lng0 < 0) lng0 += 360;
-        if (lng1 < 0) lng1 += 360;
-      }
+      const lng0 = a[0];
+      const lng1 = b[0];
       const latHi = lat0 > lat1 ? lat0 : lat1;
       const latLo = lat0 > lat1 ? lat1 : lat0;
       // Rows whose centre latitude lies in [latLo, latHi): latToY is

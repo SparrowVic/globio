@@ -1,5 +1,6 @@
 import earcut from 'earcut';
 import { latLngToVector3 } from './coordinates';
+import { normalizePolygon, normalizeRing } from './polygon-normalize';
 
 export interface RingTriangulation {
   /** Flat XYZ positions: [x0, y0, z0, x1, y1, z1, ...] */
@@ -29,40 +30,9 @@ export const ringSignedArea = (
 };
 
 const AREA_EPSILON = 1e-6;
+/** Vertices at or beyond this latitude are treated as sitting on a pole. */
+const POLE_LAT = 89.999;
 
-/**
- * Walk the ring keeping a running longitude offset. Whenever consecutive
- * vertices differ by more than 180° in lng, we treat that as an antimeridian
- * crossing and shift subsequent vertices by ±360 so the ring stays continuous
- * in the unwrapped 2D plane. Robust to rings that cross the antimeridian
- * multiple times (e.g., Russia's Pacific coast wraps out and back). Returns
- * the original ring when no crossing is detected.
- */
-const unwrapAntimeridian = (
-  ring: ReadonlyArray<readonly [number, number]>
-): ReadonlyArray<readonly [number, number]> => {
-  if (ring.length === 0) return ring;
-  const first = ring[0];
-  if (!first) return ring;
-  let offset = 0;
-  let crosses = false;
-  const result: Array<readonly [number, number]> = [first];
-  for (let i = 1; i < ring.length; i++) {
-    const prev = ring[i - 1];
-    const curr = ring[i];
-    if (!prev || !curr) continue;
-    const delta = curr[0] - prev[0];
-    if (delta > 180) {
-      offset -= 360;
-      crosses = true;
-    } else if (delta < -180) {
-      offset += 360;
-      crosses = true;
-    }
-    result.push([curr[0] + offset, curr[1]] as const);
-  }
-  return crosses ? result : ring;
-};
 
 /**
  * Triangulate a single GeoJSON ring on a sphere of given radius.
@@ -79,16 +49,12 @@ export const triangulateRing = (
   radius: number
 ): RingTriangulation | null => {
   if (ring.length < 4) return null;
-  const area = ringSignedArea(ring);
-  if (Math.abs(area) < AREA_EPSILON) return null;
-
-  // Drop trailing closing vertex if it duplicates the first
-  const first = ring[0];
-  const last = ring[ring.length - 1];
-  const closes = first && last && first[0] === last[0] && first[1] === last[1];
-  const opened = closes ? ring.slice(0, -1) : ring;
-
+  // Unwrap the antimeridian, drop pole vertices and the closing duplicate,
+  // close polar caps — see utils/polygon-normalize.ts.
+  const opened = normalizeRing(ring).ring;
   if (opened.length < 3) return null;
+  const area = ringSignedArea(opened);
+  if (Math.abs(area) < AREA_EPSILON) return null;
 
   // Earcut expects CCW outer rings. If our input is CW (negative area), reverse
   // it — otherwise non-convex polygons get triangulated incorrectly (visible as
@@ -174,6 +140,8 @@ const subdivideTriangulation = (
     return dx * dx + dy * dy + dz * dz;
   };
 
+  const isPole = (v: [number, number]): boolean => Math.abs(v[1]) >= POLE_LAT;
+
   const midpoint = (i1: number, i2: number): number => {
     const key = edgeKey(i1, i2);
     const cached = midCache.get(key);
@@ -181,7 +149,12 @@ const subdivideTriangulation = (
     const a = verts2D[i1];
     const b = verts2D[i2];
     if (!a || !b) return i1;
-    verts2D.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+    // Longitude is meaningless on a pole: the geodesic from a vertex to the
+    // pole is that vertex's own meridian, so the midpoint keeps its
+    // longitude instead of averaging in a pole vertex's arbitrary one
+    // (which bowed the polar-cap fan sideways into overlapping slivers).
+    const lng = isPole(a) ? b[0] : isPole(b) ? a[0] : (a[0] + b[0]) / 2;
+    verts2D.push([lng, (a[1] + b[1]) / 2]);
     const newIdx = verts2D.length - 1;
     midCache.set(key, newIdx);
     return newIdx;
@@ -261,8 +234,10 @@ const subdivideTriangulation = (
  * a sphere of given radius. Unlike `triangulateRing`, this:
  * - subtracts holes (so e.g. Lesotho doesn't get filled with South Africa's
  *   color when SA is colored)
- * - unwraps antimeridian-crossing rings via running-offset (handles multi
- *   crossings, e.g. Russia's Pacific coast that wraps out and back)
+ * - normalises rings first (utils/polygon-normalize.ts): antimeridian
+ *   crossings are unwrapped, holes follow the outer ring's frame, and a ring
+ *   that circles the globe is closed over the pole it encloses — so
+ *   Antarctica fills all the way to the South Pole at every resolution
  * - subdivides oversized triangles in lng/lat space, edge-aware, so the
  *   country boundary stays piecewise-linear and there are no T-junction
  *   cracks between adjacent sub-triangles
@@ -274,37 +249,46 @@ export const triangulatePolygon = (
   radius: number
 ): RingTriangulation | null => {
   if (rings.length === 0) return null;
-  const outerRaw = rings[0];
-  if (!outerRaw || outerRaw.length < 4) return null;
+  // Country polygons are shared, immutable arrays (one set per resolution
+  // for the whole page), and every consumer — fills, picking meshes,
+  // extruded data layers, every globe instance — wants the same
+  // triangulation at a different radius. Triangulate once on the unit
+  // sphere and scale; the subdivision threshold is an angle, so the result
+  // is radius-independent.
+  let unit = unitCache.get(rings);
+  if (unit === undefined) {
+    unit = triangulatePolygonUnit(rings);
+    unitCache.set(rings, unit);
+  }
+  if (!unit) return null;
+  if (radius === 1) return unit;
+  const positions = new Float32Array(unit.positions.length);
+  for (let i = 0; i < positions.length; i++) positions[i] = unit.positions[i]! * radius;
+  return { positions, indices: unit.indices };
+};
 
-  const outerShifted = unwrapAntimeridian(outerRaw);
-  const shifted = outerShifted !== outerRaw;
-  const holesRaw = rings.slice(1);
-  // For features that don't cross the antimeridian, holes pass through
-  // unchanged. For shifted outer rings, we run the same running-offset on
-  // each hole independently — holes inside a wrap-crossing country are rare
-  // (no real-world example in world-atlas), but this keeps the math honest.
-  const holesShifted: Array<ReadonlyArray<readonly [number, number]>> = shifted
-    ? holesRaw.map((h) => unwrapAntimeridian(h))
-    : [...holesRaw];
+const unitCache = new WeakMap<
+  ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  RingTriangulation | null
+>();
 
-  const outerArea = ringSignedArea(outerShifted);
+const triangulatePolygonUnit = (
+  rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>
+): RingTriangulation | null => {
+  const radius = 1;
+  const normalized = normalizePolygon(rings);
+  const outerNormalized = normalized.rings[0];
+  if (!outerNormalized || outerNormalized.length < 3) return null;
+
+  const outerArea = ringSignedArea(outerNormalized);
   if (Math.abs(outerArea) < AREA_EPSILON) return null;
 
   const reverseOuter = outerArea < 0;
-  const dropClose = (
-    ring: ReadonlyArray<readonly [number, number]>
-  ): ReadonlyArray<readonly [number, number]> => {
-    const f = ring[0];
-    const l = ring[ring.length - 1];
-    return f && l && f[0] === l[0] && f[1] === l[1] ? ring.slice(0, -1) : ring;
-  };
+  const outer = reverseOuter ? [...outerNormalized].reverse() : outerNormalized;
 
-  const outer = dropClose(reverseOuter ? [...outerShifted].reverse() : outerShifted);
-  if (outer.length < 3) return null;
-
-  const preparedHoles = holesShifted
-    .map((h) => dropClose(reverseOuter ? [...h].reverse() : h))
+  const preparedHoles = normalized.rings
+    .slice(1)
+    .map((h) => (reverseOuter ? [...h].reverse() : h))
     .filter((h) => h.length >= 3);
 
   // Build flat coordinate buffer + holeIndices for earcut.

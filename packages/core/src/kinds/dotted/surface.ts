@@ -15,6 +15,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { CountryFeature, CountryPolygon } from '../../renderer/country-feature';
+import { normalizePolygon, wrapLng } from '../../utils/polygon-normalize';
 import { easeHoverBoost } from './effects';
 
 export interface DottedSurfaceLayerOptions {
@@ -122,6 +123,16 @@ const ringBBox = (
   return { minLng, maxLng, minLat, maxLat };
 };
 
+/**
+ * How many longitude steps to skip on a row at `lat` so dots stay roughly
+ * `density` apart on the sphere: 1 up to 60°, then 1/cos(lat) rounded.
+ */
+const lngStepMultiple = (lat: number): number => {
+  const cos = Math.cos((lat * Math.PI) / 180);
+  if (cos >= 0.5) return 1;
+  return Math.max(1, Math.min(90, Math.round(1 / Math.max(cos, 1e-3))));
+};
+
 export const samplePolygonInterior = (
   polygon: CountryPolygon,
   density: number
@@ -141,7 +152,7 @@ export const samplePolygonInterior = (
  * fights the surface grid visually), we just brighten the existing
  * grid dots that already trace the country edge.
  *
- * Edge detection runs in the *shifted* (anti-meridian-aware) coordinate
+ * Edge detection runs in the unwrapped (anti-meridian-aware) coordinate
  * space so a country like Russia or Fiji that wraps around 180° doesn't
  * get its wrap-line misclassified as edge.
  */
@@ -150,19 +161,13 @@ export const samplePolygonInteriorWithEdges = (
   density: number
 ): Array<readonly [number, number, boolean]> => {
   if (polygon.length === 0 || density <= 0) return [];
-  const outer = polygon[0];
-  if (!outer || outer.length < 3) return [];
-
-  const raw = ringBBox(outer);
-  const crossesAnti = raw.maxLng - raw.minLng > 180;
-
-  const shift = (
-    ring: ReadonlyArray<readonly [number, number]>
-  ): ReadonlyArray<readonly [number, number]> =>
-    crossesAnti ? ring.map((p) => [p[0] < 0 ? p[0] + 360 : p[0], p[1]] as const) : ring;
-
-  const outerS = shift(outer);
-  const holesS = polygon.slice(1).map(shift);
+  // Continuous in the plane (antimeridian unwrapped, polar caps closed over
+  // the pole) — see utils/polygon-normalize.ts. Longitudes may leave
+  // [-180, 180]; samples are wrapped back below.
+  const normalized = normalizePolygon(polygon);
+  const outerS = normalized.rings[0];
+  if (!outerS || outerS.length < 3) return [];
+  const holesS = normalized.rings.slice(1);
   const bbox = ringBBox(outerS);
 
   // Snap the sampling grid to a *global* anchor at (lng=0, lat=0)
@@ -190,9 +195,19 @@ export const samplePolygonInteriorWithEdges = (
     return `${i}|${j}`;
   };
 
-  const interior: Array<readonly [number, number]> = [];
+  const interior: Array<readonly [number, number, number]> = [];
   for (let lat = startLat; lat <= bbox.maxLat; lat += density) {
-    for (let lng = startLng; lng <= bbox.maxLng; lng += density) {
+    // Every longitude collapses to one point on the pole; one row of dots
+    // there would pile up into a single bright spot.
+    if (Math.abs(lat) > 89.5) continue;
+    // Meridians converge towards the poles, so a fixed longitude step packs
+    // dots ever tighter (rings around Antarctica, Greenland, Svalbard).
+    // Thin each row to an integer multiple of the step so the spacing on
+    // the sphere stays close to `density`; the multiple depends only on the
+    // row's latitude, so neighbouring countries still share a grid.
+    const lngStep = density * lngStepMultiple(lat);
+    const rowStart = Math.ceil(bbox.minLng / lngStep) * lngStep;
+    for (let lng = rowStart; lng <= bbox.maxLng; lng += lngStep) {
       if (!pointInRing(outerS, [lng, lat])) continue;
       let inHole = false;
       for (const hole of holesS) {
@@ -203,18 +218,20 @@ export const samplePolygonInteriorWithEdges = (
       }
       if (inHole) continue;
       filled.add(cellKey(lng, lat));
-      interior.push([lng, lat] as const);
+      interior.push([lng, lat, lngStep] as const);
     }
   }
 
   const result: Array<readonly [number, number, boolean]> = [];
-  for (const [lng, lat] of interior) {
+  for (const [lng, lat, lngStep] of interior) {
+    const stepAbove = density * lngStepMultiple(lat + density);
+    const stepBelow = density * lngStepMultiple(lat - density);
     const isEdge =
-      !filled.has(cellKey(lng + density, lat)) ||
-      !filled.has(cellKey(lng - density, lat)) ||
-      !filled.has(cellKey(lng, lat + density)) ||
-      !filled.has(cellKey(lng, lat - density));
-    const projLng = lng > 180 ? lng - 360 : lng;
+      !filled.has(cellKey(lng + lngStep, lat)) ||
+      !filled.has(cellKey(lng - lngStep, lat)) ||
+      !filled.has(cellKey(Math.round(lng / stepAbove) * stepAbove, lat + density)) ||
+      !filled.has(cellKey(Math.round(lng / stepBelow) * stepBelow, lat - density));
+    const projLng = wrapLng(lng);
     result.push([projLng, lat, isEdge] as const);
   }
   return result;

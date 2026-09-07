@@ -2,6 +2,7 @@ import {
   BufferGeometry,
   Color,
   DoubleSide,
+  EqualDepth,
   Float32BufferAttribute,
   Group,
   Mesh,
@@ -65,11 +66,18 @@ export interface CountryFillLayerOptions {
 
 interface FillEntry {
   readonly mesh: Mesh;
+  /** Same geometry, depth-only: see `buildMeshes` for why. */
+  readonly depthMesh: Mesh;
   readonly material: MeshBasicMaterial;
   readonly geometry: BufferGeometry;
   /** Stable feature index — drives palette assignment. */
   readonly index: number;
 }
+
+const setEntryVisible = (entry: FillEntry, visible: boolean): void => {
+  entry.mesh.visible = visible;
+  entry.depthMesh.visible = visible;
+};
 
 /**
  * Per-country filled meshes that color individual countries. Each
@@ -113,6 +121,12 @@ export class CountryFillLayer {
   private targetT = 0;
   private currentT = 0;
   private targetOpacities = new Map<string, number>();
+  // Depth-only twin material shared by every country (colour never written).
+  private readonly depthMaterial = new MeshBasicMaterial({
+    colorWrite: false,
+    depthWrite: true,
+    side: DoubleSide,
+  });
 
   /**
    * Blending mode for the per-country fill materials. `NormalBlending`
@@ -304,6 +318,7 @@ export class CountryFillLayer {
       entry.material.dispose();
       entry.geometry.dispose();
     });
+    this.depthMaterial.dispose();
     this.entries.clear();
     this.group.clear();
   }
@@ -330,7 +345,7 @@ export class CountryFillLayer {
         const opacity = datum?.opacity ?? this.defaultOpacity;
         entry.material.color.set(color);
         this.targetOpacities.set(id, opacity);
-        entry.mesh.visible = visible;
+        setEntryVisible(entry, visible);
       });
     } else {
       // 'always' or 'palette' — every country visible.
@@ -341,7 +356,7 @@ export class CountryFillLayer {
           : this.defaultColor;
         entry.material.color.set(color);
         this.targetOpacities.set(id, this.defaultOpacity);
-        entry.mesh.visible = true;
+        setEntryVisible(entry, true);
       });
     }
     // After base pass, re-apply current state overrides so hover/active
@@ -401,7 +416,7 @@ export class CountryFillLayer {
 
     entry.material.color.set(color);
     this.targetOpacities.set(id, opacity);
-    entry.mesh.visible = visible;
+    setEntryVisible(entry, visible);
   }
 
   private buildMeshes(features: ReadonlyArray<CountryFeature>): void {
@@ -424,12 +439,19 @@ export class CountryFillLayer {
       }
       if (positions.length === 0) continue;
 
+      // Two draws per country: an opaque depth-only pass first, then the
+      // translucent colour pass with an EQUAL depth test. A country mesh is
+      // a triangulated sphere patch whose long thin triangles (ice shelves,
+      // Arctic coasts) can overlap slightly once projected onto the sphere;
+      // with plain blending every overlap double-blends into a brighter
+      // streak. The prepass makes each pixel accept exactly one fragment.
       const material = new MeshBasicMaterial({
         color: new Color(this.defaultColor),
         transparent: true,
         opacity: this.defaultOpacity,
         side: DoubleSide,
         depthWrite: false,
+        depthFunc: EqualDepth,
         blending: this.blending,
       });
       const geometry = new BufferGeometry();
@@ -438,8 +460,12 @@ export class CountryFillLayer {
       const mesh = new Mesh(geometry, material);
       mesh.userData['countryId'] = feature.id;
       mesh.visible = false;
+      const depthMesh = new Mesh(geometry, this.depthMaterial);
+      depthMesh.userData['countryId'] = feature.id;
+      depthMesh.visible = false;
+      this.group.add(depthMesh);
       this.group.add(mesh);
-      this.entries.set(feature.id, { mesh, material, geometry, index });
+      this.entries.set(feature.id, { mesh, depthMesh, material, geometry, index });
       index++;
     }
   }

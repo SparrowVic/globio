@@ -269,7 +269,15 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Hover events** `[v1·EVENT·S·built]` — `countryHover` z `CountryData` + `point: LatLng`.
 - **Visual hover indicator** `[v1·EVENT·S·built]` — granice hovered country są przerysowane w `countries.hoverColor` o szerokości `countries.hoverWidth`. Tokeny per-preset (gold/dark-blue/cream/magenta/white).
 - **Click events** `[v1·EVENT·S·built]` — `countryClick` z `CountryData` + `point: LatLng`. Markery mają wyższy priorytet w raycaster.
-- **Country picking limitations (v0.3)** — drobna część triangulacji ma luki w okolicach: (a) państw przecinających antymerydian (Russia, Fiji), (b) enklaw (Lesotho, Vatican), (c) niektórych skomplikowanych MultiPolygon. Pełny fix wymaga zachowania struktury polygon-with-holes w geo-loaderze — zaplanowane w osobnym v0.3.x.
+- **Geometry normalisation** `[v1·GLOBAL·M·built]` — `utils/polygon-normalize.ts` jest jednym
+  źródłem prawdy dla wszystkiego, co czyta ringi krajów w płaszczyźnie lng/lat (wypełnienia,
+  picking, sampler kropek, maska lądu cinematic): antymerydian jest rozwijany (Rosja, Fidżi,
+  Kiribati), dziury trafiają do układu ringu zewnętrznego (Lesotho, Watykan pickują się jako
+  one same), a ring okrążający glob domyka się nad biegunem — Antarktyda rysuje się po sam
+  biegun w każdym kindzie i w każdej rozdzielczości (110 m domyka ring na −84,7°, 50 m trzyma
+  wybrzeże jako drugi ring za degenerowanym ringiem wzdłuż −90°). Podział trójkątów trzyma
+  krawędzie do bieguna na południku wierzchołka, a kropki rzedną ku biegunom, żeby odstęp na
+  sferze był stały.
 - **Active / selected state** `[v1·EVENT·M]` — pin kraju (zostaje highlighted nawet po hover-out).
 - **Country -> data binding** `[v1·LAYER·M·built]` 🌟 — `globe.setCountryData({ '616': { color: '#1e6fff', value: 38, opacity: 0.85 } })` (id = numeric ISO 3166-1). Driver dla choropleth (population, GDP), set membership (NATO, EU, G7) i custom dataviz. Per-country `MeshBasicMaterial` siedzi pomiędzy globe surface a borders, więc granice rysują się na wierzchu. Dostępne także via `countryData` na `GlobeConfig` i przez `update()`. Kolor i opacity mają fallback na tokeny `countries.fill.defaultColor` / `countries.fill.opacity`.
 - **Country labels on hover** `[v1·LAYER·S]` — auto-pop tooltip z nazwą + custom content.

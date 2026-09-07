@@ -8,7 +8,7 @@ import {
   Uint32BufferAttribute,
 } from 'three';
 import { GLOBE_RADIUS } from '../utils/coordinates';
-import { triangulateRing } from '../utils/triangulate-ring';
+import { triangulatePolygon } from '../utils/triangulate-ring';
 import { computeMainRingBounds, type LatLngBounds } from '../utils/country-bounds';
 import type { CountryFeature } from './country-feature';
 import type { CountryData } from '../types';
@@ -18,9 +18,10 @@ export interface CountriesPickingLayerOptions {
 }
 
 /**
- * Invisible-but-raycastable meshes — one per outer ring per country —
- * used solely as a hit target for pointer events. Borders remain in
- * the visible CountriesLayer; this layer is purely behind-the-scenes.
+ * Invisible-but-raycastable meshes — one per polygon per country, holes
+ * subtracted so an enclave (Lesotho, Vatican) is picked as itself — used
+ * solely as a hit target for pointer events. Borders remain in the visible
+ * CountriesLayer; this layer is purely behind-the-scenes.
  */
 export class CountriesPickingLayer {
   public readonly group: Group;
@@ -39,7 +40,7 @@ export class CountriesPickingLayer {
     // and pick up back-facing triangles of countries on the far side, causing
     // ghost-hover events for countries the cursor isn't actually over.
     //
-    // After our CW-reversal in triangulateRing, all input rings reach earcut
+    // After the CW-reversal in triangulatePolygon, all input rings reach earcut
     // as CCW; resulting triangles wind CCW from outside the sphere, which
     // Three.js treats as front-facing. So FrontSide picks up front-side
     // countries correctly and ignores back-side ones.
@@ -76,8 +77,10 @@ export class CountriesPickingLayer {
     for (const feature of features) {
       this.countriesById.set(feature.id, { id: feature.id, name: feature.name });
       this.boundsById.set(feature.id, computeMainRingBounds(feature.coordinates));
-      for (const ring of feature.coordinates) {
-        const tri = triangulateRing(ring, radius);
+      for (const polygon of feature.polygons) {
+        // Normalised + subdivided: antimeridian and polar-cap rings pick
+        // correctly, and no chord of a big country sags below the sphere.
+        const tri = triangulatePolygon(polygon, radius);
         if (!tri) continue;
 
         const geometry = new BufferGeometry();

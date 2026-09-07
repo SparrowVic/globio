@@ -1385,6 +1385,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (!canvas) return null;
       const surface = latLngToVector3([lat, lng], GLOBE_RADIUS);
       if (!isPointVisibleFromCamera(surface, scene.camera.position)) return null;
+      // The camera's world-inverse matrix is refreshed by the renderer; before
+      // the first frame (or while paused) it is stale, so refresh it here.
+      scene.camera.updateMatrixWorld(true);
       // Three.js NDC projection mutates the vector in place.
       surface.project(scene.camera);
       if (
