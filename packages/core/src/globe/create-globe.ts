@@ -490,7 +490,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   const initCountries = async (): Promise<void> => {
     if (!config.countries) return;
     try {
+      const tLoad = perfMark();
       const features = await loadCountries({ resolution: countries.resolution });
+      perfMeasure('globio:countries-load', tLoad);
       if (state.destroyed) return;
       state.features = features as ReadonlyArray<CountryFeature>;
 
@@ -520,7 +522,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // (KHR_parallel_shader_compile where available) instead of letting the
       // next frame block the main thread on a synchronous compile. Frames
       // are held meanwhile; the canvas keeps its last image.
-      compiled = compileSceneAsync(scene);
+      const tCompile = perfMark();
+      compiled = compileSceneAsync(scene).then((value) => {
+        perfMeasure('globio:shader-compile', tCompile);
+        return value;
+      });
       scene.holdRendering(compiled);
       // Adaptive quality: the cinematic kind measures FPS and halves the
       // bloom chain on the low tier.
