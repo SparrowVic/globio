@@ -126,6 +126,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Parchment surface</SectionHeading>
         <ColorField
           label="Ocean paper"
+          configPath="paper.surface.color"
           value={settings.paperSurfaceColor || '#d7e2d2'}
           onChange={(paperSurfaceColor) => onGlobeChange({ paperSurfaceColor })}
           hint={settings.paperSurfaceColor === '' ? 'Theme default' : undefined}
@@ -134,6 +135,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Grain"
+          configPath="paper.surface.noiseAmount"
           value={settings.paperSurfaceNoise < 0 ? 0.06 : settings.paperSurfaceNoise}
           min={0}
           max={0.25}
@@ -143,6 +145,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Pole vignette"
+          configPath="paper.surface.vignette"
           value={settings.paperSurfaceVignette}
           min={0}
           max={0.6}
@@ -152,6 +155,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Fibers"
+          configPath="paper.surface.fiberAmount"
           value={settings.paperSurfaceFibers < 0 ? 0.45 : settings.paperSurfaceFibers}
           min={0}
           max={1}
@@ -161,6 +165,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Watercolor stains"
+          configPath="paper.surface.stainAmount"
           value={settings.paperSurfaceStains < 0 ? 0.2 : settings.paperSurfaceStains}
           min={0}
           max={1}
@@ -170,6 +175,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ColorField
           label="Wash tint"
+          configPath="paper.surface.washColor"
           value={settings.paperSurfaceWashColor || '#7faeac'}
           onChange={(paperSurfaceWashColor) => onGlobeChange({ paperSurfaceWashColor })}
           hint={settings.paperSurfaceWashColor === '' ? 'Layer default' : undefined}
@@ -178,6 +184,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Ocean hatching"
+          configPath="paper.surface.waterLineAmount"
           value={settings.paperSurfaceWaterLines < 0 ? 0.58 : settings.paperSurfaceWaterLines}
           min={0}
           max={1}
@@ -187,6 +194,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ColorField
           label="Ocean ink"
+          configPath="paper.surface.waterLineColor"
           value={settings.paperSurfaceWaterLineColor || '#567f80'}
           onChange={(paperSurfaceWaterLineColor) => onGlobeChange({ paperSurfaceWaterLineColor })}
           hint={settings.paperSurfaceWaterLineColor === '' ? 'Layer default' : undefined}
@@ -198,6 +206,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Ink borders</SectionHeading>
         <SwitchField
           label="Borders"
+          configPath="paper.borders.enabled"
           checked={settings.paperBorders}
           onChange={(paperBorders) => onGlobeChange({ paperBorders })}
           value="Hand-drawn ink country outlines with seeded jitter"
@@ -205,6 +214,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <DependsOn when={settings.paperBorders} because="Enable Borders first." className="space-y-4">
           <ColorField
             label="Ink color"
+            configPath="paper.borders.color"
             value={settings.paperBorderColor || '#5b3a1f'}
             onChange={(paperBorderColor) => onGlobeChange({ paperBorderColor })}
             hint={settings.paperBorderColor === '' ? 'Theme default' : undefined}
@@ -213,6 +223,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Opacity"
+            configPath="paper.borders.opacity"
             value={settings.paperBorderOpacity < 0 ? 0.85 : settings.paperBorderOpacity}
             min={0}
             max={1}
@@ -222,6 +233,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Line width"
+            configPath="paper.borders.width"
             value={settings.paperBorderWidth}
             min={0.5}
             max={4}
@@ -231,6 +243,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Hand roughness"
+            configPath="paper.borders.roughness"
             value={settings.paperBorderRoughness}
             min={0}
             max={1.2}
@@ -250,6 +263,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Stipple style</SectionHeading>
           <SwitchField
             label="Dotted borders"
+            configPath="paper.borders.stipple.enabled"
             checked={settings.paperStipple}
             onChange={(paperStipple) => onGlobeChange({ paperStipple })}
             value="Replace ink lines with dabbed-pen dots"
@@ -261,6 +275,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Density (deg per dot)"
+              configPath="paper.borders.stipple.density"
               value={settings.paperStippleDensity}
               min={0.4}
               max={6}
@@ -270,6 +285,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Dot size"
+              configPath="paper.borders.stipple.size"
               value={settings.paperStippleSize}
               min={0.4}
               max={3}
@@ -282,6 +298,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Ink bleed</SectionHeading>
           <SwitchField
             label="Bleed glow"
+            configPath="paper.borders.inkBleed.enabled"
             checked={settings.paperInkBleed}
             onChange={(paperInkBleed) => onGlobeChange({ paperInkBleed })}
             value="Soft outer halo simulating ink soaked into the paper"
@@ -293,6 +310,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <ColorField
               label="Bleed color"
+              configPath="paper.borders.inkBleed.color"
               value={settings.paperInkBleedColor || '#5b3a1f'}
               onChange={(paperInkBleedColor) => onGlobeChange({ paperInkBleedColor })}
               hint={settings.paperInkBleedColor === '' ? 'Match ink color' : undefined}
@@ -301,6 +319,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Bleed opacity"
+              configPath="paper.borders.inkBleed.opacity"
               value={settings.paperInkBleedOpacity}
               min={0}
               max={1}
@@ -310,6 +329,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Spread"
+              configPath="paper.borders.inkBleed.spread"
               value={settings.paperInkBleedSpread}
               min={0}
               max={0.005}
@@ -324,6 +344,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Country fill</SectionHeading>
         <SwitchField
           label="Pastel wash"
+          configPath="paper.fill.enabled"
           checked={settings.paperFill}
           onChange={(paperFill) => onGlobeChange({ paperFill })}
           value="Cream pastel fill on every country"
@@ -331,12 +352,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <DependsOn when={settings.paperFill} because="Enable Pastel wash first." className="space-y-4">
           <ToggleField
             label="Mode"
+            configPath="paper.fill.mode"
             value={settings.paperFillMode}
             options={fillModeOptions}
             onChange={(paperFillMode) => onGlobeChange({ paperFillMode })}
           />
           <ColorField
             label="Wash color"
+            configPath="paper.fill.color"
             value={settings.paperFillColor || '#e9dcae'}
             onChange={(paperFillColor) => onGlobeChange({ paperFillColor })}
             hint={settings.paperFillColor === '' ? 'Theme default' : undefined}
@@ -345,6 +368,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Wash opacity"
+            configPath="paper.fill.opacity"
             value={settings.paperFillOpacity < 0 ? 0.35 : settings.paperFillOpacity}
             min={0}
             max={1}
@@ -358,6 +382,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Atlas grid</SectionHeading>
         <SwitchField
           label="Lat / lng grid"
+          configPath="paper.grid.enabled"
           checked={settings.paperGrid}
           onChange={(paperGrid) => onGlobeChange({ paperGrid })}
           value="Faint registration lines like a printed atlas"
@@ -365,6 +390,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <DependsOn when={settings.paperGrid} because="Enable Atlas grid first." className="space-y-4">
           <ColorField
             label="Grid color"
+            configPath="paper.grid.color"
             value={settings.paperGridColor || '#bfa974'}
             onChange={(paperGridColor) => onGlobeChange({ paperGridColor })}
             hint={settings.paperGridColor === '' ? 'Theme default' : undefined}
@@ -373,6 +399,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Minor opacity"
+            configPath="paper.grid.opacity"
             value={settings.paperGridOpacity < 0 ? 0.18 : settings.paperGridOpacity}
             min={0}
             max={1}
@@ -382,6 +409,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Major opacity"
+            configPath="paper.grid.majorOpacity"
             value={
               settings.paperGridMajorOpacity < 0
                 ? Math.min(1, (settings.paperGridOpacity < 0 ? 0.18 : settings.paperGridOpacity) * 1.6)
@@ -395,6 +423,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Step (deg)"
+            configPath="paper.grid.stepDeg"
             value={settings.paperGridStep}
             min={5}
             max={30}
@@ -404,6 +433,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Major every Nth"
+            configPath="paper.grid.majorEvery"
             value={settings.paperGridMajorEvery}
             min={1}
             max={6}
@@ -417,6 +447,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Sepia overlay</SectionHeading>
         <SwitchField
           label="Sepia tint"
+          configPath="paper.sepia.enabled"
           checked={settings.paperSepia}
           onChange={(paperSepia) => onGlobeChange({ paperSepia })}
           value="Warm tint over the whole globe — pushes it toward aged"
@@ -424,12 +455,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <DependsOn when={settings.paperSepia} because="Enable Sepia tint first." className="space-y-4">
           <ColorField
             label="Tint color"
+            configPath="paper.sepia.color"
             value={settings.paperSepiaColor}
             onChange={(paperSepiaColor) => onGlobeChange({ paperSepiaColor })}
             swatches={sepiaSwatches}
           />
           <SliderField
             label="Tint opacity"
+            configPath="paper.sepia.opacity"
             value={settings.paperSepiaOpacity}
             min={0}
             max={0.6}
@@ -443,6 +476,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Vignette</SectionHeading>
         <SwitchField
           label="Corner darkening"
+          configPath="paper.vignette.enabled"
           checked={settings.paperVignette}
           onChange={(paperVignette) => onGlobeChange({ paperVignette })}
           value="Frame the globe like a centered illustration"
@@ -450,12 +484,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <DependsOn when={settings.paperVignette} because="Enable Vignette first." className="space-y-4">
           <ColorField
             label="Vignette color"
+            configPath="paper.vignette.color"
             value={settings.paperVignetteColor}
             onChange={(paperVignetteColor) => onGlobeChange({ paperVignetteColor })}
             swatches={['#3a2a14', '#1f1408', '#000000', '#5b3a1f', '#28140a']}
           />
           <SliderField
             label="Intensity"
+            configPath="paper.vignette.intensity"
             value={settings.paperVignetteIntensity}
             min={0}
             max={1}
@@ -465,6 +501,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Inner radius"
+            configPath="paper.vignette.radius"
             value={settings.paperVignetteRadius}
             min={0}
             max={0.9}
@@ -478,6 +515,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Compass rose</SectionHeading>
         <SwitchField
           label="Compass rose watermark"
+          configPath="paper.compassRose.enabled"
           checked={settings.paperCompass}
           onChange={(paperCompass) => onGlobeChange({ paperCompass })}
           value="Eight-point rose anchored at a chosen lat / lng"
@@ -489,12 +527,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Rose color"
+            configPath="paper.compassRose.color"
             value={settings.paperCompassColor}
             onChange={(paperCompassColor) => onGlobeChange({ paperCompassColor })}
             swatches={inkSwatches}
           />
           <SliderField
             label="Opacity"
+            configPath="paper.compassRose.opacity"
             value={settings.paperCompassOpacity}
             min={0}
             max={1}
@@ -504,6 +544,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Size (degrees)"
+            configPath="paper.compassRose.size"
             value={settings.paperCompassSize}
             min={3}
             max={20}
@@ -513,6 +554,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Latitude"
+            configPath="paper.compassRose.lat"
             value={settings.paperCompassLat}
             min={-80}
             max={80}
@@ -522,6 +564,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Longitude"
+            configPath="paper.compassRose.lng"
             value={settings.paperCompassLng}
             min={-180}
             max={180}
@@ -535,6 +578,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Aging marks</SectionHeading>
         <SwitchField
           label="Tea-stain blotches"
+          configPath="paper.agingMarks.enabled"
           checked={settings.paperAging}
           onChange={(paperAging) => onGlobeChange({ paperAging })}
           value="Small brown spots scattered across the parchment"
@@ -546,6 +590,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Stain color"
+            configPath="paper.agingMarks.color"
             value={settings.paperAgingColor}
             onChange={(paperAgingColor) => onGlobeChange({ paperAgingColor })}
             swatches={[
@@ -559,6 +604,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Count"
+            configPath="paper.agingMarks.count"
             value={settings.paperAgingCount}
             min={0}
             max={24}
@@ -568,6 +614,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Intensity"
+            configPath="paper.agingMarks.intensity"
             value={settings.paperAgingIntensity}
             min={0}
             max={1}
@@ -577,6 +624,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Seed"
+            configPath="paper.agingMarks.seed"
             value={settings.paperAgingSeed}
             min={0}
             max={100}
@@ -590,6 +638,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Title watermark</SectionHeading>
         <SwitchField
           label="DOM watermark"
+          configPath="paper.watermark.enabled"
           checked={settings.paperWatermark}
           onChange={(paperWatermark) => onGlobeChange({ paperWatermark })}
           value="Faint engraved-title text overlay"
@@ -599,7 +648,8 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           because="Enable DOM watermark first."
           className="space-y-4"
         >
-          <Field label="Watermark text">
+          <Field label="Watermark text"
+            configPath="paper.watermark.text">
             <input
               type="text"
               value={settings.paperWatermarkText}
@@ -611,12 +661,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           </Field>
           <ColorField
             label="Text color"
+            configPath="paper.watermark.color"
             value={settings.paperWatermarkColor}
             onChange={(paperWatermarkColor) => onGlobeChange({ paperWatermarkColor })}
             swatches={inkSwatches}
           />
           <SliderField
             label="Opacity"
+            configPath="paper.watermark.opacity"
             value={settings.paperWatermarkOpacity}
             min={0}
             max={1}
@@ -626,6 +678,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Font size"
+            configPath="paper.watermark.size"
             value={settings.paperWatermarkSize}
             min={10}
             max={96}
@@ -635,6 +688,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ToggleField
             label="Position"
+            configPath="paper.watermark.position"
             value={settings.paperWatermarkPosition}
             options={watermarkPositionOptions}
             onChange={(paperWatermarkPosition) => onGlobeChange({ paperWatermarkPosition })}

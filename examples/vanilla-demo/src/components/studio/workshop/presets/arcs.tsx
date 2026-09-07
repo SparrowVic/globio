@@ -33,6 +33,8 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <SectionHeading>Dataset</SectionHeading>
       <SelectField
         label="Fixture"
+        configPath="arcs"
+        info="Studio generates an arc array from this sample route dataset. The style controls below apply to every route."
         value={settings.arcDataset}
         options={arcDatasetOptions}
         onChange={(arcDataset) => onGlobeChange({ arcDataset })}
@@ -43,6 +45,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       </SectionHeading>
       <SliderField
         label={isDotted ? 'Particle size' : isHologram ? 'Beam width' : 'Width'}
+        configPath="arcs[].width"
         value={settings.arcWidth}
         min={0.5}
         max={8}
@@ -53,7 +56,8 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         onChange={(arcWidth) => onGlobeChange({ arcWidth })}
       />
       <SwitchField
-        label="Per-arc accent gradient"
+        label="Per-arc accent palette"
+        configPath="arcs[].color"
         checked={settings.arcPerArcGradient}
         onChange={(arcPerArcGradient) => onGlobeChange({ arcPerArcGradient })}
         value="Rotate through a five-color accent palette"
@@ -65,6 +69,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       >
         <ColorField
           label="Master color"
+          configPath="arcs[].color"
           value={settings.arcColor}
           onChange={(arcColor) => onGlobeChange({ arcColor })}
           swatches={[
@@ -85,6 +90,8 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <SectionHeading>Curve</SectionHeading>
       <SliderField
         label="Apex height"
+          info="Studio exports 0 as height: auto. Positive values become a fixed apex height; automatic height uses the bounds below."
+        configPath="arcs[].height"
         value={settings.arcHeight}
         min={0}
         max={1}
@@ -99,6 +106,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       >
         <SliderField
           label="Min auto height"
+          configPath="arcs[].minHeight"
           value={settings.arcMinHeight}
           min={0}
           max={0.5}
@@ -108,6 +116,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Max auto height"
+          configPath="arcs[].maxHeight"
           value={settings.arcMaxHeight}
           min={0.1}
           max={1.2}
@@ -122,6 +131,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       </SectionHeading>
       <ToggleField
         label={isDotted || isHologram ? 'Packets' : 'Style'}
+        configPath="arcs[].style"
         value={settings.arcStyle}
         options={arcStyleOptions}
         onChange={(arcStyle) => onGlobeChange({ arcStyle })}
@@ -133,6 +143,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       >
         <SliderField
           label={isDotted || isHologram ? 'Packet size' : 'Dash size'}
+          configPath="arcs[].dashSize"
           value={settings.arcDashSize}
           min={0.005}
           max={0.2}
@@ -142,6 +153,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label={isDotted || isHologram ? 'Packet gap' : 'Dash gap'}
+          configPath="arcs[].dashGap"
           value={settings.arcDashGap}
           min={0.005}
           max={0.2}
@@ -154,6 +166,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <SectionHeading>Animation</SectionHeading>
       <SwitchField
         label="Animated head"
+        configPath="arcs[].animated"
         checked={settings.arcAnimated}
         onChange={(arcAnimated) => onGlobeChange({ arcAnimated })}
         value="Travelling particle along the arc"
@@ -165,6 +178,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       >
         <SliderField
           label="Cycle duration"
+          configPath="arcs[].animationDuration"
           value={settings.arcAnimationDuration}
           min={0.4}
           max={6}
@@ -174,6 +188,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ToggleField
           label={isDotted || isHologram ? 'Spark profile' : 'Head easing'}
+          configPath="arcs[].headEasing"
           value={settings.arcHeadEasing}
           options={arcHeadEasingOptions}
           onChange={(arcHeadEasing) => onGlobeChange({ arcHeadEasing })}

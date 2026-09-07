@@ -80,6 +80,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Grid</SectionHeading>
         <ColorField
           label="Line color"
+          configPath="wireframe.color"
           value={settings.wireframeColor || '#22d3ee'}
           onChange={(wireframeColor) => onGlobeChange({ wireframeColor })}
           hint={settings.wireframeColor === '' ? 'Theme default' : undefined}
@@ -88,6 +89,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Opacity"
+          configPath="wireframe.opacity"
           value={settings.wireframeOpacity}
           min={0}
           max={1}
@@ -97,6 +99,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Density"
+          configPath="wireframe.density"
           value={settings.wireframeDensity}
           min={0.4}
           max={2.5}
@@ -108,6 +111,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Major / minor hierarchy</SectionHeading>
         <SwitchField
           label="Hierarchy"
+          configPath="wireframe.hierarchy.enabled"
           checked={settings.wireframeHierarchy}
           onChange={(wireframeHierarchy) => onGlobeChange({ wireframeHierarchy })}
           value="Major lines (every 30°) brighter than minors"
@@ -119,6 +123,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Major step"
+            configPath="wireframe.hierarchy.majorStepDeg"
             value={settings.wireframeHierarchyMajorStepDeg}
             min={5}
             max={90}
@@ -130,6 +135,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Major boost"
+            configPath="wireframe.hierarchy.majorBoost"
             value={settings.wireframeHierarchyMajorBoost}
             min={1}
             max={3}
@@ -141,6 +147,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Minor boost"
+            configPath="wireframe.hierarchy.minorBoost"
             value={settings.wireframeHierarchyMinorBoost}
             min={0.2}
             max={1.2}
@@ -155,6 +162,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Ambient pulse</SectionHeading>
         <SliderField
           label="Pulse amplitude"
+          configPath="wireframe.pulse"
           value={settings.wireframePulse}
           min={0}
           max={1}
@@ -164,6 +172,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Pulse speed"
+          configPath="wireframe.pulseSpeed"
           value={settings.wireframePulseSpeed}
           min={0.05}
           max={3}
@@ -176,6 +185,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Click pulse</SectionHeading>
         <SwitchField
           label="Click pulse"
+          configPath="wireframe.clickPulse.enabled"
           checked={settings.wireframeClickPulse}
           onChange={(wireframeClickPulse) => onGlobeChange({ wireframeClickPulse })}
           value="Radial wave from any surface click"
@@ -187,6 +197,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Pulse color"
+            configPath="wireframe.clickPulse.color"
             value={settings.wireframeClickPulseColor || '#22d3ee'}
             onChange={(wireframeClickPulseColor) => onGlobeChange({ wireframeClickPulseColor })}
             hint={settings.wireframeClickPulseColor === '' ? 'Theme default' : undefined}
@@ -195,6 +206,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Wave speed"
+            configPath="wireframe.clickPulse.speed"
             value={settings.wireframeClickPulseSpeed}
             min={0.3}
             max={4}
@@ -206,6 +218,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Band width"
+            configPath="wireframe.clickPulse.width"
             value={settings.wireframeClickPulseWidth}
             min={0.04}
             max={0.6}
@@ -217,6 +230,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Peak boost"
+            configPath="wireframe.clickPulse.boost"
             value={settings.wireframeClickPulseBoost}
             min={0.5}
             max={6}
@@ -228,6 +242,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Max simultaneous"
+            configPath="wireframe.clickPulse.maxConcurrent"
             value={settings.wireframeClickPulseMaxConcurrent}
             min={1}
             max={12}
@@ -243,6 +258,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Emphasis lines</SectionHeading>
         <SwitchField
           label="Emphasis"
+          configPath="wireframe.emphasis.enabled"
           checked={settings.wireframeEmphasis}
           onChange={(wireframeEmphasis) => onGlobeChange({ wireframeEmphasis })}
           value="Equator + tropics + prime / anti-meridian"
@@ -254,6 +270,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Strong (equator + tropics)"
+            configPath="wireframe.emphasis.strongColor"
             value={settings.wireframeEmphasisStrongColor || '#7ff0ff'}
             onChange={(wireframeEmphasisStrongColor) =>
               onGlobeChange({ wireframeEmphasisStrongColor })
@@ -264,6 +281,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Weak (meridians)"
+            configPath="wireframe.emphasis.weakColor"
             value={settings.wireframeEmphasisWeakColor || '#7ff0ff'}
             onChange={(wireframeEmphasisWeakColor) =>
               onGlobeChange({ wireframeEmphasisWeakColor })
@@ -274,6 +292,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Strong opacity"
+            configPath="wireframe.emphasis.strongOpacity"
             value={settings.wireframeEmphasisStrongOpacity}
             min={0}
             max={1}
@@ -285,6 +304,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Weak factor"
+            configPath="wireframe.emphasis.weakOpacityFactor"
             value={settings.wireframeEmphasisWeakOpacityFactor}
             min={0}
             max={1}
@@ -300,6 +320,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Equator beam</SectionHeading>
         <SwitchField
           label="Equator beam"
+          configPath="wireframe.equatorBeam.enabled"
           checked={settings.wireframeEquatorBeam}
           onChange={(wireframeEquatorBeam) => onGlobeChange({ wireframeEquatorBeam })}
           value="Glowing data spine running around the planet"
@@ -311,6 +332,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Beam color"
+            configPath="wireframe.equatorBeam.color"
             value={settings.wireframeEquatorBeamColor || '#7ff0ff'}
             onChange={(wireframeEquatorBeamColor) =>
               onGlobeChange({ wireframeEquatorBeamColor })
@@ -321,6 +343,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Opacity"
+            configPath="wireframe.equatorBeam.opacity"
             value={settings.wireframeEquatorBeamOpacity}
             min={0}
             max={1}
@@ -332,6 +355,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SwitchField
             label="Pulse"
+            configPath="wireframe.equatorBeam.pulse"
             checked={settings.wireframeEquatorBeamPulse}
             onChange={(wireframeEquatorBeamPulse) =>
               onGlobeChange({ wireframeEquatorBeamPulse })
@@ -345,6 +369,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Pulse speed"
+              configPath="wireframe.equatorBeam.pulseSpeed"
               value={settings.wireframeEquatorBeamPulseSpeed}
               min={0.1}
               max={3}
@@ -361,6 +386,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>CRT glitch</SectionHeading>
         <SwitchField
           label="Glitch"
+          configPath="wireframe.glitch.enabled"
           checked={settings.wireframeGlitch}
           onChange={(wireframeGlitch) => onGlobeChange({ wireframeGlitch })}
           value="Periodic horizontal-band shear transients"
@@ -372,6 +398,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Min interval"
+            configPath="wireframe.glitch.intervalMin"
             value={settings.wireframeGlitchIntervalMin}
             min={0.5}
             max={30}
@@ -383,6 +410,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Max interval"
+            configPath="wireframe.glitch.intervalMax"
             value={settings.wireframeGlitchIntervalMax}
             min={1}
             max={60}
@@ -398,6 +426,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Active country ring</SectionHeading>
         <SwitchField
           label="Active ring"
+          configPath="wireframe.activeRing.enabled"
           checked={settings.wireframeActiveRing}
           onChange={(wireframeActiveRing) => onGlobeChange({ wireframeActiveRing })}
           value="Glowing ring around the pinned country"
@@ -409,6 +438,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Ring color"
+            configPath="wireframe.activeRing.color"
             value={settings.wireframeActiveRingColor || '#22d3ee'}
             onChange={(wireframeActiveRingColor) =>
               onGlobeChange({ wireframeActiveRingColor })
@@ -419,6 +449,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Opacity"
+            configPath="wireframe.activeRing.opacity"
             value={settings.wireframeActiveRingOpacity}
             min={0}
             max={1}
@@ -430,6 +461,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Padding"
+            configPath="wireframe.activeRing.padding"
             value={settings.wireframeActiveRingPadding}
             min={1}
             max={2.5}
@@ -441,6 +473,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Rotation speed"
+            configPath="wireframe.activeRing.rotationSpeed"
             value={settings.wireframeActiveRingRotationSpeed}
             min={-2}
             max={2}
@@ -456,6 +489,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Pole streams</SectionHeading>
         <SwitchField
           label="Pole streams"
+          configPath="wireframe.poleStreams.enabled"
           checked={settings.wireframePoleStreams}
           onChange={(wireframePoleStreams) => onGlobeChange({ wireframePoleStreams })}
           value="Particles falling from the north pole"
@@ -467,6 +501,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Stream color"
+            configPath="wireframe.poleStreams.color"
             value={settings.wireframePoleStreamsColor || '#67e8f9'}
             onChange={(wireframePoleStreamsColor) =>
               onGlobeChange({ wireframePoleStreamsColor })
@@ -477,6 +512,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Particle count"
+            configPath="wireframe.poleStreams.count"
             value={settings.wireframePoleStreamsCount}
             min={0}
             max={64}
@@ -488,6 +524,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="wireframe.poleStreams.speed"
             value={settings.wireframePoleStreamsSpeed}
             min={0.05}
             max={3}
@@ -499,6 +536,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Particle size"
+            configPath="wireframe.poleStreams.size"
             value={settings.wireframePoleStreamsSize}
             min={0}
             max={0.05}
@@ -510,6 +548,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Stream opacity"
+            configPath="wireframe.poleStreams.opacity"
             value={settings.wireframePoleStreamsOpacity}
             min={0}
             max={1}
@@ -525,6 +564,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Data packets</SectionHeading>
         <SwitchField
           label="Data packets"
+          configPath="wireframe.dataPackets.enabled"
           checked={settings.wireframeDataPackets}
           onChange={(wireframeDataPackets) => onGlobeChange({ wireframeDataPackets })}
           value="Luminous blips racing along grid lines"
@@ -536,6 +576,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Packet color"
+            configPath="wireframe.dataPackets.color"
             value={settings.wireframeDataPacketsColor || '#22d3ee'}
             onChange={(wireframeDataPacketsColor) =>
               onGlobeChange({ wireframeDataPacketsColor })
@@ -546,6 +587,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ToggleField
             label="Travel axis"
+            configPath="wireframe.dataPackets.axis"
             value={settings.wireframeDataPacketsAxis}
             options={dataPacketAxisOptions}
             onChange={(wireframeDataPacketsAxis) =>
@@ -554,6 +596,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Packet count"
+            configPath="wireframe.dataPackets.count"
             value={settings.wireframeDataPacketsCount}
             min={0}
             max={120}
@@ -565,6 +608,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="wireframe.dataPackets.speed"
             value={settings.wireframeDataPacketsSpeed}
             min={0.1}
             max={4}
@@ -576,6 +620,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Trail length"
+            configPath="wireframe.dataPackets.trail"
             value={settings.wireframeDataPacketsTrail}
             min={0}
             max={1}
@@ -589,6 +634,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Packet size"
+            configPath="wireframe.dataPackets.size"
             value={settings.wireframeDataPacketsSize}
             min={0.005}
             max={0.06}
@@ -604,6 +650,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Compass markers</SectionHeading>
         <SwitchField
           label="Compass"
+          configPath="wireframe.compass.enabled"
           checked={settings.wireframeCompass}
           onChange={(wireframeCompass) => onGlobeChange({ wireframeCompass })}
           value="N / S / E / W cardinal letters above the surface"
@@ -615,6 +662,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Marker color"
+            configPath="wireframe.compass.color"
             value={settings.wireframeCompassColor || '#7ff0ff'}
             onChange={(wireframeCompassColor) => onGlobeChange({ wireframeCompassColor })}
             hint={settings.wireframeCompassColor === '' ? 'Theme default' : undefined}
@@ -623,6 +671,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Size"
+            configPath="wireframe.compass.size"
             value={settings.wireframeCompassSize}
             min={0.02}
             max={0.2}
@@ -632,6 +681,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Opacity"
+            configPath="wireframe.compass.opacity"
             value={settings.wireframeCompassOpacity}
             min={0.1}
             max={1}
@@ -643,6 +693,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SwitchField
             label="Show poles"
+            configPath="wireframe.compass.poles"
             checked={settings.wireframeCompassPoles}
             onChange={(wireframeCompassPoles) => onGlobeChange({ wireframeCompassPoles })}
             value="Include N + S above the geographic poles"
@@ -653,6 +704,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Autonomous grid pulse</SectionHeading>
         <SwitchField
           label="Grid pulse"
+          configPath="wireframe.gridPulse.enabled"
           checked={settings.wireframeGridPulse}
           onChange={(wireframeGridPulse) => onGlobeChange({ wireframeGridPulse })}
           value="Periodic radial wave from a fixed or random origin"
@@ -664,6 +716,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Pulse color"
+            configPath="wireframe.gridPulse.color"
             value={settings.wireframeGridPulseColor || '#22d3ee'}
             onChange={(wireframeGridPulseColor) =>
               onGlobeChange({ wireframeGridPulseColor })
@@ -674,6 +727,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ToggleField
             label="Origin mode"
+            configPath="wireframe.gridPulse.mode"
             value={settings.wireframeGridPulseMode}
             options={gridPulseModeOptions}
             onChange={(wireframeGridPulseMode) =>
@@ -687,6 +741,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Origin lat"
+              configPath="wireframe.gridPulse.originLat"
               value={settings.wireframeGridPulseOriginLat}
               min={-90}
               max={90}
@@ -698,6 +753,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Origin lng"
+              configPath="wireframe.gridPulse.originLng"
               value={settings.wireframeGridPulseOriginLng}
               min={-180}
               max={180}
@@ -710,6 +766,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           </DependsOn>
           <SliderField
             label="Interval"
+            configPath="wireframe.gridPulse.intervalSec"
             value={settings.wireframeGridPulseIntervalSec}
             min={0.5}
             max={20}
@@ -721,6 +778,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Wave speed"
+            configPath="wireframe.gridPulse.speed"
             value={settings.wireframeGridPulseSpeed}
             min={0.3}
             max={4}
@@ -732,6 +790,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Band width"
+            configPath="wireframe.gridPulse.width"
             value={settings.wireframeGridPulseWidth}
             min={0.04}
             max={0.5}
@@ -743,6 +802,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Boost"
+            configPath="wireframe.gridPulse.boost"
             value={settings.wireframeGridPulseBoost}
             min={0.5}
             max={5}
@@ -758,6 +818,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Pole pulses</SectionHeading>
         <SwitchField
           label="Pole pulse"
+          configPath="wireframe.polePulse.enabled"
           checked={settings.wireframePolePulse}
           onChange={(wireframePolePulse) => onGlobeChange({ wireframePolePulse })}
           value="Radial waves emanating from the geographic poles"
@@ -769,6 +830,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Pulse color"
+            configPath="wireframe.polePulse.color"
             value={settings.wireframePolePulseColor || '#22d3ee'}
             onChange={(wireframePolePulseColor) =>
               onGlobeChange({ wireframePolePulseColor })
@@ -779,6 +841,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ToggleField
             label="Which pole"
+            configPath="wireframe.polePulse.which"
             value={settings.wireframePolePulseWhich}
             options={polePulseWhichOptions}
             onChange={(wireframePolePulseWhich) =>
@@ -787,6 +850,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Interval"
+            configPath="wireframe.polePulse.intervalSec"
             value={settings.wireframePolePulseIntervalSec}
             min={0.5}
             max={20}
@@ -798,6 +862,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Wave speed"
+            configPath="wireframe.polePulse.speed"
             value={settings.wireframePolePulseSpeed}
             min={0.3}
             max={4}
@@ -809,6 +874,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Boost"
+            configPath="wireframe.polePulse.boost"
             value={settings.wireframePolePulseBoost}
             min={0.5}
             max={5}

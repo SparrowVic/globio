@@ -102,8 +102,6 @@ export function CameraSection({ settings, onChange }: StageSectionsProps) {
         configPath="zoom.smooth"
         checked={settings.smoothZoom}
         onChange={(smoothZoom) => onChange({ smoothZoom })}
-        disabled={settings.zoomMode === 'classic'}
-        disabledReason="Smooth zoom only applies to attract/repel modes"
       />
       <SwitchField
         label="Auto rotate"
@@ -191,6 +189,7 @@ export function FocusSection({ settings, onChange }: StageSectionsProps) {
     >
       <SwitchField
         label="Click country to focus"
+        info="Studio listens for countryClick and calls focusOnCountry with the clicked position and the options below."
         checked={settings.clickToFocus}
         onChange={(clickToFocus) => onChange({ clickToFocus })}
       />
@@ -201,6 +200,7 @@ export function FocusSection({ settings, onChange }: StageSectionsProps) {
       >
         <SliderField
           label="Padding"
+          typePath="FocusOptions.padding"
           value={settings.focusPadding}
           min={0}
           max={0.45}
@@ -210,6 +210,7 @@ export function FocusSection({ settings, onChange }: StageSectionsProps) {
         />
         <SliderField
           label="Flight duration"
+          typePath="FlyToOptions.duration"
           value={settings.focusDurationMs}
           min={200}
           max={3500}
@@ -219,6 +220,7 @@ export function FocusSection({ settings, onChange }: StageSectionsProps) {
         />
         <SliderField
           label="Arc elevation"
+          typePath="FlyToOptions.elevation"
           value={settings.focusElevation}
           min={0}
           max={3}
@@ -228,7 +230,8 @@ export function FocusSection({ settings, onChange }: StageSectionsProps) {
         />
         <SwitchField
           label="Pause auto-rotate"
-          feature="auto-rotate"
+          typePath="FocusOptions.pauseAutoRotateOnFocus"
+          feature="focus-on-country"
           checked={settings.focusPauseAutoRotate}
           onChange={(focusPauseAutoRotate) =>
             onChange({ focusPauseAutoRotate })

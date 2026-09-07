@@ -55,6 +55,7 @@ export interface GroupedSelectFieldProps<T extends string> extends DisableProps,
 
 export function GroupedSelectField<T extends string>({
   label,
+  info,
   value,
   groups,
   placeholder,
@@ -67,16 +68,19 @@ export function GroupedSelectField<T extends string>({
   disabledReason,
   feature,
   configPath,
+  typePath,
 }: GroupedSelectFieldProps<T>) {
   const [open, setOpen] = useState(false);
   const trigger = (
     <Select
+      disabled={disabled}
       open={open}
       onOpenChange={setOpen}
       {...(value !== undefined ? { value } : {})}
       onValueChange={(next) => onChange(next as T)}
     >
       <SelectTrigger
+        aria-label={label}
         className={cn(
           'h-8 w-full border-white/10 bg-white/[0.04] text-slate-100',
           triggerClassName,
@@ -150,7 +154,7 @@ export function GroupedSelectField<T extends string>({
     return <div className={className}>{trigger}</div>;
   }
   return (
-    <Field label={label} className={className} disabled={disabled} disabledReason={disabledReason} feature={feature} configPath={configPath}>
+    <Field label={label} info={info} className={className} disabled={disabled} disabledReason={disabledReason} feature={feature} configPath={configPath} typePath={typePath}>
       {trigger}
     </Field>
   );

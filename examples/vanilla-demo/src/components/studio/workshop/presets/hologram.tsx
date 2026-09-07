@@ -93,6 +93,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Scanlines</SectionHeading>
         <SwitchField
           label="CRT scanlines"
+          configPath="hologram.scanlines.enabled"
           checked={settings.hologramScanlines}
           onChange={(hologramScanlines) => onGlobeChange({ hologramScanlines })}
           value="Sweeping bright bars across the projection"
@@ -104,6 +105,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Density"
+            configPath="hologram.scanlines.density"
             value={settings.hologramScanlineDensity}
             min={0}
             max={600}
@@ -115,6 +117,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="hologram.scanlines.speed"
             value={settings.hologramScanlineSpeed}
             min={0}
             max={6}
@@ -126,6 +129,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Contrast"
+            configPath="hologram.scanlines.opacity"
             value={settings.hologramScanlineOpacity}
             min={0}
             max={1}
@@ -137,6 +141,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ToggleField
             label="Direction"
+            configPath="hologram.scanlines.direction"
             value={settings.hologramScanlineDirection}
             options={directionOptions}
             onChange={(hologramScanlineDirection) =>
@@ -149,6 +154,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Rim glow</SectionHeading>
         <SwitchField
           label="Fresnel rim"
+          configPath="hologram.rimGlow.enabled"
           checked={settings.hologramRimGlow}
           onChange={(hologramRimGlow) => onGlobeChange({ hologramRimGlow })}
           value="Soft halo at the silhouette edge"
@@ -160,6 +166,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Rim color"
+            configPath="hologram.rimGlow.color"
             value={settings.hologramRimColor || '#67e8f9'}
             onChange={(hologramRimColor) => onGlobeChange({ hologramRimColor })}
             hint={settings.hologramRimColor === '' ? 'Theme default' : undefined}
@@ -168,6 +175,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Intensity"
+            configPath="hologram.rimGlow.intensity"
             value={settings.hologramRimIntensity}
             min={0}
             max={4}
@@ -179,6 +187,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Width"
+            configPath="hologram.rimGlow.width"
             value={settings.hologramRimWidth}
             min={0.3}
             max={6}
@@ -192,6 +201,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Glitch transients</SectionHeading>
         <SwitchField
           label="Random glitches"
+          configPath="hologram.glitch.enabled"
           checked={settings.hologramGlitch}
           onChange={(hologramGlitch) => onGlobeChange({ hologramGlitch })}
           value="80–250ms shears across the borders"
@@ -203,6 +213,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Min interval"
+            configPath="hologram.glitch.intervalMin"
             value={settings.hologramGlitchIntervalMin}
             min={0.5}
             max={20}
@@ -214,6 +225,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Max interval"
+            configPath="hologram.glitch.intervalMax"
             value={settings.hologramGlitchIntervalMax}
             min={0.5}
             max={30}
@@ -225,6 +237,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Amplitude"
+            configPath="hologram.glitch.amplitude"
             value={settings.hologramGlitchAmplitude}
             min={0}
             max={0.1}
@@ -236,6 +249,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="RGB channel split"
+            configPath="hologram.glitch.channelShift"
             value={settings.hologramGlitchChannelShift}
             min={0}
             max={2}
@@ -251,6 +265,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Outer halo</SectionHeading>
         <SwitchField
           label="Outer halo"
+          configPath="hologram.outerGlow.enabled"
           checked={settings.hologramOuterGlow}
           onChange={(hologramOuterGlow) => onGlobeChange({ hologramOuterGlow })}
           value="Wider back-side glow that sells the projection"
@@ -262,6 +277,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Halo color"
+            configPath="hologram.outerGlow.color"
             value={settings.hologramOuterGlowColor || '#67e8f9'}
             onChange={(hologramOuterGlowColor) =>
               onGlobeChange({ hologramOuterGlowColor })
@@ -272,6 +288,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Spread"
+            configPath="hologram.outerGlow.spread"
             value={settings.hologramOuterGlowSpread}
             min={1.005}
             max={1.2}
@@ -283,6 +300,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Intensity"
+            configPath="hologram.outerGlow.intensity"
             value={settings.hologramOuterGlowIntensity}
             min={0}
             max={1}
@@ -298,6 +316,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Chromatic aberration</SectionHeading>
         <SwitchField
           label="RGB split at the rim"
+          configPath="hologram.chromaticAberration.enabled"
           checked={settings.hologramChromaticAberration}
           onChange={(hologramChromaticAberration) =>
             onGlobeChange({ hologramChromaticAberration })
@@ -311,6 +330,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Amount"
+            configPath="hologram.chromaticAberration.amount"
             value={settings.hologramChromaticAberrationAmount}
             min={0}
             max={1.5}
@@ -322,6 +342,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ToggleField
             label="Mode"
+            configPath="hologram.chromaticAberration.mode"
             value={settings.hologramChromaticAberrationMode}
             options={aberrationModeOptions}
             onChange={(hologramChromaticAberrationMode) =>
@@ -334,6 +355,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Holographic noise</SectionHeading>
         <SwitchField
           label="Animated grain"
+          configPath="hologram.noise.enabled"
           checked={settings.hologramNoise}
           onChange={(hologramNoise) => onGlobeChange({ hologramNoise })}
           value="Photon-shot grain that flickers each frame"
@@ -345,6 +367,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Intensity"
+            configPath="hologram.noise.intensity"
             value={settings.hologramNoiseIntensity}
             min={0}
             max={1}
@@ -356,6 +379,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Grain size"
+            configPath="hologram.noise.scale"
             value={settings.hologramNoiseScale}
             min={0.2}
             max={5}
@@ -365,6 +389,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Reroll speed"
+            configPath="hologram.noise.speed"
             value={settings.hologramNoiseSpeed}
             min={0}
             max={60}
@@ -378,6 +403,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Projector hum</SectionHeading>
         <SwitchField
           label="Rim sweep"
+          configPath="hologram.projectorPulse.enabled"
           checked={settings.hologramProjectorPulse}
           onChange={(hologramProjectorPulse) =>
             onGlobeChange({ hologramProjectorPulse })
@@ -391,6 +417,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Speed"
+            configPath="hologram.projectorPulse.speed"
             value={settings.hologramProjectorPulseSpeed}
             min={0}
             max={2}
@@ -402,6 +429,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Amplitude"
+            configPath="hologram.projectorPulse.amplitude"
             value={settings.hologramProjectorPulseAmplitude}
             min={0}
             max={1.5}
@@ -413,6 +441,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Sweep tint"
+            configPath="hologram.projectorPulse.color"
             value={settings.hologramProjectorPulseColor || '#a5f3fc'}
             onChange={(hologramProjectorPulseColor) =>
               onGlobeChange({ hologramProjectorPulseColor })
@@ -429,6 +458,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Data feed scan</SectionHeading>
         <SwitchField
           label="Scanning band"
+          configPath="hologram.dataScan.enabled"
           checked={settings.hologramDataScan}
           onChange={(hologramDataScan) => onGlobeChange({ hologramDataScan })}
           value="Bright luminous band that sweeps across the surface"
@@ -440,6 +470,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ToggleField
             label="Sweep axis"
+            configPath="hologram.dataScan.axis"
             value={settings.hologramDataScanAxis}
             options={dataScanAxisOptions}
             onChange={(hologramDataScanAxis) =>
@@ -448,6 +479,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="hologram.dataScan.speed"
             value={settings.hologramDataScanSpeed}
             min={0}
             max={2}
@@ -459,6 +491,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Width"
+            configPath="hologram.dataScan.width"
             value={settings.hologramDataScanWidth}
             min={0.005}
             max={0.4}
@@ -470,6 +503,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Brightness"
+            configPath="hologram.dataScan.opacity"
             value={settings.hologramDataScanOpacity}
             min={0}
             max={2}
@@ -481,6 +515,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Band tint"
+            configPath="hologram.dataScan.color"
             value={settings.hologramDataScanColor || '#a5f3fc'}
             onChange={(hologramDataScanColor) =>
               onGlobeChange({ hologramDataScanColor })
@@ -497,6 +532,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Phase shimmer</SectionHeading>
         <SwitchField
           label="Moiré shimmer"
+          configPath="hologram.phaseShimmer.enabled"
           checked={settings.hologramPhaseShimmer}
           onChange={(hologramPhaseShimmer) =>
             onGlobeChange({ hologramPhaseShimmer })
@@ -510,6 +546,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Pattern density"
+            configPath="hologram.phaseShimmer.scale"
             value={settings.hologramPhaseShimmerScale}
             min={5}
             max={250}
@@ -521,6 +558,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Intensity"
+            configPath="hologram.phaseShimmer.intensity"
             value={settings.hologramPhaseShimmerIntensity}
             min={0}
             max={0.6}
@@ -532,6 +570,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Drift speed"
+            configPath="hologram.phaseShimmer.speed"
             value={settings.hologramPhaseShimmerSpeed}
             min={0}
             max={3}
@@ -547,6 +586,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Calibration ticks</SectionHeading>
         <SwitchField
           label="Rim ticks"
+          configPath="hologram.calibrationTicks.enabled"
           checked={settings.hologramCalibrationTicks}
           onChange={(hologramCalibrationTicks) =>
             onGlobeChange({ hologramCalibrationTicks })
@@ -560,6 +600,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Count"
+            configPath="hologram.calibrationTicks.count"
             value={settings.hologramCalibrationTicksCount}
             min={6}
             max={120}
@@ -571,6 +612,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Length"
+            configPath="hologram.calibrationTicks.length"
             value={settings.hologramCalibrationTicksLength}
             min={0.005}
             max={0.2}
@@ -582,6 +624,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Brightness"
+            configPath="hologram.calibrationTicks.opacity"
             value={settings.hologramCalibrationTicksOpacity}
             min={0}
             max={2}

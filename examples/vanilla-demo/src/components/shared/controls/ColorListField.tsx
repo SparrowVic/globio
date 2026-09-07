@@ -40,6 +40,7 @@ export interface ColorListFieldProps extends FeatureProps {
 
 export function ColorListField({
   label,
+  info,
   colors,
   onChange,
   minItems = 1,
@@ -52,6 +53,7 @@ export function ColorListField({
   className,
   feature,
   configPath,
+  typePath,
 }: ColorListFieldProps) {
   const scope = useFeatureScope();
   const resolved = resolveFeature({ feature, configPath, scopeFeature: scope?.feature });
@@ -66,7 +68,7 @@ export function ColorListField({
             <p className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-300/70">
               {label}
               {resolved && (
-                <FeatureTip feature={resolved} configPath={configPath ?? scope?.configPath} label={typeof label === 'string' ? label : undefined} />
+                <FeatureTip note={info} feature={resolved} configPath={configPath ?? (typePath ? undefined : scope?.configPath)} typePath={typePath} label={typeof label === 'string' ? label : undefined} />
               )}
             </p>
           ) : (
@@ -91,6 +93,9 @@ export function ColorListField({
           <div key={index} className="grid grid-cols-[minmax(0,1fr)_32px] items-center gap-2">
             <ColorField
               label={itemLabel(index)}
+              feature={feature}
+              configPath={configPath}
+              typePath={typePath}
               value={color}
               onChange={(next) => {
                 const copy = [...colors];

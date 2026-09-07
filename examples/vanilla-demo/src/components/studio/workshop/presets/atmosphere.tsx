@@ -215,6 +215,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Cinematic surface</SectionHeading>
         <ColorField
           label="Ocean"
+          configPath="cinematic.surface.oceanColor"
           value={settings.cinematicOceanColor || '#02121f'}
           onChange={(cinematicOceanColor) => onGlobeChange({ cinematicOceanColor })}
           hint={settings.cinematicOceanColor === '' ? 'Theme default' : undefined}
@@ -223,6 +224,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ColorField
           label="Land wash"
+          configPath="cinematic.surface.landColor"
           value={settings.cinematicLandColor || '#7d552e'}
           onChange={(cinematicLandColor) => onGlobeChange({ cinematicLandColor })}
           hint={settings.cinematicLandColor === '' ? 'Theme default' : undefined}
@@ -231,6 +233,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ColorField
           label="Night side"
+          configPath="cinematic.surface.nightColor"
           value={settings.cinematicNightColor || '#020612'}
           onChange={(cinematicNightColor) => onGlobeChange({ cinematicNightColor })}
           hint={settings.cinematicNightColor === '' ? 'Theme default' : undefined}
@@ -239,6 +242,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ColorField
           label="Cloud rim"
+          configPath="cinematic.clouds.color"
           value={settings.cinematicCloudColor || '#c8f0ff'}
           onChange={(cinematicCloudColor) => onGlobeChange({ cinematicCloudColor })}
           hint={settings.cinematicCloudColor === '' ? 'Theme default' : undefined}
@@ -247,6 +251,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Sun X"
+          configPath="cinematic.sun.direction"
           value={settings.cinematicLightX}
           min={-1}
           max={1}
@@ -256,6 +261,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Sun Y"
+          configPath="cinematic.sun.direction"
           value={settings.cinematicLightY}
           min={-1}
           max={1}
@@ -265,6 +271,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Sun Z"
+          configPath="cinematic.sun.direction"
           value={settings.cinematicLightZ}
           min={-1}
           max={1}
@@ -276,18 +283,21 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Cinematic lighting</SectionHeading>
         <ToggleField
           label="Quality"
+          configPath="cinematic.quality"
           value={settings.cinematicQuality}
           options={cinematicQualityOptions}
           onChange={(cinematicQuality) => onGlobeChange({ cinematicQuality })}
         />
         <ToggleField
           label="Lighting mode"
+          configPath="cinematic.surface.lightingMode"
           value={settings.cinematicLightingMode}
           options={cinematicLightingOptions}
           onChange={(cinematicLightingMode) => onGlobeChange({ cinematicLightingMode })}
         />
         <SliderField
           label="Terminator softness"
+          configPath="cinematic.surface.terminatorSoftness"
           value={settings.cinematicTerminatorSoftness}
           min={0.08}
           max={0.9}
@@ -299,6 +309,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Terminator contrast"
+          configPath="cinematic.surface.terminatorContrast"
           value={settings.cinematicTerminatorContrast}
           min={0.55}
           max={2.2}
@@ -310,6 +321,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Key light"
+          configPath="cinematic.surface.keyIntensity"
           value={settings.cinematicKeyIntensity}
           min={0.2}
           max={2.4}
@@ -319,6 +331,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Fill light"
+          configPath="cinematic.surface.fillIntensity"
           value={settings.cinematicFillIntensity}
           min={0}
           max={1.2}
@@ -328,6 +341,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <ColorField
           label="Rim tint"
+          configPath="cinematic.surface.rimColor"
           value={settings.cinematicRimColor || '#b9ecff'}
           onChange={(cinematicRimColor) => onGlobeChange({ cinematicRimColor })}
           hint={settings.cinematicRimColor === '' ? 'Theme default' : undefined}
@@ -336,6 +350,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Rim intensity"
+          configPath="cinematic.surface.rimIntensity"
           value={settings.cinematicRimIntensity}
           min={0}
           max={2.5}
@@ -345,6 +360,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Rim spread"
+          configPath="cinematic.surface.rimPower"
           value={settings.cinematicRimPower}
           min={0.5}
           max={5}
@@ -354,6 +370,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Ocean specular"
+          configPath="cinematic.surface.specularIntensity"
           value={settings.cinematicSpecularIntensity}
           min={0}
           max={2}
@@ -365,6 +382,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Ocean sheen"
+          configPath="cinematic.surface.oceanSheen"
           value={settings.cinematicOceanSheen}
           min={0}
           max={1}
@@ -376,6 +394,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Reactive field</SectionHeading>
         <SliderField
           label="Light coupling"
+          configPath="cinematic.reactivity.lightInfluence"
           value={settings.cinematicLightInfluence}
           min={0}
           max={2}
@@ -387,6 +406,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Camera coupling"
+          configPath="cinematic.reactivity.cameraInfluence"
           value={settings.cinematicCameraInfluence}
           min={0}
           max={2}
@@ -398,6 +418,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Density coupling"
+          configPath="cinematic.reactivity.densityInfluence"
           value={settings.cinematicDensityInfluence}
           min={0}
           max={2}
@@ -409,6 +430,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Twilight boost"
+          configPath="cinematic.reactivity.terminatorBoost"
           value={settings.cinematicTerminatorBoost}
           min={0}
           max={2.5}
@@ -420,6 +442,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Horizon glow"
+          configPath="cinematic.reactivity.horizonGlow"
           value={settings.cinematicHorizonGlow}
           min={0}
           max={2.5}
@@ -429,6 +452,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Atmospheric scatter"
+          configPath="cinematic.reactivity.atmosphericScatter"
           value={settings.cinematicAtmosphericScatter}
           min={0}
           max={2.5}
@@ -440,6 +464,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Surface detail"
+          configPath="cinematic.reactivity.surfaceMicroDetail"
           value={settings.cinematicSurfaceMicroDetail}
           min={0}
           max={2.5}
@@ -451,6 +476,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Night response"
+          configPath="cinematic.reactivity.cityNightResponse"
           value={settings.cinematicCityNightResponse}
           min={0}
           max={2.5}
@@ -462,6 +488,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Orbital flow"
+          configPath="cinematic.reactivity.orbitalFlow"
           value={settings.cinematicOrbitalFlow}
           min={0}
           max={2.5}
@@ -473,6 +500,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>City lights</SectionHeading>
         <SwitchField
           label="City lights"
+          configPath="cinematic.cityLights.enabled"
           checked={settings.cinematicCityLights}
           onChange={(cinematicCityLights) => onGlobeChange({ cinematicCityLights })}
           value="Dense warm point-data clusters on the night globe"
@@ -484,6 +512,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Light color"
+            configPath="cinematic.cityLights.color"
             value={settings.cinematicCityLightColor || '#ffd36a'}
             onChange={(cinematicCityLightColor) => onGlobeChange({ cinematicCityLightColor })}
             hint={settings.cinematicCityLightColor === '' ? 'Theme default' : undefined}
@@ -492,6 +521,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Intensity"
+            configPath="cinematic.cityLights.intensity"
             value={settings.cinematicCityLightIntensity}
             min={0}
             max={2}
@@ -503,6 +533,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Count"
+            configPath="cinematic.cityLights.count"
             value={settings.cinematicCityLightCount}
             min={0}
             max={12000}
@@ -512,6 +543,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Point size"
+            configPath="cinematic.cityLights.size"
             value={settings.cinematicCityLightSize}
             min={0.001}
             max={0.016}
@@ -521,6 +553,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SwitchField
             label="Twinkle"
+            configPath="cinematic.cityLights.twinkle"
             checked={settings.cinematicCityLightTwinkle}
             onChange={(cinematicCityLightTwinkle) =>
               onGlobeChange({ cinematicCityLightTwinkle })
@@ -532,6 +565,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Surface network</SectionHeading>
         <SwitchField
           label="Network"
+          configPath="cinematic.network.enabled"
           checked={settings.cinematicNetwork}
           onChange={(cinematicNetwork) => onGlobeChange({ cinematicNetwork })}
           value="Low-orbit geodesic city-to-city traces"
@@ -543,6 +577,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Network color"
+            configPath="cinematic.network.color"
             value={settings.cinematicNetworkColor || '#f7b84d'}
             onChange={(cinematicNetworkColor) => onGlobeChange({ cinematicNetworkColor })}
             hint={settings.cinematicNetworkColor === '' ? 'Theme default' : undefined}
@@ -551,6 +586,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Opacity"
+            configPath="cinematic.network.opacity"
             value={settings.cinematicNetworkOpacity}
             min={0}
             max={1}
@@ -560,6 +596,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Connections"
+            configPath="cinematic.network.maxConnections"
             value={settings.cinematicNetworkConnections}
             min={0}
             max={60}
@@ -571,6 +608,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Pulse speed"
+            configPath="cinematic.network.pulseSpeed"
             value={settings.cinematicNetworkPulseSpeed}
             min={0.02}
             max={1.5}
@@ -585,6 +623,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Border glow</SectionHeading>
         <SwitchField
           label="Cinematic borders"
+          configPath="cinematic.borders.enabled"
           checked={settings.cinematicBorders}
           onChange={(cinematicBorders) => onGlobeChange({ cinematicBorders })}
           value="Warm continental linework above the surface"
@@ -596,6 +635,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Border color"
+            configPath="cinematic.borders.color"
             value={settings.cinematicBorderColor || '#f6b44d'}
             onChange={(cinematicBorderColor) => onGlobeChange({ cinematicBorderColor })}
             hint={settings.cinematicBorderColor === '' ? 'Theme default' : undefined}
@@ -604,6 +644,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Border intensity"
+            configPath="cinematic.borders.intensity"
             value={settings.cinematicBorderIntensity}
             min={0}
             max={3}

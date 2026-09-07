@@ -65,6 +65,7 @@ export function ColorField({
   disabledReason,
   feature,
   configPath,
+  typePath,
 }: ColorFieldProps) {
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -100,7 +101,7 @@ export function ColorField({
           label={label}
           info={info ?? hint}
           feature={feature}
-          configPath={configPath}
+          configPath={configPath} typePath={typePath}
           disabledReason={
             disabled && disabledReason ? disabledReason : undefined
           }
@@ -108,6 +109,8 @@ export function ColorField({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
+          aria-label={`Choose ${label}`}
+          aria-expanded={open}
           disabled={disabled}
           className={cn(
             'flex h-8 min-w-[142px] items-center gap-2 rounded-lg border border-white/[0.09] bg-black/[0.18] py-1 pl-1 pr-2.5 transition-colors',
@@ -179,12 +182,14 @@ export function ColorField({
             <div className="flex items-center gap-2">
               <input
                 type="color"
+                aria-label={`${label} color`}
                 value={normalised}
                 onChange={(event) => onChange(event.target.value)}
                 className="size-10 cursor-pointer rounded border border-white/10 bg-transparent p-0"
               />
               <input
                 type="text"
+                aria-label={`${label} hex color`}
                 value={normalised}
                 onChange={(event) => {
                   const next = event.target.value;

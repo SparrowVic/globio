@@ -27,6 +27,7 @@ export interface SliderFieldProps extends DisableProps, FeatureProps {
  */
 export function SliderField({
   label,
+  info,
   value,
   min,
   max,
@@ -38,6 +39,7 @@ export function SliderField({
   disabledReason,
   feature,
   configPath,
+  typePath,
 }: SliderFieldProps) {
   const [draft, setDraft] = useState(() => formatNumericValue(value, step));
   const [editing, setEditing] = useState(false);
@@ -47,7 +49,7 @@ export function SliderField({
   }, [editing, step, value]);
 
   const commit = (raw: string) => {
-    const parsed = Number(raw);
+    const parsed = raw.trim() === '' ? Number.NaN : Number(raw);
     if (!Number.isFinite(parsed)) {
       setDraft(formatNumericValue(value, step));
       return;
@@ -66,14 +68,17 @@ export function SliderField({
   return (
     <Field
       label={label}
+      info={info}
       className={className}
       disabled={disabled}
       disabledReason={disabledReason}
       feature={feature}
-      configPath={configPath}
+      configPath={configPath} typePath={typePath}
     >
       <div className="grid grid-cols-[minmax(0,1fr)_98px] items-center gap-3">
         <Slider
+          disabled={disabled}
+          aria-label={label}
           value={[value]}
           min={min}
           max={max}

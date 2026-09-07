@@ -211,6 +211,7 @@ export function DataSections({
       >
         <ToggleField
           label="Layer"
+          info="Studio keeps one data layer active. Choosing None calls setDataLayer(null) and removes the current layer."
           value={state.activeLayer}
           options={layerOptions}
           onChange={onLayerChange}
@@ -256,14 +257,16 @@ function HexbinSections({
       <PanelSection id="hexbin-dataset" title="Dataset" icon={<FontAwesomeIcon icon={faDatabase} className="size-3" />} defaultOpen>
         <SelectField
           label="Dataset"
-          feature="data-layers"
+          typePath="HexBinDataLayer.data"
+          feature="hexbin"
           value={settings.dataset}
           options={hexbinDatasetOptions}
           onChange={(dataset) => onChange({ dataset })}
         />
         <SelectField
           label="Aggregate"
-          feature="data-layers"
+          typePath="HexBinDataLayer.aggregate"
+          feature="hexbin"
           value={settings.aggregate}
           options={aggregateOptions}
           onChange={(aggregate) => onChange({ aggregate })}
@@ -271,7 +274,7 @@ function HexbinSections({
       </PanelSection>
 
       <PanelSection
-        feature="data-layers"
+        feature="hexbin"
         id="hexbin-visual"
         title="Visual"
         icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
@@ -280,6 +283,7 @@ function HexbinSections({
       >
         <SliderField
           label="Resolution"
+          typePath="HexBinDataLayer.resolution"
           value={settings.resolution}
           min={0}
           max={5}
@@ -290,6 +294,7 @@ function HexbinSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Height"
+            typePath="HexBinDataLayer.height.max"
             value={settings.heightMax}
             min={0}
             max={0.22}
@@ -298,6 +303,7 @@ function HexbinSections({
           />
           <SliderField
             label="Cell inset"
+            typePath="HexBinDataLayer.cellInset"
             value={settings.cellInset}
             min={0.55}
             max={1}
@@ -307,6 +313,7 @@ function HexbinSections({
         </div>
         <SliderField
           label="Opacity"
+          typePath="HexBinDataLayer.opacity"
           value={settings.opacity}
           min={0.2}
           max={1}
@@ -315,6 +322,7 @@ function HexbinSections({
         />
         <SwitchField
           label="Show empty cells"
+          typePath="HexBinDataLayer.showEmpty"
           checked={settings.showEmpty}
           onChange={(showEmpty) => onChange({ showEmpty })}
         />
@@ -322,6 +330,7 @@ function HexbinSections({
 
       <AnimationSection
         idPrefix="hexbin"
+        layerType="HexBinDataLayer"
         enabled={settings.animationEnabled}
         style={settings.animationStyle}
         order={settings.animationOrder}
@@ -341,7 +350,7 @@ function HexbinSections({
       />
 
       <PanelSection
-        feature="data-layers"
+        feature="hexbin"
         id="hexbin-interaction"
         title="Interaction"
         icon={<FontAwesomeIcon icon={faHand} className="size-3" />}
@@ -349,17 +358,20 @@ function HexbinSections({
         <div className="grid grid-cols-2 gap-2">
           <SwitchField
             label="Hover highlight"
+            typePath="HexBinDataLayer.highlight"
             checked={settings.highlight}
             onChange={(highlight) => onChange({ highlight })}
           />
           <SwitchField
             label="Cell borders"
+            typePath="HexBinDataLayer.cellBorder"
             checked={settings.borders}
             onChange={(borders) => onChange({ borders })}
           />
         </div>
         <SliderField
           label="Border opacity"
+          typePath="HexBinDataLayer.cellBorder.opacity"
           value={settings.borderOpacity}
           min={0.05}
           max={0.8}
@@ -394,7 +406,7 @@ function HeatmapSections({
   return (
     <>
       <PanelSection
-        feature="data-layers"
+        feature="heatmap"
         id="heatmap-dataset"
         title="Dataset"
         icon={<FontAwesomeIcon icon={faFire} className="size-3" />}
@@ -408,6 +420,7 @@ function HeatmapSections({
         ) : null}
         <SelectField
           label="Dataset"
+          typePath="HeatmapDataLayer.data"
           value={settings.dataset}
           options={heatmapDatasetOptions}
           onChange={(dataset) => {
@@ -427,6 +440,7 @@ function HeatmapSections({
         />
         <ToggleField
           label="Surface mode"
+          info="Studio preset: updates several heatmap settings together. Country mode enables country domes only with the Countries dataset."
           value={settings.surfaceMode}
           options={heatmapSurfaceOptions}
           onChange={(surfaceMode) =>
@@ -436,7 +450,7 @@ function HeatmapSections({
       </PanelSection>
 
       <PanelSection
-        feature="data-layers"
+        feature="heatmap"
         id="heatmap-visual"
         title="Visual"
         icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
@@ -445,30 +459,35 @@ function HeatmapSections({
       >
         <SelectField
           label="Palette"
+          typePath="HeatmapDataLayer.scale"
           value={settings.palette}
           options={heatmapPaletteOptions}
           onChange={(palette) => onChange({ palette })}
         />
         <ToggleField
           label="Kernel"
+          typePath="HeatmapDataLayer.kernel"
           value={settings.kernel}
           options={heatmapKernelOptions}
           onChange={(kernel) => onChange({ kernel })}
         />
         <ToggleField
           label="Normalize"
+          typePath="HeatmapDataLayer.normalize"
           value={settings.normalize}
           options={heatmapNormalizeOptions}
           onChange={(normalize) => onChange({ normalize })}
         />
         <ToggleField
           label="Curve"
+          typePath="HeatmapDataLayer.curve"
           value={settings.curve}
           options={heatmapCurveOptions}
           onChange={(curve) => onChange({ curve })}
         />
         <ToggleField
           label="Detail overlay"
+          info="Studio preset for grid lines, density contours, rim fade, and distance-based detail scaling."
           value={settings.detailMode}
           options={heatmapDetailOptions}
           onChange={(detailMode) => onChange({ detailMode })}
@@ -476,6 +495,7 @@ function HeatmapSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Radius"
+            typePath="HeatmapDataLayer.radius"
             value={settings.radius}
             min={0.01}
             max={0.24}
@@ -484,6 +504,7 @@ function HeatmapSections({
           />
           <SliderField
             label="Max height"
+            typePath="HeatmapDataLayer.maxHeight"
             value={settings.maxHeight}
             min={0}
             max={0.22}
@@ -494,6 +515,7 @@ function HeatmapSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Intensity"
+            typePath="HeatmapDataLayer.intensity"
             value={settings.intensity}
             min={0.2}
             max={2.4}
@@ -504,6 +526,7 @@ function HeatmapSections({
           />
           <SliderField
             label="Threshold"
+            typePath="HeatmapDataLayer.threshold"
             value={settings.threshold}
             min={0}
             max={0.45}
@@ -514,6 +537,7 @@ function HeatmapSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Blur"
+            typePath="HeatmapDataLayer.blurPasses"
             value={settings.blurPasses}
             min={0}
             max={8}
@@ -523,6 +547,7 @@ function HeatmapSections({
           />
           <SliderField
             label="Shading"
+            typePath="HeatmapDataLayer.shading"
             value={settings.shading}
             min={0}
             max={1}
@@ -534,6 +559,7 @@ function HeatmapSections({
         </div>
         <ToggleField
           label="Displacement curve"
+          typePath="HeatmapDataLayer.displacementCurve"
           value={settings.displacementCurve}
           options={heatmapCurveOptions}
           onChange={(displacementCurve) => onChange({ displacementCurve })}
@@ -542,6 +568,7 @@ function HeatmapSections({
         />
         <ToggleField
           label="Blend"
+          typePath="HeatmapDataLayer.blendMode"
           value={settings.blendMode}
           options={heatmapBlendOptions}
           onChange={(blendMode) => onChange({ blendMode })}
@@ -549,6 +576,7 @@ function HeatmapSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Texture"
+            typePath="HeatmapDataLayer.textureResolution"
             value={settings.textureLevel}
             min={0}
             max={2}
@@ -558,6 +586,7 @@ function HeatmapSections({
           />
           <SliderField
             label="Mesh"
+            typePath="HeatmapDataLayer.meshResolution"
             value={settings.meshLevel}
             min={0}
             max={2}
@@ -569,7 +598,7 @@ function HeatmapSections({
       </PanelSection>
 
       <PanelSection
-        feature="data-layers"
+        feature="heatmap"
         id="heatmap-dome"
         title="Country domes"
         icon={<FontAwesomeIcon icon={faSparkles} className="size-3" />}
@@ -578,6 +607,7 @@ function HeatmapSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Dome center"
+            typePath="HeatmapDataLayer.countryDomes.centerArea"
             value={settings.domeCenterArea}
             min={0.25}
             max={0.95}
@@ -586,6 +616,7 @@ function HeatmapSections({
           />
           <SliderField
             label="Shoulder"
+            typePath="HeatmapDataLayer.countryDomes.shoulderHeight"
             value={settings.domeShoulderHeight}
             min={0.1}
             max={1}
@@ -596,6 +627,7 @@ function HeatmapSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Edge steep"
+            typePath="HeatmapDataLayer.countryDomes.edgeSteepness"
             value={settings.domeEdgeSteepness}
             min={1}
             max={5}
@@ -604,6 +636,7 @@ function HeatmapSections({
           />
           <ToggleField
             label="Pre-scale"
+            typePath="HeatmapDataLayer.countryDomes.valuePreScale"
             value={settings.domePreScale}
             options={heatmapPreScaleOptions}
             onChange={(domePreScale) => onChange({ domePreScale })}
@@ -613,6 +646,7 @@ function HeatmapSections({
 
       <AnimationSection
         idPrefix="heatmap"
+        layerType="HeatmapDataLayer"
         enabled={settings.animationEnabled}
         style={settings.animationStyle}
         order={settings.animationOrder}
@@ -680,7 +714,7 @@ function ChartsSections({
   return (
     <>
       <PanelSection
-        feature="data-layers"
+        feature="charts"
         id="charts-dataset"
         title="Dataset & Type"
         icon={<FontAwesomeIcon icon={faChartColumn} className="size-3" />}
@@ -688,12 +722,14 @@ function ChartsSections({
       >
         <SelectField
           label="Chart type"
+          typePath="ChartsDataLayer.chartType"
           value={settings.chartType}
           options={chartTypeOptions}
           onChange={setChartType}
         />
         <SelectField
           label="Dataset"
+          typePath="ChartsDataLayer.data"
           value={settings.dataset}
           options={chartDatasetOptions}
           onChange={setDataset}
@@ -701,7 +737,7 @@ function ChartsSections({
       </PanelSection>
 
       <PanelSection
-        feature="data-layers"
+        feature="charts"
         id="charts-visual"
         title="Visual"
         icon={<FontAwesomeIcon icon={faPalette} className="size-3" />}
@@ -711,6 +747,7 @@ function ChartsSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Size"
+            typePath="ChartsDataLayer.size"
             value={settings.size}
             min={0.025}
             max={0.13}
@@ -721,6 +758,7 @@ function ChartsSections({
           />
           <SliderField
             label="Height"
+            typePath="ChartsDataLayer.height"
             value={settings.height}
             min={0.02}
             max={0.24}
@@ -731,6 +769,7 @@ function ChartsSections({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Inner radius"
+            typePath="ChartsDataLayer.innerRadius"
             value={settings.innerRadius}
             min={0.05}
             max={0.8}
@@ -741,6 +780,7 @@ function ChartsSections({
           />
           <SliderField
             label="Pad angle"
+            typePath="ChartsDataLayer.padAngle"
             value={settings.padAngle}
             min={0}
             max={0.08}
@@ -754,6 +794,7 @@ function ChartsSections({
 
       <AnimationSection
         idPrefix="charts"
+        layerType="ChartsDataLayer"
         enabled={settings.animationEnabled}
         style="rise"
         order={settings.animationOrder}
@@ -764,7 +805,8 @@ function ChartsSections({
         extras={
           <SliderField
             label="Segment stagger"
-            feature="data-layers"
+            typePath="ChartsDataLayer.segmentStagger"
+            feature="charts"
             value={settings.segmentStaggerMs}
             min={0}
             max={180}
@@ -787,13 +829,14 @@ function ChartsSections({
       />
 
       <PanelSection
-        feature="data-layers"
+        feature="charts"
         id="charts-interaction"
         title="Interaction"
         icon={<FontAwesomeIcon icon={faHand} className="size-3" />}
       >
         <ToggleField
           label="Labels"
+          typePath="ChartsDataLayer.labels"
           value={settings.labels}
           options={labelModeOptions}
           onChange={(labels) => onChange({ labels })}
@@ -801,11 +844,13 @@ function ChartsSections({
         <div className="grid grid-cols-2 gap-2">
           <SwitchField
             label="Hover highlight"
+            typePath="ChartsDataLayer.highlight"
             checked={settings.highlight}
             onChange={(highlight) => onChange({ highlight })}
           />
           <SwitchField
             label="Borders"
+            typePath="ChartsDataLayer.borderWidth"
             checked={settings.borders}
             onChange={(borders) => onChange({ borders })}
           />
@@ -830,6 +875,7 @@ interface AnimationPatch {
 
 function AnimationSection({
   idPrefix,
+  layerType,
   enabled,
   style,
   order,
@@ -840,7 +886,8 @@ function AnimationSection({
   extras,
   onChange,
 }: {
-  readonly idPrefix: string;
+  readonly idPrefix: 'hexbin' | 'heatmap' | 'charts';
+  readonly layerType: 'HexBinDataLayer' | 'HeatmapDataLayer' | 'ChartsDataLayer';
   readonly enabled: boolean;
   readonly style: HeatmapAnimationStyle;
   readonly order: HeatmapAnimationOrder;
@@ -858,7 +905,7 @@ function AnimationSection({
     : 'off';
   return (
     <PanelSection
-        feature="data-layers"
+        feature={idPrefix}
       id={`${idPrefix}-animation`}
       title="Animation"
       icon={<FontAwesomeIcon icon={faSparkles} className="size-3" />}
@@ -866,6 +913,7 @@ function AnimationSection({
     >
       <SwitchField
         label="Animate on mount"
+        typePath={`${layerType}.animation`}
         checked={enabled}
         onChange={(next) => onChange({ enabled: next })}
       />
@@ -878,6 +926,7 @@ function AnimationSection({
         {!hideStyle ? (
           <ToggleField
             label="Style"
+        typePath={`${layerType}.animation.style`}
             value={style}
             options={animationStyleOptions}
             onChange={(next) => onChange({ style: next })}
@@ -885,12 +934,14 @@ function AnimationSection({
         ) : null}
         <ToggleField
           label="Order"
+        typePath={`${layerType}.animation.order`}
           value={order}
           options={animationOrderOptions}
           onChange={(next) => onChange({ order: next })}
         />
         <SelectField
           label="Easing"
+        typePath={`${layerType}.animation.easing`}
           value={easing}
           options={easingOptions}
           onChange={(next) => onChange({ easing: next })}
@@ -898,6 +949,7 @@ function AnimationSection({
         <div className="grid grid-cols-2 gap-3">
           <SliderField
             label="Duration"
+        typePath={`${layerType}.animation.duration`}
             value={duration}
             min={200}
             max={3000}
@@ -907,6 +959,7 @@ function AnimationSection({
           />
           <SliderField
             label="Stagger"
+        typePath={`${layerType}.animation.stagger`}
             value={stagger}
             min={0}
             max={120}

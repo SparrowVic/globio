@@ -156,6 +156,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
 
           <ColorListField
             label="Custom swatches"
+            configPath="starfield.palette"
             colors={settings.starfieldPalette}
             onChange={(starfieldPalette) => onGlobeChange({ starfieldPalette })}
             maxItems={8}

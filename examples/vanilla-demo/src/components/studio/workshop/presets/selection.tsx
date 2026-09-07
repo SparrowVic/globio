@@ -168,6 +168,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Dotted · hover dots</SectionHeading>
           <SwitchField
             label="Hover expansion"
+            configPath="dotted.hoverDots.enabled"
             checked={settings.dottedHoverDots}
             onChange={(dottedHoverDots) => onGlobeChange({ dottedHoverDots })}
             value="Hovered country's dots scale up and brighten"
@@ -179,6 +180,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Scale"
+              configPath="dotted.hoverDots.scale"
               value={settings.dottedHoverScale}
               min={1}
               max={3}
@@ -188,6 +190,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Brightness boost"
+              configPath="dotted.hoverDots.brightnessBoost"
               value={settings.dottedHoverBrightnessBoost}
               min={0}
               max={2}
@@ -199,6 +202,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Ease duration"
+              configPath="dotted.hoverDots.duration"
               value={settings.dottedHoverDuration}
               min={0.05}
               max={1.5}
@@ -208,6 +212,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Hover lift"
+              configPath="dotted.hoverDots.lift"
               value={settings.dottedHoverLift}
               min={0}
               max={0.04}
@@ -222,6 +227,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Dotted · edge rim</SectionHeading>
           <SwitchField
             label="Edge dot rim"
+            configPath="dotted.edge.enabled"
             checked={settings.dottedEdgeHighlight}
             onChange={(dottedEdgeHighlight) => onGlobeChange({ dottedEdgeHighlight })}
             value="Boundary dots brighten and lift on hover or pin"
@@ -233,6 +239,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Brightness boost"
+              configPath="dotted.edge.boost"
               value={settings.dottedEdgeBoost}
               min={0}
               max={1.5}
@@ -242,6 +249,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Edge lift"
+              configPath="dotted.edge.lift"
               value={settings.dottedEdgeLift}
               min={0}
               max={0.02}
@@ -256,6 +264,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Dotted · pinned country</SectionHeading>
           <SwitchField
             label="Active pulse"
+            configPath="dotted.activeCountry.enabled"
             checked={settings.dottedActiveCountry}
             onChange={(dottedActiveCountry) => onGlobeChange({ dottedActiveCountry })}
             value="Pinned country's dots breathe with a steady boost"
@@ -267,6 +276,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Brightness boost"
+              configPath="dotted.activeCountry.boost"
               value={settings.dottedActiveBoost}
               min={0}
               max={2}
@@ -276,6 +286,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Scale"
+              configPath="dotted.activeCountry.scale"
               value={settings.dottedActiveScale}
               min={1}
               max={2}
@@ -285,6 +296,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Pulse speed"
+              configPath="dotted.activeCountry.pulseSpeed"
               value={settings.dottedActivePulseSpeed}
               min={0.05}
               max={2}
@@ -296,6 +308,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Active lift"
+              configPath="dotted.activeCountry.lift"
               value={settings.dottedActiveLift}
               min={0}
               max={0.05}
@@ -317,6 +330,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Outline · stroke</SectionHeading>
           <SliderField
             label="Highlight lift"
+            configPath="outline.hover.lift"
             value={settings.outlineHoverLift}
             min={0}
             max={0.01}
@@ -326,6 +340,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Glow lift"
+            configPath="outline.hover.glowLift"
             value={settings.outlineHoverGlowLift}
             min={0}
             max={0.012}
@@ -337,6 +352,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Outline · glow</SectionHeading>
           <SwitchField
             label="Hover glow"
+            configPath="outline.hoverGlow.enabled"
             checked={settings.outlineHoverGlowEnabled}
             onChange={(outlineHoverGlowEnabled) => onGlobeChange({ outlineHoverGlowEnabled })}
             value="Soft additive halo behind the hovered border"
@@ -345,6 +361,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Outline · focus</SectionHeading>
           <SwitchField
             label="Continent dim"
+            configPath="outline.continentDim.enabled"
             checked={settings.outlineContinentDim}
             onChange={(outlineContinentDim) => onGlobeChange({ outlineContinentDim })}
             value="Fade other-continent borders while hovering"
@@ -356,6 +373,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Dim amount"
+              configPath="outline.continentDim.amount"
               value={settings.outlineContinentDimAmount}
               min={0}
               max={1}

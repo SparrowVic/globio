@@ -29,6 +29,7 @@ export function SwitchField({
   disabledReason,
   feature,
   configPath,
+  typePath,
 }: SwitchFieldProps) {
   return (
     <div
@@ -41,10 +42,11 @@ export function SwitchField({
         label={label}
         info={info ?? value}
         feature={feature}
-        configPath={configPath}
+        configPath={configPath} typePath={typePath}
         disabledReason={disabled && disabledReason ? disabledReason : undefined}
       />
       <Switch
+        aria-label={label}
         size="default"
         checked={checked}
         onCheckedChange={onChange}

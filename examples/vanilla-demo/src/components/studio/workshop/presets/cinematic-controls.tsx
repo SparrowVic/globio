@@ -18,7 +18,7 @@ import { FeatureScopeProvider } from '@/components/shared/controls/feature-scope
  * Sections mirror the core kind's sub-configs:
  *  - **Sun** (`cinematic.sun`) — light rig. `fixed` pins the vector set
  *    by the Sun X/Y/Z sliders above; `realtime` derives the subsolar
- *    point from wall-clock time × time scale; `orbit` time-lapses the
+ *    point from a simulated date advanced by time scale; `orbit` time-lapses the
  *    terminator westward at N degrees/second. Plus the visible sun disc
  *    (glare / size / tint).
  *  - **Clouds** (`cinematic.clouds`) — procedural shell above the
@@ -57,6 +57,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <SectionHeading>Sun</SectionHeading>
       <ToggleField
         label="Sun mode"
+        configPath="cinematic.sun.mode"
         value={settings.cinematicSunMode}
         options={sunModeOptions}
         onChange={(cinematicSunMode) => onGlobeChange({ cinematicSunMode })}
@@ -64,6 +65,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <DependsOn when={settings.cinematicSunMode === 'orbit'} variant="hidden">
         <SliderField
           label="Orbit speed"
+          configPath="cinematic.sun.speed"
           value={settings.cinematicSunSpeed}
           min={0.5}
           max={90}
@@ -75,6 +77,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <DependsOn when={settings.cinematicSunMode === 'realtime'} variant="hidden">
         <SliderField
           label="Time scale"
+          configPath="cinematic.sun.timeScale"
           value={settings.cinematicSunTimeScale}
           min={1}
           max={3600}
@@ -85,6 +88,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       </DependsOn>
       <SwitchField
         label="Sun disc"
+        configPath="cinematic.sun.visible"
         checked={settings.cinematicSunVisible}
         onChange={(cinematicSunVisible) => onGlobeChange({ cinematicSunVisible })}
         value="Draw the star itself far along the light direction"
@@ -96,6 +100,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       >
         <SliderField
           label="Glare"
+          configPath="cinematic.sun.glare"
           value={settings.cinematicSunGlare}
           min={0}
           max={2}
@@ -105,6 +110,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SliderField
           label="Disc size"
+          configPath="cinematic.sun.size"
           value={settings.cinematicSunSize}
           min={0.3}
           max={3}
@@ -114,6 +120,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <ColorField
           label="Sun tint"
+          configPath="cinematic.sun.color"
           value={settings.cinematicSunColor || '#fff3d2'}
           onChange={(cinematicSunColor) => onGlobeChange({ cinematicSunColor })}
           hint={settings.cinematicSunColor === '' ? 'Theme default' : undefined}
@@ -125,6 +132,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <SectionHeading>Clouds</SectionHeading>
       <SwitchField
         label="Cloud shell"
+        configPath="cinematic.clouds.enabled"
         checked={settings.cinematicClouds}
         onChange={(cinematicClouds) => onGlobeChange({ cinematicClouds })}
         value="Advecting weather layer above the surface"
@@ -136,6 +144,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       >
         <SliderField
           label="Coverage"
+          configPath="cinematic.clouds.coverage"
           value={settings.cinematicCloudCoverage}
           min={0}
           max={1}
@@ -145,6 +154,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SliderField
           label="Cloud opacity"
+          configPath="cinematic.clouds.opacity"
           value={settings.cinematicCloudShellOpacity}
           min={0}
           max={1}
@@ -156,6 +166,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SliderField
           label="Drift speed"
+          configPath="cinematic.clouds.speed"
           value={settings.cinematicCloudSpeed}
           min={0}
           max={4}
@@ -165,6 +176,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SliderField
           label="Edge softness"
+          configPath="cinematic.clouds.softness"
           value={settings.cinematicCloudSoftness}
           min={0}
           max={1}
@@ -174,6 +186,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SliderField
           label="Altitude"
+          configPath="cinematic.clouds.altitude"
           value={settings.cinematicCloudAltitude}
           min={0.003}
           max={0.03}
@@ -183,6 +196,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SwitchField
           label="Cloud shadows"
+          configPath="cinematic.clouds.shadows"
           checked={settings.cinematicCloudShadows}
           onChange={(cinematicCloudShadows) => onGlobeChange({ cinematicCloudShadows })}
           value="Project the cloud density down onto the surface"
@@ -193,6 +207,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         >
           <SliderField
             label="Shadow strength"
+            configPath="cinematic.clouds.shadowStrength"
             value={settings.cinematicCloudShadowStrength}
             min={0}
             max={1}
@@ -208,6 +223,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <SectionHeading>Surface</SectionHeading>
       <SliderField
         label="Relief"
+        configPath="cinematic.surface.relief"
         value={settings.cinematicRelief}
         min={0}
         max={2}
@@ -217,12 +233,14 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <SwitchField
         label="Biomes"
+        configPath="cinematic.surface.biomes"
         checked={settings.cinematicBiomes}
         onChange={(cinematicBiomes) => onGlobeChange({ cinematicBiomes })}
         value="Latitude / altitude / moisture driven land palette"
       />
       <SliderField
         label="Shallows"
+        configPath="cinematic.surface.shallows"
         value={settings.cinematicShallows}
         min={0}
         max={1}
@@ -232,6 +250,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <SliderField
         label="Moonlight"
+        configPath="cinematic.surface.moonlight"
         value={settings.cinematicMoonlight}
         min={0}
         max={2}
@@ -241,6 +260,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <SliderField
         label="Snow line"
+        configPath="cinematic.surface.snowLine"
         value={settings.cinematicSnowLine}
         min={0.3}
         max={1}
@@ -250,6 +270,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <ColorField
         label="Ice"
+        configPath="cinematic.surface.iceColor"
         value={settings.cinematicIceColor || '#eaf6ff'}
         onChange={(cinematicIceColor) => onGlobeChange({ cinematicIceColor })}
         hint={settings.cinematicIceColor === '' ? 'Theme default' : undefined}
@@ -258,6 +279,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <ColorField
         label="Vegetation"
+        configPath="cinematic.surface.vegetationColor"
         value={settings.cinematicVegetationColor || '#3f6b34'}
         onChange={(cinematicVegetationColor) => onGlobeChange({ cinematicVegetationColor })}
         hint={settings.cinematicVegetationColor === '' ? 'Theme default' : undefined}
@@ -266,6 +288,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <ColorField
         label="Desert"
+        configPath="cinematic.surface.desertColor"
         value={settings.cinematicDesertColor || '#c2a06a'}
         onChange={(cinematicDesertColor) => onGlobeChange({ cinematicDesertColor })}
         hint={settings.cinematicDesertColor === '' ? 'Theme default' : undefined}
@@ -274,6 +297,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <ColorField
         label="Shallow water"
+        configPath="cinematic.surface.shallowWaterColor"
         value={settings.cinematicShallowWaterColor || '#2fb6c4'}
         onChange={(cinematicShallowWaterColor) =>
           onGlobeChange({ cinematicShallowWaterColor })
@@ -286,6 +310,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <SectionHeading>Aurora</SectionHeading>
       <SwitchField
         label="Aurora"
+        configPath="cinematic.aurora.enabled"
         checked={settings.cinematicAurora}
         onChange={(cinematicAurora) => onGlobeChange({ cinematicAurora })}
         value="Night-side curtains near the geomagnetic poles"
@@ -297,6 +322,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       >
         <SliderField
           label="Intensity"
+          configPath="cinematic.aurora.intensity"
           value={settings.cinematicAuroraIntensity}
           min={0}
           max={2}
@@ -308,6 +334,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SliderField
           label="Curtain speed"
+          configPath="cinematic.aurora.speed"
           value={settings.cinematicAuroraSpeed}
           min={0}
           max={3}
@@ -317,6 +344,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <SliderField
           label="Oval latitude"
+          configPath="cinematic.aurora.latitude"
           value={settings.cinematicAuroraLatitude}
           min={55}
           max={80}
@@ -328,6 +356,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <ColorField
           label="Aurora base"
+          configPath="cinematic.aurora.color"
           value={settings.cinematicAuroraColor || '#3ef2a5'}
           onChange={(cinematicAuroraColor) => onGlobeChange({ cinematicAuroraColor })}
           hint={settings.cinematicAuroraColor === '' ? 'Theme default' : undefined}
@@ -336,6 +365,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
         />
         <ColorField
           label="Aurora tip"
+          configPath="cinematic.aurora.colorTop"
           value={settings.cinematicAuroraTopColor || '#b06cf0'}
           onChange={(cinematicAuroraTopColor) =>
             onGlobeChange({ cinematicAuroraTopColor })
@@ -349,6 +379,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <SectionHeading>Atmosphere scatter</SectionHeading>
       <SliderField
         label="Rayleigh scatter"
+        configPath="cinematic.atmosphere.scatterStrength"
         value={settings.cinematicScatter}
         min={0}
         max={3}
@@ -358,6 +389,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <SliderField
         label="Mie halo"
+        configPath="cinematic.atmosphere.mieStrength"
         value={settings.cinematicMie}
         min={0}
         max={3}
@@ -367,6 +399,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <SliderField
         label="Airglow"
+        configPath="cinematic.atmosphere.airglow"
         value={settings.cinematicAirglow}
         min={0}
         max={1}
@@ -376,6 +409,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       />
       <SliderField
         label="Shell thickness"
+        configPath="cinematic.atmosphere.thickness"
         value={settings.cinematicAtmosphereThickness}
         min={0.02}
         max={0.2}
@@ -389,6 +423,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <SectionHeading>Sky</SectionHeading>
       <SwitchField
         label="Milky Way"
+        configPath="starfield.milkyWay.enabled"
         checked={settings.cinematicMilkyWay}
         onChange={(cinematicMilkyWay) => onGlobeChange({ cinematicMilkyWay })}
         value="Dusty galactic band behind the starfield"
@@ -396,6 +431,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <DependsOn when={settings.cinematicMilkyWay} because="Enable Milky Way first.">
         <SliderField
           label="Band brightness"
+          configPath="starfield.milkyWay.intensity"
           value={settings.cinematicMilkyWayIntensity}
           min={0}
           max={1.5}
@@ -410,6 +446,7 @@ export function CinematicControls({ state, onGlobeChange }: KnobsComponentProps)
       <SectionHeading>Textures</SectionHeading>
       <ToggleField
         label="Surface maps"
+        configPath="cinematic.textures"
         value={settings.cinematicTextures}
         options={textureOptions}
         onChange={(cinematicTextures) => onGlobeChange({ cinematicTextures })}

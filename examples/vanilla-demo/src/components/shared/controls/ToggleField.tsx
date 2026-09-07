@@ -18,6 +18,7 @@ export interface ToggleFieldProps<T extends string> extends DisableProps, Featur
  */
 export function ToggleField<T extends string>({
   label,
+  info,
   value,
   options,
   onChange,
@@ -26,17 +27,21 @@ export function ToggleField<T extends string>({
   disabledReason,
   feature,
   configPath,
+  typePath,
 }: ToggleFieldProps<T>) {
   return (
     <Field
       label={label}
+      info={info}
       className={className}
       disabled={disabled}
       disabledReason={disabledReason}
       feature={feature}
-      configPath={configPath}
+      configPath={configPath} typePath={typePath}
     >
       <ToggleGroup
+        disabled={disabled}
+        aria-label={label}
         type="single"
         value={value}
         onValueChange={(next) => {

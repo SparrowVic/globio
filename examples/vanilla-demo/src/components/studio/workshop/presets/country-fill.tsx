@@ -190,6 +190,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Dots tinting</SectionHeading>
         <ToggleField
           label="Mode"
+          configPath="dotted.dots.mode"
           value={dotsMode === 'data' ? 'theme' : dotsMode}
           options={dotsModeOptions}
           onChange={(dottedDotsMode) => onGlobeChange({ dottedDotsMode })}
@@ -210,6 +211,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           */}
           <ColorField
             label="Default color"
+            configPath="dotted.appearance.color"
             value={settings.dottedColor || '#7fdfff'}
             onChange={(dottedColor) => onGlobeChange({ dottedColor })}
             hint={settings.dottedColor === '' ? 'Theme default' : undefined}
@@ -225,6 +227,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorListField
             label="Dots palette"
+            configPath="dotted.dots.palette"
             colors={settings.dottedDotsPalette}
             onChange={(dottedDotsPalette) => onGlobeChange({ dottedDotsPalette })}
             addLabel="Add color"
@@ -234,6 +237,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Dots · hover override</SectionHeading>
         <ColorField
           label="Hover dot color"
+          configPath="dotted.dots.hoverColor"
           value={settings.dottedDotsHoverColor || '#a5f3fc'}
           onChange={(dottedDotsHoverColor) => onGlobeChange({ dottedDotsHoverColor })}
           hint={settings.dottedDotsHoverColor === '' ? 'No override' : undefined}
@@ -243,6 +247,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Dots · pinned override</SectionHeading>
         <ColorField
           label="Active dot color"
+          configPath="dotted.dots.activeColor"
           value={settings.dottedDotsActiveColor || '#fcd34d'}
           onChange={(dottedDotsActiveColor) => onGlobeChange({ dottedDotsActiveColor })}
           hint={settings.dottedDotsActiveColor === '' ? 'No override' : undefined}

@@ -25,6 +25,7 @@
   z-index: 60;
   width: 320px;
   max-width: calc(100vw - 24px);
+  overflow-wrap: anywhere;
   padding: 14px 15px 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -54,6 +55,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: calc(var(--radix-popover-content-available-height, 100vh) - 28px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .feature-tip-head {
   display: flex;
@@ -161,6 +165,10 @@
 }
 .feature-tip-link:hover {
   text-decoration: underline;
+}
+.feature-tip-link:focus-visible {
+  outline: 2px solid #6fb4ff;
+  outline-offset: 3px;
 }
 @media (prefers-reduced-motion: reduce) {
   .feature-tip {

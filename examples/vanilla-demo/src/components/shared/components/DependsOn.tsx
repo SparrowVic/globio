@@ -55,20 +55,20 @@ export function DependsOn({
   if (variant === 'hidden') return null;
   return (
     <div className="relative">
-      <div className={cn('pointer-events-none opacity-50', className)}>{children}</div>
+      <div ref={(element) => { if (element) element.inert = true; }} className={cn('pointer-events-none opacity-50', className)}>{children}</div>
       {because ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span
+            <button
+              type="button"
               className={cn(
                 'absolute right-1 top-1 flex size-5 cursor-help items-center justify-center rounded-full',
                 'border border-amber-300/40 bg-slate-900/80 text-amber-200 shadow-sm',
               )}
               aria-label="Why is this disabled?"
-              role="img"
             >
               <Info className="size-3" />
-            </span>
+            </button>
           </TooltipTrigger>
           <TooltipContent side="left" sideOffset={6} className="max-w-[240px] text-xs">
             {because}

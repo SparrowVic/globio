@@ -25,6 +25,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
       <SectionHeading>Post-processing</SectionHeading>
       <SwitchField
         label="Post FX"
+        configPath="postprocessing.enabled"
         checked={settings.postfxEnabled}
         onChange={(postfxEnabled) => onGlobeChange({ postfxEnabled })}
         value="HDR bloom / streak / grain composite with a soft highlight roll-off"
@@ -36,6 +37,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
       >
         <SliderField
           label="Exposure"
+          configPath="postprocessing.exposure"
           value={settings.postfxExposure}
           min={0.4}
           max={2}
@@ -45,6 +47,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
         />
         <SliderField
           label="Bloom strength"
+          configPath="postprocessing.bloom.strength"
           value={settings.postfxBloomStrength}
           min={0}
           max={2}
@@ -59,6 +62,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
         >
           <SliderField
             label="Bloom threshold"
+            configPath="postprocessing.bloom.threshold"
             value={settings.postfxBloomThreshold}
             min={0}
             max={1.5}
@@ -68,6 +72,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
           />
           <SliderField
             label="Bloom radius"
+            configPath="postprocessing.bloom.radius"
             value={settings.postfxBloomRadius}
             min={0}
             max={1}
@@ -78,6 +83,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
         </DependsOn>
         <SliderField
           label="Anamorphic streak"
+          configPath="postprocessing.streak.strength"
           value={settings.postfxStreak}
           min={0}
           max={1}
@@ -87,6 +93,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
         />
         <SliderField
           label="Vignette"
+          configPath="postprocessing.vignette.strength"
           value={settings.postfxVignette}
           min={0}
           max={1}
@@ -96,6 +103,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
         />
         <SliderField
           label="Chromatic aberration"
+          configPath="postprocessing.chromaticAberration.strength"
           value={settings.postfxChromatic}
           min={0}
           max={0.01}
@@ -105,6 +113,7 @@ export function CinematicPostFxControls({ state, onGlobeChange }: KnobsComponent
         />
         <SliderField
           label="Film grain"
+          configPath="postprocessing.grain.strength"
           value={settings.postfxGrain}
           min={0}
           max={0.15}

@@ -278,6 +278,7 @@ export function TopCommandBar({
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <GroupedSelectField<GlobeKind>
             label="Kind"
+            configPath="kind"
             feature="kind"
             hideLabel
             value={state.globe.kind}
@@ -287,6 +288,7 @@ export function TopCommandBar({
           />
           <GroupedSelectField<ThemePresetName>
             label="Theme"
+            configPath="theme"
             feature="theme"
             hideLabel
             value={state.globe.theme}

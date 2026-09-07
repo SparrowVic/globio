@@ -107,6 +107,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Color &amp; size</SectionHeading>
         <ColorField
           label="Dot color"
+          configPath="dotted.appearance.color"
           value={settings.dottedColor || '#7fdfff'}
           onChange={(dottedColor) => onGlobeChange({ dottedColor })}
           hint={settings.dottedColor === '' ? 'Theme default' : undefined}
@@ -115,6 +116,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Size scale"
+          configPath="dotted.appearance.sizeScale"
           value={settings.dottedSizeScale}
           min={0.4}
           max={3}
@@ -124,6 +126,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SliderField
           label="Master opacity"
+          configPath="dotted.appearance.opacity"
           value={settings.dottedOpacity}
           min={0}
           max={1}
@@ -135,6 +138,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Click ripple</SectionHeading>
         <SwitchField
           label="Click ripple"
+          configPath="dotted.clickRipple.enabled"
           checked={settings.dottedRipple}
           onChange={(dottedRipple) => onGlobeChange({ dottedRipple })}
           value="Sonar wave brightens dots it sweeps over — click anywhere"
@@ -146,6 +150,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Boost"
+            configPath="dotted.clickRipple.boost"
             value={settings.dottedRippleBoost}
             min={0}
             max={4}
@@ -155,6 +160,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="dotted.clickRipple.speed"
             value={settings.dottedRippleSpeed}
             min={0.2}
             max={4}
@@ -164,6 +170,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Band width"
+            configPath="dotted.clickRipple.width"
             value={settings.dottedRippleWidth}
             min={0.04}
             max={0.6}
@@ -173,6 +180,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Max concurrent"
+            configPath="dotted.clickRipple.maxConcurrent"
             value={settings.dottedRippleMaxConcurrent}
             min={1}
             max={6}
@@ -182,6 +190,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Wavefront color"
+            configPath="dotted.clickRipple.color"
             value={settings.dottedRippleColor || '#ffffff'}
             onChange={(dottedRippleColor) => onGlobeChange({ dottedRippleColor })}
             hint={settings.dottedRippleColor === '' ? 'Brightened dot color' : undefined}
@@ -193,6 +202,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Data flash</SectionHeading>
         <SwitchField
           label="Data flash"
+          configPath="dotted.dataFlash.enabled"
           checked={settings.dottedFlash}
           onChange={(dottedFlash) => onGlobeChange({ dottedFlash })}
           value="Country dots flash when their value changes"
@@ -204,6 +214,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Strength"
+            configPath="dotted.dataFlash.strength"
             value={settings.dottedFlashStrength}
             min={0.1}
             max={4}
@@ -213,6 +224,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Decay"
+            configPath="dotted.dataFlash.decay"
             value={settings.dottedFlashDecay}
             min={0.5}
             max={10}
@@ -222,6 +234,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Flash color"
+            configPath="dotted.dataFlash.color"
             value={settings.dottedFlashColor || '#ffffff'}
             onChange={(dottedFlashColor) => onGlobeChange({ dottedFlashColor })}
             hint={settings.dottedFlashColor === '' ? 'Theme default' : undefined}
@@ -233,6 +246,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Drift wave</SectionHeading>
         <SwitchField
           label="Drift"
+          configPath="dotted.drift.enabled"
           checked={settings.dottedDrift}
           onChange={(dottedDrift) => onGlobeChange({ dottedDrift })}
           value="Slow ambient brightness wave across the dot field"
@@ -244,12 +258,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ToggleField
             label="Axis"
+            configPath="dotted.drift.axis"
             value={settings.dottedDriftAxis}
             options={driftAxisOptions}
             onChange={(dottedDriftAxis) => onGlobeChange({ dottedDriftAxis })}
           />
           <SliderField
             label="Amplitude"
+            configPath="dotted.drift.amplitude"
             value={settings.dottedDriftAmplitude}
             min={0}
             max={1}
@@ -259,6 +275,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="dotted.drift.speed"
             value={settings.dottedDriftSpeed}
             min={0}
             max={3}
@@ -268,6 +285,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Frequency"
+            configPath="dotted.drift.freq"
             value={settings.dottedDriftFreq}
             min={0.5}
             max={12}
@@ -277,6 +295,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SwitchField
             label="Per-country phase"
+            configPath="dotted.drift.perCountryPhase"
             checked={settings.dottedDriftPerCountryPhase}
             onChange={(dottedDriftPerCountryPhase) =>
               onGlobeChange({ dottedDriftPerCountryPhase })
@@ -288,6 +307,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Hover dots</SectionHeading>
         <SwitchField
           label="Hover expansion"
+          configPath="dotted.hoverDots.enabled"
           checked={settings.dottedHoverDots}
           onChange={(dottedHoverDots) => onGlobeChange({ dottedHoverDots })}
           value="Hovered country's dots scale up + brighten"
@@ -299,6 +319,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Scale"
+            configPath="dotted.hoverDots.scale"
             value={settings.dottedHoverScale}
             min={1}
             max={3}
@@ -308,6 +329,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Brightness boost"
+            configPath="dotted.hoverDots.brightnessBoost"
             value={settings.dottedHoverBrightnessBoost}
             min={0}
             max={2}
@@ -319,6 +341,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Ease duration"
+            configPath="dotted.hoverDots.duration"
             value={settings.dottedHoverDuration}
             min={0.05}
             max={1.5}
@@ -328,6 +351,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Hover lift"
+            configPath="dotted.hoverDots.lift"
             value={settings.dottedHoverLift}
             min={0}
             max={0.04}
@@ -342,6 +366,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Edge highlight</SectionHeading>
         <SwitchField
           label="Edge dot rim"
+          configPath="dotted.edge.enabled"
           checked={settings.dottedEdgeHighlight}
           onChange={(dottedEdgeHighlight) => onGlobeChange({ dottedEdgeHighlight })}
           value="Surface dots that already trace the country boundary brighten + lift on hover / pin"
@@ -353,6 +378,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Brightness boost"
+            configPath="dotted.edge.boost"
             value={settings.dottedEdgeBoost}
             min={0}
             max={1.5}
@@ -362,6 +388,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Edge lift"
+            configPath="dotted.edge.lift"
             value={settings.dottedEdgeLift}
             min={0}
             max={0.02}
@@ -376,6 +403,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Pinned country</SectionHeading>
         <SwitchField
           label="Active pulse"
+          configPath="dotted.activeCountry.enabled"
           checked={settings.dottedActiveCountry}
           onChange={(dottedActiveCountry) =>
             onGlobeChange({ dottedActiveCountry })
@@ -389,6 +417,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Brightness boost"
+            configPath="dotted.activeCountry.boost"
             value={settings.dottedActiveBoost}
             min={0}
             max={2}
@@ -398,6 +427,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Scale"
+            configPath="dotted.activeCountry.scale"
             value={settings.dottedActiveScale}
             min={1}
             max={2}
@@ -407,6 +437,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Pulse speed"
+            configPath="dotted.activeCountry.pulseSpeed"
             value={settings.dottedActivePulseSpeed}
             min={0.05}
             max={2}
@@ -418,6 +449,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Active lift"
+            configPath="dotted.activeCountry.lift"
             value={settings.dottedActiveLift}
             min={0}
             max={0.05}
@@ -432,6 +464,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Cursor wake</SectionHeading>
         <SwitchField
           label="Cursor wake"
+          configPath="dotted.cursorWake.enabled"
           checked={settings.dottedCursorWake}
           onChange={(dottedCursorWake) => onGlobeChange({ dottedCursorWake })}
           value="Soft ripple trails the cursor across the dot field"
@@ -443,6 +476,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Amplitude"
+            configPath="dotted.cursorWake.amplitude"
             value={settings.dottedCursorWakeAmplitude}
             min={0}
             max={2}
@@ -454,6 +488,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Fade"
+            configPath="dotted.cursorWake.fade"
             value={settings.dottedCursorWakeFade}
             min={0.1}
             max={1.5}
@@ -463,6 +498,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Width"
+            configPath="dotted.cursorWake.width"
             value={settings.dottedCursorWakeWidth}
             min={0.02}
             max={0.4}
@@ -475,6 +511,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Latitude bands</SectionHeading>
         <SwitchField
           label="Equator + tropics"
+          configPath="dotted.latitudeBands.enabled"
           checked={settings.dottedLatitudeBands}
           onChange={(dottedLatitudeBands) => onGlobeChange({ dottedLatitudeBands })}
           value="Brightness boost on the equator and ±23.5° parallels"
@@ -486,6 +523,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Equator boost"
+            configPath="dotted.latitudeBands.equatorBoost"
             value={settings.dottedEquatorBoost}
             min={0}
             max={1.5}
@@ -495,6 +533,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Tropics boost"
+            configPath="dotted.latitudeBands.tropicsBoost"
             value={settings.dottedTropicsBoost}
             min={0}
             max={1.5}
@@ -504,6 +543,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Band width"
+            configPath="dotted.latitudeBands.width"
             value={settings.dottedLatitudeBandWidth}
             min={1}
             max={20}
@@ -518,6 +558,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Pulse breath</SectionHeading>
         <SwitchField
           label="Pulse breath"
+          configPath="dotted.pulseBreath.enabled"
           checked={settings.dottedPulseBreath}
           onChange={(dottedPulseBreath) => onGlobeChange({ dottedPulseBreath })}
           value="Whole-field brightness inhales and exhales"
@@ -529,6 +570,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Amplitude"
+            configPath="dotted.pulseBreath.amplitude"
             value={settings.dottedPulseBreathAmplitude}
             min={0}
             max={1}
@@ -540,6 +582,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Speed"
+            configPath="dotted.pulseBreath.speed"
             value={settings.dottedPulseBreathSpeed}
             min={0.05}
             max={2}
@@ -552,6 +595,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Constellation</SectionHeading>
         <SwitchField
           label="Constellation lines"
+          configPath="dotted.constellation.enabled"
           checked={settings.dottedConstellation}
           onChange={(dottedConstellation) => onGlobeChange({ dottedConstellation })}
           value="Hovered country's dots are wired into a star chart"
@@ -563,6 +607,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Line color"
+            configPath="dotted.constellation.color"
             value={settings.dottedConstellationColor || '#7fdfff'}
             onChange={(dottedConstellationColor) =>
               onGlobeChange({ dottedConstellationColor })
@@ -575,6 +620,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Line opacity"
+            configPath="dotted.constellation.opacity"
             value={settings.dottedConstellationOpacity}
             min={0.05}
             max={1}
@@ -586,6 +632,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Connection range"
+            configPath="dotted.constellation.distanceFactor"
             value={settings.dottedConstellationDistanceFactor}
             min={1.05}
             max={3}

@@ -31,6 +31,8 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <SectionHeading>Dataset</SectionHeading>
       <SelectField
         label="Fixture"
+        feature="markers"
+        info="Studio uses these sample coordinates for both 3D markers and HTML cards."
         value={settings.markerDataset}
         options={markerDatasetOptions}
         onChange={(markerDataset) => onGlobeChange({ markerDataset })}
@@ -39,6 +41,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
       <SectionHeading>Render mode</SectionHeading>
       <ToggleField
         label="Mode"
+        info="Studio fills markers for 3D dots or htmlMarkers for cards and clears the other array."
         value={settings.markerMode}
         options={markerRenderModeOptions}
         onChange={(markerMode) => onGlobeChange({ markerMode })}
@@ -52,6 +55,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Dot style</SectionHeading>
         <SliderField
           label="Size"
+          configPath="markers[].size"
           value={settings.markerSize}
           min={0.4}
           max={6}
@@ -67,6 +71,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
                 ? 'Projector hover scale'
                 : 'Hover scale'
           }
+          configPath="markers[].hoverScale"
           value={settings.markerHoverScale}
           min={1}
           max={3}
@@ -76,6 +81,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SwitchField
           label="Per-marker accent palette"
+          configPath="markers[].color"
           checked={settings.markerPerMarkerColor}
           onChange={(markerPerMarkerColor) => onGlobeChange({ markerPerMarkerColor })}
           value="Rotate through a six-color palette"
@@ -87,6 +93,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <ColorField
             label="Color"
+            configPath="markers[].color"
             value={settings.markerColor}
             onChange={(markerColor) => onGlobeChange({ markerColor })}
             swatches={[
@@ -107,6 +114,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Pulse</SectionHeading>
         <SwitchField
           label="Animated pulse"
+          configPath="markers[].pulse"
           checked={settings.markerPulse}
           onChange={(markerPulse) => onGlobeChange({ markerPulse })}
           value="Markers oscillate in size to draw attention"
@@ -118,6 +126,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         >
           <SliderField
             label="Speed"
+            configPath="markers[].pulse.speed"
             value={settings.markerPulseSpeed}
             min={0.2}
             max={4}
@@ -127,6 +136,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Amplitude"
+            configPath="markers[].pulse.amplitude"
             value={settings.markerPulseAmplitude}
             min={0.05}
             max={1}
@@ -135,10 +145,11 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             onChange={(markerPulseAmplitude) => onGlobeChange({ markerPulseAmplitude })}
           />
           <SwitchField
-            label="Per-marker phase offset"
+            label="Vary pulse speeds"
+            configPath="markers[].pulse.speed"
             checked={settings.markerPulsePhaseOffset}
             onChange={(markerPulsePhaseOffset) => onGlobeChange({ markerPulsePhaseOffset })}
-            value="Stagger pulses so the field doesn't strobe in unison"
+            value="Slightly increase each successive marker's speed so pulses drift apart over time"
           />
         </DependsOn>
       </DependsOn>
@@ -151,12 +162,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Card style</SectionHeading>
         <ToggleField
           label="Variant"
+          configPath="htmlMarkers[].content"
           value={settings.markerCardStyle}
           options={markerCardStyleOptions}
           onChange={(markerCardStyle) => onGlobeChange({ markerCardStyle })}
         />
         <ColorField
           label="Accent color"
+          configPath="htmlMarkers[].content"
           value={settings.markerCardAccent}
           onChange={(markerCardAccent) => onGlobeChange({ markerCardAccent })}
           swatches={[
@@ -176,12 +189,14 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         <SectionHeading>Position</SectionHeading>
         <ToggleField
           label="Anchor"
+          configPath="htmlMarkers[].anchor"
           value={settings.markerCardAnchor}
           options={markerCardAnchorOptions}
           onChange={(markerCardAnchor) => onGlobeChange({ markerCardAnchor })}
         />
         <SliderField
           label="Vertical offset"
+          configPath="htmlMarkers[].offset"
           value={settings.markerCardOffsetY}
           min={-40}
           max={40}
@@ -191,6 +206,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
         />
         <SwitchField
           label="Hide on far hemisphere"
+          configPath="htmlMarkers[].hideWhenOccluded"
           checked={settings.markerCardHideOccluded}
           onChange={(markerCardHideOccluded) => onGlobeChange({ markerCardHideOccluded })}
           value="Fade out cards rotated to the back of the globe"

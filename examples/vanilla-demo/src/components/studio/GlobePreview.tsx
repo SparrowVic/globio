@@ -62,7 +62,7 @@ export function GlobePreview({
       // honored even on the first ready frame (createGlobe places the
       // camera there, but a short flyTo gives a consistent intro feel).
       const home = configRef.current.initialPosition ?? [18, 38];
-      globe.flyTo(home, 2.85, { duration: 1 });
+      globe.flyTo(home, 2.85, { duration: 1000 });
     });
     const unsubscribeError = globe.on('error', (error) => {
       onMessage(error.message);

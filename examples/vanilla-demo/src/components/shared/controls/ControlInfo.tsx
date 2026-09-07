@@ -14,10 +14,14 @@ import { useFeatureScope } from './feature-scope';
 
 /** Props every control forwards so its label can show the right help tip. */
 export interface FeatureProps {
+  /** Extra context specific to this Studio control. */
+  readonly info?: ReactNode | undefined;
   /** Registry id of the feature this control belongs to. Overrides the enclosing scope. */
   readonly feature?: string | undefined;
   /** The GlobeConfig key this control edits, e.g. `atmosphere.power`. Picks the feature and shows the key's type and default. */
   readonly configPath?: string | undefined;
+  /** Named public type field for imperative API options, e.g. `HeatmapDataLayer.radius`. */
+  readonly typePath?: string | undefined;
 }
 
 export interface ControlLabelProps extends FeatureProps {
@@ -39,6 +43,7 @@ export function ControlLabel({
   disabledReason,
   feature,
   configPath,
+  typePath,
   className,
 }: ControlLabelProps) {
   const scope = useFeatureScope();
@@ -51,7 +56,7 @@ export function ControlLabel({
       {disabledReason ? (
         <ControlInfoTooltip tone="warning">{disabledReason}</ControlInfoTooltip>
       ) : resolved ? (
-        <FeatureTip feature={resolved} configPath={configPath ?? scope?.configPath} label={label} note={info} />
+        <FeatureTip feature={resolved} configPath={configPath ?? (typePath ? undefined : scope?.configPath)} typePath={typePath} label={label} note={info} />
       ) : info ? (
         <ControlInfoTooltip tone="neutral">{info}</ControlInfoTooltip>
       ) : null}

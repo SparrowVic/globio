@@ -1,15 +1,16 @@
-import { Suspense, lazy, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
-import { HoverCard } from 'radix-ui';
+import { Component, Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { Popover } from 'radix-ui';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUpRightFromSquare, faCircleQuestion } from '@fortawesome/sharp-solid-svg-icons';
 import type { GlobeKind } from '@your-globe/core';
 import { KIND_THEMES } from '@/components/home/landing/data/kind-themes';
 import { DocText } from '@/components/docs/primitives/DocText';
-import { findEntry, loadApi } from '@/docs/api';
+import { loadApi } from '@/docs/api';
 import { featureForConfigPath, getFeature, type FeatureDoc } from '@/docs/features';
 import type { ApiEntry } from '@/docs/generated/api-types';
 import { pageHref } from '@/docs/manifest';
 import { cn } from '@/lib/utils';
+import { findConfigTipEntry, findTypeTipEntry } from './feature-tip-data';
 import './feature-tip.css';
 
 export interface ResolveFeatureInput {
@@ -22,7 +23,7 @@ export interface ResolveFeatureInput {
 export const resolveFeature = ({ feature, configPath, scopeFeature }: ResolveFeatureInput): FeatureDoc | undefined => {
   if (feature) return getFeature(feature);
   if (configPath) {
-    const owner = featureForConfigPath(configPath);
+    const owner = featureForConfigPath(configPath.replace(/\[\]/g, ''));
     if (owner) return owner;
   }
   return scopeFeature ? getFeature(scopeFeature) : undefined;
@@ -32,6 +33,8 @@ export interface FeatureTipProps {
   readonly feature: FeatureDoc;
   /** The config key this control edits; adds the type, default and JSDoc line. */
   readonly configPath?: string | undefined;
+  /** A public type field edited through an imperative API rather than GlobeConfig. */
+  readonly typePath?: string | undefined;
   /** The control's own label, for the accessible name of the glyph. */
   readonly label?: string | undefined;
   /** Control-specific hint shown under the summary. */
@@ -65,47 +68,97 @@ const kindLabel: Readonly<Record<GlobeKind, string>> = {
  * feature's summary, the config key with its type and default straight
  * from the types, an optional illustrated tip, and a link into the docs.
  */
-export function FeatureTip({ feature, configPath, label, note, className }: FeatureTipProps) {
+export function FeatureTip({ feature, configPath, typePath, label, note, className }: FeatureTipProps) {
   const [open, setOpen] = useState(false);
+  const titleId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const clearTimer = () => clearTimeout(timer.current);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const closeAfterDelay = () => {
+    clearTimer();
+    timer.current = setTimeout(() => {
+      const active = document.activeElement;
+      if (active !== trigger.current && !content.current?.contains(active)) setOpen(false);
+    }, 140);
+  };
   return (
-    <HoverCard.Root openDelay={180} closeDelay={140} open={open} onOpenChange={setOpen}>
-      <HoverCard.Trigger asChild>
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
         <button
+          ref={trigger}
           type="button"
           className={cn('feature-tip-glyph', className)}
           aria-label={`About ${label ?? feature.title}`}
-          onClick={() => setOpen((v) => !v)}
+          onPointerEnter={(event) => {
+            if (event.pointerType === 'touch') return;
+            clearTimer();
+            timer.current = setTimeout(() => setOpen(true), 180);
+          }}
+          onPointerLeave={closeAfterDelay}
+          onFocus={() => { clearTimer(); setOpen(true); }}
+          onClick={(event) => {
+            // Focus/hover may already have opened the card. Keep the first
+            // activation open and move into its documentation link.
+            event.preventDefault();
+            clearTimer();
+            setOpen(true);
+            requestAnimationFrame(() => content.current?.querySelector('a')?.focus());
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              clearTimer();
+              setOpen(false);
+            } else if ((event.key === 'Tab' && !event.shiftKey && open) || event.key === 'ArrowDown') {
+              event.preventDefault();
+              setOpen(true);
+              requestAnimationFrame(() => content.current?.querySelector('a')?.focus());
+            }
+          }}
         >
           <FontAwesomeIcon icon={faCircleQuestion} className="size-3" />
         </button>
-      </HoverCard.Trigger>
-      <HoverCard.Portal>
-        <HoverCard.Content side="left" align="start" sideOffset={10} collisionPadding={12} className="feature-tip">
-          {open && <FeatureTipBody feature={feature} configPath={configPath} note={note} />}
-          <HoverCard.Arrow className="feature-tip-arrow" width={12} height={6} />
-        </HoverCard.Content>
-      </HoverCard.Portal>
-    </HoverCard.Root>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          ref={content}
+          side="left" align="start" sideOffset={10} collisionPadding={12} className="feature-tip"
+          aria-labelledby={titleId}
+          onPointerEnter={clearTimer}
+          onPointerLeave={closeAfterDelay}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onEscapeKeyDown={() => { clearTimer(); trigger.current?.focus(); }}
+        >
+          {open && <FeatureTipBody key={`${feature.id}:${configPath ?? typePath ?? ''}`} feature={feature} configPath={configPath} typePath={typePath} note={note} titleId={titleId} />}
+          <Popover.Arrow className="feature-tip-arrow" width={12} height={6} />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
-function FeatureTipBody({ feature, configPath, note }: { readonly feature: FeatureDoc; readonly configPath?: string | undefined; readonly note?: ReactNode }) {
+function FeatureTipBody({ feature, configPath, typePath, note, titleId }: Pick<FeatureTipProps, 'feature' | 'configPath' | 'typePath' | 'note'> & { readonly titleId: string }) {
   const [entry, setEntry] = useState<ApiEntry | null | undefined>(undefined);
+  const [loadFailed, setLoadFailed] = useState(false);
   const Tip = useMemo(() => lazyTip(feature), [feature]);
 
   useEffect(() => {
-    if (!configPath) {
+    if (!configPath && !typePath) {
       setEntry(null);
       return undefined;
     }
     let alive = true;
     void loadApi().then((api) => {
-      if (alive) setEntry(findEntry(api.config, configPath) ?? null);
+      if (alive) setEntry((configPath ? findConfigTipEntry(api, configPath) : findTypeTipEntry(api, typePath!)) ?? null);
+    }).catch(() => {
+      if (alive) { setEntry(null); setLoadFailed(true); }
     });
     return () => {
       alive = false;
     };
-  }, [configPath]);
+  }, [configPath, typePath]);
 
   const href = pageHref(feature.docs.slug) + (feature.docs.anchor ? `#${feature.docs.anchor}` : '');
   const kinds = feature.kinds === 'all' ? null : feature.kinds;
@@ -113,22 +166,23 @@ function FeatureTipBody({ feature, configPath, note }: { readonly feature: Featu
   return (
     <div className="feature-tip-body">
       <div className="feature-tip-head">
-        <span className="feature-tip-title">{feature.title}</span>
+        <span id={titleId} className="feature-tip-title">{feature.title}</span>
         {kinds ? (
-          <span className="feature-tip-kinds" title={kinds.map((k) => kindLabel[k]).join(', ')}>
+          <span className="feature-tip-kinds" aria-label={`Available in ${kinds.map((k) => kindLabel[k]).join(', ')}`} title={kinds.map((k) => kindLabel[k]).join(', ')}>
             {kinds.map((k) => (
-              <span key={k} className="feature-tip-kind" style={{ background: KIND_THEMES[k][0]?.swatch ?? '#8a94a6' }} />
+              <span key={k} aria-hidden="true" className="feature-tip-kind" style={{ background: KIND_THEMES[k][0]?.swatch ?? '#8a94a6' }} />
             ))}
           </span>
         ) : (
           <span className="feature-tip-all">all kinds</span>
         )}
       </div>
-      <p className="feature-tip-summary">{feature.summary}</p>
-      {note && <p className="feature-tip-note">{note}</p>}
-      {configPath && (
-        <div className="feature-tip-key">
-          <code className="feature-tip-path">{configPath}</code>
+      {!entry?.description && <p className="feature-tip-summary">{feature.summary}</p>}
+      {note && note !== feature.summary && note !== entry?.description && <div className="feature-tip-note">{note}</div>}
+      {(configPath || typePath) && (
+        <div className="feature-tip-key" aria-busy={entry === undefined}>
+          <code className="feature-tip-path">{configPath ?? typePath}</code>
+          {loadFailed && <span className="feature-tip-doc">Reference details could not load. Open the docs below to read them.</span>}
           {entry && (
             <>
               <span className="feature-tip-type">
@@ -149,16 +203,24 @@ function FeatureTipBody({ feature, configPath, note }: { readonly feature: Featu
         </div>
       )}
       {Tip && (
-        <Suspense fallback={<div className="feature-tip-illustration" aria-busy="true" />}>
-          <div className="feature-tip-illustration">
-            <Tip />
-          </div>
-        </Suspense>
+        <IllustrationBoundary>
+          <Suspense fallback={<div className="feature-tip-illustration" aria-busy="true" />}>
+            <div className="feature-tip-illustration"><Tip /></div>
+          </Suspense>
+        </IllustrationBoundary>
       )}
       <a href={href} target="_blank" rel="noreferrer" className="feature-tip-link">
         Read in the docs
+        <span className="sr-only"> (opens in a new tab)</span>
         <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="size-2.5" />
       </a>
     </div>
   );
+}
+
+/** Optional artwork must never take down the Studio if its chunk fails to load. */
+class IllustrationBoundary extends Component<{ readonly children: ReactNode }, { readonly failed: boolean }> {
+  override state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  override render() { return this.state.failed ? null : this.props.children; }
 }

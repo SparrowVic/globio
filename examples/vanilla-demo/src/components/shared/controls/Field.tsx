@@ -42,6 +42,7 @@ export function Field({
   disabledReason,
   feature,
   configPath,
+  typePath,
 }: FieldProps) {
   return (
     <div
@@ -56,7 +57,7 @@ export function Field({
           label={label}
           info={info}
           feature={feature}
-          configPath={configPath}
+          configPath={configPath} typePath={typePath}
           disabledReason={disabled && disabledReason ? disabledReason : undefined}
         />
         {value ? (
@@ -65,7 +66,7 @@ export function Field({
           </div>
         ) : null}
       </div>
-      <div className={disabled ? 'pointer-events-none opacity-50' : undefined}>
+      <div ref={(element) => { if (element) element.inert = Boolean(disabled); }} className={disabled ? 'pointer-events-none opacity-50' : undefined}>
         {children}
       </div>
     </div>

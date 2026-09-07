@@ -3,15 +3,15 @@ import path from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { FEATURES, getFeature } from '../features';
+import { findConfigTipEntry, findTypeTipEntry } from '../../components/shared/components/feature-tip-data';
 import api from '../generated/api.json';
-import type { ApiEntry } from '../generated/api-types';
+import type { ApiJson } from '../generated/api-types';
 
-const CONTROLS = new Set(['SliderField', 'SwitchField', 'ToggleField', 'SelectField', 'GroupedSelectField', 'ColorField', 'Field']);
+const CONTROLS = new Set(['SliderField', 'SwitchField', 'ToggleField', 'SelectField', 'GroupedSelectField', 'ColorField', 'ColorListField', 'Field']);
 const SCOPES = new Set(['PanelSection', 'FeatureScopeProvider']);
 const STUDIO = path.resolve(__dirname, '../../components/studio');
 
-const allPaths = (entries: ReadonlyArray<ApiEntry>): string[] => entries.flatMap((e) => [e.path, ...(e.children ? allPaths(e.children) : [])]);
-const CONFIG_PATHS = new Set(allPaths(api.config as ReadonlyArray<ApiEntry>));
+const API = api as ApiJson;
 const FEATURE_IDS = new Set(FEATURES.map((f) => f.id));
 
 const tsxFiles = (dir: string): string[] =>
@@ -24,6 +24,8 @@ interface ControlUse {
   readonly label: string | null;
   readonly feature: string | null;
   readonly configPath: string | null;
+  readonly typePath: string | null;
+  readonly settingsKeys: ReadonlyArray<string>;
   readonly scoped: boolean;
 }
 
@@ -59,6 +61,11 @@ const collect = (file: string): ControlUse[] => {
         label: attrString(opening, 'label'),
         feature: attrString(opening, 'feature'),
         configPath: attrString(opening, 'configPath'),
+        typePath: attrString(opening, 'typePath'),
+        settingsKeys: [...new Set(opening.attributes.properties.flatMap((attribute) => {
+          if (!ts.isJsxAttribute(attribute) || !['onChange', 'colors', 'checked', 'value'].includes(attribute.name.getText())) return [];
+          return [...attribute.getText().matchAll(/(?:settings|state\.globe)\.(\w+)/g)].map((match) => match[1]!);
+        }))],
         scoped,
       });
     }
@@ -84,8 +91,73 @@ describe('Studio help tips', () => {
   });
 
   it('every configPath exists in GlobeConfig', () => {
-    const bad = uses.filter((u) => u.configPath && u.configPath !== '<expr>' && !CONFIG_PATHS.has(u.configPath));
+    const bad = uses.filter((u) => u.configPath && u.configPath !== '<expr>' && !findConfigTipEntry(API, u.configPath));
     expect(bad.map((u) => `${u.file}:${u.line} configPath=${u.configPath}`)).toEqual([]);
+  });
+
+  it('every typePath resolves a public API option', () => {
+    const bad = uses.filter((u) => u.typePath && u.typePath !== '<expr>' && !findTypeTipEntry(API, u.typePath));
+    expect(bad.map((u) => `${u.file}:${u.line} typePath=${u.typePath}`)).toEqual([]);
+    for (const type of ['HexBinDataLayer', 'HeatmapDataLayer', 'ChartsDataLayer']) {
+      for (const key of ['', '.style', '.order', '.easing', '.duration', '.stagger']) {
+        expect(findTypeTipEntry(API, `${type}.animation${key}`), `${type}.animation${key}`).toBeDefined();
+      }
+    }
+  });
+
+  it('resolves array element fields and inherited method options without inventing config keys', () => {
+    expect(findConfigTipEntry(API, 'markers[].pulse.speed')?.name).toBe('speed');
+    expect(findConfigTipEntry(API, 'arcs[].height')?.type).toBe("number | 'auto'");
+    expect(findTypeTipEntry(API, 'FocusOptions.duration')?.name).toBe('duration');
+    expect(findConfigTipEntry(API, 'arcs[].missing')).toBeUndefined();
+    expect(findConfigTipEntry(API, 'atmosphere[].color')).toBeUndefined();
+    expect(findTypeTipEntry(API, 'HeatmapDataLayer.missing')).toBeUndefined();
+  });
+
+  it('controls bound to GlobeConfig settings name the exact field they edit', () => {
+    const file = path.resolve(STUDIO, '../../configurator/builders.ts');
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const mappings = new Map<string, Set<string>>();
+    const walk = (node: ts.Node, parts: ReadonlyArray<string>) => {
+      const next = ts.isPropertyAssignment(node) ? [...parts, node.name.getText()] : parts;
+      if (ts.isPropertyAccessExpression(node) && /^state\.globe\.\w+$/.test(node.getText())) {
+        const configPath = next.join('.');
+        if (findConfigTipEntry(API, configPath)) {
+          const paths = mappings.get(node.name.text) ?? new Set<string>();
+          paths.add(configPath);
+          mappings.set(node.name.text, paths);
+        }
+      }
+      node.forEachChild((child) => walk(child, next));
+    };
+    walk(source, []);
+    mappings.set('starfieldMultiColor', new Set(['starfield.palette']));
+    // These settings choose Studio fixtures or convert a UI value before export.
+    const localSettings = new Set(['markerMode']);
+    const unlinked = uses.filter((u) => u.settingsKeys.some((key) => mappings.has(key) && !localSettings.has(key)) && !u.configPath && !u.typePath);
+    expect(unlinked.map((u) => `${u.file}:${u.line} ${u.label}`)).toEqual([]);
+    const mismatched = uses.filter((u) => {
+      if (!u.configPath || u.configPath === '<expr>') return false;
+      const paths = u.settingsKeys.flatMap((key) => [...(mappings.get(key) ?? [])]);
+      return paths.length > 0 && !paths.includes(u.configPath);
+    });
+    expect(mismatched.map((u) => `${u.file}:${u.line} ${u.configPath}`)).toEqual([]);
+  });
+
+  it('every literal scope feature exists, including scopes outside control elements', () => {
+    const invalid: string[] = [];
+    for (const file of tsxFiles(STUDIO)) {
+      const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+      const walk = (node: ts.Node) => {
+        if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && SCOPES.has(tagName(node))) {
+          const feature = attrString(node, 'feature');
+          if (feature && feature !== '<expr>' && !FEATURE_IDS.has(feature)) invalid.push(`${file}: ${feature}`);
+        }
+        node.forEachChild(walk);
+      };
+      walk(source);
+    }
+    expect(invalid).toEqual([]);
   });
 
   it('every illustrated tip module loads and exports a component', async () => {

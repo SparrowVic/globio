@@ -29,9 +29,9 @@ import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
  */
 
 /**
- * The eight *conceptual* slots the workshop exposes — each one is a
+ * The nine *conceptual* slots the workshop exposes — each one is a
  * cross-cutting visual concern (labels, focus pulse, starfield, hover,
- * arcs, markers, atmosphere, hover crosshair) that every globe kind
+ * country fill, arcs, markers, atmosphere, hover crosshair) that every globe kind
  * implements in its own visual language. The card stays the same
  * across kinds; the configurator's KnobsComponent branches on
  * `state.globe.kind` and surfaces the kind-specific knobs for that
@@ -40,9 +40,9 @@ import type { ConfiguratorState, GlobeSettings } from '@/configurator/types';
  * Past iterations (waves F-I) shipped per-kind cards (`dotted`,
  * `hologram`, `wireframe`, `paper`). They cluttered the picker with
  * cards that were dead on most kinds, so we collapsed back to the
- * eight concept-cards. The per-kind knob libraries those waves built
+ * nine concept-cards. The per-kind knob libraries those waves built
  * up still exist in `presets/<kind>.tsx` (orphaned for now); the
- * next iteration will fold those knob trees into the eight concept-
+ * next iteration will fold those knob trees into the nine concept-
  * cards behind kind branches.
  */
 export type ConfiguratorId =
@@ -71,7 +71,7 @@ export const configuratorFeature: Readonly<Record<ConfiguratorId, string>> = {
   arcs: 'arcs',
   markers: 'markers',
   atmosphere: 'atmosphere',
-  crosshair: 'kind-outline',
+  crosshair: 'hover-crosshair',
 };
 
 export interface PreviewCinematography {
@@ -80,10 +80,8 @@ export interface PreviewCinematography {
    * mirrors the user's current `state.globe.kind` from the studio so
    * the workshop shows them what they're actually shipping. Set
    * explicitly only when the configurator is fundamentally tied to a
-   * specific kind (e.g. `crosshair` is outline-only — though even
-   * then the DependsOn knobs gate properly, so leaving this unset and
-   * letting the preview "go blank" on other kinds is also a valid
-   * teaching moment).
+   * specific kind. Shared controls such as the hover crosshair keep
+   * the current kind and hide unsupported controls with DependsOn.
    */
   readonly kind?: GlobeKind;
   /** Optional theme override; otherwise defers to `state.globe.theme`. */
@@ -91,7 +89,7 @@ export interface PreviewCinematography {
   /** Initial camera lat/lng. */
   readonly initialLat: number;
   readonly initialLng: number;
-  /** Auto-rotate speed (revs/sec). Default 0.04. */
+  /** Auto-rotate speed in OrbitControls units (1 ≈ 30 seconds per turn). Default 0.04. */
   readonly speed?: number;
   /** Framing padding for atmosphere halo. Default 0.18. */
   readonly framingPadding?: number;
@@ -217,7 +215,7 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     name: 'Focus pulse',
     icon: faCrosshairs,
     accent: '#f472b6',
-    description: 'Sci-fi sonar ring fired on focus — origin, size, fade.',
+    description: 'Pulse on focus or surface click — origin, size, and fade.',
     status: focusPulseStatus,
   },
   {
@@ -245,7 +243,7 @@ export const configuratorMeta: ReadonlyArray<ConfiguratorMeta> = [
     name: 'Country fill',
     icon: faFillDrip,
     accent: '#fb923c',
-    description: 'Fill every country — none / always / palette / data — plus per-state overrides.',
+    description: 'Country fills — hidden, solid, or palette — plus hover and active overrides.',
     status: (s) =>
       s.globe.countryFillMode === 'none' ? 'off' : s.globe.countryFillMode,
   },

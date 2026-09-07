@@ -70,6 +70,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Outline · timing</SectionHeading>
           <SliderField
             label="Duration"
+            configPath="outline.focusPulse.durationMs"
             value={settings.outlinePulseDurationMs}
             min={300}
             max={3500}
@@ -81,6 +82,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Outline · shape</SectionHeading>
           <SliderField
             label="Start radius"
+            configPath="outline.focusPulse.angularRadiusBase"
             value={settings.outlinePulseRadiusBase}
             min={0.01}
             max={0.2}
@@ -90,6 +92,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Band thickness"
+            configPath="outline.focusPulse.angularBand"
             value={settings.outlinePulseAngularBand}
             min={0.003}
             max={0.05}
@@ -99,6 +102,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Surface lift"
+            configPath="outline.focusPulse.radiusFactor"
             value={settings.outlinePulseRadiusFactor}
             min={1}
             max={1.025}
@@ -110,6 +114,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Segments"
+            configPath="outline.focusPulse.segments"
             value={settings.outlinePulseSegments}
             min={24}
             max={192}
@@ -121,6 +126,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Outline · motion</SectionHeading>
           <SliderField
             label="Start scale"
+            configPath="outline.focusPulse.scaleMin"
             value={settings.outlinePulseScaleMin}
             min={0.1}
             max={1.5}
@@ -130,6 +136,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Peak scale"
+            configPath="outline.focusPulse.scaleMax"
             value={settings.outlinePulseScaleMax}
             min={1.2}
             max={5}
@@ -139,6 +146,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Peak intensity"
+            configPath="outline.focusPulse.peakOpacity"
             value={settings.outlinePulseOpacity}
             min={0.2}
             max={2}
@@ -150,6 +158,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Outline · color</SectionHeading>
           <ColorField
             label="Ring color"
+            configPath="outline.focusPulse.color"
             value={settings.outlinePulseColor || '#fbbf24'}
             onChange={(outlinePulseColor) => onGlobeChange({ outlinePulseColor })}
             hint={settings.outlinePulseColor === '' ? 'Theme default' : undefined}
@@ -180,6 +189,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Dotted · ripple wave</SectionHeading>
           <SwitchField
             label="Dot-field ripple"
+            configPath="dotted.clickRipple.enabled"
             checked={settings.dottedRipple}
             onChange={(dottedRipple) => onGlobeChange({ dottedRipple })}
             value="Focus and surface clicks propagate through the dots"
@@ -191,6 +201,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           >
             <SliderField
               label="Boost"
+              configPath="dotted.clickRipple.boost"
               value={settings.dottedRippleBoost}
               min={0.1}
               max={4}
@@ -200,6 +211,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Speed"
+              configPath="dotted.clickRipple.speed"
               value={settings.dottedRippleSpeed}
               min={0.1}
               max={4}
@@ -209,6 +221,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Wave width"
+              configPath="dotted.clickRipple.width"
               value={settings.dottedRippleWidth}
               min={0.02}
               max={0.5}
@@ -218,6 +231,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <SliderField
               label="Concurrent waves"
+              configPath="dotted.clickRipple.maxConcurrent"
               value={settings.dottedRippleMaxConcurrent}
               min={1}
               max={8}
@@ -229,6 +243,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             />
             <ColorField
               label="Ripple color"
+              configPath="dotted.clickRipple.color"
               value={settings.dottedRippleColor || '#7fdfff'}
               onChange={(dottedRippleColor) => onGlobeChange({ dottedRippleColor })}
               hint={settings.dottedRippleColor === '' ? 'Follow dot color' : undefined}
@@ -256,6 +271,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Hologram · projection pulse</SectionHeading>
           <SliderField
             label="Duration"
+            configPath="hologram.focusPulse.durationMs"
             value={settings.hologramPulseDurationMs}
             min={250}
             max={2600}
@@ -267,6 +283,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Emitter radius"
+            configPath="hologram.focusPulse.angularRadiusBase"
             value={settings.hologramPulseRadiusBase}
             min={0.015}
             max={0.18}
@@ -278,6 +295,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Beam thickness"
+            configPath="hologram.focusPulse.angularBand"
             value={settings.hologramPulseAngularBand}
             min={0.003}
             max={0.06}
@@ -289,6 +307,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Start scale"
+            configPath="hologram.focusPulse.scaleMin"
             value={settings.hologramPulseScaleMin}
             min={0.05}
             max={1}
@@ -300,6 +319,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Expansion"
+            configPath="hologram.focusPulse.scaleMax"
             value={settings.hologramPulseScaleMax}
             min={1}
             max={5}
@@ -311,6 +331,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Peak gain"
+            configPath="hologram.focusPulse.peakOpacity"
             value={settings.hologramPulseOpacity}
             min={0.2}
             max={2.5}
@@ -320,6 +341,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Segments"
+            configPath="hologram.focusPulse.segments"
             value={settings.hologramPulseSegments}
             min={24}
             max={224}
@@ -331,6 +353,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Surface lift"
+            configPath="hologram.focusPulse.radiusFactor"
             value={settings.hologramPulseRadiusFactor}
             min={1}
             max={1.04}
@@ -342,6 +365,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Projection color"
+            configPath="hologram.focusPulse.color"
             value={settings.hologramPulseColor || '#67e8f9'}
             onChange={(hologramPulseColor) => onGlobeChange({ hologramPulseColor })}
             hint={settings.hologramPulseColor === '' ? 'Theme default' : undefined}
@@ -368,6 +392,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Cinematic · atmosphere wave</SectionHeading>
           <SliderField
             label="Duration"
+            configPath="cinematic.focusPulse.durationMs"
             value={settings.cinematicPulseDurationMs}
             min={300}
             max={3200}
@@ -379,6 +404,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Start radius"
+            configPath="cinematic.focusPulse.angularRadiusBase"
             value={settings.cinematicPulseRadiusBase}
             min={0.015}
             max={0.2}
@@ -390,6 +416,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Band thickness"
+            configPath="cinematic.focusPulse.angularBand"
             value={settings.cinematicPulseAngularBand}
             min={0.003}
             max={0.06}
@@ -401,6 +428,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Start scale"
+            configPath="cinematic.focusPulse.scaleMin"
             value={settings.cinematicPulseScaleMin}
             min={0.05}
             max={1.2}
@@ -412,6 +440,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Expansion"
+            configPath="cinematic.focusPulse.scaleMax"
             value={settings.cinematicPulseScaleMax}
             min={1}
             max={5}
@@ -423,6 +452,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Peak glow"
+            configPath="cinematic.focusPulse.peakOpacity"
             value={settings.cinematicPulseOpacity}
             min={0.1}
             max={2.2}
@@ -432,6 +462,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Segments"
+            configPath="cinematic.focusPulse.segments"
             value={settings.cinematicPulseSegments}
             min={24}
             max={224}
@@ -443,6 +474,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Surface lift"
+            configPath="cinematic.focusPulse.radiusFactor"
             value={settings.cinematicPulseRadiusFactor}
             min={1}
             max={1.04}
@@ -454,6 +486,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Wave color"
+            configPath="cinematic.focusPulse.color"
             value={settings.cinematicPulseColor || '#ffd36a'}
             onChange={(cinematicPulseColor) => onGlobeChange({ cinematicPulseColor })}
             hint={settings.cinematicPulseColor === '' ? 'Theme default' : undefined}
@@ -479,6 +512,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           <SectionHeading>Paper · ink ripple</SectionHeading>
           <SliderField
             label="Duration"
+            configPath="paper.focusPulse.durationMs"
             value={settings.paperPulseDurationMs}
             min={400}
             max={3200}
@@ -488,6 +522,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Start radius"
+            configPath="paper.focusPulse.angularRadiusBase"
             value={settings.paperPulseRadiusBase}
             min={0.015}
             max={0.18}
@@ -497,6 +532,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Ink thickness"
+            configPath="paper.focusPulse.angularBand"
             value={settings.paperPulseAngularBand}
             min={0.004}
             max={0.07}
@@ -506,6 +542,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Start scale"
+            configPath="paper.focusPulse.scaleMin"
             value={settings.paperPulseScaleMin}
             min={0.05}
             max={1.2}
@@ -515,6 +552,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Expansion"
+            configPath="paper.focusPulse.scaleMax"
             value={settings.paperPulseScaleMax}
             min={1}
             max={4}
@@ -524,6 +562,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Ink opacity"
+            configPath="paper.focusPulse.peakOpacity"
             value={settings.paperPulseOpacity}
             min={0.1}
             max={1.5}
@@ -533,6 +572,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Segments"
+            configPath="paper.focusPulse.segments"
             value={settings.paperPulseSegments}
             min={24}
             max={192}
@@ -542,6 +582,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <SliderField
             label="Surface lift"
+            configPath="paper.focusPulse.radiusFactor"
             value={settings.paperPulseRadiusFactor}
             min={1}
             max={1.025}
@@ -551,6 +592,7 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           />
           <ColorField
             label="Ink color"
+            configPath="paper.focusPulse.color"
             value={settings.paperPulseColor || '#5b3a1f'}
             onChange={(paperPulseColor) => onGlobeChange({ paperPulseColor })}
             hint={settings.paperPulseColor === '' ? 'Theme default' : undefined}
