@@ -5,10 +5,10 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
-import type { CountryFeature } from './country-feature';
+import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
+import type { CountryFeature } from '../../renderer/country-feature';
 
-export interface CountryHighlightLayerOptions {
+export interface SelectionLayerOptions {
   readonly hoverColor: string;
   readonly hoverWidth: number;
   readonly hoverOpacity: number;
@@ -46,7 +46,7 @@ export interface CountryHighlightLayerOptions {
  * Sits at a slightly larger radius than the base borders layer so the highlight
  * draws on top instead of fighting with the base color via z-fighting.
  */
-export class CountryHighlightLayer {
+export class SelectionLayer {
   public readonly object: LineSegments;
   private readonly material: LineBasicMaterial;
   private readonly featuresById = new Map<string, CountryFeature>();
@@ -59,7 +59,7 @@ export class CountryHighlightLayer {
   private targetT = 0; // 0 → hidden, 1 → fully visible
   private currentT = 0;
 
-  public constructor(options: CountryHighlightLayerOptions) {
+  public constructor(options: SelectionLayerOptions) {
     this.baseOpacity = options.hoverOpacity;
     this.fadeDuration = options.fadeDuration ?? 0.18;
     this.surfaceRadius = options.surfaceRadius ?? GLOBE_RADIUS * 1.0025;
@@ -115,7 +115,11 @@ export class CountryHighlightLayer {
     this.material.needsUpdate = true;
   }
 
-  /** Live update for the stroke color. Empty string is a no-op sentinel. */
+  /**
+   * Live update for the stroke color. Empty string is a no-op so callers
+   * can use it as a "leave as construction default" sentinel without
+   * branching at every call site.
+   */
   public setColor(color: string): void {
     if (color === '') return;
     this.material.color.set(color);
@@ -124,8 +128,8 @@ export class CountryHighlightLayer {
   /**
    * Live update for the stroke peak opacity. The fade tween multiplies
    * `currentT * baseOpacity` each frame, so updating `baseOpacity` lifts
-   * (or lowers) the visible range without resetting the fade.
-   * 0 / negative is a no-op (sentinel for "leave as constructed").
+   * (or lowers) the entire visible range without resetting the fade.
+   * 0 or negative is a no-op (sentinel for "leave as constructed").
    */
   public setOpacity(opacity: number): void {
     if (opacity <= 0) return;
@@ -134,9 +138,9 @@ export class CountryHighlightLayer {
 
   /**
    * Live update for the stroke width. Note: WebGL2 ignores
-   * `LineBasicMaterial.linewidth` on most platforms; the call sets the
-   * field but visual change isn't guaranteed. Kept for API symmetry
-   * with future Line2-based migrations.
+   * `LineBasicMaterial.linewidth` on most platforms — kept here for the
+   * day we migrate to `Line2` / `LineMaterial` (already done for arcs);
+   * for now the call sets the field but visual change isn't guaranteed.
    */
   public setWidth(width: number): void {
     if (width <= 0) return;

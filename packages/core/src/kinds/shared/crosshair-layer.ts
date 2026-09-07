@@ -11,7 +11,7 @@ import {
 import { GLOBE_RADIUS } from '../../utils/coordinates';
 import type { LatLng } from '../../types';
 
-export interface WireframeCrosshairOptions {
+export interface CrosshairOptions {
   readonly container: HTMLElement;
   readonly color: string;
   readonly size?: number;
@@ -63,7 +63,7 @@ export const formatLatLng = (lat: number, lng: number, decimals = 2): string => 
  * to the cursor. The 3D mark chase-eases toward the latest hit so quick
  * cursor moves don't strobe.
  */
-export class WireframeCrosshairLayer {
+export class CrosshairLayer {
   public readonly object: Group;
   private readonly container: HTMLElement;
   private readonly material: LineBasicMaterial;
@@ -83,7 +83,7 @@ export class WireframeCrosshairLayer {
   private latestLat = 0;
   private latestLng = 0;
 
-  public constructor(options: WireframeCrosshairOptions) {
+  public constructor(options: CrosshairOptions) {
     this.container = options.container;
     this.baseOpacity = options.opacity ?? DEFAULT_OPACITY;
     this.size = options.size ?? DEFAULT_SIZE;

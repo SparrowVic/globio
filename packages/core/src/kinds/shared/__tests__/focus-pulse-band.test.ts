@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePulseFrame } from '../focus-pulse';
+import { computePulseFrame } from '../focus-pulse-band';
 
 const DURATION = 1.4;
 
@@ -8,7 +8,7 @@ describe('computePulseFrame', () => {
     const frame = computePulseFrame(0, DURATION);
     expect(frame).not.toBeNull();
     expect(frame!.opacity).toBeCloseTo(1, 5);
-    // SCALE_MIN baseline (see focus-pulse-layer constants).
+    // scaleMin default (see FocusPulseBand DEFAULTS).
     expect(frame!.scale).toBeCloseTo(0.4, 5);
   });
 

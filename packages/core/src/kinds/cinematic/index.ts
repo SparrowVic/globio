@@ -53,7 +53,7 @@ export interface CinematicKindHandle extends KindHandle {
   setOutlineConfig?(next: NonNullable<GlobeConfig['outline']>): void;
   setPointerPixel?(x: number, y: number): void;
   getCountryFillLayer?(): Public<
-    import('../../renderer/countries-fill-layer').CountriesFillLayer
+    import('../shared/country-fill-layer').CountryFillLayer
   >;
 }
 
@@ -187,7 +187,7 @@ export const cinematicKind: KindModule = {
     // The shared atmosphere shell (mounted by create-globe) is the cinematic
     // scattering shell — feed it the world so its limb follows the sun.
     const atmosphere = atmosphereLayer as
-      | (Public<import('../../renderer/atmosphere-layer').AtmosphereLayer> & {
+      | (Public<import('../shared/atmosphere-layer').AtmosphereLayer> & {
           setWorld?: (world: CinematicWorld) => void;
           setScatter?: (config: NonNullable<CinematicConfig['atmosphere']>) => void;
         })

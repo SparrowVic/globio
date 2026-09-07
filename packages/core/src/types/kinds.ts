@@ -177,7 +177,7 @@ export interface DottedConfig {
   };
   /**
    * Pinned-country pulse — the dotted analogue of the standard
-   * `CountryHighlightLayer` active stroke (which dotted opts out of).
+   * `SelectionLayer` active stroke (which dotted opts out of).
    * When `globe.setActiveCountry(id)` runs, the pinned country's dots
    * pick up a steady brightness boost + slow sine pulse. Independent
    * from hover so the user can pin one country and hover another.

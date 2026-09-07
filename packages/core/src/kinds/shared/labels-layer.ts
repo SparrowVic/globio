@@ -1,9 +1,9 @@
 import { Vector3, type Object3D, type PerspectiveCamera } from 'three';
-import { GLOBE_RADIUS, latLngToVector3 } from '../utils/coordinates';
-import { angularExtent, boundsCenter, computeMainRingBounds } from '../utils/country-bounds';
-import type { CountryFeature } from './country-feature';
+import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
+import { angularExtent, boundsCenter, computeMainRingBounds } from '../../utils/country-bounds';
+import type { CountryFeature } from '../../renderer/country-feature';
 
-export interface CountryLabelsLayerOptions {
+export interface LabelsLayerOptions {
   readonly container: HTMLElement;
   readonly camera: PerspectiveCamera;
   readonly globeGroup: Object3D;
@@ -69,7 +69,7 @@ interface LabelEntry {
  * Same DOM-overlay strategy as `HtmlMarkersLayer` — picked over Three.js
  * text geometry because crisp text + CSS styling + cheap declutter.
  */
-export class CountryLabelsLayer {
+export class LabelsLayer {
   public readonly host: HTMLDivElement;
   private readonly entries = new Map<string, LabelEntry>();
   private readonly tempScreen = new Vector3();
@@ -86,13 +86,13 @@ export class CountryLabelsLayer {
   // transition timing). We keep the current values so a live update can
   // walk every entry and patch its DOM style in one pass.
   private transitionMs: number;
-  private halo: CountryLabelsLayerOptions['halo'];
+  private halo: LabelsLayerOptions['halo'];
   // Field must match the host's `display` state we set below — otherwise the
   // first `setEnabled(true)` no-ops via the equality guard and the labels
   // never appear (you'd have to toggle off→on again to "unstick" them).
   private enabled = false;
 
-  public constructor(private readonly options: CountryLabelsLayerOptions) {
+  public constructor(private readonly options: LabelsLayerOptions) {
     this.minScreenSize = options.minScreenSize ?? 60;
     this.sizeFadeRange = options.sizeFadeRange ?? 0.4;
     this.occlusionFade = options.occlusionFade ?? [-0.05, 0.15];
@@ -152,7 +152,7 @@ export class CountryLabelsLayer {
    * Walks every label and rewrites `text-shadow` so the change is visible
    * on the next render — DOM-only, no Three.js work.
    */
-  public setHalo(halo: CountryLabelsLayerOptions['halo'] | null): void {
+  public setHalo(halo: LabelsLayerOptions['halo'] | null): void {
     this.halo = halo ?? undefined;
     const textShadow = this.resolveTextShadow();
     this.entries.forEach((entry) => {

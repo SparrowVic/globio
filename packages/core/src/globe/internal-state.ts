@@ -1,14 +1,14 @@
-import type { ArcsLayer } from '../renderer/arcs-layer';
-import type { AtmosphereLayer } from '../renderer/atmosphere-layer';
 import type { CountriesPickingLayer } from '../renderer/countries-picking-layer';
 import type { CountryFeature } from '../renderer/country-feature';
-import type { CountryHighlightLayer } from '../renderer/country-highlight-layer';
-import type { CountriesFillLayer } from '../renderer/countries-fill-layer';
-import type { CountryLabelsLayer } from '../renderer/country-labels-layer';
 import type { CountryTooltip } from '../renderer/country-tooltip';
 import type { GlobeMesh } from '../renderer/globe-mesh';
 import type { HtmlMarkersLayer } from '../renderer/html-markers-layer';
-import type { MarkersLayer } from '../renderer/markers-layer';
+import type { ArcsLayer } from '../kinds/shared/arcs-layer';
+import type { AtmosphereLayer } from '../kinds/shared/atmosphere-layer';
+import type { CountryFillLayer } from '../kinds/shared/country-fill-layer';
+import type { LabelsLayer } from '../kinds/shared/labels-layer';
+import type { MarkersLayer } from '../kinds/shared/markers-layer';
+import type { SelectionLayer } from '../kinds/shared/selection-layer';
 import type { SceneManager } from '../renderer/scene-manager';
 import type { GlobeControls } from '../interaction/controls';
 import type { PointerRaycaster } from '../interaction/raycaster';
@@ -49,16 +49,16 @@ export interface InternalState {
    * builders read this so they can scaffold their geometry without re-loading.
    */
   features: ReadonlyArray<CountryFeature> | null;
-  countryLabelsLayer: Public<CountryLabelsLayer> | null;
-  countryHighlightLayer: Public<CountryHighlightLayer> | null;
-  countryActiveLayer: Public<CountryHighlightLayer> | null;
+  countryLabelsLayer: Public<LabelsLayer> | null;
+  countryHighlightLayer: Public<SelectionLayer> | null;
+  countryActiveLayer: Public<SelectionLayer> | null;
   /**
    * Per-country filled meshes (the new 9th canonical layer). Mounted in
    * `create-globe.ts` once features load for kinds that opt into
    * country interaction; null otherwise. Drives `none/always/palette/
    * data` modes plus the optional hover / active fill overrides.
    */
-  countryFillLayer: Public<CountriesFillLayer> | null;
+  countryFillLayer: Public<CountryFillLayer> | null;
   countryTooltip: CountryTooltip | null;
   htmlMarkersLayer: HtmlMarkersLayer;
   arcsLayer: Public<ArcsLayer>;
