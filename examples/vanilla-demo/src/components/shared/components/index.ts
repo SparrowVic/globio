@@ -10,6 +10,3 @@ export {
 export { DependsOn, type DependsOnProps } from './DependsOn';
 export { InteractiveCard, type InteractiveCardProps } from './InteractiveCard';
 export { Kbd, type KbdProps } from './Kbd';
-export { NoiseOverlay } from './NoiseOverlay';
-export { ScrollProgress } from './ScrollProgress';
-export { SectionHeader, type SectionHeaderProps } from './SectionHeader';
