@@ -6,11 +6,13 @@ import Home from './routes/Home';
 // Studio carries the whole configurator (panels, command palette, modals);
 // splitting it keeps the landing's first load to the engine and the page.
 const Studio = lazy(() => import('./routes/Studio'));
+// The documentation is its own chunk for the same reason.
+const Docs = lazy(() => import('./routes/Docs'));
 
 /**
  * Top-level routing: `/` shows the marketing / showcase home page,
  * `/studio` (and aliases `/heatmap.html` etc. via legacy redirects)
- * loads the full configurator. The Vite dev server's SPA fallback
+ * loads the full configurator, `/docs/*` the documentation. The Vite dev server's SPA fallback
  * handles deep links during development.
  */
 export default function App() {
@@ -18,6 +20,14 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route
+          path="/docs/*"
+          element={
+            <Suspense fallback={<div className="min-h-screen bg-[#050608]" aria-busy="true" />}>
+              <Docs />
+            </Suspense>
+          }
+        />
         <Route
           path="/studio"
           element={

@@ -10,6 +10,7 @@ const LINKS: ReadonlyArray<{ readonly label: string; readonly href: string; read
   { label: 'Data', href: '#data' },
   { label: 'Frameworks', href: '#frameworks' },
   { label: 'Performance', href: '#performance' },
+  { label: 'Docs', href: '/docs' },
   { label: 'GitHub', href: GITHUB_URL, external: true },
   { label: 'npm', href: NPM_URL, external: true },
 ];
@@ -40,16 +41,22 @@ export function Footer() {
             <Wordmark />
           </Link>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2">
-            {LINKS.map((l) => (
-              <a
-                key={l.label}
-                href={l.href}
-                {...(l.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-                className="link text-[0.9rem] text-[var(--mist)] hover:text-[var(--ice)]"
-              >
-                {l.label}
-              </a>
-            ))}
+            {LINKS.map((l) =>
+              l.href.startsWith('/') ? (
+                <Link key={l.label} to={l.href} className="link text-[0.9rem] text-[var(--mist)] hover:text-[var(--ice)]">
+                  {l.label}
+                </Link>
+              ) : (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  {...(l.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                  className="link text-[0.9rem] text-[var(--mist)] hover:text-[var(--ice)]"
+                >
+                  {l.label}
+                </a>
+              ),
+            )}
           </nav>
           <span className="t-mono text-[var(--mist)]">MIT · built on three.js</span>
         </div>

@@ -9,7 +9,8 @@
      ember    #ff8a4c  sunlit terminator — CTA only
      mist     #8a94a6  secondary type
    ------------------------------------------------------------------ */
-.landing {
+.landing,
+.docs {
   --void: #050608;
   --graphite: #15181d;
   --atm: #6fb4ff;

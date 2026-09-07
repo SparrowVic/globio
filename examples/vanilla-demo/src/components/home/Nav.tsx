@@ -49,6 +49,9 @@ export function Nav() {
               {item.label}
             </a>
           ))}
+          <Link to="/docs" className="link text-[0.9rem] text-[var(--mist)] hover:text-[var(--ice)]">
+            Docs
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2.5">

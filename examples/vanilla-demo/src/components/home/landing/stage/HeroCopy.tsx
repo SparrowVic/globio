@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight } from '@fortawesome/sharp-solid-svg-icons';
 import { CopyCommand } from '../atoms';
-import { GITHUB_URL, INSTALL_COMMAND } from '../data/links';
+import { INSTALL_COMMAND } from '../data/links';
 
 const PROOF: ReadonlyArray<string> = [
   'six kinds',
@@ -26,9 +26,9 @@ export function HeroCopy() {
           Open Studio
           <FontAwesomeIcon icon={faArrowRight} className="size-3" />
         </Link>
-        <a href={`${GITHUB_URL}#readme`} target="_blank" rel="noreferrer" className="btn btn-ghost">
+        <Link to="/docs" className="btn btn-ghost">
           Read the docs
-        </a>
+        </Link>
       </div>
       <ul className="t-mono mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[var(--mist)]">
         {PROOF.map((item, i) => (
