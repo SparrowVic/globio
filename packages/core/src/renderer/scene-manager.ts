@@ -2,11 +2,13 @@ import {
   Color,
   PerspectiveCamera,
   Scene,
+  Vector2,
   Vector3,
   WebGLRenderer,
   type WebGLRendererParameters,
 } from 'three';
 import { AdaptiveQualityController } from '../utils/adaptive-quality';
+import type { PostFxPipeline } from './postfx/pipeline';
 import type { PerformanceConfig } from '../types';
 
 export interface SceneManagerOptions {
@@ -37,6 +39,13 @@ export class SceneManager {
   private destroyed = false;
   private readonly resizeObserver: ResizeObserver;
   private readonly adaptiveQuality: AdaptiveQualityController | null;
+  /**
+   * Optional shared post-processing pipeline. When set, every frame goes
+   * scene → HDR target → bloom/streak/composite → canvas instead of
+   * straight to the canvas. Owned by the SceneManager once attached.
+   */
+  private postfx: PostFxPipeline | null = null;
+  private readonly sizeScratch = new Vector2();
 
   public constructor(private readonly options: SceneManagerOptions) {
     this.scene = new Scene();
@@ -71,7 +80,13 @@ export class SceneManager {
           minPixelRatio: 1,
           maxPixelRatio: this.resolvePixelRatio(options.performance.pixelRatio),
           sampleSize: 30,
-          onAdjust: (ratio) => this.renderer.setPixelRatio(ratio),
+          onAdjust: (ratio) => {
+            this.renderer.setPixelRatio(ratio);
+            // The pipeline's targets are sized in device pixels — they have
+            // to follow the adaptive pixel-ratio steps or the composite
+            // samples a stale-resolution buffer.
+            this.syncPostFxSize();
+          },
         })
       : null;
 
@@ -96,11 +111,41 @@ export class SceneManager {
     this.handleResize();
   }
 
+  /**
+   * Attach (or detach with `null`) the shared post-processing pipeline.
+   * Disposes whatever was attached before, so callers never leak a pipeline
+   * by swapping one in.
+   */
+  public setPostFx(pipeline: PostFxPipeline | null): void {
+    if (this.postfx === pipeline) return;
+    this.postfx?.dispose();
+    this.postfx = pipeline;
+    this.syncPostFxSize();
+  }
+
+  /**
+   * Draw one frame. Routed through the post-processing pipeline when one is
+   * attached (the pipeline itself falls back to a direct render when it is
+   * disabled). Used by `tick()` and by `toImage()`.
+   */
+  public renderFrame(): void {
+    if (this.postfx !== null) {
+      // Cheap guard: `toImage()` and the adaptive-quality controller both
+      // resize the drawing buffer outside of `handleResize`.
+      this.syncPostFxSize();
+      this.postfx.render(this.scene, this.camera);
+      return;
+    }
+    this.renderer.render(this.scene, this.camera);
+  }
+
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.stop();
     this.resizeObserver.disconnect();
+    this.postfx?.dispose();
+    this.postfx = null;
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement === this.options.container) {
       this.options.container.removeChild(this.renderer.domElement);
@@ -119,7 +164,7 @@ export class SceneManager {
 
     this.adaptiveQuality?.tick(now);
     this.options.onRender(delta);
-    this.renderer.render(this.scene, this.camera);
+    this.renderFrame();
 
     this.rafId = requestAnimationFrame(this.tick);
   };
@@ -130,7 +175,19 @@ export class SceneManager {
     this.camera.aspect = clientWidth / clientHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(clientWidth, clientHeight, false);
+    this.syncPostFxSize();
     this.options.onResize?.(clientWidth, clientHeight);
+  }
+
+  /**
+   * Push the renderer's *current* CSS size + pixel ratio into the pipeline.
+   * Reads them back off the renderer (rather than trusting the caller) so
+   * resizes and adaptive pixel-ratio steps stay in sync from one place.
+   */
+  private syncPostFxSize(): void {
+    if (this.postfx === null) return;
+    const size = this.renderer.getSize(this.sizeScratch);
+    this.postfx.setSize(size.x, size.y, this.renderer.getPixelRatio());
   }
 
   private resolvePixelRatio(value: number | 'auto'): number {

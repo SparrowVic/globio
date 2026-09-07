@@ -881,6 +881,99 @@ export interface CinematicDataset {
   readonly routes?: ReadonlyArray<CinematicRouteDatum>;
 }
 
+/**
+ * Sun / light rig for the cinematic kind.
+ *
+ * - `fixed` (default) — the light direction is a constant world-space
+ *   vector (`direction`, falling back to `surface.lightDirection` and then
+ *   the theme tokens). Auto-rotate orbits the camera, so the lit side stays
+ *   put in the world.
+ * - `realtime` — the subsolar point is computed from `date` (default: now)
+ *   and advances with wall-clock time × `timeScale`. Produces the real
+ *   day/night terminator for that moment.
+ * - `orbit` — time-lapse: the subsolar longitude sweeps westward at
+ *   `speed` degrees per second (default 6 → one full day every 60 s).
+ *
+ * `visible` draws a sun disc + glare far along the light direction (it
+ * blooms when it clears the limb).
+ */
+export interface CinematicSunConfig {
+  readonly mode?: 'fixed' | 'realtime' | 'orbit';
+  readonly direction?: readonly [number, number, number];
+  readonly date?: Date | string | number;
+  readonly timeScale?: number;
+  readonly speed?: number;
+  readonly visible?: boolean;
+  readonly color?: string;
+  readonly size?: number;
+  readonly glare?: number;
+}
+
+/** Procedural (or textured) cloud shell above the surface. */
+export interface CinematicCloudsConfig {
+  readonly enabled?: boolean;
+  /** 0..1 fraction of sky covered. Default 0.48. */
+  readonly coverage?: number;
+  /** 0..1 peak opacity. Default 0.85. */
+  readonly opacity?: number;
+  /** Advection speed multiplier. Default 1. */
+  readonly speed?: number;
+  /** Shell height as a fraction of the globe radius. Default 0.009. */
+  readonly altitude?: number;
+  /** Project cloud shadows onto the surface. Default true. */
+  readonly shadows?: boolean;
+  /** 0..1 darkening under clouds. Default 0.55. */
+  readonly shadowStrength?: number;
+  readonly color?: string;
+  /** Edge softness 0..1. Default 0.5. */
+  readonly softness?: number;
+}
+
+/** Night-side auroral curtains near the geomagnetic poles. */
+export interface CinematicAuroraConfig {
+  readonly enabled?: boolean;
+  /** 0..2. Default 0.8. */
+  readonly intensity?: number;
+  readonly color?: string;
+  readonly colorTop?: string;
+  /** Curtain animation speed multiplier. Default 1. */
+  readonly speed?: number;
+  /** Centre latitude of the auroral oval in degrees. Default 68. */
+  readonly latitude?: number;
+}
+
+/**
+ * Optional real Earth textures. Any subset works — the procedural look
+ * fills in whatever is missing. Strings are URLs loaded with three's
+ * `TextureLoader`; `Texture` instances are used as-is.
+ */
+export interface CinematicTexturesConfig {
+  readonly day?: string | import('three').Texture;
+  readonly night?: string | import('three').Texture;
+  readonly normal?: string | import('three').Texture;
+  readonly specular?: string | import('three').Texture;
+  readonly clouds?: string | import('three').Texture;
+  /** Anisotropic filtering level. Default 8 (clamped to device max). */
+  readonly anisotropy?: number;
+  /** Crossfade from procedural → textured in ms. Default 800. */
+  readonly fadeMs?: number;
+}
+
+/** Scattering-shell atmosphere tuning (cinematic-only, on top of `GlobeConfig.atmosphere`). */
+export interface CinematicAtmosphereConfig {
+  /** Rayleigh strength multiplier. Default 1. */
+  readonly scatterStrength?: number;
+  /** Mie (forward-scatter halo) strength multiplier. Default 1. */
+  readonly mieStrength?: number;
+  readonly dayColor?: string;
+  readonly twilightColor?: string;
+  readonly nightColor?: string;
+  /** Faint night-side limb glow 0..1. Default 0.18. */
+  readonly airglow?: number;
+  /** Shell thickness as a fraction of the globe radius. Default 0.075. */
+  readonly thickness?: number;
+}
+
 export interface CinematicConfig {
   readonly quality?: CinematicQuality;
   readonly reactivity?: CinematicReactivityConfig;
@@ -899,9 +992,34 @@ export interface CinematicConfig {
     readonly rimIntensity?: number;
     readonly rimPower?: number;
     readonly specularIntensity?: number;
+    /**
+     * @deprecated Clouds moved to a separate shell — use `clouds.opacity`.
+     * Only honoured at construction as a fallback for the shell's opacity.
+     */
     readonly cloudOpacity?: number;
     readonly oceanSheen?: number;
+    /** Terrain relief / normal-perturbation strength 0..2. Default 1. */
+    readonly relief?: number;
+    /** Latitude / altitude / moisture driven land palette. Default true. */
+    readonly biomes?: boolean;
+    /** Turquoise shallows + beaches strength 0..1. Default 0.6. */
+    readonly shallows?: number;
+    /** Night-side moonlight strength 0..2. Default 1. */
+    readonly moonlight?: number;
+    /** Height above which land turns to snow, 0..1. Default 0.72. */
+    readonly snowLine?: number;
+    /** Surface colour saturation multiplier: 1 natural, 0 monochrome. Default from the theme. */
+    readonly saturation?: number;
+    readonly iceColor?: string;
+    readonly vegetationColor?: string;
+    readonly desertColor?: string;
+    readonly shallowWaterColor?: string;
   };
+  readonly sun?: CinematicSunConfig;
+  readonly clouds?: CinematicCloudsConfig;
+  readonly aurora?: CinematicAuroraConfig;
+  readonly textures?: CinematicTexturesConfig | null;
+  readonly atmosphere?: CinematicAtmosphereConfig;
   readonly borders?: {
     readonly enabled?: boolean;
     readonly color?: string;

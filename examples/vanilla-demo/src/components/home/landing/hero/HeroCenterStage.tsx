@@ -50,9 +50,31 @@ export function HeroCenterStage({
               rimIntensity: 1.12,
               rimPower: 2.18,
               specularIntensity: 0.92,
-              cloudOpacity: 0.09,
               oceanSheen: 0.58,
+              relief: 1.1,
+              shallows: 0.65,
             },
+            // Fixed sun keeps the marketing terminator parked where the
+            // light direction above puts it — no drifting day/night line
+            // while the hero auto-rotates.
+            sun: {
+              mode: 'fixed',
+              visible: true,
+              glare: 0.9,
+            },
+            clouds: {
+              enabled: true,
+              coverage: 0.46,
+              opacity: 0.8,
+              shadows: true,
+            },
+            aurora: {
+              enabled: true,
+              intensity: 0.7,
+            },
+            // The hero shows the procedural planet; the Earth 2k texture set is a
+            // Studio toggle (mode b) rather than the landing default.
+            textures: null,
             cityLights: {
               enabled: true,
               intensity: 1.62,
@@ -97,7 +119,7 @@ export function HeroCenterStage({
           axisTilt={23.5}
           starfield={false}
           arcs={heroArcs}
-          atmosphere={activeKind !== 'cinematic'}
+          atmosphere
           cinematic={cinematic}
           framingPadding={0.06}
           interactive

@@ -13,7 +13,12 @@ export interface KindThemeEntry {
  * them. Don't invent presets; the call would log a warning at runtime.
  */
 export const KIND_THEMES: Readonly<Record<GlobeKind, ReadonlyArray<KindThemeEntry>>> = {
-  cinematic: [{ preset: 'cinematic-night', label: 'Night', swatch: '#ffd36a' }],
+  cinematic: [
+    { preset: 'cinematic-night', label: 'Night', swatch: '#ffd36a' },
+    { preset: 'cinematic-day', label: 'Day', swatch: '#6fb6ff' },
+    { preset: 'cinematic-dawn', label: 'Dawn', swatch: '#ffb27a' },
+    { preset: 'cinematic-noir', label: 'Noir', swatch: '#dfe6ee' },
+  ],
   outline: [
     { preset: 'outline-dark', label: 'Dark', swatch: '#3b4252' },
     { preset: 'outline-cyber', label: 'Cyber', swatch: '#22d3ee' },

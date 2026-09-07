@@ -51,6 +51,9 @@ const themeCatalog: ReadonlyArray<{
   readonly kind: GlobeKind;
 }> = [
   { value: 'cinematic-night', label: 'Cinematic · night', kind: 'cinematic' },
+  { value: 'cinematic-day', label: 'Cinematic · day', kind: 'cinematic' },
+  { value: 'cinematic-dawn', label: 'Cinematic · dawn', kind: 'cinematic' },
+  { value: 'cinematic-noir', label: 'Cinematic · noir', kind: 'cinematic' },
   { value: 'outline-dark', label: 'Outline · dark', kind: 'outline' },
   { value: 'outline-light', label: 'Outline · light', kind: 'outline' },
   { value: 'outline-sunset', label: 'Outline · sunset', kind: 'outline' },

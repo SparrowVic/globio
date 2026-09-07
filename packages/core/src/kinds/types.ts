@@ -67,6 +67,12 @@ export interface KindBuildContext {
    * for surface raycasts even when invisible.
    */
   readonly globeSurfaceMesh: Mesh;
+  /**
+   * The shared atmosphere shell mounted on `globeGroup`. Kinds that drive
+   * their own lighting (e.g. cinematic's sun) read it so the halo colour /
+   * intensity can follow the terminator instead of staying static.
+   */
+  readonly atmosphereLayer?: Public<AtmosphereLayer>;
 }
 
 /**

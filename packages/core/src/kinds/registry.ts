@@ -27,6 +27,9 @@ export const KIND_MODULES: Readonly<Record<GlobeKind, KindModule>> = Object.free
  */
 export const PRESET_DEFAULT_KIND: Readonly<Record<ThemePresetName, GlobeKind>> = Object.freeze({
   'cinematic-night': 'cinematic',
+  'cinematic-day': 'cinematic',
+  'cinematic-dawn': 'cinematic',
+  'cinematic-noir': 'cinematic',
   'outline-dark': 'outline',
   'outline-light': 'outline',
   'outline-sunset': 'outline',

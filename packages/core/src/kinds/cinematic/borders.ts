@@ -1,3 +1,13 @@
+// Cinematic borders — country outlines as a soft, terminator-aware glow.
+//
+// Borders are a single line-segments mesh built from the per-country
+// ring coordinates. Each segment is given a per-vertex hash seeded by
+// its lat/lng so the grain animation stays deterministic across runs.
+// The shader treats borders as part of the surface system: it reads
+// the same terminator bands every other cinematic layer reads, so
+// outlines glow strongest at the twilight band and fade through deep
+// day / deep night, matching the rest of the cinematic look.
+
 import {
   AdditiveBlending,
   BufferGeometry,
@@ -16,6 +26,7 @@ import {
   syncCinematicUniforms,
   type CinematicUniforms,
 } from './shader-uniforms';
+import { GLSL_FRESNEL, GLSL_TERMINATOR, stableHash01 } from './math';
 
 export interface CinematicBordersLayerOptions {
   readonly features: ReadonlyArray<CountryFeature>;
@@ -30,9 +41,10 @@ export interface CinematicBordersLayerOptions {
   };
 }
 
-const BORDER_RADIUS = GLOBE_RADIUS * 1.003;
+const BORDER_RADIUS = GLOBE_RADIUS * 1.0035;
 
 const VERTEX_SHADER = /* glsl */ `
+  precision mediump float;
   attribute float aSeed;
   varying vec3 vWorldNormal;
   varying vec3 vViewDir;
@@ -49,30 +61,55 @@ const VERTEX_SHADER = /* glsl */ `
 
 const FRAGMENT_SHADER = /* glsl */ `
   precision mediump float;
-  uniform vec3 uColor;
+  ${GLSL_TERMINATOR}
+  ${GLSL_FRESNEL}
+
+  uniform vec3  uColor;
   uniform float uIntensity;
   uniform float uTime;
-  uniform vec3 uLightDirection;
+  uniform vec3  uLightDirection;
   uniform float uLightInfluence;
   uniform float uTerminatorBoost;
   uniform float uHorizonGlow;
   uniform float uInteractionEnergy;
+  uniform float uTerminatorSoftness;
+  uniform float uTerminatorContrast;
+
   varying vec3 vWorldNormal;
   varying vec3 vViewDir;
   varying float vSeed;
 
   void main() {
-    float ndv = max(dot(normalize(vViewDir), normalize(vWorldNormal)), 0.0);
+    vec3 n = normalize(vWorldNormal);
+    vec3 v = normalize(vViewDir);
+    float ndv = max(dot(v, n), 0.0);
     float facing = smoothstep(0.0, 0.34, ndv);
-    float rim = pow(1.0 - ndv, 1.7);
-    float light = dot(normalize(vWorldNormal), normalize(uLightDirection));
-    float twilight = exp(-pow(light / 0.32, 2.0));
-    float day = smoothstep(-0.22, 0.44, light);
-    float lightReactive = mix(1.0, (1.0 - day) * 0.48 + twilight * 0.84 * uTerminatorBoost + rim * 0.28 * uHorizonGlow, uLightInfluence);
-    float grain = 0.9 + 0.1 * sin(uTime * 0.9 + vSeed * 19.739);
-    float alpha = (0.1 + facing * 0.48 + rim * 0.34 * uHorizonGlow + twilight * 0.24) * min(uIntensity, 2.6) * 0.28;
-    alpha *= lightReactive + uInteractionEnergy * 0.08;
-    vec3 color = uColor * (0.7 + facing * 0.36 + rim * 0.62 * uHorizonGlow + twilight * 0.42) * grain;
+    float rim = cn_rim(ndv, 1.7);
+
+    cn_TerminatorBands tb = cn_terminator(n, normalize(uLightDirection),
+                                          uTerminatorSoftness, uTerminatorContrast);
+
+    // Light response: borders read strongest at the terminator + rim,
+    // softer on day, dimmest deep at night. The same pattern as every
+    // other cinematic layer so the planet looks unified.
+    float lit = (1.0 - tb.day) * 0.42
+              + tb.twilight * 0.92 * uTerminatorBoost
+              + rim * 0.32 * uHorizonGlow
+              + tb.day * 0.18;
+    float lightReactive = mix(1.0, lit, uLightInfluence);
+
+    // Subtle deterministic shimmer seeded by the vertex's stable hash.
+    // The phase is tied to time so the same border runs the same loop.
+    float grain = 0.92 + 0.08 * sin(uTime * 0.85 + vSeed * 19.739);
+
+    float alpha = (0.10 + facing * 0.46 + rim * 0.34 * uHorizonGlow + tb.twilight * 0.28)
+                * min(uIntensity, 2.6) * 0.30 * lightReactive;
+    alpha += alpha * uInteractionEnergy * 0.35;
+
+    vec3 color = uColor * (0.72 + facing * 0.34 + rim * 0.62 * uHorizonGlow + tb.twilight * 0.42);
+    color += vec3(1.0, 0.62, 0.30) * tb.warmShift * 0.28;
+    color *= grain;
+
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -106,7 +143,10 @@ export class CinematicBordersLayer {
           const v1 = latLngToVector3([a[1], a[0]], BORDER_RADIUS);
           const v2 = latLngToVector3([b[1], b[0]], BORDER_RADIUS);
           positions.push(v1.x, v1.y, v1.z, v2.x, v2.y, v2.z);
-          seeds.push(hash01(a[0], a[1]), hash01(b[0], b[1]));
+          seeds.push(
+            stableHash01(`${a[0]}:${a[1]}`),
+            stableHash01(`${b[0]}:${b[1]}`),
+          );
         }
       });
     });
@@ -119,7 +159,6 @@ export class CinematicBordersLayer {
         ...cloneCinematicUniforms(this.uniforms),
         uColor: { value: new Color(options.color) },
         uIntensity: { value: options.intensity },
-        uTime: { value: 0 },
       },
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
@@ -142,7 +181,7 @@ export class CinematicBordersLayer {
     if (this.world) syncCinematicUniforms(this.uniforms, this.world.uniforms);
     this.uniforms.uTime.value = elapsedSeconds;
     for (const [key, uniform] of Object.entries(this.uniforms)) {
-      this.material.uniforms[key]!.value = uniform.value;
+      if (this.material.uniforms[key]) this.material.uniforms[key]!.value = uniform.value;
     }
   }
 
@@ -167,8 +206,3 @@ export class CinematicBordersLayer {
     this.group.clear();
   }
 }
-
-const hash01 = (lng: number, lat: number): number => {
-  const value = Math.sin(lng * 12.9898 + lat * 78.233) * 43758.5453;
-  return value - Math.floor(value);
-};

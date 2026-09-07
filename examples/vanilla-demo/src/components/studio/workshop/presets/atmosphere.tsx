@@ -10,6 +10,7 @@ import type {
   KnobsComponentProps,
   PresetModule,
 } from '../configurators';
+import { CinematicControls } from './cinematic-controls';
 
 /**
  * Atmosphere configurator preset.
@@ -351,15 +352,6 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
           }
         />
         <SliderField
-          label="Cloud opacity"
-          value={settings.cinematicCloudOpacity}
-          min={0}
-          max={0.7}
-          step={0.01}
-          format={(value) => value.toFixed(2)}
-          onChange={(cinematicCloudOpacity) => onGlobeChange({ cinematicCloudOpacity })}
-        />
-        <SliderField
           label="Ocean sheen"
           value={settings.cinematicOceanSheen}
           min={0}
@@ -610,6 +602,10 @@ const KnobsComponent = ({ state, onGlobeChange }: KnobsComponentProps) => {
             }
           />
         </DependsOn>
+
+        {/* Realism pass: sun rig, clouds, surface detail, aurora,
+            scattering, sky and the shared post-processing pipeline. */}
+        <CinematicControls state={state} onGlobeChange={onGlobeChange} />
       </DependsOn>
 
       <DependsOn when={settings.kind !== 'cinematic'} variant="hidden">
@@ -684,7 +680,6 @@ const preset: PresetModule = {
     'cinematicRimIntensity',
     'cinematicRimPower',
     'cinematicSpecularIntensity',
-    'cinematicCloudOpacity',
     'cinematicOceanSheen',
     'cinematicLightInfluence',
     'cinematicCameraInfluence',
@@ -709,6 +704,53 @@ const preset: PresetModule = {
     'cinematicNetworkOpacity',
     'cinematicNetworkConnections',
     'cinematicNetworkPulseSpeed',
+    // Realism pass (rendered by <CinematicControls />).
+    'cinematicSunMode',
+    'cinematicSunSpeed',
+    'cinematicSunTimeScale',
+    'cinematicSunVisible',
+    'cinematicSunGlare',
+    'cinematicSunSize',
+    'cinematicSunColor',
+    'cinematicClouds',
+    'cinematicCloudCoverage',
+    'cinematicCloudShellOpacity',
+    'cinematicCloudSpeed',
+    'cinematicCloudSoftness',
+    'cinematicCloudShadows',
+    'cinematicCloudShadowStrength',
+    'cinematicCloudAltitude',
+    'cinematicRelief',
+    'cinematicBiomes',
+    'cinematicShallows',
+    'cinematicMoonlight',
+    'cinematicSnowLine',
+    'cinematicIceColor',
+    'cinematicVegetationColor',
+    'cinematicDesertColor',
+    'cinematicShallowWaterColor',
+    'cinematicAurora',
+    'cinematicAuroraIntensity',
+    'cinematicAuroraSpeed',
+    'cinematicAuroraLatitude',
+    'cinematicAuroraColor',
+    'cinematicAuroraTopColor',
+    'cinematicScatter',
+    'cinematicMie',
+    'cinematicAirglow',
+    'cinematicAtmosphereThickness',
+    'cinematicTextures',
+    'cinematicMilkyWay',
+    'cinematicMilkyWayIntensity',
+    'postfxEnabled',
+    'postfxExposure',
+    'postfxBloomStrength',
+    'postfxBloomThreshold',
+    'postfxBloomRadius',
+    'postfxStreak',
+    'postfxVignette',
+    'postfxChromatic',
+    'postfxGrain',
   ],
   // All atmosphere knobs are live (mesh.visible flip, shader uniforms,
   // single-mesh geometry rebuild for radiusScale, material side /

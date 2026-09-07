@@ -44,6 +44,17 @@ export interface StarfieldLayerOptions {
   readonly sizeVariety?: number;
   /** Twinkle animation knobs. Static when `twinkle.enabled` is false. */
   readonly twinkle?: StarfieldTwinkleOptions;
+  /**
+   * Milky Way band knobs. Ignored by this layer — declared here so the
+   * per-kind starfields that DO draw a band (currently
+   * `CinematicStarfieldLayer`) accept a structural superset of these
+   * options, which `KindLayerRegistry.StarfieldLayer` requires.
+   */
+  readonly milkyWay?: {
+    readonly enabled?: boolean;
+    readonly intensity?: number;
+    readonly tilt?: number;
+  };
 }
 
 const VERTEX_SHADER = `

@@ -32,6 +32,9 @@ export type {
 } from './atmosphere';
 
 export type {
+  CinematicAtmosphereConfig,
+  CinematicAuroraConfig,
+  CinematicCloudsConfig,
   CinematicConfig,
   CinematicCityLightDatum,
   CinematicDataset,
@@ -39,6 +42,8 @@ export type {
   CinematicReactivityConfig,
   CinematicRouteDatum,
   CinematicRouteEndpoint,
+  CinematicSunConfig,
+  CinematicTexturesConfig,
   DottedConfig,
   HologramConfig,
   OutlineConfig,
@@ -58,6 +63,8 @@ export type {
 } from './camera';
 
 export type { PerformanceConfig } from './performance';
+
+export type { PostProcessingConfig } from './postfx';
 
 export type { GlobeConfig } from './globe-config';
 

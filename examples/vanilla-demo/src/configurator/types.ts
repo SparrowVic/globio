@@ -314,7 +314,6 @@ export interface GlobeSettings {
   readonly cinematicRimIntensity: number;
   readonly cinematicRimPower: number;
   readonly cinematicSpecularIntensity: number;
-  readonly cinematicCloudOpacity: number;
   readonly cinematicOceanSheen: number;
   readonly cinematicBorders: boolean;
   readonly cinematicBorderColor: string;
@@ -349,6 +348,70 @@ export interface GlobeSettings {
   readonly cinematicSurfaceMicroDetail: number;
   readonly cinematicCityNightResponse: number;
   readonly cinematicOrbitalFlow: number;
+  // -- Sun rig -------------------------------------------------------
+  // `fixed` pins the light vector (cinematicLightX/Y/Z), `realtime`
+  // derives the subsolar point from wall-clock time × timeScale, and
+  // `orbit` time-lapses the terminator at `speed` degrees/second.
+  readonly cinematicSunMode: 'fixed' | 'realtime' | 'orbit';
+  readonly cinematicSunSpeed: number;
+  readonly cinematicSunTimeScale: number;
+  readonly cinematicSunVisible: boolean;
+  readonly cinematicSunGlare: number;
+  readonly cinematicSunSize: number;
+  readonly cinematicSunColor: string;
+  // -- Cloud shell ---------------------------------------------------
+  readonly cinematicClouds: boolean;
+  readonly cinematicCloudCoverage: number;
+  /** Cloud shell opacity (`clouds.opacity`). */
+  readonly cinematicCloudShellOpacity: number;
+  readonly cinematicCloudSpeed: number;
+  readonly cinematicCloudSoftness: number;
+  readonly cinematicCloudShadows: boolean;
+  readonly cinematicCloudShadowStrength: number;
+  readonly cinematicCloudAltitude: number;
+  // -- Surface realism ----------------------------------------------
+  readonly cinematicRelief: number;
+  readonly cinematicBiomes: boolean;
+  readonly cinematicShallows: number;
+  readonly cinematicMoonlight: number;
+  readonly cinematicSnowLine: number;
+  readonly cinematicIceColor: string;
+  readonly cinematicVegetationColor: string;
+  readonly cinematicDesertColor: string;
+  readonly cinematicShallowWaterColor: string;
+  // -- Aurora --------------------------------------------------------
+  readonly cinematicAurora: boolean;
+  readonly cinematicAuroraIntensity: number;
+  readonly cinematicAuroraSpeed: number;
+  readonly cinematicAuroraLatitude: number;
+  readonly cinematicAuroraColor: string;
+  readonly cinematicAuroraTopColor: string;
+  // -- Scattering atmosphere (cinematic-only shell) ------------------
+  readonly cinematicScatter: number;
+  readonly cinematicMie: number;
+  readonly cinematicAirglow: number;
+  readonly cinematicAtmosphereThickness: number;
+  // -- Optional real Earth textures ----------------------------------
+  // 'none' stays fully procedural; 'earth-2k' points the kind at the
+  // bundled 2k day/night/normal/specular/cloud maps.
+  readonly cinematicTextures: 'none' | 'earth-2k';
+  // -- Sky (cinematic starfield band) --------------------------------
+  readonly cinematicMilkyWay: boolean;
+  readonly cinematicMilkyWayIntensity: number;
+  // -----------------------------------------------------------------
+  // Shared HDR post-processing pipeline (`config.postprocessing`).
+  // Kind-agnostic — always emitted so the workshop's live-update path
+  // can push changes through `globe.update()`.
+  // -----------------------------------------------------------------
+  readonly postfxEnabled: boolean;
+  readonly postfxExposure: number;
+  readonly postfxBloomStrength: number;
+  readonly postfxBloomThreshold: number;
+  readonly postfxBloomRadius: number;
+  readonly postfxStreak: number;
+  readonly postfxVignette: number;
+  readonly postfxChromatic: number;
+  readonly postfxGrain: number;
   // -----------------------------------------------------------------
   // Paper kind (vintage atlas) — only honoured when kind === 'paper'.
   // Empty-string color = use theme default. 0 / negative numerics where

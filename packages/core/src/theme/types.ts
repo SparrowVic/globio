@@ -136,7 +136,16 @@ export type TokenKey =
   | 'cinematic.networkColor'
   | 'cinematic.networkOpacity'
   | 'cinematic.borderColor'
-  | 'cinematic.borderIntensity';
+  | 'cinematic.borderIntensity'
+  | 'cinematic.iceColor'
+  | 'cinematic.vegetationColor'
+  | 'cinematic.desertColor'
+  | 'cinematic.shallowWaterColor'
+  | 'cinematic.auroraColor'
+  | 'cinematic.auroraTopColor'
+  | 'cinematic.moonColor'
+  | 'cinematic.sunColor'
+  | 'cinematic.saturation';
 
 /**
  * All tokens are either a string (color hex/rgb or texture URL) or a number.
@@ -275,6 +284,16 @@ export interface TokenSet {
   readonly 'cinematic.networkOpacity': number;
   readonly 'cinematic.borderColor': string;
   readonly 'cinematic.borderIntensity': number;
+  readonly 'cinematic.iceColor': string;
+  readonly 'cinematic.vegetationColor': string;
+  readonly 'cinematic.desertColor': string;
+  readonly 'cinematic.shallowWaterColor': string;
+  readonly 'cinematic.auroraColor': string;
+  readonly 'cinematic.auroraTopColor': string;
+  readonly 'cinematic.moonColor': string;
+  readonly 'cinematic.sunColor': string;
+  /** Surface colour saturation multiplier (1 = natural, 0 = monochrome). */
+  readonly 'cinematic.saturation': number;
 }
 
 export type PartialTokenSet = Partial<TokenSet>;

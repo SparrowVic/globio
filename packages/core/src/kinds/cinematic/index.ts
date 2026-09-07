@@ -1,7 +1,9 @@
+import { Vector3 } from 'three';
 import { CinematicArcsLayer } from './arcs';
 import { CinematicAtmosphereLayer } from './atmosphere';
 import { CinematicBordersLayer } from './borders';
 import { CinematicCityLightsLayer } from './city-lights';
+import { CinematicCloudsLayer } from './clouds';
 import { CinematicCountryFillLayer } from './country-fill';
 import { CinematicCrosshairLayer } from './crosshair';
 import { buildCinematicFocusPulse } from './focus-pulse';
@@ -10,11 +12,14 @@ import { CinematicMarkersLayer } from './markers';
 import { CinematicSurfaceNetworkLayer } from './network';
 import { CinematicSelectionLayer } from './selection';
 import { CinematicStarfieldLayer } from './starfield';
+import { CinematicSunController, CinematicSunDiscLayer } from './sun';
 import { CinematicSurfaceLayer } from './surface';
+import { CinematicTextureSet } from './textures';
 import { HeatmapLayer } from '../../data-layers/heatmap/heatmap-layer';
 import { buildCinematicSurfaceAtlas, buildDensityTexture } from './atlas';
 import { prepareCinematicData } from './data';
-import { CinematicWorld } from './engine';
+import { CinematicWorld, type CinematicQualityTier } from './engine';
+import { visibleCityEnergy } from './math';
 import type { CountryFeature } from '../../renderer/country-feature';
 import type {
   ChoroplethDataLayer,
@@ -23,7 +28,7 @@ import type {
   HeatmapDataLayer,
 } from '../../data-layers/types';
 import type { GlobeConfig } from '../../types';
-import type { CinematicConfig, CinematicDataset } from '../../types/kinds';
+import type { CinematicConfig, CinematicDataset, CinematicSunConfig } from '../../types/kinds';
 import type {
   DataLayerBuilder,
   KindBuildContext,
@@ -32,11 +37,18 @@ import type {
   Public,
 } from '../types';
 
-const DEFAULT_CITY_LIGHTS_COUNT = 6200;
-const DEFAULT_NETWORK_CONNECTIONS = 44;
+const DEFAULT_CITY_LIGHTS_COUNT = 11500;
+const DEFAULT_NETWORK_CONNECTIONS = 56;
+// How often we resample the visible-city-energy aggregate. Cheap enough
+// (single dot product per city) that 6 Hz is invisible CPU but keeps the
+// surface "alive" as the camera orbits.
+const VISIBLE_ENERGY_UPDATE_HZ = 6;
 
 export interface CinematicKindHandle extends KindHandle {
   setCinematicConfig?(partial: CinematicConfig): void;
+  /** Adaptive quality tier notifications (only fire when `quality: 'auto'`). */
+  onQualityTier?(listener: ((tier: CinematicQualityTier) => void) | null): void;
+  getQualityTier?(): CinematicQualityTier;
   setCinematicData?(dataset: CinematicDataset | null): void;
   setOutlineConfig?(next: NonNullable<GlobeConfig['outline']>): void;
   setPointerPixel?(x: number, y: number): void;
@@ -65,9 +77,11 @@ export const cinematicKind: KindModule = {
     camera,
     arcsLayer,
     globeSurfaceMesh,
+    atmosphereLayer,
   }: KindBuildContext): CinematicKindHandle {
     const cinematic = config.cinematic ?? {};
     const surfaceCfg = cinematic.surface ?? {};
+    const cloudsCfg = cinematic.clouds ?? {};
     const bordersCfg = cinematic.borders ?? {};
     const cityCfg = cinematic.cityLights ?? {};
     const networkCfg = cinematic.network ?? {};
@@ -126,11 +140,86 @@ export const cinematicKind: KindModule = {
           : tokens['cinematic.specularIntensity'],
       ...(surfaceCfg.cloudOpacity !== undefined && { cloudOpacity: surfaceCfg.cloudOpacity }),
       ...(surfaceCfg.oceanSheen !== undefined && { oceanSheen: surfaceCfg.oceanSheen }),
+      ...(surfaceCfg.relief !== undefined && surfaceCfg.relief >= 0 && { reliefStrength: surfaceCfg.relief }),
+      ...(surfaceCfg.biomes !== undefined && { biomes: surfaceCfg.biomes }),
+      ...(surfaceCfg.shallows !== undefined && surfaceCfg.shallows >= 0 && { shallows: surfaceCfg.shallows }),
+      ...(surfaceCfg.snowLine !== undefined && surfaceCfg.snowLine > 0 && { snowLine: surfaceCfg.snowLine }),
+      saturation:
+        surfaceCfg.saturation !== undefined && surfaceCfg.saturation >= 0
+          ? surfaceCfg.saturation
+          : tokens['cinematic.saturation'],
+      iceColor: pickColor(surfaceCfg.iceColor, tokens['cinematic.iceColor']),
+      vegetationColor: pickColor(surfaceCfg.vegetationColor, tokens['cinematic.vegetationColor']),
+      desertColor: pickColor(surfaceCfg.desertColor, tokens['cinematic.desertColor']),
+      shallowWaterColor: pickColor(surfaceCfg.shallowWaterColor, tokens['cinematic.shallowWaterColor']),
       landTexture: atlas.landTexture,
+      terrainTexture: atlas.terrainTexture,
       densityTexture: currentDensityTexture,
     });
     surface.setWorld(world);
     globeGroup.add(surface.mesh);
+
+    // Sun / moon / aurora colours come from the theme unless overridden.
+    world.setMoonColor(tokens['cinematic.moonColor']);
+    world.setAuroraColors(
+      pickColor(cinematic.aurora?.color, tokens['cinematic.auroraColor']),
+      pickColor(cinematic.aurora?.colorTop, tokens['cinematic.auroraTopColor']),
+    );
+    if (!cinematic.sun?.color) world.uniforms.uSunColor.value.set(tokens['cinematic.sunColor']);
+
+    // Cloud shell — shares the coverage field with the surface shadows.
+    let cloudsEnabledNow = cloudsCfg.enabled ?? true;
+    const clouds = new CinematicCloudsLayer({
+      color: pickColor(cloudsCfg.color ?? surfaceCfg.cloudColor, tokens['cinematic.cloudColor']),
+      opacity:
+        cloudsCfg.opacity !== undefined && cloudsCfg.opacity >= 0
+          ? cloudsCfg.opacity
+          : surfaceCfg.cloudOpacity !== undefined && surfaceCfg.cloudOpacity > 0.2
+            ? surfaceCfg.cloudOpacity
+            : 0.85,
+      ...(cloudsCfg.altitude !== undefined && cloudsCfg.altitude > 0 && { altitude: cloudsCfg.altitude }),
+      densityTexture: currentDensityTexture,
+    });
+    clouds.setWorld(world);
+    clouds.setVisible(cloudsEnabledNow);
+    globeGroup.add(clouds.mesh);
+
+    // The shared atmosphere shell (mounted by create-globe) is the cinematic
+    // scattering shell — feed it the world so its limb follows the sun.
+    const atmosphere = atmosphereLayer as
+      | (Public<import('../../renderer/atmosphere-layer').AtmosphereLayer> & {
+          setWorld?: (world: CinematicWorld) => void;
+          setScatter?: (config: NonNullable<CinematicConfig['atmosphere']>) => void;
+        })
+      | undefined;
+    atmosphere?.setWorld?.(world);
+    if (cinematic.atmosphere !== undefined) atmosphere?.setScatter?.(cinematic.atmosphere);
+
+    // Optional real-Earth textures: bind whatever has loaded, crossfade in.
+    const textureSet = new CinematicTextureSet({
+      onChange(snapshot, fadeMs) {
+        surface.setTextures(snapshot, fadeMs / 1000);
+        clouds.setCloudTexture(snapshot.clouds);
+      },
+    });
+    if (cinematic.textures) textureSet.load(cinematic.textures);
+
+    // Sun rig: fixed / realtime / orbit light direction + a visible disc.
+    let lastSunConfig: CinematicSunConfig | undefined = cinematic.sun;
+    const sun = new CinematicSunController({
+      globeGroup,
+      world,
+      ...(cinematic.sun !== undefined && { config: cinematic.sun }),
+      fallbackDirection: surfaceCfg.lightDirection ?? fallbackLightDirection,
+    });
+    let sunVisibleNow = cinematic.sun?.visible ?? true;
+    const sunDisc = new CinematicSunDiscLayer({
+      color: pickColor(cinematic.sun?.color, tokens['cinematic.sunColor']),
+      size: pickPositive(cinematic.sun?.size, 1),
+      glare: pickPositive(cinematic.sun?.glare, 1),
+    });
+    sunDisc.setVisible(sunVisibleNow);
+    globeGroup.add(sunDisc.object);
 
     const fillCfg = config.countries?.fill;
     const fill = new CinematicCountryFillLayer({
@@ -241,6 +330,26 @@ export const cinematicKind: KindModule = {
     let lastPixelX = 0;
     let lastPixelY = 0;
 
+    // Visible-city-energy bookkeeping: list of {lat,lng,importance} that
+    // gets summed against the current camera direction at ~6 Hz to feed
+    // the surface shader's "warm hub wash". Refreshed whenever the
+    // dataset rebuilds.
+    let visibleEnergyPoints = preparedData.cityPoints.map((p) => ({
+      lat: p.lat,
+      lng: p.lng,
+      importance: p.importance,
+    }));
+    let visibleEnergyClock = 0;
+    const cameraDirScratch = new Vector3();
+    const updateVisibleEnergy = (): void => {
+      const value = visibleCityEnergy(
+        visibleEnergyPoints,
+        cameraDirScratch.copy(camera.position).normalize(),
+      );
+      world.setVisibleCityEnergy(value);
+    };
+    updateVisibleEnergy();
+
     const choroplethBuilder: DataLayerBuilder = (input: DataLayer): DataLayerHandle => {
       const cfg = input as ChoroplethDataLayer;
       fill.setData(cfg.data, cfg.scale);
@@ -317,11 +426,18 @@ export const cinematicKind: KindModule = {
         globeGroup.remove(borders.group);
         fill.dispose();
         globeGroup.remove(fill.group);
+        sunDisc.dispose();
+        globeGroup.remove(sunDisc.object);
+        textureSet.dispose();
+        clouds.dispose();
+        globeGroup.remove(clouds.mesh);
         surface.dispose();
         globeGroup.remove(surface.mesh);
       },
       setVisible(visible: boolean) {
         surface.setVisible(visible);
+        clouds.setVisible(visible && cloudsEnabledNow);
+        sunDisc.setVisible(visible && sunVisibleNow);
         fill.group.visible = visible;
         borders.setVisible(visible && bordersEnabledNow);
         cityLights.setVisible(visible && cityLightsEnabledNow);
@@ -329,8 +445,18 @@ export const cinematicKind: KindModule = {
         crosshair.setEnabled(visible && crosshairEnabledNow);
       },
       update(delta: number, elapsedSeconds: number) {
+        visibleEnergyClock += delta;
+        if (visibleEnergyClock >= 1 / VISIBLE_ENERGY_UPDATE_HZ) {
+          visibleEnergyClock = 0;
+          updateVisibleEnergy();
+        }
+        sun.update(delta);
         world.update(delta, elapsedSeconds);
-        surface.update(elapsedSeconds);
+        sunDisc.sync(sun.getDirection(), camera, globeGroup);
+        sunDisc.update(elapsedSeconds);
+        surface.update(elapsedSeconds, delta);
+        clouds.setTextureMix(surface.getTextureMix());
+        clouds.update(elapsedSeconds);
         fill.update(delta);
         borders.update(elapsedSeconds, delta);
         cityLights.update(delta, elapsedSeconds);
@@ -338,6 +464,12 @@ export const cinematicKind: KindModule = {
         if (crosshairEnabledNow) crosshair.update(delta);
       },
       onPointerMove(point3D, latLng) {
+        if (point3D !== null) {
+          // Hover-energy is small but non-zero so the surface "breathes"
+          // softly under the cursor without the limb flashing.
+          world.pulseInteraction(0.16);
+          world.registerInteractionPoint(point3D);
+        }
         if (!crosshairEnabledNow) {
           crosshair.hide();
           return;
@@ -345,11 +477,14 @@ export const cinematicKind: KindModule = {
         if (point3D === null || latLng === null) {
           crosshair.hide();
         } else {
-          world.pulseInteraction(0.16);
           crosshair.showAt(point3D, latLng, lastPixelX, lastPixelY);
         }
       },
       onPointerDown() {
+        // Clicks deliver a full-strength pulse; the spatial point was set
+        // by the most recent pointer-move event (Three's pointer model
+        // raises move before down), so the surface bloom centres on the
+        // exact pixel the user clicked.
         world.pulseInteraction(1);
       },
       setPointerPixel(x: number, y: number) {
@@ -392,6 +527,60 @@ export const cinematicKind: KindModule = {
           if (s.specularIntensity !== undefined) surface.setSpecularIntensity(s.specularIntensity);
           if (s.cloudOpacity !== undefined) surface.setCloudOpacity(s.cloudOpacity);
           if (s.oceanSheen !== undefined) surface.setOceanSheen(s.oceanSheen);
+          if (s.relief !== undefined) surface.setReliefStrength(s.relief);
+          if (s.biomes !== undefined) surface.setBiomes(s.biomes);
+          if (s.shallows !== undefined) surface.setShallows(s.shallows);
+          if (s.snowLine !== undefined) surface.setSnowLine(s.snowLine);
+          if (s.saturation !== undefined) {
+            surface.setSaturation(s.saturation >= 0 ? s.saturation : tokens['cinematic.saturation']);
+          }
+          if (s.iceColor !== undefined) surface.setIceColor(pickColor(s.iceColor, tokens['cinematic.iceColor']));
+          if (s.vegetationColor !== undefined) {
+            surface.setVegetationColor(pickColor(s.vegetationColor, tokens['cinematic.vegetationColor']));
+          }
+          if (s.desertColor !== undefined) surface.setDesertColor(pickColor(s.desertColor, tokens['cinematic.desertColor']));
+          if (s.shallowWaterColor !== undefined) {
+            surface.setShallowWaterColor(pickColor(s.shallowWaterColor, tokens['cinematic.shallowWaterColor']));
+          }
+        }
+        if (partial.clouds !== undefined) {
+          const c = partial.clouds;
+          if (c.enabled !== undefined) {
+            cloudsEnabledNow = c.enabled;
+            clouds.setVisible(c.enabled);
+          }
+          if (c.color !== undefined) clouds.setColor(pickColor(c.color, tokens['cinematic.cloudColor']));
+          if (c.opacity !== undefined) clouds.setOpacity(c.opacity);
+          if (c.altitude !== undefined) clouds.setAltitude(c.altitude);
+          // coverage / speed / softness / shadows live on the shared world block (world.setConfig above).
+        }
+        if (partial.aurora !== undefined) {
+          world.setAuroraColors(
+            partial.aurora.color !== undefined ? pickColor(partial.aurora.color, tokens['cinematic.auroraColor']) : '',
+            partial.aurora.colorTop !== undefined ? pickColor(partial.aurora.colorTop, tokens['cinematic.auroraTopColor']) : '',
+          );
+        }
+        if (partial.atmosphere !== undefined) atmosphere?.setScatter?.(partial.atmosphere);
+        if (partial.textures !== undefined) textureSet.load(partial.textures);
+        // A bare `surface.lightDirection` edit must also move the sun rig's
+        // fixed direction, or the next unrelated sun edit would push the
+        // build-time fallback back into the world (API path; the demo
+        // mirrors the light sliders into `sun.direction` anyway).
+        if (partial.surface?.lightDirection !== undefined && partial.sun?.direction === undefined) {
+          sun.setConfig({ direction: partial.surface.lightDirection });
+          lastSunConfig = { ...(lastSunConfig ?? {}), direction: partial.surface.lightDirection };
+        }
+        if (partial.sun !== undefined) {
+          const next = partial.sun;
+          if (sunRigChanged(lastSunConfig, next)) sun.setConfig(next);
+          lastSunConfig = next;
+          if (next.visible !== undefined) {
+            sunVisibleNow = next.visible;
+            sunDisc.setVisible(next.visible);
+          }
+          if (next.color !== undefined) sunDisc.setColor(pickColor(next.color, tokens['cinematic.sunColor']));
+          if (next.size !== undefined) sunDisc.setSize(next.size);
+          if (next.glare !== undefined) sunDisc.setGlare(next.glare);
         }
         if (partial.borders !== undefined) {
           const b = partial.borders;
@@ -466,6 +655,12 @@ export const cinematicKind: KindModule = {
         currentDataset = dataset;
         rebuildCinematicData(currentDataset);
       },
+      onQualityTier(listener) {
+        world.onQualityTier(listener);
+      },
+      getQualityTier() {
+        return world.getQualityTier();
+      },
     };
 
     function rebuildCinematicData(
@@ -478,11 +673,49 @@ export const cinematicKind: KindModule = {
       const previousDensityTexture = currentDensityTexture;
       currentDensityTexture = buildDensityTexture(preparedData);
       surface.setDensityTexture(currentDensityTexture);
+      clouds.setDensityTexture(currentDensityTexture);
       cityLights.setData(preparedData);
       network.setData(preparedData);
+      visibleEnergyPoints = preparedData.cityPoints.map((p) => ({
+        lat: p.lat,
+        lng: p.lng,
+        importance: p.importance,
+      }));
+      updateVisibleEnergy();
       if (previousDensityTexture !== atlas.densityTexture) previousDensityTexture.dispose();
     }
   },
+};
+
+/**
+ * The sun controller re-anchors its clock when it receives a config, so
+ * only forward configs whose time-defining fields actually changed —
+ * Studio pushes the full config on every knob edit.
+ */
+const sunRigChanged = (
+  prev: CinematicSunConfig | undefined,
+  next: CinematicSunConfig,
+): boolean => {
+  if (prev === undefined) return true;
+  const sameDir =
+    prev.direction === next.direction ||
+    (prev.direction !== undefined &&
+      next.direction !== undefined &&
+      prev.direction[0] === next.direction[0] &&
+      prev.direction[1] === next.direction[1] &&
+      prev.direction[2] === next.direction[2]);
+  const dateOf = (d: CinematicSunConfig['date']): number | undefined => {
+    if (d === undefined) return undefined;
+    const ms = d instanceof Date ? d.getTime() : new Date(d).getTime();
+    return Number.isNaN(ms) ? undefined : ms;
+  };
+  return (
+    prev.mode !== next.mode ||
+    dateOf(prev.date) !== dateOf(next.date) ||
+    prev.timeScale !== next.timeScale ||
+    prev.speed !== next.speed ||
+    !sameDir
+  );
 };
 
 const pickColor = (value: string | undefined, fallback: string): string =>

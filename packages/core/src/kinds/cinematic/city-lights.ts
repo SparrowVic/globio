@@ -1,3 +1,32 @@
+// Cinematic city-lights — point sprites driven by physical-ish models.
+//
+// Each city is a single GL_POINT with five baked attributes: world
+// position, sprite size (importance × density), per-point shimmer phase,
+// per-point intensity, density at the point, colour temperature in
+// [0..1] mapped to a Kelvin range. The fragment shader produces a
+// sub-pixel core + halo, the vertex shader does the heavy reactive work:
+//
+//   * Night-side gating from `cn_terminator()` so day-side cities fade
+//     to nothing while night-side burns hot, with a small twilight
+//     boost that mirrors the surface terminator wash.
+//
+//   * Atmospheric extinction at the limb — a Beer–Lambert-like
+//     attenuation so cities near the horizon read dimmer than cities
+//     directly under the camera, the way they do through real air.
+//
+//   * Per-point shimmer = slow drift + fast twinkle, both seeded from
+//     the point's own hash so neighbours flicker independently. No
+//     `Math.random` anywhere; the same camera position twice produces
+//     identical pixels.
+//
+//   * Spatial interaction echo: a localised brighten when the user
+//     touches the globe near the city, falling off as a geodesic
+//     Gaussian over `uInteractionRadius`.
+//
+//   * Density-driven gamma: brighter cities cluster more sharply, dim
+//     cities pull a longer halo. The exponent on density at the start
+//     of the function is the dial.
+
 import {
   AdditiveBlending,
   BufferGeometry,
@@ -15,6 +44,7 @@ import {
   syncCinematicUniforms,
   type CinematicUniforms,
 } from './shader-uniforms';
+import { GLSL_TERMINATOR, kelvinToRgb, sampleDensity, stableHash01 } from './math';
 
 export interface CinematicCityLightsLayerOptions {
   readonly color: string;
@@ -25,16 +55,26 @@ export interface CinematicCityLightsLayerOptions {
   readonly data: CinematicPreparedData;
 }
 
-const DEFAULT_COUNT = 6200;
+const DEFAULT_COUNT = 11500;
 const DEFAULT_SIZE = 0.0058;
 const LIGHT_RADIUS = GLOBE_RADIUS * 1.0075;
+// Colour-temperature endpoints used for the per-point gradient. Cooler
+// (sodium-vapour 2700K → high-pressure 4200K) keeps hot cores looking
+// natural; the warm bias is intentional because film-Earth city lights
+// read warmer than sensor data suggests.
+const KELVIN_WARM = kelvinToRgb(2750);
+const KELVIN_COOL = kelvinToRgb(4400);
 
 const VERTEX_SHADER = /* glsl */ `
+  precision mediump float;
+  ${GLSL_TERMINATOR}
+
   attribute float aSize;
   attribute float aPhase;
   attribute float aIntensity;
   attribute float aDensity;
   attribute float aTemperature;
+
   uniform float uSize;
   uniform float uIntensity;
   uniform float uTwinkle;
@@ -46,29 +86,81 @@ const VERTEX_SHADER = /* glsl */ `
   uniform float uTerminatorBoost;
   uniform float uHorizonGlow;
   uniform float uCityNightResponse;
-  uniform vec3 uColor;
-  uniform vec3 uLightDirection;
+  uniform float uTerminatorSoftness;
+  uniform float uTerminatorContrast;
+  uniform float uInteractionEnergy;
+  uniform vec3  uInteractionPoint;
+  uniform float uInteractionAge;
+  uniform float uInteractionRadius;
+  uniform vec3  uColor;
+  uniform vec3  uKelvinWarm;
+  uniform vec3  uKelvinCool;
+  uniform vec3  uLightDirection;
+
   varying vec3 vColor;
   varying float vAlpha;
 
   void main() {
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     vec4 mvPosition = viewMatrix * worldPosition;
-    vec3 normal = normalize(mat3(modelMatrix) * normalize(position));
+    vec3 surface = normalize(position);                                    // sphere normal in local space
+    vec3 normal  = normalize(mat3(modelMatrix) * surface);
     vec3 viewDir = normalize(cameraPosition - worldPosition.xyz);
-    float light = dot(normal, normalize(uLightDirection));
-    float day = smoothstep(-0.32, 0.42, light);
-    float twilight = exp(-pow(light / 0.34, 2.0));
-    float horizon = 1.0 - smoothstep(0.02, 0.42, max(dot(normal, viewDir), 0.0));
-    float nightReactive = mix(1.0, (1.0 - day) * uCityNightResponse + twilight * 0.86 * uTerminatorBoost + horizon * 0.18 * uHorizonGlow, uLightInfluence);
-    float densityBoost = mix(1.0, 0.68 + aDensity * 0.74, uDensityInfluence);
-    float shimmer = mix(1.0, 0.8 + 0.2 * sin(uTime * (2.2 + aDensity * 1.4) + aPhase * 6.2831853), uTwinkle);
+
+    // Day/night/twilight from the shared terminator function.
+    cn_TerminatorBands tb = cn_terminator(normal, normalize(uLightDirection),
+                                          uTerminatorSoftness, uTerminatorContrast);
+
+    // Visibility through atmosphere: at the limb the line-of-sight
+    // through air is long, so we extinct point intensity with a
+    // Schlick-like 1 - smoothstep on the camera-facing dot product.
+    float ndv = clamp(dot(normal, viewDir), 0.0, 1.0);
+    float horizon = 1.0 - smoothstep(0.02, 0.42, ndv);
+    float extinction = mix(1.0, smoothstep(0.0, 0.32, ndv), 0.85);
+
+    // Multi-source reactivity:
+    //   night-side base + twilight kicker + horizon limb-glow lift.
+    float lit = (1.0 - tb.day) * uCityNightResponse
+              + tb.twilight * 1.05 * uTerminatorBoost
+              + horizon * 0.16 * uHorizonGlow;
+    float lightReactive = mix(1.0, lit, uLightInfluence);
+
+    // Density-driven gamma: cores burn, edges dim.
+    float densityCurve = pow(aDensity, 0.78);
+    float densityBoost = mix(1.0, 0.62 + densityCurve * 0.94, uDensityInfluence);
+
+    // Two-band twinkle: slow ~0.5 Hz drift + fast 2-3 Hz shimmer, both
+    // seeded by the point's phase. Density modulates speed (busier =
+    // more apparent activity).
+    float slow = 0.18 * sin(uTime * 0.45 + aPhase * 6.2831853);
+    float fast = 0.22 * sin(uTime * (2.05 + aDensity * 1.3) + aPhase * 12.566370);
+    float shimmer = mix(1.0, 0.86 + slow + fast, uTwinkle);
+
+    // Spatial interaction: brighten near the user's last touch.
+    float arc = acos(clamp(dot(surface, normalize(uInteractionPoint)), -1.0, 1.0));
+    float interactionGaussian = exp(-pow(arc / max(uInteractionRadius, 0.001), 2.0));
+    float interactionDecay = exp(-uInteractionAge * 0.85);
+    float interaction = interactionGaussian * interactionDecay * 0.55
+                      + uInteractionEnergy * 0.18;
+
+    // Sprite size: perspective scale + camera distance scale + density.
     float perspectiveScale = 520.0 / max(-mvPosition.z, 0.001);
     float cameraScale = mix(1.0, clamp(uCameraDistance / 2.35, 0.72, 1.45), uCameraInfluence);
-    gl_PointSize = max(0.72, uSize * aSize * perspectiveScale * cameraScale * (0.78 + aDensity * 0.18));
-    vec3 warm = mix(vec3(1.0, 0.56, 0.22), vec3(1.0, 0.82, 0.46), aTemperature);
-    vColor = uColor * warm * (0.82 + twilight * 0.32 + horizon * 0.12 * uHorizonGlow);
-    vAlpha = min(2.4, uIntensity * aIntensity * nightReactive * densityBoost * shimmer);
+    float sizeBoost = 0.78 + densityCurve * 0.22 + interaction * 0.18;
+    gl_PointSize = max(0.72, uSize * aSize * perspectiveScale * cameraScale * sizeBoost);
+
+    // Colour: Planckian-locus blend modulated by per-point temperature,
+    // tinted by the user's chosen uColor so themes still apply, and
+    // pushed warm at the terminator (Mie-like forward scatter).
+    vec3 kelvin = mix(uKelvinWarm, uKelvinCool, aTemperature);
+    vec3 baseColor = uColor * kelvin;
+    vec3 twiBoost = vec3(1.0, 0.62, 0.34) * tb.warmShift * 0.42;
+    vec3 horizonBoost = vec3(1.0, 0.78, 0.46) * horizon * 0.16 * uHorizonGlow;
+    vec3 interactionBoost = vec3(1.0, 0.78, 0.42) * interaction * 0.42;
+    vColor = baseColor + twiBoost + horizonBoost + interactionBoost;
+
+    vAlpha = min(2.6, uIntensity * aIntensity * lightReactive * densityBoost
+                 * shimmer * extinction);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -84,8 +176,8 @@ const FRAGMENT_SHADER = /* glsl */ `
     if (dist > 1.0) discard;
     float core = smoothstep(0.28, 0.0, dist);
     float halo = smoothstep(1.0, 0.08, dist);
-    float alpha = vAlpha * (core * 1.16 + halo * 0.46);
-    vec3 color = vColor * (0.72 + core * 2.55 + halo * 0.42);
+    float alpha = vAlpha * (core * 1.18 + halo * 0.42);
+    vec3 color = vColor * (0.74 + core * 2.65 + halo * 0.40);
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -119,6 +211,8 @@ export class CinematicCityLightsLayer {
       uniforms: {
         ...cloneCinematicUniforms(this.uniforms),
         uColor: { value: new Color(options.color) },
+        uKelvinWarm: { value: new Color(KELVIN_WARM[0], KELVIN_WARM[1], KELVIN_WARM[2]) },
+        uKelvinCool: { value: new Color(KELVIN_COOL[0], KELVIN_COOL[1], KELVIN_COOL[2]) },
         uSize: { value: this.defaultSize },
         uIntensity: { value: options.intensity },
         uTwinkle: { value: this.twinkle ? 1 : 0 },
@@ -143,7 +237,7 @@ export class CinematicCityLightsLayer {
     if (this.world) syncCinematicUniforms(this.uniforms, this.world.uniforms);
     this.uniforms.uTime.value = elapsedSeconds;
     for (const [key, uniform] of Object.entries(this.uniforms)) {
-      this.material.uniforms[key]!.value = uniform.value;
+      if (this.material.uniforms[key]) this.material.uniforms[key]!.value = uniform.value;
     }
     this.material.uniforms['uIntensity']!.value = this.intensity;
     this.material.uniforms['uTwinkle']!.value = this.twinkle ? 1 : 0;
@@ -213,9 +307,18 @@ const buildGeometry = (data: CinematicPreparedData, count: number): BufferGeomet
     positions[i * 3] = p.x;
     positions[i * 3 + 1] = p.y;
     positions[i * 3 + 2] = p.z;
-    const density = sampleDensity(data, point.lat, point.lng);
+    const density = sampleDensity(
+      data.density,
+      data.densityWidth,
+      data.densityHeight,
+      point.lat,
+      point.lng,
+    );
+    // Stable hash on the city id (or its synthetic counterpart) gives
+    // each light its own twinkle phase; never `Math.random()`.
+    const phase = stableHash01(point.id);
     sizes[i] = 0.55 + Math.min(1.55, point.importance * 0.45) + density * 0.48;
-    phases[i] = (i * 0.61803398875) % 1;
+    phases[i] = phase;
     intensities[i] = 0.26 + Math.min(1.2, point.value) * 0.55 + density * 0.32;
     densities[i] = density;
     temperatures[i] = point.temperature;
@@ -228,13 +331,4 @@ const buildGeometry = (data: CinematicPreparedData, count: number): BufferGeomet
   geometry.setAttribute('aDensity', new Float32BufferAttribute(densities, 1));
   geometry.setAttribute('aTemperature', new Float32BufferAttribute(temperatures, 1));
   return geometry;
-};
-
-const sampleDensity = (data: CinematicPreparedData, lat: number, lng: number): number => {
-  const x = Math.floor(((lng + 180) / 360) * data.densityWidth);
-  const y = Math.floor(((90 - lat) / 180) * data.densityHeight);
-  return data.density[
-    Math.max(0, Math.min(data.densityHeight - 1, y)) * data.densityWidth +
-      ((x + data.densityWidth) % data.densityWidth)
-  ] ?? 0;
 };

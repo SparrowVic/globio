@@ -1,3 +1,30 @@
+// Cinematic arcs — long-haul ribbons rising above the planet's skin.
+//
+// Each arc is a great-circle path lifted by a sine-bell apex. Geometry
+// is the same prev/next/side strip pattern as the network, but tuned
+// for thicker, longer-living lines and a doubled material pass: a soft
+// "glow" material in the back and a sharper "core" material on top.
+//
+// Physical hooks:
+//
+//   * Light gating via `cn_terminator()`: arcs glow strongest at the
+//     terminator (Mie forward-scatter), softer on the day side, and
+//     fade as the orbit crosses the night side away from the limb.
+//
+//   * Atmospheric extinction: as a vertex tilts away from the camera
+//     it sits "in more air", so we dampen alpha with an exponential of
+//     `(1 - n·v)`. This kills the additive bleed-through of arcs that
+//     are anatomically behind the planet.
+//
+//   * Density-warmed contact glow: each endpoint sphere reads its
+//     atlas density at build time; a denser contact flares warmer and
+//     bigger so arcs landing in megacities visibly throb harder than
+//     arcs landing in the middle of the Pacific.
+//
+//   * Tracer + wake: a sharp gaussian packet plus a softer trailing
+//     gaussian, both seeded by the arc id so identical arc ids give
+//     identical timing but neighbouring arcs do not flicker in lockstep.
+
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -14,7 +41,7 @@ import {
 } from 'three';
 import { GLOBE_RADIUS, latLngToVector3 } from '../../utils/coordinates';
 import type { ArcConfig, LatLng } from '../../types';
-import { angularDistance, stableHash01 } from './math';
+import { angularDistance, GLSL_TERMINATOR, stableHash01 } from './math';
 import type { CinematicWorld } from './engine';
 import {
   cloneCinematicUniforms,
@@ -46,47 +73,67 @@ interface ArcEntry {
   readonly phase: number;
 }
 
-const SAMPLES = 92;
+const SAMPLES = 96;
 const ARC_RADIUS = GLOBE_RADIUS * 1.012;
 
 const VERTEX_SHADER = /* glsl */ `
+  precision mediump float;
+  ${GLSL_TERMINATOR}
+
   attribute vec3 aPrev;
   attribute vec3 aNext;
   attribute float aSide;
   attribute float aT;
   attribute float aEndpoint;
   attribute float aRouteValue;
+
   uniform float uWidth;
   uniform float uCameraDistance;
   uniform float uCameraInfluence;
-  uniform vec3 uLightDirection;
+  uniform vec3  uLightDirection;
+  uniform float uTerminatorSoftness;
+  uniform float uTerminatorContrast;
+
   varying float vT;
   varying float vSide;
   varying float vEndpoint;
   varying float vRouteValue;
-  varying float vLight;
+  varying float vDay;
+  varying float vNight;
+  varying float vTwilight;
+  varying float vWarmShift;
   varying float vHorizon;
 
   void main() {
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vec4 worldPos  = modelMatrix * vec4(position, 1.0);
     vec4 worldPrev = modelMatrix * vec4(aPrev, 1.0);
     vec4 worldNext = modelMatrix * vec4(aNext, 1.0);
-    vec4 mvPos = viewMatrix * worldPos;
+    vec4 mvPos  = viewMatrix * worldPos;
     vec4 mvPrev = viewMatrix * worldPrev;
     vec4 mvNext = viewMatrix * worldNext;
     vec2 tangent = normalize(mvNext.xy - mvPrev.xy + vec2(0.00001));
     vec2 normal2 = vec2(-tangent.y, tangent.x);
     float cameraScale = mix(1.0, clamp(uCameraDistance / 2.5, 0.78, 1.6), uCameraInfluence);
-    float taper = 0.22 + aEndpoint * 0.9;
+    // Cubic taper: 0 at endpoints, 1 at apex. Smoother than the linear
+    // version we had before; reads as a draftsman's stroke.
+    float taper = smoothstep(0.0, 0.32, aEndpoint) * smoothstep(0.0, 0.32, 1.08 - aEndpoint);
+    taper = 0.22 + taper * 0.94;
     float width = uWidth * (0.0022 + aRouteValue * 0.0007) * cameraScale * taper;
     mvPos.xy += normal2 * aSide * width;
+
     vec3 normal = normalize(worldPos.xyz);
     vec3 viewDir = normalize(cameraPosition - worldPos.xyz);
+    cn_TerminatorBands tb = cn_terminator(normal, normalize(uLightDirection),
+                                          uTerminatorSoftness, uTerminatorContrast);
+
     vT = aT;
     vSide = aSide;
     vEndpoint = aEndpoint;
     vRouteValue = aRouteValue;
-    vLight = dot(normal, normalize(uLightDirection));
+    vDay = tb.day;
+    vNight = tb.night;
+    vTwilight = tb.twilight;
+    vWarmShift = tb.warmShift;
     vHorizon = 1.0 - smoothstep(0.04, 0.48, max(dot(normal, viewDir), 0.0));
     gl_Position = projectionMatrix * mvPos;
   }
@@ -94,7 +141,8 @@ const VERTEX_SHADER = /* glsl */ `
 
 const FRAGMENT_SHADER = /* glsl */ `
   precision mediump float;
-  uniform vec3 uColor;
+
+  uniform vec3  uColor;
   uniform float uOpacity;
   uniform float uTime;
   uniform float uPhase;
@@ -102,13 +150,18 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform float uLightInfluence;
   uniform float uDensityInfluence;
   uniform float uTerminatorBoost;
+  uniform float uHorizonGlow;
   uniform float uInteractionEnergy;
   uniform float uOrbitalFlow;
+
   varying float vT;
   varying float vSide;
   varying float vEndpoint;
   varying float vRouteValue;
-  varying float vLight;
+  varying float vDay;
+  varying float vNight;
+  varying float vTwilight;
+  varying float vWarmShift;
   varying float vHorizon;
 
   float gaussian(float x, float width) {
@@ -117,17 +170,33 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   void main() {
     float edge = smoothstep(1.0, 0.12, abs(vSide));
-    float day = smoothstep(-0.3, 0.42, vLight);
-    float twilight = exp(-pow(vLight / 0.36, 2.0));
-    float lightReactive = mix(1.0, (1.0 - day) * 0.52 + twilight * 0.95 * uTerminatorBoost + vHorizon * 0.28, uLightInfluence);
+    float lit = vNight * 0.42
+              + vTwilight * 0.95 * uTerminatorBoost
+              + vHorizon * 0.32 * uHorizonGlow
+              + vDay * 0.30;
+    float lightReactive = mix(1.0, lit, uLightInfluence);
     float density = mix(1.0, 0.82 + vRouteValue * 0.16, uDensityInfluence);
-    float flow = fract(vT - uTime * (0.12 + vRouteValue * 0.025) * uOrbitalFlow - uPhase);
-    float tracer = gaussian(min(flow, 1.0 - flow), 0.035 + uGlow * 0.018);
-    float wake = gaussian(min(fract(flow + 0.085), 1.0 - fract(flow + 0.085)), 0.075);
-    float alpha = uOpacity * edge * vEndpoint * lightReactive * density;
-    alpha *= mix(0.56, 0.24, uGlow) + tracer * (1.45 - uGlow * 0.45) + wake * 0.42;
-    alpha += uOpacity * edge * vEndpoint * uInteractionEnergy * 0.12;
-    vec3 color = uColor * (0.72 + twilight * 0.46 + tracer * 1.7 + vHorizon * 0.18);
+
+    // Tracer + wake; phase comes from arc id (uPhase) so neighbouring
+    // arcs are out of sync without spatial randomness.
+    float flow  = fract(vT - uTime * (0.12 + vRouteValue * 0.025) * uOrbitalFlow - uPhase);
+    float tracer = gaussian(min(flow, 1.0 - flow), 0.030 + uGlow * 0.022);
+    float wakePos = fract(flow + 0.085);
+    float wake   = gaussian(min(wakePos, 1.0 - wakePos), 0.072);
+
+    // Atmospheric extinction at horizon: arcs that pass over the limb
+    // dim noticeably. The expression squared is intentional — single
+    // exponential is too gentle for additive arcs.
+    float facing = 1.0 - clamp(vHorizon * 1.45, 0.0, 1.0);
+    float extinction = mix(0.30, 1.0, smoothstep(0.0, 0.5, facing));
+
+    float alpha = uOpacity * edge * vEndpoint * lightReactive * density * extinction;
+    alpha *= mix(0.56, 0.24, uGlow) + tracer * (1.55 - uGlow * 0.45) + wake * 0.46;
+    alpha += uOpacity * edge * vEndpoint * uInteractionEnergy * 0.14;
+
+    vec3 base = uColor * (0.72 + vTwilight * 0.46 + vHorizon * 0.18);
+    vec3 hot  = vec3(1.0, 0.78, 0.42) * (tracer * 1.65 + wake * 0.4 + vWarmShift * 0.32);
+    vec3 color = base + hot;
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -179,8 +248,8 @@ export class CinematicArcsLayer {
     const color = new Color(config.color ?? this.defaultColor);
     const phase = stableHash01(config.id);
     const width = config.width ?? this.defaultWidth;
-    const coreMaterial = this.buildMaterial(color, width, this.defaultOpacity * 0.72, phase, 0);
-    const glowMaterial = this.buildMaterial(color, width * 3.8, this.defaultOpacity * 0.16, phase, 1);
+    const coreMaterial = this.buildMaterial(color, width, this.defaultOpacity * 0.74, phase, 0);
+    const glowMaterial = this.buildMaterial(color, width * 4.2, this.defaultOpacity * 0.16, phase, 1);
     const glow = new Mesh(geometry, glowMaterial);
     glow.renderOrder = 7;
     this.group.add(glow);
@@ -188,7 +257,7 @@ export class CinematicArcsLayer {
     core.renderOrder = 9;
     this.group.add(core);
 
-    const contactGeometry = new SphereGeometry(this.headSize * 1.45, 18, 18);
+    const contactGeometry = new SphereGeometry(this.headSize * 1.55, 18, 18);
     const contactMaterialA = buildContactMaterial(color);
     const contactMaterialB = buildContactMaterial(color);
     const contactA = new Mesh(contactGeometry, contactMaterialA);
@@ -234,9 +303,11 @@ export class CinematicArcsLayer {
     this.entries.forEach((entry) => {
       syncMaterialUniforms(entry.coreMaterial, this.uniforms);
       syncMaterialUniforms(entry.glowMaterial, this.uniforms);
+      // Endpoint pulse: anti-correlated breathing between the two anchors
+      // so the arc reads as "data leaving A, arriving at B".
       const endpointPulse = 0.58 + 0.42 * Math.sin(elapsedSeconds * 2.1 + entry.phase * 6.2831853);
-      entry.contactMaterialA.opacity = this.defaultOpacity * 0.34 * endpointPulse;
-      entry.contactMaterialB.opacity = this.defaultOpacity * 0.34 * (1.1 - endpointPulse * 0.35);
+      entry.contactMaterialA.opacity = this.defaultOpacity * 0.36 * endpointPulse;
+      entry.contactMaterialB.opacity = this.defaultOpacity * 0.36 * (1.1 - endpointPulse * 0.35);
       const scale = 0.82 + endpointPulse * 0.32;
       entry.contactA.scale.setScalar(scale);
       entry.contactB.scale.setScalar(1.08 - (scale - 0.82) * 0.28);
@@ -384,7 +455,7 @@ const buildContactMaterial = (color: Color): MeshBasicMaterial =>
   new MeshBasicMaterial({
     color,
     transparent: true,
-    opacity: 0.28,
+    opacity: 0.32,
     depthWrite: false,
     blending: AdditiveBlending,
   });
@@ -394,6 +465,6 @@ const syncMaterialUniforms = (
   uniforms: CinematicUniforms,
 ): void => {
   for (const [key, uniform] of Object.entries(uniforms)) {
-    material.uniforms[key]!.value = uniform.value;
+    if (material.uniforms[key]) material.uniforms[key]!.value = uniform.value;
   }
 };

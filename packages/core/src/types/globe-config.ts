@@ -21,6 +21,7 @@ import type {
   ZoomConfig,
 } from './camera';
 import type { PerformanceConfig } from './performance';
+import type { PostProcessingConfig } from './postfx';
 
 export interface GlobeConfig {
   readonly container: HTMLElement;
@@ -68,6 +69,15 @@ export interface GlobeConfig {
   readonly paper?: PaperConfig;
   readonly hologram?: HologramConfig;
   readonly starfield?: StarfieldConfig;
+  /**
+   * Shared HDR post-processing (bloom, anamorphic streak, vignette,
+   * chromatic aberration, film grain, exposure + a soft highlight
+   * roll-off — the scene layers stay display-referred). Runs after the
+   * scene is drawn into an off-screen target, so it applies to every layer
+   * at once. `enabled` defaults to `true` for the `cinematic` kind and
+   * `false` for every other kind.
+   */
+  readonly postprocessing?: PostProcessingConfig;
   /**
    * Tilt the globe's axis around the Z axis (in degrees, like Earth's 23.5°).
    * Affects only visual appearance — auto-rotate, raycasting, and lat/lng

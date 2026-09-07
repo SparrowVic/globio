@@ -29,6 +29,20 @@ const meshResolutions: ReadonlyArray<{ readonly width: number; readonly height: 
   { width: 2048, height: 1024 },
 ];
 
+/**
+ * Bundled 2k Earth map set for the cinematic kind's optional
+ * texture-backed look. Served from `public/textures/earth/`; core loads
+ * whatever exists, warns once for anything missing, and keeps the
+ * procedural surface for the rest. Shared with the landing hero.
+ */
+export const EARTH_2K_TEXTURES = {
+  day: '/textures/earth/earth_atmos_2048.jpg',
+  night: '/textures/earth/earth_lights_2048.png',
+  normal: '/textures/earth/earth_normal_2048.jpg',
+  specular: '/textures/earth/earth_specular_2048.jpg',
+  clouds: '/textures/earth/earth_clouds_1024.png',
+} as const;
+
 export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig => {
   const pixelRatio =
     state.globe.pixelRatio === 'auto' ? 'auto' : Number.parseFloat(state.globe.pixelRatio);
@@ -129,6 +143,17 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         intensity: state.globe.starfieldTwinkleIntensity,
         speed: state.globe.starfieldTwinkleSpeed,
       },
+      // Milky Way band is only drawn by the cinematic starfield; other
+      // kinds ignore the section, so we only emit it where it means
+      // something and keep their config surface unchanged.
+      ...(state.globe.kind === 'cinematic'
+        ? {
+            milkyWay: {
+              enabled: state.globe.cinematicMilkyWay,
+              intensity: state.globe.cinematicMilkyWayIntensity,
+            },
+          }
+        : {}),
     },
     focusPulse: {
       enabled: state.globe.focusPulse,
@@ -371,9 +396,64 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         rimIntensity: state.globe.cinematicRimIntensity,
         rimPower: state.globe.cinematicRimPower,
         specularIntensity: state.globe.cinematicSpecularIntensity,
-        cloudOpacity: state.globe.cinematicCloudOpacity,
         oceanSheen: state.globe.cinematicOceanSheen,
+        relief: state.globe.cinematicRelief,
+        biomes: state.globe.cinematicBiomes,
+        shallows: state.globe.cinematicShallows,
+        moonlight: state.globe.cinematicMoonlight,
+        snowLine: state.globe.cinematicSnowLine,
+        iceColor: state.globe.cinematicIceColor,
+        vegetationColor: state.globe.cinematicVegetationColor,
+        desertColor: state.globe.cinematicDesertColor,
+        shallowWaterColor: state.globe.cinematicShallowWaterColor,
       },
+      // Sun rig. `direction` mirrors the surface light-direction sliders
+      // so `fixed` mode keeps the terminator exactly where the surface
+      // knobs put it; `realtime` / `orbit` take over from there.
+      sun: {
+        mode: state.globe.cinematicSunMode,
+        direction: [
+          state.globe.cinematicLightX,
+          state.globe.cinematicLightY,
+          state.globe.cinematicLightZ,
+        ] as const,
+        speed: state.globe.cinematicSunSpeed,
+        timeScale: state.globe.cinematicSunTimeScale,
+        visible: state.globe.cinematicSunVisible,
+        glare: state.globe.cinematicSunGlare,
+        size: state.globe.cinematicSunSize,
+        color: state.globe.cinematicSunColor,
+      },
+      clouds: {
+        enabled: state.globe.cinematicClouds,
+        coverage: state.globe.cinematicCloudCoverage,
+        opacity: state.globe.cinematicCloudShellOpacity,
+        speed: state.globe.cinematicCloudSpeed,
+        softness: state.globe.cinematicCloudSoftness,
+        shadows: state.globe.cinematicCloudShadows,
+        shadowStrength: state.globe.cinematicCloudShadowStrength,
+        altitude: state.globe.cinematicCloudAltitude,
+        color: state.globe.cinematicCloudColor,
+      },
+      aurora: {
+        enabled: state.globe.cinematicAurora,
+        intensity: state.globe.cinematicAuroraIntensity,
+        speed: state.globe.cinematicAuroraSpeed,
+        latitude: state.globe.cinematicAuroraLatitude,
+        color: state.globe.cinematicAuroraColor,
+        colorTop: state.globe.cinematicAuroraTopColor,
+      },
+      atmosphere: {
+        scatterStrength: state.globe.cinematicScatter,
+        mieStrength: state.globe.cinematicMie,
+        airglow: state.globe.cinematicAirglow,
+        thickness: state.globe.cinematicAtmosphereThickness,
+      },
+      // `null` = stay fully procedural. The bundled maps are opt-in and
+      // core falls back to procedural (with a single warning) if a file
+      // is missing.
+      textures:
+        state.globe.cinematicTextures === 'earth-2k' ? EARTH_2K_TEXTURES : null,
       borders: {
         enabled: state.globe.cinematicBorders,
         color: state.globe.cinematicBorderColor,
@@ -594,6 +674,39 @@ export const buildGlobeConfig = (state: ConfiguratorState): GlobeRuntimeConfig =
         speed: state.globe.wireframePolePulseSpeed,
         boost: state.globe.wireframePolePulseBoost,
         which: state.globe.wireframePolePulseWhich,
+      },
+    },
+    // Shared HDR post-processing pipeline. The master `enabled` flag is
+    // only sent for the cinematic kind (the only kind with a UI for it),
+    // so every other kind keeps core's per-kind default (off). Tuning
+    // values are always sent so the live-update path can push new
+    // uniforms without a rebuild. The per-effect `enabled` flags are
+    // derived from strength so a zeroed slider skips the pass entirely
+    // instead of paying for a no-op composite.
+    postprocessing: {
+      ...(state.globe.kind === 'cinematic' && { enabled: state.globe.postfxEnabled }),
+      exposure: state.globe.postfxExposure,
+      bloom: {
+        enabled: state.globe.postfxBloomStrength > 0,
+        strength: state.globe.postfxBloomStrength,
+        threshold: state.globe.postfxBloomThreshold,
+        radius: state.globe.postfxBloomRadius,
+      },
+      streak: {
+        enabled: state.globe.postfxStreak > 0,
+        strength: state.globe.postfxStreak,
+      },
+      vignette: {
+        enabled: state.globe.postfxVignette > 0,
+        strength: state.globe.postfxVignette,
+      },
+      chromaticAberration: {
+        enabled: state.globe.postfxChromatic > 0,
+        strength: state.globe.postfxChromatic,
+      },
+      grain: {
+        enabled: state.globe.postfxGrain > 0,
+        strength: state.globe.postfxGrain,
       },
     },
     axisTilt: state.globe.axisTilt,

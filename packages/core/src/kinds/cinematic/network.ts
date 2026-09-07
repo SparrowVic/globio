@@ -1,3 +1,31 @@
+// Cinematic surface network — ribbon graph laid on the planet's skin.
+//
+// Each route is sampled along its great circle into N points; every
+// pair of consecutive points becomes a quad with side attribute ±1 so
+// the vertex shader can extrude perpendicular to the in-screen tangent
+// for a constant pixel-width ribbon.
+//
+// What actually makes the network read as "cinematic" rather than
+// "wireframe":
+//
+//   * Density-coupled width: ribbon width tracks the per-vertex density
+//     atlas sample, so the same network looks busier through hubs and
+//     thinner over open ocean.
+//
+//   * Directional flow: the per-route phase + per-vertex density delta
+//     biases the moving tracer in one direction, so a route from a
+//     dense hub to a sparse outpost flows outward, never inward, with
+//     the same magnitude on both sides of the link.
+//
+//   * Back-hemisphere extinction: the ribbon would otherwise punch
+//     through the back of the globe via additive blending. We fade
+//     opacity exponentially as the surface normal turns away from the
+//     camera, so the network respects the sphere even without depth.
+//
+//   * Terminator gating: routes glow strongest on the night side,
+//     soften on the day side, and pop at the terminator — same physics
+//     as city lights so the planet reads as a single coherent system.
+
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -18,6 +46,7 @@ import {
   syncCinematicUniforms,
   type CinematicUniforms,
 } from './shader-uniforms';
+import { GLSL_TERMINATOR, sampleDensity, stableHash01 } from './math';
 
 export interface CinematicSurfaceNetworkLayerOptions {
   readonly color: string;
@@ -29,81 +58,148 @@ export interface CinematicSurfaceNetworkLayerOptions {
 
 const NETWORK_RADIUS = GLOBE_RADIUS * 1.0105;
 const DEFAULT_CONNECTIONS = 44;
-const PATH_SAMPLES = 22;
+const PATH_SAMPLES = 24;
 
 const VERTEX_SHADER = /* glsl */ `
+  precision mediump float;
+  ${GLSL_TERMINATOR}
+
   attribute vec3 aPrev;
   attribute vec3 aNext;
   attribute float aSide;
   attribute float aT;
   attribute float aRouteValue;
   attribute float aDensity;
+  attribute float aRoutePhase;
+  attribute float aFlowDir;          // +1 or -1; direction-of-flow bias
+
   uniform float uWidth;
   uniform float uOpacity;
   uniform float uCameraDistance;
   uniform float uCameraInfluence;
-  uniform vec3 uLightDirection;
+  uniform float uDensityInfluence;
+  uniform vec3  uLightDirection;
+  uniform float uTerminatorSoftness;
+  uniform float uTerminatorContrast;
+
   varying float vT;
   varying float vSide;
   varying float vRouteValue;
   varying float vDensity;
-  varying float vLight;
+  varying float vDay;
+  varying float vNight;
+  varying float vTwilight;
+  varying float vWarmShift;
   varying float vHorizon;
+  varying float vRoutePhase;
+  varying float vFlowDir;
 
   void main() {
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vec4 worldPos  = modelMatrix * vec4(position, 1.0);
     vec4 worldPrev = modelMatrix * vec4(aPrev, 1.0);
     vec4 worldNext = modelMatrix * vec4(aNext, 1.0);
-    vec4 mvPos = viewMatrix * worldPos;
+    vec4 mvPos  = viewMatrix * worldPos;
     vec4 mvPrev = viewMatrix * worldPrev;
     vec4 mvNext = viewMatrix * worldNext;
     vec2 tangent = normalize(mvNext.xy - mvPrev.xy + vec2(0.00001));
     vec2 normal2 = vec2(-tangent.y, tangent.x);
+
     float cameraScale = mix(1.0, clamp(uCameraDistance / 2.4, 0.82, 1.55), uCameraInfluence);
-    float width = uWidth * (0.0016 + aRouteValue * 0.0007) * cameraScale;
+    // Density-coupled width: thicker through hubs, thinner over empty
+    // regions. Coefficient choice keeps the geometry visually similar
+    // to the previous layer at the global average density of ~0.3.
+    float densityWidth = mix(1.0, 0.62 + aDensity * 1.05, uDensityInfluence);
+    float width = uWidth * (0.0014 + aRouteValue * 0.00078) * cameraScale * densityWidth;
     mvPos.xy += normal2 * aSide * width;
+
     vec3 normal = normalize(worldPos.xyz);
     vec3 viewDir = normalize(cameraPosition - worldPos.xyz);
+    cn_TerminatorBands tb = cn_terminator(normal, normalize(uLightDirection),
+                                          uTerminatorSoftness, uTerminatorContrast);
+
     vT = aT;
     vSide = aSide;
     vRouteValue = aRouteValue;
     vDensity = aDensity;
-    vLight = dot(normal, normalize(uLightDirection));
+    vDay = tb.day;
+    vNight = tb.night;
+    vTwilight = tb.twilight;
+    vWarmShift = tb.warmShift;
     vHorizon = 1.0 - smoothstep(0.03, 0.45, max(dot(normal, viewDir), 0.0));
+    vRoutePhase = aRoutePhase;
+    vFlowDir = aFlowDir;
     gl_Position = projectionMatrix * mvPos;
   }
 `;
 
 const FRAGMENT_SHADER = /* glsl */ `
   precision mediump float;
-  uniform vec3 uColor;
+
+  uniform vec3  uColor;
   uniform float uOpacity;
   uniform float uTime;
   uniform float uPulseSpeed;
   uniform float uLightInfluence;
   uniform float uDensityInfluence;
   uniform float uTerminatorBoost;
+  uniform float uHorizonGlow;
   uniform float uInteractionEnergy;
   uniform float uOrbitalFlow;
+
   varying float vT;
   varying float vSide;
   varying float vRouteValue;
   varying float vDensity;
-  varying float vLight;
+  varying float vDay;
+  varying float vNight;
+  varying float vTwilight;
+  varying float vWarmShift;
   varying float vHorizon;
+  varying float vRoutePhase;
+  varying float vFlowDir;
 
   void main() {
     float edge = smoothstep(1.0, 0.18, abs(vSide));
     float endpoint = smoothstep(0.0, 0.16, vT) * smoothstep(0.0, 0.16, 1.0 - vT);
-    float day = smoothstep(-0.32, 0.36, vLight);
-    float twilight = exp(-pow(vLight / 0.34, 2.0));
-    float nightReactive = mix(1.0, (1.0 - day) * 0.72 + twilight * 0.95 * uTerminatorBoost + vHorizon * 0.22, uLightInfluence);
-    float density = mix(1.0, 0.68 + vDensity * 0.92, uDensityInfluence);
-    float pulse = fract(vT * 1.8 - uTime * uPulseSpeed * uOrbitalFlow * (0.38 + vRouteValue * 0.2));
-    float packet = smoothstep(0.94, 1.0, pulse) * smoothstep(0.0, 0.12, pulse);
-    float alpha = uOpacity * edge * endpoint * nightReactive * density * (0.42 + packet * 1.35 + vRouteValue * 0.18);
+
+    // Multi-band reactivity: night strong, twilight strongest, day soft,
+    // limb glow on top.
+    float lit = vNight * 0.62
+              + vTwilight * 0.95 * uTerminatorBoost
+              + vHorizon * 0.24 * uHorizonGlow
+              + vDay * 0.18;
+    float lightReactive = mix(1.0, lit, uLightInfluence);
+
+    // Density modulation: through busy regions, alpha lifts; over empty
+    // ocean it stays subtle. Multiplicative so the per-vertex width
+    // boost compounds, never sums above 1.
+    float density = mix(1.0, 0.66 + vDensity * 0.92, uDensityInfluence);
+
+    // Back-hemisphere extinction: as the surface tilts away from the
+    // camera the ribbon should fade. With additive blending we cannot
+    // just rely on depth; vHorizon already encodes 1-ndv at the limb
+    // and we explicitly square it so back-hemisphere fragments die fast.
+    float facing = 1.0 - clamp(vHorizon * 1.45, 0.0, 1.0);
+    float extinction = mix(0.32, 1.0, smoothstep(0.0, 0.4, facing));
+
+    // Directional flow: aFlowDir baked at geometry-build time tells us
+    // which way the route should flow (+1 means "forward along aT").
+    // The packet width is tighter and brighter than the previous
+    // implementation so it reads as a moving data tracer, not a glow.
+    float dir = sign(vFlowDir + 0.001);
+    float flow = fract(vT * dir
+                       - uTime * uPulseSpeed * uOrbitalFlow * (0.36 + vRouteValue * 0.22)
+                       + vRoutePhase);
+    float packet = exp(-pow((min(flow, 1.0 - flow)) / 0.034, 2.0));    // gaussian tracer
+    float wake   = exp(-pow((min(flow, 1.0 - flow)) / 0.18, 2.0)) * 0.34;
+
+    float alpha = uOpacity * edge * endpoint * lightReactive * density * extinction
+                * (0.38 + packet * 1.35 + wake + vRouteValue * 0.16);
     alpha += uOpacity * edge * endpoint * uInteractionEnergy * 0.22;
-    vec3 color = uColor * (0.72 + twilight * 0.42 + packet * 1.8 + vDensity * 0.28);
+
+    vec3 base = uColor * (0.74 + vTwilight * 0.42 + vDensity * 0.28);
+    vec3 hot  = vec3(1.0, 0.78, 0.42) * (packet * 1.6 + wake * 0.4 + vWarmShift * 0.32);
+    vec3 color = base + hot;
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -160,7 +256,7 @@ export class CinematicSurfaceNetworkLayer {
     if (this.world) syncCinematicUniforms(this.uniforms, this.world.uniforms);
     this.uniforms.uTime.value = elapsedSeconds;
     for (const [key, uniform] of Object.entries(this.uniforms)) {
-      this.material.uniforms[key]!.value = uniform.value;
+      if (this.material.uniforms[key]) this.material.uniforms[key]!.value = uniform.value;
     }
     this.material.uniforms['uOpacity']!.value = this.opacity;
     this.material.uniforms['uPulseSpeed']!.value = this.pulseSpeed;
@@ -218,15 +314,36 @@ const buildGeometry = (data: CinematicPreparedData, maxConnections: number): Buf
   const tAttr = new Float32Array(vertexCount);
   const routeValue = new Float32Array(vertexCount);
   const density = new Float32Array(vertexCount);
+  const phaseAttr = new Float32Array(vertexCount);
+  const flowDirAttr = new Float32Array(vertexCount);
   const indices: number[] = [];
   let cursor = 0;
   for (const route of routes) {
     const samples = sampleSurfacePath(route);
+    const phase = stableHash01(`${route.id}:flow`);
+    // Direction of flow: +1 if we should go from `from` to `to`, -1
+    // otherwise. The bias points away from the denser endpoint into
+    // the sparser one — that produces the "hub→spoke" reading without
+    // any global mutual ordering.
+    const fromDensity = sampleDensity(
+      data.density, data.densityWidth, data.densityHeight,
+      route.from[0], route.from[1],
+    );
+    const toDensity = sampleDensity(
+      data.density, data.densityWidth, data.densityHeight,
+      route.to[0], route.to[1],
+    );
+    const flowDir = fromDensity >= toDensity ? 1 : -1;
+
     for (let i = 0; i < samples.length; i++) {
       const current = samples[i]!;
       const previous = samples[Math.max(0, i - 1)]!;
       const following = samples[Math.min(samples.length - 1, i + 1)]!;
       const t = i / (samples.length - 1);
+      const ll = interpolateLatLng(route.from, route.to, t);
+      const localDensity = sampleDensity(
+        data.density, data.densityWidth, data.densityHeight, ll[0], ll[1],
+      );
       for (let s = 0; s < 2; s++) {
         const idx = cursor + s;
         positions[idx * 3] = current.x;
@@ -241,8 +358,9 @@ const buildGeometry = (data: CinematicPreparedData, maxConnections: number): Buf
         side[idx] = s === 0 ? -1 : 1;
         tAttr[idx] = t;
         routeValue[idx] = Math.min(1.8, route.width);
-        const ll = interpolateLatLng(route.from, route.to, t);
-        density[idx] = sampleDensity(data, ll[0], ll[1]);
+        density[idx] = localDensity;
+        phaseAttr[idx] = phase;
+        flowDirAttr[idx] = flowDir;
       }
       cursor += 2;
     }
@@ -263,6 +381,8 @@ const buildGeometry = (data: CinematicPreparedData, maxConnections: number): Buf
   geometry.setAttribute('aT', new Float32BufferAttribute(tAttr, 1));
   geometry.setAttribute('aRouteValue', new Float32BufferAttribute(routeValue, 1));
   geometry.setAttribute('aDensity', new Float32BufferAttribute(density, 1));
+  geometry.setAttribute('aRoutePhase', new Float32BufferAttribute(phaseAttr, 1));
+  geometry.setAttribute('aFlowDir', new Float32BufferAttribute(flowDirAttr, 1));
   geometry.setIndex(new BufferAttribute(new Uint16Array(indices), 1));
   return geometry;
 };
@@ -296,12 +416,3 @@ const interpolateLatLng = (from: LatLng, to: LatLng, t: number): LatLng => [
   from[0] + (to[0] - from[0]) * t,
   from[1] + (to[1] - from[1]) * t,
 ];
-
-const sampleDensity = (data: CinematicPreparedData, lat: number, lng: number): number => {
-  const x = Math.floor(((lng + 180) / 360) * data.densityWidth);
-  const y = Math.floor(((90 - lat) / 180) * data.densityHeight);
-  return data.density[
-    Math.max(0, Math.min(data.densityHeight - 1, y)) * data.densityWidth +
-      ((x + data.densityWidth) % data.densityWidth)
-  ] ?? 0;
-};

@@ -1,14 +1,25 @@
+// Cinematic surface layer — owns the hero sphere material. The shader
+// source lives in `surface-shader.ts`; this file wires uniforms, defaults,
+// live setters and the optional texture set.
+
 import {
   Color,
+  DataTexture,
   Mesh,
+  RGBAFormat,
   ShaderMaterial,
   SphereGeometry,
   Texture,
+  UnsignedByteType,
+  Vector2,
   Vector3,
 } from 'three';
 import { GLOBE_RADIUS } from '../../utils/coordinates';
+import { LAND_ATLAS_SIZE } from './atlas';
 import type { CinematicWorld } from './engine';
+import { SURFACE_FRAGMENT_SHADER, SURFACE_VERTEX_SHADER } from './surface-shader';
 import {
+  applyCinematicUniforms,
   cloneCinematicUniforms,
   createCinematicUniforms,
   syncCinematicUniforms,
@@ -32,186 +43,81 @@ export interface CinematicSurfaceLayerOptions {
   readonly specularIntensity?: number;
   readonly cloudOpacity?: number;
   readonly oceanSheen?: number;
+  /** Relief / normal-perturbation strength 0..2. Default 1. */
+  readonly reliefStrength?: number;
+  /** Latitude / altitude / moisture land palette. Default true. */
+  readonly biomes?: boolean;
+  /** Turquoise shallows + beaches 0..1. Default 0.6. */
+  readonly shallows?: number;
+  /** Height above which land turns to snow 0..1. Default 0.72. */
+  readonly snowLine?: number;
+  /** Colour saturation multiplier: 1 natural, 0 monochrome. Default 1. */
+  readonly saturation?: number;
+  readonly iceColor?: string;
+  readonly vegetationColor?: string;
+  readonly desertColor?: string;
+  readonly shallowWaterColor?: string;
   readonly landTexture: Texture;
   readonly densityTexture: Texture;
+  /** Baked terrain atlas (R height, G moisture, B ridge). Neutral fallback when omitted. */
+  readonly terrainTexture?: Texture;
 }
 
-const VERTEX_SHADER = /* glsl */ `
-  varying vec3 vLocalNormal;
-  varying vec3 vWorldNormal;
-  varying vec3 vViewNormal;
-  varying vec3 vViewDir;
-  void main() {
-    vLocalNormal = normalize(position);
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    vWorldNormal = normalize(mat3(modelMatrix) * normal);
-    vViewNormal = normalize(normalMatrix * normal);
-    vViewDir = normalize(cameraPosition - worldPos.xyz);
-    gl_Position = projectionMatrix * viewMatrix * worldPos;
-  }
-`;
-
-const FRAGMENT_SHADER = /* glsl */ `
-  precision mediump float;
-  uniform vec3 uOceanColor;
-  uniform vec3 uLandColor;
-  uniform vec3 uCloudColor;
-  uniform vec3 uNightColor;
-  uniform vec3 uLightDirection;
-  uniform vec3 uRimColor;
-  uniform float uLightingMode;
-  uniform float uTerminatorSoftness;
-  uniform float uTerminatorContrast;
-  uniform float uKeyIntensity;
-  uniform float uFillIntensity;
-  uniform float uRimIntensity;
-  uniform float uRimPower;
-  uniform float uSpecularIntensity;
-  uniform float uCloudOpacity;
-  uniform float uOceanSheen;
-  uniform float uTime;
-  uniform float uHorizonGlow;
-  uniform float uAtmosphericScatter;
-  uniform float uSurfaceMicroDetail;
-  uniform float uCityNightResponse;
-  uniform float uInteractionEnergy;
-  uniform float uQuality;
-  uniform vec3 uCameraDirection;
-  uniform sampler2D uLandAtlas;
-  uniform sampler2D uDensityAtlas;
-  varying vec3 vLocalNormal;
-  varying vec3 vWorldNormal;
-  varying vec3 vViewNormal;
-  varying vec3 vViewDir;
-
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-  }
-
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-  }
-
-  float fbm(vec2 p) {
-    float v = 0.0;
-    float a = 0.5;
-    for (int i = 0; i < 5; i++) {
-      v += a * noise(p);
-      p *= 2.02;
-      a *= 0.5;
-    }
-    return v;
-  }
-
-  void main() {
-    vec3 n = normalize(vWorldNormal);
-    vec3 viewNormal = normalize(vViewNormal);
-    vec3 local = normalize(vLocalNormal);
-    vec3 viewDir = normalize(vViewDir);
-    float lat = asin(local.y);
-    float lng = atan(local.z, -local.x) - 3.14159265359;
-    if (lng < -3.14159265359) lng += 6.28318530718;
-    vec2 uv = vec2(lng * 0.72, lat * 1.85);
-    // CanvasTexture is uploaded with Three's default vertical flip, so the
-    // shader uses the natural south->north V coordinate. Inverting this here
-    // makes the surface atlas drift away from border/hover geometry.
-    vec2 atlasUv = vec2((lng + 3.14159265359) / 6.28318530718, (lat + 1.57079632679) / 3.14159265359);
-
-    float atlasLand = texture2D(uLandAtlas, atlasUv).r;
-    float landMask = smoothstep(0.42, 0.58, atlasLand);
-    vec2 texel = vec2(1.0 / 1024.0, 1.0 / 512.0);
-    float coastX = abs(texture2D(uLandAtlas, atlasUv + vec2(texel.x, 0.0)).r - texture2D(uLandAtlas, atlasUv - vec2(texel.x, 0.0)).r);
-    float coastY = abs(texture2D(uLandAtlas, atlasUv + vec2(0.0, texel.y)).r - texture2D(uLandAtlas, atlasUv - vec2(0.0, texel.y)).r);
-    float coast = smoothstep(0.08, 0.72, max(coastX, coastY));
-    float density = texture2D(uDensityAtlas, atlasUv).r;
-
-    float micro = clamp(uSurfaceMicroDetail, 0.0, 2.5);
-    float qualityGrain = clamp(uQuality, 0.65, 1.25);
-    float waves = fbm(vec2(lng * 18.0 + uTime * 0.012, lat * 28.0 - uTime * 0.008) * (0.75 + micro * 0.18));
-    float oceanBands = fbm(vec2(lng * 35.0 - uTime * 0.005, lat * 42.0 + waves * 0.6));
-    float oceanDepth = fbm(vec2(lng * 3.7 - 1.1, lat * 5.6 + 0.7));
-    vec3 ocean = uOceanColor * (0.42 + waves * 0.14 + oceanDepth * 0.09);
-    ocean += vec3(0.0, 0.045, 0.105) * oceanBands * (0.18 + micro * 0.04);
-    ocean += vec3(0.06, 0.16, 0.24) * coast * (1.0 - landMask) * 0.08;
-    float landDetail = fbm(uv * (9.5 + micro * 3.5) + 4.0);
-    float terrain = fbm(uv * 24.0 + vec2(2.3, -1.7)) * qualityGrain;
-    vec3 land = mix(uLandColor * 0.22, uLandColor * 0.66, landDetail);
-    land += vec3(0.09, 0.062, 0.035) * terrain * 0.08;
-    vec3 base = mix(ocean, land, landMask * 0.68);
-
-    vec3 keyDir = normalize(uLightDirection);
-    vec3 fillDir = normalize(vec3(-keyDir.x * 0.65, keyDir.y * 0.28 + 0.18, -keyDir.z * 0.52));
-    vec3 heroViewKey = normalize(vec3(-0.52, 0.68, 0.36));
-    float light = dot(n, keyDir);
-    float heroLight = dot(viewNormal, heroViewKey);
-    float heroMode = 1.0 - step(0.5, abs(uLightingMode - 0.0));
-    float naturalMode = 1.0 - step(0.5, abs(uLightingMode - 1.0));
-    float eclipseMode = 1.0 - step(0.5, abs(uLightingMode - 2.0));
-    float modeKey = heroMode * 1.16 + naturalMode * 0.88 + eclipseMode * 0.72;
-    float modeFill = heroMode * 0.82 + naturalMode * 1.08 + eclipseMode * 0.35;
-    float modeRim = heroMode * 1.42 + naturalMode * 0.72 + eclipseMode * 1.85;
-    float dayWorld = smoothstep(-uTerminatorSoftness * 0.72, uTerminatorSoftness, light);
-    float dayHero = smoothstep(0.08, 0.88, heroLight);
-    float day = max(dayWorld, dayHero * heroMode * 0.72);
-    day = mix(day, dayWorld, naturalMode * 0.65);
-    day = pow(day, max(0.55, uTerminatorContrast));
-    float ndv = max(dot(viewDir, n), 0.0);
-    float silhouette = 1.0 - smoothstep(0.02, 0.44, ndv);
-    float rim = pow(1.0 - ndv, max(0.35, uRimPower));
-    float litRim = (rim * 0.46 + silhouette * 0.12) * smoothstep(-0.24, 0.74, max(light, heroLight)) * modeRim * uHorizonGlow;
-    float atmosphereRim = pow(1.0 - ndv, 3.35) * smoothstep(-0.26, 0.82, max(light, heroLight)) * uAtmosphericScatter * uHorizonGlow;
-    float spec = pow(max(dot(reflect(-keyDir, n), viewDir), 0.0), 24.0);
-    float keyLight = max(max(light, 0.0), heroLight * heroMode * 0.62) * uKeyIntensity * modeKey;
-    float fillLight = max(dot(n, fillDir), 0.0) * uFillIntensity * modeFill;
-    float twilight = exp(-pow(max(light, heroLight * heroMode * 0.64) / max(uTerminatorSoftness, 0.001), 2.0));
-
-    float cloudNoise = fbm(vec2(lng * 4.2 + uTime * 0.008, lat * 7.8 - uTime * 0.004));
-    float cloudDetail = fbm(vec2(lng * 12.5 - uTime * 0.012, lat * 18.0 + cloudNoise * 1.4));
-    float cloudLatMask = 0.52 + 0.48 * smoothstep(0.18, 1.18, abs(cos(lat * 1.18)));
-    float cloudBands = smoothstep(0.62, 0.9, cloudNoise + cloudDetail * 0.18) * cloudLatMask * (1.0 - landMask * 0.18);
-    vec3 dayColor = mix(base, uCloudColor, cloudBands * uCloudOpacity);
-    dayColor *= 0.22 + keyLight + fillLight * (0.85 - day * 0.2);
-    dayColor += uCloudColor * spec * uOceanSheen * uSpecularIntensity * (1.0 - landMask);
-    dayColor += vec3(1.0, 0.58, 0.22) * coast * landMask * (0.035 + twilight * 0.055) * uKeyIntensity;
-    dayColor += vec3(1.0, 0.72, 0.36) * density * landMask * 0.055 * (0.35 + twilight);
-    dayColor += uRimColor * litRim * uRimIntensity * 0.24;
-    dayColor += uRimColor * atmosphereRim * uRimIntensity * 0.13;
-    dayColor += uCloudColor * smoothstep(0.44, 0.95, max(light, heroLight)) * 0.075 * uKeyIntensity;
-
-    vec3 night = mix(uNightColor * (0.82 + waves * 0.1), uOceanColor * 0.22, landMask * 0.28);
-    night *= 1.0 - clamp(uTerminatorContrast - 1.0, 0.0, 1.6) * 0.14;
-    night += vec3(1.0, 0.62, 0.22) * density * landMask * (0.26 + twilight * 0.48) * uCityNightResponse;
-    night += vec3(0.45, 0.7, 0.95) * coast * 0.012 * (1.0 - day);
-    night += uRimColor * rim * 0.075 * uRimIntensity * uHorizonGlow * (0.72 + eclipseMode * 0.5);
-    night += uRimColor * atmosphereRim * uRimIntensity * 0.08;
-    night += uCloudColor * twilight * 0.045 * (heroMode + eclipseMode * 0.8);
-    vec3 color = mix(night, dayColor, day);
-    color *= 0.84 + 0.18 * smoothstep(-0.35, 0.85, max(light, heroLight));
-    color += uRimColor * litRim * 0.11 * uRimIntensity;
-    color += vec3(1.0, 0.78, 0.45) * uInteractionEnergy * twilight * 0.018;
-    color += vec3(1.0, 0.78, 0.42) * smoothstep(0.42, 0.96, heroLight) * heroMode * 0.035 * uKeyIntensity;
-    gl_FragColor = vec4(color, 1.0);
-  }
-`;
+/** Optional real-Earth maps; any subset. `null` clears a slot. */
+export interface CinematicSurfaceTextures {
+  readonly day?: Texture | null;
+  readonly night?: Texture | null;
+  readonly normal?: Texture | null;
+  readonly specular?: Texture | null;
+  readonly clouds?: Texture | null;
+}
 
 const DEFAULTS = {
-  terminatorSoftness: 0.38,
-  terminatorContrast: 1.38,
-  keyIntensity: 1.34,
-  fillIntensity: 0.16,
-  rimColor: '#aee8ff',
-  rimIntensity: 0.96,
-  rimPower: 2.35,
-  specularIntensity: 0.76,
-  cloudOpacity: 0.1,
-  oceanSheen: 0.52,
+  terminatorSoftness: 0.42,
+  terminatorContrast: 1.45,
+  keyIntensity: 1.6,
+  fillIntensity: 0.10,
+  rimColor: '#9bdaff',
+  rimIntensity: 1.42,
+  rimPower: 2.55,
+  specularIntensity: 0.95,
+  cloudOpacity: 0.12,
+  oceanSheen: 0.62,
+  reliefStrength: 1,
+  shallows: 0.6,
+  snowLine: 0.72,
+  saturation: 1,
+  iceColor: '#dcefff',
+  vegetationColor: '#2f5a2c',
+  desertColor: '#c9a266',
+  shallowWaterColor: '#1f8fa8',
+};
+
+// The land and terrain atlases share one grid (see atlas.ts); the surface
+// steps by one texel for the relief slopes and the coast gradient.
+const LAND_ATLAS_TEXEL: readonly [number, number] = [
+  1 / LAND_ATLAS_SIZE.width,
+  1 / LAND_ATLAS_SIZE.height,
+];
+
+const oceanDeepFromBase = (base: string): string => {
+  const c = new Color(base);
+  c.multiplyScalar(0.42);
+  return `#${c.getHexString()}`;
+};
+
+const landHighFromBase = (base: string): string => {
+  const c = new Color(base);
+  c.lerp(new Color('#f3d9a4'), 0.32);
+  return `#${c.getHexString()}`;
+};
+
+/** 1×1 neutral stand-ins so every sampler is always bound. */
+const makeFlatTexture = (r: number, g: number, b: number): Texture => {
+  const data = new Uint8Array([r, g, b, 255]);
+  const texture = new DataTexture(data, 1, 1, RGBAFormat, UnsignedByteType);
+  texture.needsUpdate = true;
+  return texture;
 };
 
 export class CinematicSurfaceLayer {
@@ -220,7 +126,6 @@ export class CinematicSurfaceLayer {
   private readonly material: ShaderMaterial;
   private readonly defaultOceanColor: string;
   private readonly defaultLandColor: string;
-  private readonly defaultCloudColor: string;
   private readonly defaultNightColor: string;
   private readonly defaultRimColor: string;
   private readonly defaultTerminatorSoftness: number;
@@ -230,16 +135,28 @@ export class CinematicSurfaceLayer {
   private readonly defaultRimIntensity: number;
   private readonly defaultRimPower: number;
   private readonly defaultSpecularIntensity: number;
-  private readonly defaultCloudOpacity: number;
   private readonly defaultOceanSheen: number;
+  private readonly defaultReliefStrength: number;
+  private readonly defaultShallows: number;
+  private readonly defaultSnowLine: number;
+  private readonly defaultSaturation: number;
+  private readonly defaultIceColor: string;
+  private readonly defaultVegetationColor: string;
+  private readonly defaultDesertColor: string;
+  private readonly defaultShallowWaterColor: string;
   private readonly light = new Vector3();
   private readonly uniforms: CinematicUniforms;
+  private readonly flatTerrain: Texture;
+  private readonly flatBlack: Texture;
+  private readonly flatNormal: Texture;
   private world: CinematicWorld | null = null;
+  private textureMix = 0;
+  private textureMixTarget = 0;
+  private textureFadeSeconds = 0.8;
 
   public constructor(options: CinematicSurfaceLayerOptions) {
     this.defaultOceanColor = options.oceanColor;
     this.defaultLandColor = options.landColor;
-    this.defaultCloudColor = options.cloudColor;
     this.defaultNightColor = options.nightColor;
     this.defaultRimColor = options.rimColor ?? DEFAULTS.rimColor;
     this.defaultTerminatorSoftness = options.terminatorSoftness ?? DEFAULTS.terminatorSoftness;
@@ -249,24 +166,39 @@ export class CinematicSurfaceLayer {
     this.defaultRimIntensity = options.rimIntensity ?? DEFAULTS.rimIntensity;
     this.defaultRimPower = options.rimPower ?? DEFAULTS.rimPower;
     this.defaultSpecularIntensity = options.specularIntensity ?? DEFAULTS.specularIntensity;
-    this.defaultCloudOpacity = options.cloudOpacity ?? DEFAULTS.cloudOpacity;
     this.defaultOceanSheen = options.oceanSheen ?? DEFAULTS.oceanSheen;
+    this.defaultReliefStrength = options.reliefStrength ?? DEFAULTS.reliefStrength;
+    this.defaultShallows = options.shallows ?? DEFAULTS.shallows;
+    this.defaultSnowLine = options.snowLine ?? DEFAULTS.snowLine;
+    this.defaultSaturation = options.saturation ?? DEFAULTS.saturation;
+    this.defaultIceColor = options.iceColor ?? DEFAULTS.iceColor;
+    this.defaultVegetationColor = options.vegetationColor ?? DEFAULTS.vegetationColor;
+    this.defaultDesertColor = options.desertColor ?? DEFAULTS.desertColor;
+    this.defaultShallowWaterColor = options.shallowWaterColor ?? DEFAULTS.shallowWaterColor;
     this.light
       .set(options.lightDirection[0], options.lightDirection[1], options.lightDirection[2])
       .normalize();
     this.uniforms = createCinematicUniforms();
     this.uniforms.uLightDirection.value.copy(this.light);
+    this.flatTerrain = makeFlatTexture(0, 128, 0);
+    this.flatBlack = makeFlatTexture(0, 0, 0);
+    this.flatNormal = makeFlatTexture(128, 128, 255);
 
-    this.geometry = new SphereGeometry(GLOBE_RADIUS, 160, 80);
+    this.geometry = new SphereGeometry(GLOBE_RADIUS, 192, 96);
     this.material = new ShaderMaterial({
       uniforms: {
         ...cloneCinematicUniforms(this.uniforms),
         uOceanColor: { value: new Color(options.oceanColor) },
+        uOceanDeepColor: { value: new Color(oceanDeepFromBase(options.oceanColor)) },
         uLandColor: { value: new Color(options.landColor) },
-        uCloudColor: { value: new Color(options.cloudColor) },
+        uLandHighColor: { value: new Color(landHighFromBase(options.landColor)) },
         uNightColor: { value: new Color(options.nightColor) },
         uLightDirection: { value: this.light.clone() },
         uRimColor: { value: new Color(this.defaultRimColor) },
+        uIceColor: { value: new Color(this.defaultIceColor) },
+        uVegetationColor: { value: new Color(this.defaultVegetationColor) },
+        uDesertColor: { value: new Color(this.defaultDesertColor) },
+        uShallowWaterColor: { value: new Color(this.defaultShallowWaterColor) },
         uLightingMode: { value: lightingModeToUniform(options.lightingMode ?? 'hero') },
         uTerminatorSoftness: { value: this.defaultTerminatorSoftness },
         uTerminatorContrast: { value: this.defaultTerminatorContrast },
@@ -275,14 +207,30 @@ export class CinematicSurfaceLayer {
         uRimIntensity: { value: this.defaultRimIntensity },
         uRimPower: { value: this.defaultRimPower },
         uSpecularIntensity: { value: this.defaultSpecularIntensity },
-        uCloudOpacity: { value: this.defaultCloudOpacity },
         uOceanSheen: { value: this.defaultOceanSheen },
-        uTime: { value: 0 },
+        uReliefStrength: { value: this.defaultReliefStrength },
+        uBiomes: { value: options.biomes === false ? 0 : 1 },
+        uShallows: { value: this.defaultShallows },
+        uSnowLine: { value: this.defaultSnowLine },
+        uSaturation: { value: this.defaultSaturation },
         uLandAtlas: { value: options.landTexture },
+        uTerrainAtlas: { value: options.terrainTexture ?? this.flatTerrain },
         uDensityAtlas: { value: options.densityTexture },
+        uDayMap: { value: this.flatBlack },
+        uNightMap: { value: this.flatBlack },
+        uNormalMap: { value: this.flatNormal },
+        uSpecMap: { value: this.flatBlack },
+        uCloudMap: { value: this.flatBlack },
+        uHasDay: { value: 0 },
+        uHasNight: { value: 0 },
+        uHasNormal: { value: 0 },
+        uHasSpec: { value: 0 },
+        uHasCloudMap: { value: 0 },
+        uTextureMix: { value: 0 },
+        uLandTexel: { value: new Vector2(LAND_ATLAS_TEXEL[0], LAND_ATLAS_TEXEL[1]) },
       },
-      vertexShader: VERTEX_SHADER,
-      fragmentShader: FRAGMENT_SHADER,
+      vertexShader: SURFACE_VERTEX_SHADER,
+      fragmentShader: SURFACE_FRAGMENT_SHADER,
     });
     this.mesh = new Mesh(this.geometry, this.material);
     this.mesh.name = 'CinematicSurfaceLayer';
@@ -293,11 +241,17 @@ export class CinematicSurfaceLayer {
     this.world = world;
   }
 
-  public update(elapsedSeconds: number): void {
+  public update(elapsedSeconds: number, delta = 0): void {
     if (this.world) syncCinematicUniforms(this.uniforms, this.world.uniforms);
     this.uniforms.uTime.value = elapsedSeconds;
-    for (const [key, uniform] of Object.entries(this.uniforms)) {
-      this.material.uniforms[key]!.value = uniform.value;
+    applyCinematicUniforms(this.material, this.uniforms);
+    if (this.textureMix !== this.textureMixTarget && delta > 0) {
+      const step = delta / Math.max(0.05, this.textureFadeSeconds);
+      this.textureMix =
+        this.textureMix < this.textureMixTarget
+          ? Math.min(this.textureMixTarget, this.textureMix + step)
+          : Math.max(this.textureMixTarget, this.textureMix - step);
+      this.material.uniforms['uTextureMix']!.value = this.textureMix;
     }
   }
 
@@ -305,22 +259,26 @@ export class CinematicSurfaceLayer {
     this.mesh.visible = visible;
   }
 
+  /** Current procedural → textured crossfade (0..1). */
+  public getTextureMix(): number {
+    return this.textureMix;
+  }
+
   public setOceanColor(color: string): void {
-    (this.material.uniforms['uOceanColor']!.value as Color).set(
-      color === '' ? this.defaultOceanColor : color,
-    );
+    const next = color === '' ? this.defaultOceanColor : color;
+    (this.material.uniforms['uOceanColor']!.value as Color).set(next);
+    (this.material.uniforms['uOceanDeepColor']!.value as Color).set(oceanDeepFromBase(next));
   }
 
   public setLandColor(color: string): void {
-    (this.material.uniforms['uLandColor']!.value as Color).set(
-      color === '' ? this.defaultLandColor : color,
-    );
+    const next = color === '' ? this.defaultLandColor : color;
+    (this.material.uniforms['uLandColor']!.value as Color).set(next);
+    (this.material.uniforms['uLandHighColor']!.value as Color).set(landHighFromBase(next));
   }
 
-  public setCloudColor(color: string): void {
-    (this.material.uniforms['uCloudColor']!.value as Color).set(
-      color === '' ? this.defaultCloudColor : color,
-    );
+  /** Cloud colour now lives on the cloud shell; kept for API compatibility. */
+  public setCloudColor(_color: string): void {
+    // no-op: see CinematicCloudsLayer.setColor
   }
 
   public setNightColor(color: string): void {
@@ -380,9 +338,9 @@ export class CinematicSurfaceLayer {
       value >= 0 ? value : this.defaultSpecularIntensity;
   }
 
-  public setCloudOpacity(value: number): void {
-    this.material.uniforms['uCloudOpacity']!.value =
-      value >= 0 ? value : this.defaultCloudOpacity;
+  /** Cloud opacity now lives on the cloud shell; kept for API compatibility. */
+  public setCloudOpacity(_value: number): void {
+    // no-op: see CinematicCloudsLayer.setOpacity
   }
 
   public setOceanSheen(value: number): void {
@@ -390,13 +348,91 @@ export class CinematicSurfaceLayer {
       value >= 0 ? value : this.defaultOceanSheen;
   }
 
+  public setReliefStrength(value: number): void {
+    this.material.uniforms['uReliefStrength']!.value =
+      value >= 0 ? value : this.defaultReliefStrength;
+  }
+
+  public setBiomes(enabled: boolean): void {
+    this.material.uniforms['uBiomes']!.value = enabled ? 1 : 0;
+  }
+
+  public setShallows(value: number): void {
+    this.material.uniforms['uShallows']!.value = value >= 0 ? value : this.defaultShallows;
+  }
+
+  public setSnowLine(value: number): void {
+    this.material.uniforms['uSnowLine']!.value = value > 0 ? value : this.defaultSnowLine;
+  }
+
+  public setSaturation(value: number): void {
+    this.material.uniforms['uSaturation']!.value = value >= 0 ? value : this.defaultSaturation;
+  }
+
+  public setIceColor(color: string): void {
+    (this.material.uniforms['uIceColor']!.value as Color).set(
+      color === '' ? this.defaultIceColor : color,
+    );
+  }
+
+  public setVegetationColor(color: string): void {
+    (this.material.uniforms['uVegetationColor']!.value as Color).set(
+      color === '' ? this.defaultVegetationColor : color,
+    );
+  }
+
+  public setDesertColor(color: string): void {
+    (this.material.uniforms['uDesertColor']!.value as Color).set(
+      color === '' ? this.defaultDesertColor : color,
+    );
+  }
+
+  public setShallowWaterColor(color: string): void {
+    (this.material.uniforms['uShallowWaterColor']!.value as Color).set(
+      color === '' ? this.defaultShallowWaterColor : color,
+    );
+  }
+
   public setDensityTexture(texture: Texture): void {
     this.material.uniforms['uDensityAtlas']!.value = texture;
+  }
+
+  public setTerrainTexture(texture: Texture | null): void {
+    this.material.uniforms['uTerrainAtlas']!.value = texture ?? this.flatTerrain;
+  }
+
+  /**
+   * Bind (or clear) the optional real-Earth maps. The crossfade from the
+   * procedural look runs over `fadeSeconds` inside `update()`.
+   */
+  public setTextures(textures: CinematicSurfaceTextures | null, fadeSeconds = 0.8): void {
+    const u = this.material.uniforms;
+    const bind = (key: string, flag: string, texture: Texture | null | undefined, fallback: Texture) => {
+      u[key]!.value = texture ?? fallback;
+      u[flag]!.value = texture ? 1 : 0;
+    };
+    bind('uDayMap', 'uHasDay', textures?.day, this.flatBlack);
+    bind('uNightMap', 'uHasNight', textures?.night, this.flatBlack);
+    bind('uNormalMap', 'uHasNormal', textures?.normal, this.flatNormal);
+    bind('uSpecMap', 'uHasSpec', textures?.specular, this.flatBlack);
+    bind('uCloudMap', 'uHasCloudMap', textures?.clouds, this.flatBlack);
+    const any = Boolean(
+      textures && (textures.day || textures.night || textures.normal || textures.specular || textures.clouds),
+    );
+    this.textureFadeSeconds = Math.max(0, fadeSeconds);
+    this.textureMixTarget = any ? 1 : 0;
+    if (this.textureFadeSeconds === 0) {
+      this.textureMix = this.textureMixTarget;
+      u['uTextureMix']!.value = this.textureMix;
+    }
   }
 
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
+    this.flatTerrain.dispose();
+    this.flatBlack.dispose();
+    this.flatNormal.dispose();
   }
 }
 

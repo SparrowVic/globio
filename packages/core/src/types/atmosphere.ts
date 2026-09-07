@@ -88,4 +88,24 @@ export interface StarfieldConfig {
     /** Average frequency in Hz. Default 0.55. */
     readonly speed?: number;
   };
+  /**
+   * Milky Way band. Rendered as a soft, dusty great-circle glow on an
+   * inward-facing shell just inside the star sphere. Only kinds whose
+   * starfield draws a band honour this (currently `cinematic`); the other
+   * kinds ignore it.
+   */
+  readonly milkyWay?: {
+    /** Default true on the cinematic kind. */
+    readonly enabled?: boolean;
+    /**
+     * Band brightness multiplier. 0 = invisible, 0.55 = default (reads as
+     * a soft glow), above ~1 it starts to look like a painted stripe.
+     */
+    readonly intensity?: number;
+    /**
+     * Galactic plane tilt in degrees relative to the globe's equator.
+     * Default 62 — a clear diagonal that never lines up with the poles.
+     */
+    readonly tilt?: number;
+  };
 }

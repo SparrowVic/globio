@@ -1,5 +1,6 @@
 import { AmbientLight, DirectionalLight, Group, Vector2 } from 'three';
 import { SceneManager } from '../renderer/scene-manager';
+import { PostFxPipeline } from '../renderer/postfx/pipeline';
 import { GlobeMesh } from '../renderer/globe-mesh';
 import type { CountryFeature } from '../renderer/country-feature';
 import { CountriesPickingLayer } from '../renderer/countries-picking-layer';
@@ -44,7 +45,7 @@ import type {
   StarfieldConfig,
 } from '../types';
 import type { ResolvedTokens } from '../theme';
-import type { Object3D, Vector3 } from 'three';
+import type { Object3D, Vector3, WebGLRenderer } from 'three';
 import { DEFAULT_COUNTRIES, DEFAULT_PERFORMANCE, resolveActiveKind } from './defaults';
 import { canUpdateInPlace } from './data-layer-diff';
 import { computeFocusDistance } from './focus-distance';
@@ -134,6 +135,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // `new` site — labels, starfield, arcs, markers, atmosphere, hover.
   const resolvedKind: GlobeKind = resolveActiveKind(config);
   const kindModule = KIND_MODULES[resolvedKind];
+
+  // Shared HDR post-processing (bloom / anamorphic streak / vignette /
+  // chromatic aberration / grain / exposure + soft highlight roll-off).
+  // Cinematic opts in by
+  // default; every other kind keeps the direct render path unless the
+  // caller explicitly turns it on. `let` so `update({ postprocessing })`
+  // can spin the pipeline up lazily on first enable.
+  const postfxEnabled = config.postprocessing?.enabled ?? resolvedKind === 'cinematic';
+  let postfx = createPostFxPipeline(scene.renderer, config, postfxEnabled, performance.antialias);
+  if (postfx) scene.setPostFx(postfx);
 
   // `let` so `update({ starfield })` can swap the layer in-place when a
   // geometry-baked field changes (density, palette, sizeVariety) — the
@@ -494,6 +505,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         markersLayer,
         arcsLayer,
         globeSurfaceMesh: globeMesh.mesh,
+        atmosphereLayer,
+      });
+      // Adaptive quality: the cinematic kind measures FPS and halves the
+      // bloom chain on the low tier.
+      (state.kindHandle as CinematicKindHandle | null)?.onQualityTier?.((tier) => {
+        postfx?.setQualityScale(tier === 'balanced' ? 0.5 : 1);
       });
       // Surface the kind's country-fill layer (if mounted) so the global
       // hover / active wiring + the live-update branch + the choropleth
@@ -775,6 +792,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.arcsLayer.dispose();
       starfieldLayer?.dispose();
       atmosphereLayer?.dispose();
+      // `scene.destroy()` disposes the attached pipeline (SceneManager owns
+      // it once handed over); just drop our reference.
+      postfx = null;
       scene.destroy();
       emitter.clear();
     },
@@ -873,6 +893,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (next.size !== undefined) starfieldLayer.setSize(next.size);
           if (partial.starfield.twinkle !== undefined) {
             starfieldLayer.setTwinkle(next.twinkle ?? partial.starfield.twinkle);
+          }
+          if (partial.starfield.milkyWay !== undefined) {
+            // Only the cinematic starfield draws a band; other kinds ignore it.
+            (starfieldLayer as { setMilkyWay?: (m: StarfieldConfig['milkyWay'] | null) => void })
+              .setMilkyWay?.(next.milkyWay ?? partial.starfield.milkyWay ?? null);
           }
         }
       }
@@ -1073,6 +1098,23 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           | { readonly setWireframeConfig?: (next: NonNullable<GlobeConfig['wireframe']>) => void }
           | null;
         wireframeHandle?.setWireframeConfig?.(state.config.wireframe ?? partial.wireframe);
+      }
+
+      // Post-processing — every knob is a uniform on the composite pass, so
+      // the only structural change is the first `{ enabled: true }` on a
+      // globe that started without a pipeline.
+      if (partial.postprocessing !== undefined) {
+        const next = state.config.postprocessing ?? partial.postprocessing;
+        if (!postfx && !state.destroyed) {
+          postfx = createPostFxPipeline(
+            scene.renderer,
+            state.config,
+            next.enabled ?? state.resolvedKind === 'cinematic',
+            performance.antialias,
+          );
+          if (postfx) scene.setPostFx(postfx);
+        }
+        postfx?.setConfig(next);
       }
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
@@ -1283,7 +1325,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       new Promise((resolve, reject) => {
         try {
           // Force a fresh render so the canvas reflects the latest state.
-          scene.renderer.render(scene.scene, scene.camera);
+          scene.renderFrame();
           const canvas = scene.renderer.domElement;
           if (options?.width && options?.height) {
             // Render at the requested resolution by temporarily resizing the
@@ -1291,10 +1333,10 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
             // flicker if user is watching.
             const prevSize = scene.renderer.getSize(new Vector2());
             scene.renderer.setSize(options.width, options.height, false);
-            scene.renderer.render(scene.scene, scene.camera);
+            scene.renderFrame();
             const url = canvas.toDataURL('image/png');
             scene.renderer.setSize(prevSize.x, prevSize.y, false);
-            scene.renderer.render(scene.scene, scene.camera);
+            scene.renderFrame();
             resolve(url);
           } else {
             resolve(canvas.toDataURL('image/png'));
@@ -1331,6 +1373,30 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 };
 
 /**
+ * Build the shared post-processing pipeline. Anything the GPU refuses (no
+ * float render targets, context loss during setup, …) degrades to a plain
+ * forward render rather than taking the whole globe down with it.
+ */
+const createPostFxPipeline = (
+  renderer: WebGLRenderer,
+  config: GlobeConfig,
+  enabled: boolean,
+  antialias: boolean,
+): PostFxPipeline | null => {
+  try {
+    return new PostFxPipeline({
+      renderer,
+      config: { ...config.postprocessing, enabled },
+      transparent: config.transparent === true,
+      antialias,
+    });
+  } catch (err) {
+    console.warn('[globio] post-processing unavailable', err);
+    return null;
+  }
+};
+
+/**
  * `globe.update()` accepts a top-level Partial<GlobeConfig>, while most
  * nested config sections are themselves sparse live-update objects. Keep
  * existing nested values when a caller updates just one sub-field, but
@@ -1353,6 +1419,7 @@ const mergeRuntimeConfig = (
   assignMergedSection(merged, 'hologram', prev.hologram, partial.hologram);
   assignMergedSection(merged, 'cinematic', prev.cinematic, partial.cinematic);
   assignMergedSection(merged, 'starfield', prev.starfield, partial.starfield);
+  assignMergedSection(merged, 'postprocessing', prev.postprocessing, partial.postprocessing);
   assignMergedSection(merged, 'autoRotate', prev.autoRotate, partial.autoRotate);
   assignMergedSection(merged, 'performance', prev.performance, partial.performance);
   assignMergedSection(merged, 'zoom', prev.zoom, partial.zoom);
@@ -1464,5 +1531,6 @@ const buildStarfieldLayer = (
     ...(starfield.palette !== undefined && { palette: starfield.palette }),
     ...(starfield.sizeVariety !== undefined && { sizeVariety: starfield.sizeVariety }),
     ...(starfield.twinkle !== undefined && { twinkle: starfield.twinkle }),
+    ...(starfield.milkyWay !== undefined && { milkyWay: starfield.milkyWay }),
   });
 };

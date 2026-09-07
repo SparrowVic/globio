@@ -116,10 +116,10 @@ export function WorkshopPreviewGlobe({
     // shows them what they're shipping rather than a different look.
     const previewKind = cinematography.kind ?? state.globe.kind;
     const previewTheme = cinematography.theme ?? state.globe.theme;
+    // The cinematic kind now drives the shared atmosphere shell itself
+    // (scattering limb), so it stays on for every kind.
     const previewAtmosphereEnabled =
-      previewKind === 'cinematic'
-        ? false
-        : cinematography.atmosphere ?? baseConfig.atmosphere?.enabled ?? true;
+      cinematography.atmosphere ?? baseConfig.atmosphere?.enabled ?? true;
     const globe = createGlobe({
       ...baseConfig,
       container,
@@ -199,6 +199,11 @@ export function WorkshopPreviewGlobe({
       ...(baseConfig.cinematic !== undefined ? { cinematic: baseConfig.cinematic } : {}),
       ...(baseConfig.paper !== undefined ? { paper: baseConfig.paper } : {}),
       ...(baseConfig.wireframe !== undefined ? { wireframe: baseConfig.wireframe } : {}),
+      // Shared post-processing pipeline — a top-level section, so it needs
+      // its own entry here just like the per-kind sub-trees above.
+      ...(baseConfig.postprocessing !== undefined
+        ? { postprocessing: baseConfig.postprocessing }
+        : {}),
     });
     // Imperative live update — arcs / markers presets re-push their
     // fixture dataset with the latest styling so changes (width,

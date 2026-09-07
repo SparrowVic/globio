@@ -125,6 +125,7 @@ export function GlobePreview({
       ...(config.cinematic !== undefined ? { cinematic: config.cinematic } : {}),
       ...(config.paper !== undefined ? { paper: config.paper } : {}),
       ...(config.wireframe !== undefined ? { wireframe: config.wireframe } : {}),
+      ...(config.postprocessing !== undefined ? { postprocessing: config.postprocessing } : {}),
     };
     instanceRef.current?.update(partial);
   }, [
@@ -146,6 +147,7 @@ export function GlobePreview({
     config.cinematic,
     config.paper,
     config.wireframe,
+    config.postprocessing,
   ]);
 
   useEffect(() => {
