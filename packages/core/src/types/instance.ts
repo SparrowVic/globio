@@ -98,6 +98,14 @@ export interface GlobeInstance {
   readonly addArc: (arc: ArcConfig) => void;
   readonly removeArc: (id: string) => void;
   readonly toImage: (options?: { width?: number; height?: number }) => Promise<string>;
+  /**
+   * Pause or resume rendering without tearing anything down. A paused globe
+   * keeps its scene, data and WebGL context and costs no frame time; use it
+   * for globes kept warm behind a cross-fade or in an inactive tab panel.
+   * Off-screen and hidden-tab pausing (`performance.pauseWhenHidden`) is
+   * automatic and independent of this switch.
+   */
+  readonly setPaused: (paused: boolean) => void;
   readonly resize: () => void;
   readonly getCanvas: () => HTMLCanvasElement;
   /**

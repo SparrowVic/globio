@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngular, faJs, faReact, faVuejs } from '@fortawesome/free-brands-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { cn } from '@/lib/utils';
-import { CodeBlock, CopyCommand } from '../atoms';
+import { CodeBlock, CopyCommand, SectionHeading } from '../atoms';
 
 interface Tab {
   readonly id: string;
@@ -120,14 +120,12 @@ export function FrameworksSection() {
     <section id="frameworks" className="relative py-28 md:py-36" aria-label="Framework wrappers">
       <div className="wrap">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-end">
-          <div>
-            <span className="eyebrow reveal">@your-globe/*</span>
-            <h2 className="t-h2 reveal reveal-d1 mt-5">One config. Four ways in.</h2>
-            <p className="t-lead reveal reveal-d2 mt-5 max-w-[32rem]">
-              The wrappers forward the whole GlobeConfig and turn events into callbacks. Change a
-              prop and the globe updates in place.
-            </p>
-          </div>
+          <SectionHeading
+            eyebrow="@your-globe/*"
+            title="One config. Four ways in."
+            lead="The wrappers forward the whole GlobeConfig and turn events into callbacks. Change a prop and the globe updates in place."
+            leadClassName="max-w-[32rem]"
+          />
           <div className="reveal reveal-d2 flex flex-wrap gap-1.5 rounded-full border border-[var(--hair)] p-1 lg:justify-self-end">
             {TABS.map((t) => (
               <button

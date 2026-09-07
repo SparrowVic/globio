@@ -15,6 +15,7 @@ import type { StarfieldLayer } from '../renderer/starfield-layer';
 import { StoryController } from '../story/story-controller';
 import type { SceneConfig, StoryConfig } from '../story/types';
 import { KIND_MODULES } from '../kinds/registry';
+import { perfMark, perfMeasure } from '../utils/perf-marks';
 import type { GlobeKind, KindHandle, KindLayerRegistry, Public } from '../kinds/types';
 import type { OutlineKindHandle } from '../kinds/outline';
 import type { DottedKindHandle } from '../kinds/dotted';
@@ -53,6 +54,7 @@ import { computeFramedDistance } from './framing';
 import type { InternalState } from './internal-state';
 
 export const createGlobe = (config: GlobeConfig): GlobeInstance => {
+  const tConstruct = perfMark();
   const emitter = new GlobeEventEmitter();
   const tokens = resolveTheme(config.theme);
   const performance = { ...DEFAULT_PERFORMANCE, ...config.performance };
@@ -441,6 +443,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
   });
 
+  perfMeasure('globio:construct', tConstruct);
+
   const state: InternalState = {
     config,
     scene,
@@ -494,6 +498,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // dotted a Points cloud, wireframe a lat/lng grid (without country
       // geometry), future kinds whatever they want. The picking layer is
       // mounted separately below for kinds that opt into country interaction.
+      const tBuild = perfMark();
       state.kindHandle = kindModule.build({
         globeGroup,
         features: features as ReadonlyArray<CountryFeature>,
@@ -510,6 +515,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         globeSurfaceMesh: globeMesh.mesh,
         atmosphereLayer,
       });
+      perfMeasure('globio:kind-build', tBuild);
       // Compile the freshly mounted layers' shaders in the background
       // (KHR_parallel_shader_compile where available) instead of letting the
       // next frame block the main thread on a synchronous compile. Frames
@@ -777,13 +783,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   const instance: GlobeInstance = {
     mount: () => {
+      const tMount = perfMark();
       scene.start();
       void initCountries()
         .then(() => compiled)
         .then(() => {
-          if (!state.destroyed) emitter.emit('ready');
+          if (state.destroyed) return;
+          perfMeasure('globio:mount-to-ready', tMount);
+          emitter.emit('ready');
         });
     },
+    setPaused: (paused) => scene.setPaused(paused),
     destroy: () => {
       if (state.destroyed) return;
       state.destroyed = true;

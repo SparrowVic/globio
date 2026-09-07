@@ -34,7 +34,7 @@ export function Nav() {
       className={cn(
         'fixed inset-x-0 top-0 z-40 transition-[background-color,border-color,backdrop-filter] duration-500',
         scrolled
-          ? 'border-b border-[var(--hair)] bg-[rgba(5,6,8,0.72)] backdrop-blur-xl'
+          ? 'border-b border-[var(--hair)] bg-[rgba(5,6,8,0.82)] backdrop-blur-md'
           : 'border-b border-transparent bg-transparent',
       )}
     >

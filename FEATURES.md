@@ -443,6 +443,15 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
   bloom, anamorficzny streak, aberracja, winieta, ziarno, ekspozycja; domyślnie on tylko dla
   cinematic, fail-closed do bezpośredniego renderu.
 - **Pixel-ratio cap** `[v1·GLOBAL·S·built]`.
+- **Shared frame scheduler + pausing** `[v1·GLOBAL·M·built]` — jeden `requestAnimationFrame`
+  dla wszystkich instancji na stronie (`performance.maxFps` per instancja), pauza poza
+  viewportem i w ukrytej karcie (`performance.pauseWhenHidden`, default on) oraz ręczna pauza
+  `globe.setPaused(true|false)` — instancja trzyma scenę i kontekst WebGL, ale nie kosztuje
+  klatek (globusy „na ciepło” za cross-fade'em, nieaktywne zakładki).
+- **User Timing marks** `[v1·GLOBAL·S·built]` — `performance.measure` dla `globio:construct`
+  (renderer + warstwy), `globio:kind-build` (synchroniczna budowa kindu po załadowaniu krajów)
+  i `globio:mount-to-ready`; widoczne w DevTools i przez `performance.getEntriesByType('measure')`.
+  Budowa kindu to jedyny długi task — `countries.resolution: 'low'` skraca ją ~2-3×.
 - **Frustum culling markerów** `[v1·LAYER·M]` — pomocnicze nad InstancedMesh (Three.js sam tego nie umie dla per-instance).
 - **Level-of-detail country borders** `[v1.x·LAYER·M]` — switch low/med/high res w zależności od distance.
 - **Web worker geo parsing** `[v1.x·LAYER·M]` — offload ciężki TopoJSON parse off main thread.

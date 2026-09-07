@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight } from '@fortawesome/sharp-solid-svg-icons';
+import { SectionHeading } from '../atoms';
 
 const POINTS: ReadonlyArray<{ readonly title: string; readonly copy: string }> = [
   { title: 'Every knob, live', copy: 'Kind, theme, layers, data and the per-kind panels update the globe as you drag.' },
@@ -15,12 +16,12 @@ export function StudioSection() {
       <div className="wrap">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center">
           <div>
-            <span className="eyebrow reveal">/studio</span>
-            <h2 className="t-h2 reveal reveal-d1 mt-5">Design it in Studio. Ship the config.</h2>
-            <p className="t-lead reveal reveal-d2 mt-5 max-w-[30rem]">
-              Studio is the same engine with every option exposed. Compose the globe you want, then
-              hand the config to your app.
-            </p>
+            <SectionHeading
+              eyebrow="/studio"
+              title="Design it in Studio. Ship the config."
+              lead="Studio is the same engine with every option exposed. Compose the globe you want, then hand the config to your app."
+              leadClassName="max-w-[30rem]"
+            />
             <ul className="reveal reveal-d3 mt-8 space-y-5">
               {POINTS.map((p) => (
                 <li key={p.title} className="grid gap-1">

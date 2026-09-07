@@ -39,6 +39,7 @@ export class SceneManager {
   private lastTime = 0;
   private destroyed = false;
   // Pause levers — any of them stops frames without tearing anything down.
+  private userPaused = false;
   private held = 0;
   private inViewport = true;
   private pageVisible = true;
@@ -127,6 +128,20 @@ export class SceneManager {
     }
   }
 
+  /**
+   * Host-driven pause: skip frames until `setPaused(false)`. Unlike `stop()`
+   * the client stays registered, so resuming costs nothing and the next
+   * frame carries a clamped delta instead of a jump.
+   */
+  public setPaused(paused: boolean): void {
+    if (this.userPaused === paused) return;
+    this.userPaused = paused;
+    if (!paused) {
+      this.lastTime = performance.now();
+      getFrameScheduler().wake();
+    }
+  }
+
   public start(): void {
     if (this.running || this.destroyed) return;
     this.running = true;
@@ -157,7 +172,14 @@ export class SceneManager {
 
   /** True while the globe is off-screen, on a hidden tab, or holding for work. */
   public isPaused(): boolean {
-    return this.destroyed || !this.running || this.held > 0 || !this.inViewport || !this.pageVisible;
+    return (
+      this.destroyed ||
+      !this.running ||
+      this.userPaused ||
+      this.held > 0 ||
+      !this.inViewport ||
+      !this.pageVisible
+    );
   }
 
   public resize(): void {

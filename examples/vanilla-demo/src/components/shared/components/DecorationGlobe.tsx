@@ -5,6 +5,7 @@ import {
   type CinematicConfig,
   type GlobeInstance,
   type GlobeKind,
+  type ResolutionLevel,
   type StarfieldConfig,
   type ThemePresetName,
 } from '@your-globe/core';
@@ -89,6 +90,14 @@ export interface DecorationGlobeProps {
   readonly onLive?: () => void;
   /** Frame-rate cap. Default: 60 when interactive, 30 otherwise. */
   readonly maxFps?: number;
+  /**
+   * Skip rendering while true. The globe stays mounted and warm, so
+   * flipping this back costs nothing — the way a cross-fade keeps its
+   * outgoing layer around.
+   */
+  readonly paused?: boolean;
+  /** Country geometry resolution. Default 'medium' (the core default). */
+  readonly resolution?: ResolutionLevel;
 }
 
 const STARFIELD_DEFAULTS: StarfieldConfig = {
@@ -131,6 +140,8 @@ export function DecorationGlobe({
   onReady,
   onLive,
   maxFps,
+  paused = false,
+  resolution,
 }: DecorationGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<GlobeInstance | null>(null);
@@ -141,6 +152,12 @@ export function DecorationGlobe({
   onReadyRef.current = onReady;
   const onLiveRef = useRef(onLive);
   onLiveRef.current = onLive;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+
+  useEffect(() => {
+    instanceRef.current?.setPaused(paused);
+  }, [paused]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -160,7 +177,7 @@ export function DecorationGlobe({
       theme,
       transparent,
       framing: { padding: framingPadding, lockZoom },
-      countries: { hoverEnabled: interactive },
+      countries: { hoverEnabled: interactive, ...(resolution !== undefined && { resolution }) },
       autoRotate: { enabled: true, speed },
       atmosphere: { enabled: atmosphere },
       starfield: resolvedStarfield,
@@ -182,6 +199,7 @@ export function DecorationGlobe({
       },
     });
     instanceRef.current = globe;
+    globe.setPaused(pausedRef.current);
     // `ready` fires after countries load and the kind's shaders compile;
     // two more frames guarantee something has been presented.
     let liveRaf = 0;
@@ -219,6 +237,7 @@ export function DecorationGlobe({
     transparent,
     interactive,
     maxFps,
+    resolution,
   ]);
 
   return (

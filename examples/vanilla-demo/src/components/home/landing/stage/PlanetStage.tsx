@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import type { GlobeKind, ThemePresetName } from '@your-globe/core';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { GlobeKind, ResolutionLevel, ThemePresetName } from '@your-globe/core';
 import { cn } from '@/lib/utils';
 import { Graticule, StarField } from '../atoms';
 import { KIND_CHAPTERS } from '../data/kinds';
 import { defaultThemeFor } from '../data/kind-themes';
 import { useCoarsePointer } from '../hooks/use-coarse-pointer';
-import { GlobeCrossfade } from './GlobeCrossfade';
+import { GlobeDeck, type DeckEntry } from './GlobeDeck';
 import { HeroCopy } from './HeroCopy';
 import { KindChapter } from './KindChapter';
 
@@ -44,6 +44,12 @@ function computePoses(vw: number, vh: number, size: number): { hero: Pose; chapt
     chapter: { x: vw * 0.21, y: 0, s: Math.min(0.7, Math.min(vw * 0.44, 700) / size) },
   };
 }
+
+// The hero cinematic globe is built once at load, so it keeps the default
+// (medium) country geometry; the chapter globes are warmed later, one at a
+// time, and low resolution cuts their build time roughly in half.
+const resolutionFor = (kind: GlobeKind): ResolutionLevel | undefined =>
+  kind === 'cinematic' ? undefined : 'low';
 
 const initialThemes = (): Record<GlobeKind, ThemePresetName> => ({
   cinematic: defaultThemeFor('cinematic'),
@@ -136,9 +142,14 @@ export function PlanetStage() {
   }, []);
 
   const current = KIND_CHAPTERS[active] ?? KIND_CHAPTERS[0];
-  if (!current) return null;
-  const kind = current.kind;
+  const kind = current?.kind ?? 'cinematic';
   const theme = themes[kind];
+  // Every chapter's current theme, in chapter order — what the deck warms.
+  const warm = useMemo<ReadonlyArray<DeckEntry>>(
+    () => KIND_CHAPTERS.map((c) => ({ kind: c.kind, theme: themes[c.kind] })),
+    [themes],
+  );
+  if (!current) return null;
 
   return (
     <section ref={sectionRef} className="stage-section" aria-label="Globe kinds">
@@ -148,7 +159,13 @@ export function PlanetStage() {
           <div className="stage-halo" />
           <Graticule className="stage-graticule" />
           <div className="stage-enter absolute inset-0">
-            <GlobeCrossfade kind={kind} theme={theme} interactive={!coarse} />
+            <GlobeDeck
+              kind={kind}
+              theme={theme}
+              interactive={!coarse}
+              warm={warm}
+              resolutionFor={resolutionFor}
+            />
           </div>
         </div>
         <div className="stage-fade" />

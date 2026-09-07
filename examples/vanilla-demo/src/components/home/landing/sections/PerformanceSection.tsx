@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { SectionHeading } from '../atoms';
 import { useInViewport } from '../hooks/use-in-viewport';
 
 const FACTS: ReadonlyArray<{ readonly title: string; readonly copy: string }> = [
@@ -80,8 +81,11 @@ export function PerformanceSection() {
   return (
     <section id="performance" className="relative py-28 md:py-36" aria-label="Performance">
       <div className="wrap">
-        <span className="eyebrow reveal">performance</span>
-        <h2 className="t-h2 reveal reveal-d1 mt-5 max-w-[16ch]">Fast on a page that has other things to do.</h2>
+        <SectionHeading
+          eyebrow="performance"
+          title="Fast on a page that has other things to do."
+          titleClassName="max-w-[16ch]"
+        />
         <div className="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
           <FrameMeter />
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">

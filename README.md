@@ -62,7 +62,16 @@ globe.mount();
 
 // Everything is live-updatable:
 globe.update({ cinematic: { sun: { mode: 'orbit', speed: 6 } } });
+
+// Keep a globe warm without spending frames on it (e.g. behind a cross-fade):
+globe.setPaused(true);
 ```
+
+Every globe on a page shares one animation-frame loop; globes that scroll out of view or
+sit in a hidden tab pause automatically. Building a kind is the one synchronous cost
+(60–400 ms depending on kind and `countries.resolution`); the engine records it as User
+Timing measures (`globio:construct`, `globio:kind-build`, `globio:mount-to-ready`) so you
+can see it in DevTools or read it with `performance.getEntriesByType('measure')`.
 
 ## Kinds
 

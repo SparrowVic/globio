@@ -1,7 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import Home from './routes/Home';
-import Studio from './routes/Studio';
+
+// Studio carries the whole configurator (panels, command palette, modals);
+// splitting it keeps the landing's first load to the engine and the page.
+const Studio = lazy(() => import('./routes/Studio'));
 
 /**
  * Top-level routing: `/` shows the marketing / showcase home page,
@@ -14,7 +18,14 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/studio" element={<Studio />} />
+        <Route
+          path="/studio"
+          element={
+            <Suspense fallback={<div className="min-h-screen bg-[#050608]" aria-busy="true" />}>
+              <Studio />
+            </Suspense>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
