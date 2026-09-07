@@ -1,6 +1,8 @@
 # Interactive Globe Library
 
-Interactive 3D globe library for Angular, React and Vue, built on Three.js.
+Interactive 3D globe library for Angular, React and Vue, built on Three.js — six visual
+kinds, nine canonical layers, data layers, a story engine and a shared HDR post-processing
+pipeline, all live-updatable.
 
 ## Architecture
 
@@ -27,7 +29,7 @@ packages/
 ```bash
 pnpm install
 pnpm build
-pnpm dev
+pnpm dev        # Vite demo on http://localhost:5173 (landing + /studio) with tsup --watch for core
 ```
 
 ## Releasing
@@ -47,16 +49,59 @@ import { createGlobe } from '@your-globe/core';
 
 const globe = createGlobe({
   container: document.getElementById('app')!,
-  countries: { resolution: 'medium', style: 'borders' },
+  kind: 'cinematic',               // 'cinematic' | 'outline' | 'dotted' | 'wireframe' | 'paper' | 'hologram'
+  theme: 'cinematic-night',        // built-in preset or { extends, tokens }
   markers: [{ id: '1', position: [52.23, 21.01], label: 'Warsaw' }],
-  atmosphere: { enabled: true },
   autoRotate: { enabled: true, speed: 0.5 },
   performance: { adaptiveQuality: true },
 });
 
 globe.on('markerClick', ({ marker }) => console.log(marker));
 globe.mount();
+
+// Everything is live-updatable:
+globe.update({ cinematic: { sun: { mode: 'orbit', speed: 6 } } });
 ```
+
+## Kinds
+
+Six visual personalities share one engine and the same nine canonical layers
+(labels, focus pulse, starfield, selection, country fill, arcs, markers,
+atmosphere, crosshair): `cinematic`, `outline`, `dotted`, `wireframe`, `paper`,
+`hologram`. Data layers (`setDataLayer`: choropleth, heatmap, hexbin, charts) and
+the Story API (`setStory`) work on every kind. See `FEATURES.md` for the catalog.
+
+### Cinematic
+
+A filmic Earth: relief and biomes from a baked terrain atlas, ice, shallows,
+cloud shell with shadows, scattering atmosphere, sun disc, aurora, Milky Way,
+plus data accents (network, arcs, optional city lights). Two modes with one
+shader:
+
+```ts
+createGlobe({
+  container,
+  kind: 'cinematic',
+  theme: 'cinematic-day',        // also: cinematic-night, cinematic-dawn, cinematic-noir
+  cinematic: {
+    sun: { mode: 'realtime' },   // 'fixed' | 'realtime' | 'orbit'
+    clouds: { coverage: 0.42, shadows: true },
+    aurora: { enabled: true },
+    // Optional real maps (procedural look stays the default):
+    textures: {
+      day: '/textures/earth/earth_atmos_2048.jpg',
+      night: '/textures/earth/earth_lights_2048.png',
+      normal: '/textures/earth/earth_normal_2048.jpg',
+      specular: '/textures/earth/earth_specular_2048.jpg',
+      clouds: '/textures/earth/earth_clouds_1024.png',
+    },
+  },
+  postprocessing: { bloom: { strength: 0.5 } }, // on by default for cinematic only
+});
+```
+
+No extra dependency is needed for textures — `three` (the peer dependency) loads
+them; the demo ships a 2k set under `examples/vanilla-demo/public/textures/earth`.
 
 ## React
 
@@ -64,7 +109,8 @@ globe.mount();
 import { Globe } from '@your-globe/react';
 
 <Globe
-  countries={{ style: 'borders' }}
+  kind="outline"
+  theme="outline-dark"
   markers={[{ id: '1', position: [52.23, 21.01] }]}
   atmosphere={{ enabled: true }}
   autoRotate={{ enabled: true }}
@@ -74,6 +120,12 @@ import { Globe } from '@your-globe/react';
 
 ## Angular
 
+> The Angular and Vue wrappers currently expose a subset of the core config (`mode`,
+> `countries`, `markers`, `atmosphere`, `autoRotate`, `performance`, `initialPosition`,
+> zoom limits). `kind`, `theme`, `cinematic`, `postprocessing`, data layers and the Story
+> API are available through the core API and the React wrapper (which forwards the whole
+> `GlobeConfig`) until the other wrappers catch up.
+
 ```ts
 import { GlobeComponent } from '@your-globe/angular';
 
@@ -81,7 +133,7 @@ import { GlobeComponent } from '@your-globe/angular';
   imports: [GlobeComponent],
   template: `
     <ng-globe
-      [countries]="{ style: 'borders' }"
+      [countries]="{ resolution: 'medium' }"
       [markers]="markers"
       [atmosphere]="{ enabled: true }"
       [autoRotate]="{ enabled: true }"
@@ -101,7 +153,7 @@ import { VueGlobe } from '@your-globe/vue';
 
 <template>
   <VueGlobe
-    :countries="{ style: 'borders' }"
+    :countries="{ resolution: 'medium' }"
     :markers="[{ id: '1', position: [52.23, 21.01] }]"
     :atmosphere="{ enabled: true }"
     :auto-rotate="{ enabled: true }"

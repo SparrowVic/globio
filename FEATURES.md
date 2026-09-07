@@ -26,8 +26,9 @@ Każdy feature poniżej oznaczany jest tagami w nawiasie kwadratowym:
 z pierwszorzędnymi wrapperami React/Angular/Vue. Trzy filary, które wyróżniają ją na tle
 istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
-1. **Curated visual styles** — 6 starannie zaprojektowanych presetów (outline, dotted,
-   wireframe, choropleth, paper, hologram). Zmiana stylu = jedna linijka.
+1. **Curated visual styles** — 6 starannie zaprojektowanych kindów (cinematic, outline,
+   dotted, wireframe, paper, hologram; choropleth stał się data layerem). Zmiana stylu =
+   jedna linijka.
 2. **Theme token system** — wszystkie kolory/efekty wyrażone designerskimi tokenami
    (`globe.surface`, `markers.default`, `atmosphere.color`...). Override 1 tokena albo własny pełny preset.
 3. **Story / Narrative engine** — deklaratywny timeline scen kamery + highlight + popup; killer feature dla
@@ -140,7 +141,43 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Best for:** sci-fi UI, premiery produktów tech, gry, military/intel mockupy.
 - **References:** Anduril, Mass Effect, Westworld console UI.
 
-### 3.7 Topographic / Satellite `[v2+·M]` 🎨 `C·D·G·sym(future)` 🚀 *future*
+### 3.7 Cinematic — filmowa Ziemia z warstwą danych `[v1·L·built]` 🌟 🎨 `A·B·G`
+
+- **Vibe:** keynote'owa planeta (Apple / SpaceX): fizycznie oświetlony ocean, relief, biomy,
+  lód, chmury z cieniami, atmosfera z rozpraszaniem, zorza, tarcza słońca, Droga Mleczna —
+  plus ciepłe akcenty danych (sieć połączeń, łuki, opcjonalnie światła miast).
+- **Dwa tryby:** (a) w pełni proceduralny, zero assetów (domyślny); (b) `cinematic.textures`
+  z URL-ami map day / night / normal / specular / clouds — ten sam shader, crossfade po
+  załadowaniu. Demo ma zestaw Earth 2k (mapy planet z repo three.js) pod
+  `examples/vanilla-demo/public/textures/earth`, przełącznik w Studio.
+- **Anatomia:** `kinds/cinematic/` — `surface-shader.ts` (relief z wypiekanego atlasu terenu,
+  biomy z szerokości/wysokości/wilgotności, pole odległości od wybrzeża → płycizny i plaże,
+  glint, księżyc, cienie chmur, zorza, saturacja), `clouds.ts` (powłoka chmur, to samo pole
+  co cienie), `atmosphere.ts` (single scattering Rayleigh/Mie, pas zmierzchu, airglow),
+  `sun.ts` (tryby `fixed` / `realtime` / `orbit`, punkt podsłoneczny z daty, tarcza słońca),
+  `starfield.ts` (rozkład jasności, klasy barwne, pas Drogi Mlecznej), `textures.ts`,
+  `atlas.ts` (scanline rasterizer + chamfer distance transform + terrain bake, ~150 ms),
+  `engine.ts` (wspólny blok uniformów, auto-quality po FPS).
+- **Post-processing:** wspólny `GlobeConfig.postprocessing` (bloom, anamorficzny streak,
+  aberracja, winieta, ziarno, ekspozycja, miękkie ramię świateł); domyślnie włączony tylko dla
+  cinematic, alpha-safe na przezroczystym canvasie, fail-closed do zwykłego renderu.
+- **Tokens:** `cinematic.*` (ocean / land / cloud / night / rim / city / network / border,
+  `iceColor`, `vegetationColor`, `desertColor`, `shallowWaterColor`, `auroraColor`,
+  `auroraTopColor`, `moonColor`, `sunColor`, `saturation`, kierunek światła, terminator).
+- **Presety:** `cinematic-night`, `cinematic-day`, `cinematic-dawn`, `cinematic-noir`.
+- **Config:** `cinematic.surface` (relief, biomes, shallows, moonlight, snowLine, saturation,
+  kolory), `cinematic.clouds`, `cinematic.atmosphere`, `cinematic.sun`, `cinematic.aurora`,
+  `cinematic.textures`, `cinematic.cityLights`, `cinematic.network`, `cinematic.reactivity`,
+  `cinematic.quality` (`auto` = tiery po zmierzonym FPS). Wszystko live przez `globe.update()`.
+- **Status:** ✅ shipped 2026-09-07 (commit 58c1072). Światła miast są w demo wyłączone
+  (`cityLights.enabled: false`, `reactivity.cityNightResponse: 0`) do czasu ponownego
+  strojenia — efekt zostaje dostępny w API. Bez testów jednostkowych (odłożone).
+
+### 3.8 Topographic / Satellite `[v2+·M]` 🎨 `C·D·G·sym(future)` 🚀 *future*
+
+> Częściowo pokryte przez tryb tekstur kindu cinematic (§3.7): własne mapy day/night/normal
+> dają realistyczną Ziemię bez nowego kindu. Ta pozycja zostaje dla pełnego satellite look
+> z kafelkami / wysoką rozdzielczością.
 
 - **Vibe:** realistyczna tekstura Ziemi (oceany, terrain, lód) + opcjonalne wektorowe obrysy państw.
 - **Anatomia:** sphere z Earth equirectangular texture + bump/normal map + opcjonalna warstwa borders.
@@ -149,14 +186,14 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Inspiracje (globe.gl screenshots):** "Daytime/Nighttime", "Realistic Earth", "Satellite View".
 - **API kierunek:** nowy `kind: 'satellite'` z opcjonalnym day/night terminator (§4.10) jako global effect, nie cześć kindu.
 
-### 3.8 Neon Cyberpunk `[v2+·S]` 🎨 `A·F` 🚀 *future*
+### 3.9 Neon Cyberpunk `[v2+·S]` 🎨 `A·F` 🚀 *future*
 
 - **Vibe:** wariant outline'u + bloom + dwukolorowe granice (magenta/cyan) + scanline subtelny.
 - **Anatomia:** outline + post-processing bloom pass + dwa style passes dla granic.
 - **Trade-off:** prosty technicznie (w gruncie rzeczy outline z post-fx), ale wymaga post-processing
   pipeline który dotąd nie był potrzebny.
 
-### 3.9 Hollow Globe `[v2+·M]` 🎨 `A·F` 🚀 *future*
+### 3.10 Hollow Globe `[v2+·M]` 🎨 `A·F` 🚀 *future*
 
 - **Vibe:** brak wypełnionej kuli — same kraje jako "wycięte" wektorowe sylwetki w pustce. Wnętrze widoczne (back-side wystaje).
 - **Anatomia:** brak globe surface mesh; tylko `CountriesLayer` z DoubleSide rendering, depthWrite off.
@@ -164,14 +201,14 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Inspiracja (globe.gl):** "Hollow Globe".
 - **Best for:** futurystyczne UI, info-graphics, marketing teasery.
 
-### 3.10 Tiled / Map-tile Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
+### 3.11 Tiled / Map-tile Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
 
 - **Vibe:** prawdziwe slippy-map tiles (OSM / Mapbox) zwinięte na sferze — z możliwością zoom-in do poziomu street.
 - **Anatomia:** sphere z dynamic tile loader (XYZ → spherical UV mapping), level-of-detail per zoom.
 - **Inspiracja (globe.gl):** "Map tiles".
 - **Trade-off:** wymaga tile servera (zewnętrzny lub bundle podstawowych); spore complexity.
 
-### 3.11 Hex Polygons Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
+### 3.12 Hex Polygons Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
 
 - **Vibe:** glob pokryty siatką hexagonalną (h3-grid); kraje wypełnione kolorem heksów.
 - **Anatomia:** generowany h3 hex tessellation; każdy hex to mały Three.js mesh; kolor per-hex z data binding.
@@ -375,11 +412,15 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Solid color background** `[v1·GLOBAL·S·built]`.
 - **Linear/radial gradient background** `[v1·GLOBAL·S]` — z konfigurowalnymi stops.
 - **Custom image background** `[v1.x·GLOBAL·S]` — `cover`, `contain`, `tile`.
-- **Procedural starfield** `[v1·GLOBAL·M]` — twinkling stars w 3D, gęstość/kolor konfigurowalne.
-- **Milky Way skybox** `[v1.x·GLOBAL·S]` — bundled HDR equirectangular.
+- **Procedural starfield** `[v1·GLOBAL·M·built]` — twinkling stars w 3D, gęstość/kolor konfigurowalne;
+  kind cinematic ma własną wersję z rozkładem jasności i klasami barwnymi gwiazd.
+- **Milky Way band** `[v1·GLOBAL·S·built]` — proceduralny pas (`starfield.milkyWay`) w kindzie
+  cinematic; bundled HDR skybox nadal `[v1.x]`.
 - **Custom skybox / equirectangular** `[v1.x·GLOBAL·S]` — user image.
-- **Day/night terminator** `[v2+·GLOBAL·M]` — sun position + shading; killer for `G·sym`.
-- **Sun glare / lens flare** `[v2+·GLOBAL·S]` — opcjonalny post-fx.
+- **Day/night terminator** `[v1·STYLE·M·built]` — w kindzie cinematic: `cinematic.sun` z trybami
+  `fixed` / `realtime` (punkt podsłoneczny z daty) / `orbit` (time-lapse); inne kindy `[v2+]`.
+- **Sun glare / lens flare** `[v1·STYLE·S·built]` — tarcza słońca cinematic + bloom/streak z
+  post-processingu; generyczny lens flare dla innych kindów `[v2+]`.
 
 ### 4.11 Time & data binding
 
@@ -393,7 +434,12 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 ### 4.12 Performance
 
 - **InstancedMesh markers** `[v1·LAYER·S·built]`.
-- **Adaptive quality (auto-downgrade)** `[v1·GLOBAL·M·partially-built]` — auto-FPS measurement.
+- **Adaptive quality (auto-downgrade)** `[v1·GLOBAL·M·partially-built]` — auto-FPS measurement
+  (pixel ratio); kind cinematic dodatkowo `quality: 'auto'` = tiery ultra/high/balanced po
+  zmierzonym FPS (mniej oktaw noise, bloom w połowie rozdzielczości, cienie chmur off).
+- **Post-processing pipeline** `[v1·GLOBAL·M·built]` — `GlobeConfig.postprocessing`: HDR target,
+  bloom, anamorficzny streak, aberracja, winieta, ziarno, ekspozycja; domyślnie on tylko dla
+  cinematic, fail-closed do bezpośredniego renderu.
 - **Pixel-ratio cap** `[v1·GLOBAL·S·built]`.
 - **Frustum culling markerów** `[v1·LAYER·M]` — pomocnicze nad InstancedMesh (Three.js sam tego nie umie dla per-instance).
 - **Level-of-detail country borders** `[v1.x·LAYER·M]` — switch low/med/high res w zależności od distance.
@@ -484,6 +530,8 @@ Co się gdzie konfiguruje. Kolumny = scope, wiersze = rodzaj opcji.
 | `scenes[i].*` (narrative engine) | ✅ | — | — | per-scene | — |
 | `autoRotate.*` | ✅ | — | — | — | — |
 | `atmosphere.*` | ✅ | overrides | — | — | — |
+| `cinematic.*` (surface / clouds / sun / aurora / textures / …) | — | ✅ | — | — | — |
+| `postprocessing.*` (bloom, streak, grade) | ✅ | default per kind | — | — | — |
 | `background.*` | ✅ | overrides | — | — | — |
 | `performance.*` | ✅ | — | — | — | — |
 | `accessibility.*` | ✅ | — | — | — | — |
@@ -618,6 +666,7 @@ Reguła kciuka: **data layer = zbiór wartości z jednym dominującym sposobem w
 | **v0.4** | Style #3-#4 | Wireframe + Choropleth, country data binding, hover/click events |
 | **v0.5** | Style #5-#6 | Paper + Hologram, custom shaders pipeline, easings polish |
 | **v0.55** *(in progress)* | Data layers polish | Shader-based heatmap (5 kernels, country domes, grid+contour overlays, animation system with 33 easings + per-pixel delay map), **multi-series charts (7 sub-types: grouped/stacked bars, pie, donut, radial, gauge, sunburst) with per-segment animations + HTML label overlay + click events**, **hex-bin spatial aggregation (icosphere binning, 7 aggregate modes, 5 stagger orders, pulse-style heartbeat animation, hover highlight + cell borders + click events)**, 4 standalone demo pages |
+| **v0.57** *(done 2026-09-07)* | Cinematic realism pass | Kind cinematic (§3.7): HDR post-processing pipeline, relief/biomy/lód/płycizny, chmury z cieniami, atmosfera scattering, słońce fixed/realtime/orbit + tarcza, zorza, Droga Mleczna, opcjonalne tekstury (Earth 2k w demo), presety night/day/dawn/noir, Studio knobs, scanline rasterizer atlasu (9 s → 10 ms) |
 | **v0.6** | Story engine v1 | Declarative scenes, autoplay, manual controls, easings |
 | **v0.65** | Story ↔ data-layer bridge | **Lifecycle hooks** (§4.9.1) na `DataLayerHandle` (`onEnter / onLeave / onSceneChange`), `heatmap.playAnimation({ trigger, target })` z per-country masking, story scene config może override'ować animation per scena |
 | **v0.7** | A11y + i18n | Keyboard nav, reduced-motion (heatmap timeline'y skaczą do końca), locale country names |
@@ -682,8 +731,8 @@ v2.0 +12 mies. To jest pełna prawda, nie marketing.
 
 ## 8. Glossary
 
-- **Style** — visual preset bundling renderer config + theme tokens. Jeden z 6 v1: outline, dotted,
-  wireframe, choropleth, paper, hologram.
+- **Style / kind** — visual preset bundling renderer config + theme tokens. Jeden z 6 v1:
+  cinematic, outline, dotted, wireframe, paper, hologram (choropleth jest data layerem).
 - **Theme** — bundle color tokens + opcjonalnie wybór stylu. Theme = kolory, Style = struktura
   wizualna. Theme może rozszerzać inny theme.
 - **Token** — nazwana wartość designerska (kolor, gradient, liczba). Pozwala podmieniać kolory bez

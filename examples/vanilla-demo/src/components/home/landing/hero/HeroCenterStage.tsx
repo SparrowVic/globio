@@ -37,7 +37,9 @@ export function HeroCenterStage({
               horizonGlow: 1.34,
               atmosphericScatter: 1.38,
               surfaceMicroDetail: 1.22,
-              cityNightResponse: 1.34,
+              // City glow parked for now (owner's call, 2026-09-07): 0 also
+              // silences the surface / cloud night emission.
+              cityNightResponse: 0,
               orbitalFlow: 1.08,
             },
             surface: {
@@ -76,7 +78,7 @@ export function HeroCenterStage({
             // Studio toggle (mode b) rather than the landing default.
             textures: null,
             cityLights: {
-              enabled: true,
+              enabled: false,
               intensity: 1.62,
               count: 11800,
               size: 0.0056,

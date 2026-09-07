@@ -3,7 +3,7 @@
 **Date:** 2026-09-07
 **Branch:** fix/globe-layer-polish (on top of the uncommitted 2026-05-08 cinematic physics WIP)
 **Scope:** `packages/core` cinematic kind + shared renderer post-processing; `examples/vanilla-demo` Studio knobs, presets, hero defaults.
-**Status:** approved in chat (2026-09-07). Working file, intentionally not committed — the user holds commits.
+**Status:** implemented and committed 2026-09-07 (`58c1072` on `fix/globe-layer-polish`). Deviations from this spec: the post pipeline applies a soft highlight roll-off instead of ACES (the scene layers are display-referred and tone-map themselves); the hero and Studio ship with city lights disabled pending a retune; unit tests deferred by the owner.
 
 ## Problem
 
