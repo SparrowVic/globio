@@ -17,6 +17,8 @@ export { Steps, Step, type StepProps } from './primitives/Steps';
 export { ContentTabs, type ContentTab, type ContentTabsProps } from './primitives/ContentTabs';
 export { Pill, KindDot, KindBadges, kindLabel, ALL_KINDS, type PillProps, type PillTone, type KindBadgesProps } from './primitives/Pill';
 export { LinkCard, CardGrid, type LinkCardProps, type CardGridProps } from './primitives/LinkCard';
+export { KindCard, kindThumbnail, type KindCardProps } from './primitives/KindCard';
+export { DocPageProvider, useDocPageSource, type DocPageSource } from './layout/page-context';
 export { slugify } from './primitives/heading-utils';
 // Code
 export { CodePanel, type CodePanelProps } from './code/CodePanel';

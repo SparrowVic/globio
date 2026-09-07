@@ -1,5 +1,5 @@
 import { KIND_CHAPTERS } from '@/components/home/landing/data/kinds';
-import { Callout, CardGrid, DocPage, DocSection, DocSubsection, KindDot, LinkCard, SupportMatrix } from '@/components/docs';
+import { Callout, CardGrid, DocPage, DocSection, DocSubsection, KindCard, KindDot, LinkCard, SupportMatrix } from '@/components/docs';
 import { KIND_DATA_LAYER_SUPPORT, KIND_LAYER_SUPPORT } from '@/docs/kind-support';
 import { pageHref, type DocLocation } from '@/docs/manifest';
 
@@ -23,7 +23,7 @@ export function KindsOverview({ tab, group, page }: DocLocation) {
       <DocSection title="Pages">
         <CardGrid columns={2}>
           {KIND_CHAPTERS.map((c) => (
-            <LinkCard key={c.kind} to={pageHref(`kinds/${c.kind}`)} leading={<KindDot kind={c.kind} />} eyebrow={`kind: '${c.kind}'`} title={c.title} description={c.description} />
+            <KindCard key={c.kind} kind={c.kind} title={c.title} description={c.description} />
           ))}
         </CardGrid>
       </DocSection>

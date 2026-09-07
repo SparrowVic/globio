@@ -1,5 +1,5 @@
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
-import { faBookOpen, faCode, faLayerGroup, faSliders } from '@fortawesome/sharp-solid-svg-icons';
+import { faBookOpen, faCode, faLayerGroup, faSliders, faWandMagicSparkles } from '@fortawesome/sharp-solid-svg-icons';
 import type { GlobeKind } from '@your-globe/core';
 import type { FrameworkId } from './frameworks';
 
@@ -131,6 +131,26 @@ export const DOCS_TABS: ReadonlyArray<DocTab> = [
           page('performance/overview', 'Performance', 'Resolution levels, pixel ratio, adaptive quality and the frame budget.', { eyebrow: 'performance' }),
           page('performance/pausing', 'Pausing and visibility', 'Pause hidden globes, keep several warm, resume without a flash.', { eyebrow: 'globe.setPaused()' }),
           page('performance/timing', 'Timing marks', 'The User Timing marks the engine emits and how to read them.', { eyebrow: 'globio:kind-build' }),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'recipes',
+    label: 'Recipes',
+    icon: faWandMagicSparkles,
+    description: 'Complete builds to copy: a dashboard, a route map, a narrated landing, a hero, a live feed.',
+    groups: [
+      {
+        id: 'recipes',
+        label: 'Recipes',
+        pages: [
+          page('recipes/overview', 'All recipes', 'Five complete builds, each with a live preview and the full config behind it.', { eyebrow: 'copy · adapt · ship' }),
+          page('recipes/choropleth-dashboard', 'Choropleth dashboard', 'Country values through a scale, a legend, and a click that selects a country.', { eyebrow: 'setCountryData()' }),
+          page('recipes/flight-routes', 'Flight routes', 'Hubs as pulsing markers and routes as animated arcs.', { eyebrow: 'arcs · markers' }),
+          page('recipes/story-landing', 'Story-driven landing', 'A looping story that flies between three countries, with captions driven by scene events.', { eyebrow: 'setStory()' }),
+          page('recipes/hero-globe', 'Hero globe', 'A decorative cinematic globe behind a headline: padded framing, locked zoom, paused off-screen.', { eyebrow: 'framing.lockZoom' }),
+          page('recipes/live-feed', 'Live data feed', 'Markers that arrive over time, pulse on arrival, and are capped so the globe stays readable.', { eyebrow: 'addMarker()' }),
         ],
       },
     ],

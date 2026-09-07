@@ -1,7 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMagnifyingGlass } from '@fortawesome/sharp-solid-svg-icons';
 import { KIND_CHAPTERS } from '@/components/home/landing/data/kinds';
-import { CardGrid, CodePanel, DocSection, FrameworkSwitch, KindDot, LinkCard, LivePreview, Prose, useDocsUi } from '@/components/docs';
+import { CardGrid, CodePanel, DocSection, FrameworkSwitch, KindCard, LinkCard, LivePreview, Prose, useDocsUi } from '@/components/docs';
 import { DOCS_TABS, pageHref, tabHref } from '@/docs/manifest';
 import { QUICK_START } from '@/docs/snippets';
 
@@ -45,7 +45,7 @@ export function DocsHome() {
         </DocSection>
 
         <DocSection title="Sections" id="sections">
-          <CardGrid columns={4}>
+          <CardGrid columns={3}>
             {DOCS_TABS.map((t) => (
               <LinkCard key={t.id} to={tabHref(t)} icon={t.icon} title={t.label} description={t.description} layout="stack" />
             ))}
@@ -55,7 +55,7 @@ export function DocsHome() {
         <DocSection title="Kinds" id="kinds" lead="Six renderers share one config. Each page has a live globe next to the code that produces it.">
           <CardGrid columns={3}>
             {KIND_CHAPTERS.map((c) => (
-              <LinkCard key={c.kind} to={pageHref(`kinds/${c.kind}`)} leading={<KindDot kind={c.kind} />} eyebrow={`kind: '${c.kind}'`} title={c.title} description={c.tagline} />
+              <KindCard key={c.kind} kind={c.kind} title={c.title} description={c.tagline} />
             ))}
           </CardGrid>
         </DocSection>

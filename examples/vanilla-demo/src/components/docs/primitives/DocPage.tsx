@@ -1,5 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowUpRightFromSquare } from '@fortawesome/sharp-solid-svg-icons';
+import { GITHUB_URL } from '@/components/home/landing/data/links';
 import { cn } from '@/lib/utils';
+import { useDocPageSource } from '../layout/page-context';
+
+const PAGES_DIR = 'examples/vanilla-demo/src/docs/pages';
 
 export interface DocPageProps {
   readonly title: ReactNode;
@@ -22,13 +28,14 @@ export interface DocPageProps {
  */
 export function DocPage({ title, eyebrow, lead, crumbs, meta, accent, children, className }: DocPageProps) {
   const style = accent ? ({ '--page-accent': accent } as CSSProperties) : undefined;
+  const source = useDocPageSource();
   return (
     <article className={cn('docs-article', className)} style={style}>
       <header className="docs-page-head">
         {crumbs && crumbs.length > 0 && (
           <nav aria-label="Breadcrumb" className="docs-crumbs">
             {crumbs.map((c, i) => (
-              <span key={c}>
+              <span key={`${i}-${c}`}>
                 {i > 0 && <span aria-hidden="true" className="docs-crumb-sep">/</span>}
                 {c}
               </span>
@@ -41,6 +48,15 @@ export function DocPage({ title, eyebrow, lead, crumbs, meta, accent, children, 
         {meta && <div className="docs-meta">{meta}</div>}
       </header>
       <div className="docs-prose">{children}</div>
+      {source?.source && (
+        <footer className="docs-page-foot">
+          <a href={`${GITHUB_URL}/edit/main/${PAGES_DIR}/${source.source}`} target="_blank" rel="noreferrer" className="docs-edit-link">
+            Edit this page on GitHub
+            <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="size-2.5" />
+          </a>
+          <code className="docs-page-source">{source.source}</code>
+        </footer>
+      )}
     </article>
   );
 }

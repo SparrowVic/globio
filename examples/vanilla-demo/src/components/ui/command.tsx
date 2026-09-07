@@ -40,12 +40,15 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  shouldFilter = true,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  /** Pass false to rank and filter the items yourself. */
+  shouldFilter?: boolean
 }) {
   return (
     <Dialog {...props}>
@@ -67,7 +70,7 @@ function CommandDialog({
             down. The shadcn-installed CommandDialog ships *without* the
             wrapper — likely targeting React 19's auto-context — which
             crashes on React 18. Wrap explicitly. */}
-        <Command>{children}</Command>
+        <Command shouldFilter={shouldFilter}>{children}</Command>
       </DialogContent>
     </Dialog>
   )

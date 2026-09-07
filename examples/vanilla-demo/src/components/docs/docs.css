@@ -1235,6 +1235,146 @@
     font-size: 0.74rem;
   }
 
+  /* ---- Kind cards, edit link, snapshots ---------------------------- */
+  .docs-kind-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--hair);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(220, 235, 255, 0.035), rgba(220, 235, 255, 0.015));
+    color: var(--body);
+    transition: border-color 0.25s, transform 0.25s var(--ease-out);
+  }
+  .docs-kind-card:hover {
+    border-color: var(--hair-strong);
+    transform: translateY(-1px);
+  }
+  .docs-kind-card:focus-visible {
+    outline: 2px solid var(--atm);
+    outline-offset: 2px;
+  }
+  .docs-kind-card-media {
+    display: block;
+    aspect-ratio: 16 / 10;
+    background: radial-gradient(circle at 50% 60%, rgba(111, 180, 255, 0.12), #090b10 70%);
+  }
+  .docs-kind-card-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 40%;
+  }
+  .docs-kind-card-body {
+    display: block;
+    padding: 14px 44px 16px 16px;
+  }
+  .docs-kind-card .docs-card-arrow {
+    position: absolute;
+    right: 16px;
+    bottom: 18px;
+    margin: 0;
+  }
+  .docs-kind-card:hover .docs-card-arrow {
+    transform: translateX(3px);
+    color: var(--ice);
+  }
+  .docs-kind-card .docs-card-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .docs-page-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--hair);
+  }
+  .docs-edit-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: var(--mist);
+    transition: color 0.2s;
+  }
+  .docs-edit-link:hover {
+    color: var(--ice);
+  }
+  .docs-page-source {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: rgba(138, 148, 166, 0.7);
+  }
+  .docs-search-kind {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    color: rgba(138, 148, 166, 0.85);
+  }
+  .docs-search-code {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: #6fb4ff;
+  }
+  .docs-search-loading {
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: rgba(138, 148, 166, 0.85);
+  }
+  .docs-snapshots {
+    min-height: 100vh;
+    padding: 32px clamp(20px, 4vw, 56px);
+    font-size: 0.9rem;
+  }
+  .docs-snapshots h1 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 600;
+  }
+  .docs-snapshots p {
+    margin: 8px 0 20px;
+    color: var(--mist);
+  }
+  .docs-snapshots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+  .docs-snapshots-stage {
+    position: relative;
+    aspect-ratio: 1;
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #090b10;
+  }
+  .docs-snapshots figcaption {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--mist);
+  }
+  .docs-snapshots figcaption a {
+    color: var(--atm);
+  }
+  .docs-snapshots img {
+    display: block;
+    width: 120px;
+    margin-top: 8px;
+    border: 1px solid var(--hair);
+    border-radius: 8px;
+  }
+
   /* ---- Footer, misc ---------------------------------------------- */
   .docs-footer {
     margin-top: 48px;

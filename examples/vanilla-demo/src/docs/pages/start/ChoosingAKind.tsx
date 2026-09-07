@@ -1,5 +1,5 @@
 import { KIND_CHAPTERS } from '@/components/home/landing/data/kinds';
-import { CardGrid, DocPage, DocSection, KindDot, LinkCard, SupportMatrix } from '@/components/docs';
+import { CardGrid, DocPage, DocSection, KindCard, KindDot, LinkCard, SupportMatrix } from '@/components/docs';
 import { KIND_DATA_LAYER_SUPPORT, KIND_LAYER_SUPPORT } from '@/docs/kind-support';
 import { pageHref, type DocLocation } from '@/docs/manifest';
 
@@ -33,7 +33,7 @@ export function ChoosingAKind({ tab, group, page }: DocLocation) {
       <DocSection title="The six kinds">
         <CardGrid columns={2}>
           {KIND_CHAPTERS.map((c) => (
-            <LinkCard key={c.kind} to={pageHref(`kinds/${c.kind}`)} leading={<KindDot kind={c.kind} />} eyebrow={`kind: '${c.kind}'`} title={c.title} description={c.tagline} />
+            <KindCard key={c.kind} kind={c.kind} title={c.title} description={c.tagline} />
           ))}
         </CardGrid>
       </DocSection>

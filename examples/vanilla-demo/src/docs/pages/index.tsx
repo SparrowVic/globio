@@ -39,6 +39,7 @@ import { Introduction } from './start/Introduction';
 import { StoryEngine } from './story/Engine';
 import { StudioOverview } from './studio/StudioOverview';
 import { StudioExport, StudioPresets, StudioShortcuts } from './studio/StudioPages';
+import { ChoroplethDashboard, FlightRoutes, HeroGlobe, LiveFeed, RecipesOverview, StoryLanding } from './recipes/RecipePages';
 
 export type DocPageComponent = ComponentType<DocLocation>;
 
@@ -46,64 +47,80 @@ export type DocPageComponent = ComponentType<DocLocation>;
  * Slug → page component. Pages missing here render the generic skeleton,
  * so the whole manifest is reachable before the content exists.
  */
-const PAGES: Readonly<Record<string, DocPageComponent>> = {
-  'start/introduction': Introduction,
-  'start/installation': Installation,
-  'start/first-globe': FirstGlobe,
-  'start/choosing-a-kind': ChoosingAKind,
-  'kinds/overview': KindsOverview,
-  'kinds/cinematic': KindPage,
-  'kinds/outline': KindPage,
-  'kinds/dotted': KindPage,
-  'kinds/wireframe': KindPage,
-  'kinds/hologram': KindPage,
-  'kinds/paper': KindPage,
-  'appearance/themes': Themes,
-  'appearance/tokens': Tokens,
-  'appearance/atmosphere': Atmosphere,
-  'appearance/countries': Countries,
-  'appearance/postprocessing': Postprocessing,
-  'camera/position': Position,
-  'camera/auto-rotate': AutoRotate,
-  'camera/fly-to': FlyTo,
-  'camera/zoom': Zoom,
-  'data/country-data': CountryData,
-  'data/markers': Markers,
-  'data/arcs': Arcs,
-  'data/labels': Labels,
-  'data/legends': Legends,
-  'data/data-layers': DataLayers,
-  'interaction/events': EventsGuide,
-  'interaction/selection': Selection,
-  'interaction/projection': Projection,
-  'story/engine': StoryEngine,
-  'performance/overview': PerformanceOverview,
-  'performance/pausing': Pausing,
-  'performance/timing': Timing,
-  'api/create-globe': CreateGlobe,
-  'api/globe-config': GlobeConfigPage,
-  'api/globe-instance': GlobeInstancePage,
-  'api/events': EventsPage,
-  'api/markers-and-arcs': TypesPage,
-  'api/story-types': TypesPage,
-  'api/scales': TypesPage,
-  'api/theme-types': TypesPage,
-  'api/easing': EasingPage,
-  'api/country-ids': CountryIdsPage,
-  'api/presets': PresetsPage,
-  'frameworks/vanilla': FrameworkPage,
-  'frameworks/react': FrameworkPage,
-  'frameworks/vue': FrameworkPage,
-  'frameworks/angular': FrameworkPage,
-  'frameworks/ssr': SsrPage,
-  'frameworks/bundlers': BundlersPage,
-  'studio/overview': StudioOverview,
-  'studio/export': StudioExport,
-  'studio/presets': StudioPresets,
-  'studio/shortcuts': StudioShortcuts,
+interface PageEntry {
+  readonly component: DocPageComponent;
+  /** Path under src/docs/pages, for the edit link. */
+  readonly source: string;
+}
+
+const entry = (component: DocPageComponent, source: string): PageEntry => ({ component, source });
+
+const PAGES: Readonly<Record<string, PageEntry>> = {
+  'start/introduction': entry(Introduction, 'start/Introduction.tsx'),
+  'start/installation': entry(Installation, 'start/Installation.tsx'),
+  'start/first-globe': entry(FirstGlobe, 'start/FirstGlobe.tsx'),
+  'start/choosing-a-kind': entry(ChoosingAKind, 'start/ChoosingAKind.tsx'),
+  'kinds/overview': entry(KindsOverview, 'kinds/KindsOverview.tsx'),
+  'kinds/cinematic': entry(KindPage, 'kinds/KindPage.tsx'),
+  'kinds/outline': entry(KindPage, 'kinds/KindPage.tsx'),
+  'kinds/dotted': entry(KindPage, 'kinds/KindPage.tsx'),
+  'kinds/wireframe': entry(KindPage, 'kinds/KindPage.tsx'),
+  'kinds/hologram': entry(KindPage, 'kinds/KindPage.tsx'),
+  'kinds/paper': entry(KindPage, 'kinds/KindPage.tsx'),
+  'appearance/themes': entry(Themes, 'appearance/Themes.tsx'),
+  'appearance/tokens': entry(Tokens, 'appearance/Tokens.tsx'),
+  'appearance/atmosphere': entry(Atmosphere, 'appearance/Atmosphere.tsx'),
+  'appearance/countries': entry(Countries, 'appearance/Countries.tsx'),
+  'appearance/postprocessing': entry(Postprocessing, 'appearance/Postprocessing.tsx'),
+  'camera/position': entry(Position, 'camera/Position.tsx'),
+  'camera/auto-rotate': entry(AutoRotate, 'camera/AutoRotate.tsx'),
+  'camera/fly-to': entry(FlyTo, 'camera/FlyTo.tsx'),
+  'camera/zoom': entry(Zoom, 'camera/Zoom.tsx'),
+  'data/country-data': entry(CountryData, 'data/CountryData.tsx'),
+  'data/markers': entry(Markers, 'data/Markers.tsx'),
+  'data/arcs': entry(Arcs, 'data/Arcs.tsx'),
+  'data/labels': entry(Labels, 'data/Labels.tsx'),
+  'data/legends': entry(Legends, 'data/Legends.tsx'),
+  'data/data-layers': entry(DataLayers, 'data/DataLayers.tsx'),
+  'interaction/events': entry(EventsGuide, 'interaction/Events.tsx'),
+  'interaction/selection': entry(Selection, 'interaction/Selection.tsx'),
+  'interaction/projection': entry(Projection, 'interaction/Projection.tsx'),
+  'story/engine': entry(StoryEngine, 'story/Engine.tsx'),
+  'performance/overview': entry(PerformanceOverview, 'performance/Overview.tsx'),
+  'performance/pausing': entry(Pausing, 'performance/Pausing.tsx'),
+  'performance/timing': entry(Timing, 'performance/Timing.tsx'),
+  'api/create-globe': entry(CreateGlobe, 'api/CreateGlobe.tsx'),
+  'api/globe-config': entry(GlobeConfigPage, 'api/GlobeConfigPage.tsx'),
+  'api/globe-instance': entry(GlobeInstancePage, 'api/GlobeInstance.tsx'),
+  'api/events': entry(EventsPage, 'api/EventsPage.tsx'),
+  'api/markers-and-arcs': entry(TypesPage, 'api/TypesPage.tsx'),
+  'api/story-types': entry(TypesPage, 'api/TypesPage.tsx'),
+  'api/scales': entry(TypesPage, 'api/TypesPage.tsx'),
+  'api/theme-types': entry(TypesPage, 'api/TypesPage.tsx'),
+  'api/easing': entry(EasingPage, 'api/Utilities.tsx'),
+  'api/country-ids': entry(CountryIdsPage, 'api/Utilities.tsx'),
+  'api/presets': entry(PresetsPage, 'api/Utilities.tsx'),
+  'frameworks/vanilla': entry(FrameworkPage, 'frameworks/FrameworkPage.tsx'),
+  'frameworks/react': entry(FrameworkPage, 'frameworks/FrameworkPage.tsx'),
+  'frameworks/vue': entry(FrameworkPage, 'frameworks/FrameworkPage.tsx'),
+  'frameworks/angular': entry(FrameworkPage, 'frameworks/FrameworkPage.tsx'),
+  'frameworks/ssr': entry(SsrPage, 'frameworks/Guides.tsx'),
+  'frameworks/bundlers': entry(BundlersPage, 'frameworks/Guides.tsx'),
+  'studio/overview': entry(StudioOverview, 'studio/StudioOverview.tsx'),
+  'studio/export': entry(StudioExport, 'studio/StudioPages.tsx'),
+  'studio/presets': entry(StudioPresets, 'studio/StudioPages.tsx'),
+  'studio/shortcuts': entry(StudioShortcuts, 'studio/StudioPages.tsx'),
+  'recipes/overview': entry(RecipesOverview, 'recipes/RecipePages.tsx'),
+  'recipes/choropleth-dashboard': entry(ChoroplethDashboard, 'recipes/RecipePages.tsx'),
+  'recipes/flight-routes': entry(FlightRoutes, 'recipes/RecipePages.tsx'),
+  'recipes/story-landing': entry(StoryLanding, 'recipes/RecipePages.tsx'),
+  'recipes/hero-globe': entry(HeroGlobe, 'recipes/RecipePages.tsx'),
+  'recipes/live-feed': entry(LiveFeed, 'recipes/RecipePages.tsx'),
 };
 
-export const resolvePage = (slug: string): DocPageComponent => PAGES[slug] ?? SkeletonPage;
+export const resolvePage = (slug: string): DocPageComponent => PAGES[slug]?.component ?? SkeletonPage;
+
+export const pageSource = (slug: string): string | undefined => PAGES[slug]?.source;
 
 export const hasDedicatedPage = (slug: string): boolean => slug in PAGES;
 
