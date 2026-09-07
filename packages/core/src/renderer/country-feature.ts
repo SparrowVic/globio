@@ -9,6 +9,11 @@
 export type CountryPolygon = ReadonlyArray<ReadonlyArray<readonly [number, number]>>;
 
 export interface CountryFeature {
+  /**
+   * Numeric ISO 3166-1 code as a zero-padded 3-character string ('032',
+   * '840') — the loader normalises numeric ids to this form; non-numeric
+   * ids from custom TopoJSON are kept verbatim.
+   */
   readonly id: string;
   readonly name: string;
   /**

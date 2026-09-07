@@ -14,16 +14,16 @@ describe('continentOf', () => {
     expect(continentOf('840')).toBe('NORTH_AMERICA');
   });
 
-  it('Brazil (76) → SOUTH_AMERICA', () => {
-    expect(continentOf('76')).toBe('SOUTH_AMERICA');
+  it('Brazil (076) → SOUTH_AMERICA', () => {
+    expect(continentOf('076')).toBe('SOUTH_AMERICA');
   });
 
   it('South Africa (710) → AFRICA', () => {
     expect(continentOf('710')).toBe('AFRICA');
   });
 
-  it('Australia (36) → OCEANIA', () => {
-    expect(continentOf('36')).toBe('OCEANIA');
+  it('Australia (036) → OCEANIA', () => {
+    expect(continentOf('036')).toBe('OCEANIA');
   });
 
   it('unknown id → null', () => {

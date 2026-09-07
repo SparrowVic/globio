@@ -83,6 +83,7 @@ export {
   SOUTH_AMERICA,
   OCEANIA,
 } from './data/regions';
+export { normalizeCountryId, normalizeCountryKeys } from './data/country-id';
 export type {
   SceneConfig,
   StoryConfig,

@@ -274,7 +274,14 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **Country -> data binding** `[v1·LAYER·M·built]` 🌟 — `globe.setCountryData({ '616': { color: '#1e6fff', value: 38, opacity: 0.85 } })` (id = numeric ISO 3166-1). Driver dla choropleth (population, GDP), set membership (NATO, EU, G7) i custom dataviz. Per-country `MeshBasicMaterial` siedzi pomiędzy globe surface a borders, więc granice rysują się na wierzchu. Dostępne także via `countryData` na `GlobeConfig` i przez `update()`. Kolor i opacity mają fallback na tokeny `countries.fill.defaultColor` / `countries.fill.opacity`.
 - **Country labels on hover** `[v1·LAYER·S]` — auto-pop tooltip z nazwą + custom content.
 - **Sub-divisions (states/provinces)** `[v1.x·LAYER·L]` — admin-1 GeoJSON, lazy load per kraj (`lazyAdmin1: ['US', 'PL']`).
-- **Region groupings** `[v1·LAYER·S·built]` 🌟 — wbudowane importowalne arrays ISO 3166-1: `G7 / G20 / NATO / EU / BRICS / ASEAN / OECD / EFTA / MERCOSUR / AU` + kontynentalne `EUROPE / ASIA / AFRICA / NORTH_AMERICA / SOUTH_AMERICA / OCEANIA`. Aktualne na 2024–2026 (Finland/Sweden NATO, BRICS expansion, brak UK w EU). Wstawiasz prosto: `globe.setCountryData(buildSetMap(NATO, '#1e6fff'))`.
+- **Country ids** `[v1·GLOBAL·S·built]` — id kraju to numeryczny kod ISO 3166-1 jako
+  3-znakowy string z zerami wiodącymi (`'032'` Argentyna, `'840'` USA) — dokładnie to, co
+  world-atlas daje feature'om i co przychodzi w `country.id` w eventach. Loader normalizuje
+  numeryczne id (także z własnego TopoJSON), a `setCountryData`, `setCountryLabels`,
+  `focusOnCountry`, `setActiveCountry` i sceny story przepuszczają wejście przez
+  `normalizeCountryId` (eksportowany razem z `normalizeCountryKeys`), więc `'32'` i `32`
+  też działają. Id nienumeryczne (np. `'XK'`) zostają bez zmian.
+- **Region groupings** `[v1·LAYER·S·built]` 🌟 — wbudowane importowalne arrays ISO 3166-1: `G7 / G20 / NATO / EU / BRICS / ASEAN / OECD / EFTA / MERCOSUR / AU` + kontynentalne `EUROPE / ASIA / AFRICA / NORTH_AMERICA / SOUTH_AMERICA / OCEANIA`. Aktualne na 2024–2026 (Finland/Sweden NATO, BRICS expansion, brak UK w EU). Id są wyzerowane do 3 znaków (`'076'` Brazylia), tak jak feature'y. Wstawiasz prosto: `globe.setCountryData(Object.fromEntries(NATO.map((id) => [id, { color: '#1e6fff' }])))`.
 - **Highlight neighbors** `[v2+·LAYER·M]` — auto-find sąsiadów (graph adjacency).
 - **Custom border styles per kraj** `[v1·STYLE·S]` — override per ISO.
 

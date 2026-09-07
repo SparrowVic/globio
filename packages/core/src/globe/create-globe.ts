@@ -16,6 +16,7 @@ import { StoryController } from '../story/story-controller';
 import type { SceneConfig, StoryConfig } from '../story/types';
 import { KIND_MODULES } from '../kinds/registry';
 import { perfMark, perfMeasure } from '../utils/perf-marks';
+import { normalizeCountryId, normalizeCountryKeys } from '../data/country-id';
 import type { GlobeKind, KindHandle, KindLayerRegistry, Public } from '../kinds/types';
 import type { OutlineKindHandle } from '../kinds/outline';
 import type { DottedKindHandle } from '../kinds/dotted';
@@ -466,7 +467,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     raycaster,
     emitter,
     activeCountryId: null,
-    countryData: config.countryData ?? null,
+    countryData: config.countryData ? normalizeCountryKeys(config.countryData) : null,
     dataLayer: null,
     legend: null,
     lastClickLatLng: null,
@@ -730,7 +731,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     focusOnCountry: (id, options) => {
       const layer = state.countriesPickingLayer;
       if (!layer) return;
-      const bounds = layer.getCountryBounds(id);
+      const bounds = layer.getCountryBounds(normalizeCountryId(id));
       if (!bounds) return;
       const padding = options.padding ?? 0.15;
       const distance = computeFocusDistance(
@@ -746,7 +747,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       if (options.elevation !== undefined) flyOptions.elevation = options.elevation;
       controls.flyTo(globeLocalToWorldLatLng(boundsCenter(bounds)), distance, flyOptions);
     },
-    setActiveCountry: (id) => {
+    setActiveCountry: (rawId) => {
+      const id = rawId === null ? null : normalizeCountryId(rawId);
       state.activeCountryId = id;
       if (id === null) state.countryActiveLayer?.clear();
       else state.countryActiveLayer?.showCountry(id);
@@ -1154,7 +1156,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     flyTo: (position, distance, options) => {
       controls.flyTo(globeLocalToWorldLatLng(position), distance, options ?? {});
     },
-    setActiveCountry: (id) => {
+    setActiveCountry: (rawId) => {
+      const id = rawId === null ? null : normalizeCountryId(rawId);
       state.activeCountryId = id;
       if (id === null) {
         state.countryActiveLayer?.clear();
@@ -1176,11 +1179,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       )?.setActiveCountry?.(id);
     },
     getActiveCountry: () => state.activeCountryId,
-    setCountryData: (data, scale) => {
+    setCountryData: (rawData, scale) => {
       // Legacy convenience API; routes through the new DataLayer pipeline so
       // choropleth rendering goes through the active kind's decoration.
       // Clearing only yanks the slot when it's currently choropleth — leaves
       // bars/extruded/heatmap untouched.
+      const data = rawData ? normalizeCountryKeys(rawData) : null;
       const prev = state.countryData;
       state.countryData = data;
       state.kindHandle?.onCountryDataChange?.(data, prev);
@@ -1272,7 +1276,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryLabelsLayer?.setEnabled(enabled);
     },
     setCountryLabels: (labels) => {
-      state.countryLabelsLayer?.setLabels(labels);
+      state.countryLabelsLayer?.setLabels(normalizeCountryKeys(labels));
     },
     showLegend: (scale, options) => {
       const tooltipFontSize = tokens['legend.fontSize'];
@@ -1310,7 +1314,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     focusOnCountry: (id, options) => {
       const layer = state.countriesPickingLayer;
       if (!layer) return;
-      const bounds = layer.getCountryBounds(id);
+      const bounds = layer.getCountryBounds(normalizeCountryId(id));
       if (!bounds) return;
       const padding = options?.padding ?? 0.15;
       const pauseAutoRotate = options?.pauseAutoRotateOnFocus ?? true;

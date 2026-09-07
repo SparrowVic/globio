@@ -1,5 +1,6 @@
 import type { ResolutionLevel } from '../types';
 import type { CountryFeature } from '../renderer/country-feature';
+import { normalizeCountryId } from './country-id';
 
 const RESOLUTION_URLS: Record<ResolutionLevel, string> = {
   low: 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json',
@@ -90,7 +91,9 @@ const normalizeFeature = (raw: {
   }
 
   return {
-    id: String(raw.id ?? ''),
+    // world-atlas ids are already '032'-style; numeric or unpadded ids from
+    // custom TopoJSON get the same 3-character form (see data/country-id.ts).
+    id: normalizeCountryId(raw.id ?? ''),
     name: raw.properties?.name ?? 'Unknown',
     coordinates: rings,
     polygons,

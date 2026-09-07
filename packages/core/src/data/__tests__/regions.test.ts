@@ -29,9 +29,10 @@ describe('region groupings: structural invariants', () => {
       expect(group.length, `${name} should not be empty`).toBeGreaterThan(0);
       for (const id of group) {
         expect(typeof id).toBe('string');
-        // World-atlas IDs are numeric ISO 3166-1 codes serialised without
-        // leading zeros (e.g. "8" for Albania, "840" for USA).
-        expect(id, `${name} id "${id}"`).toMatch(/^[0-9]+$/);
+        // World-atlas feature ids are numeric ISO 3166-1 codes as zero-padded
+        // 3-character strings ('008' Albania, '840' USA); region ids must use
+        // the same form or membership lookups silently miss.
+        expect(id, `${name} id "${id}"`).toMatch(/^[0-9]{3}$/);
       }
     }
   });
@@ -67,7 +68,7 @@ describe('expected memberships', () => {
   });
 
   it('BRICS includes the original 5 plus the 2024 expansion', () => {
-    expect(BRICS).toContain('76');  // Brazil
+    expect(BRICS).toContain('076'); // Brazil
     expect(BRICS).toContain('643'); // Russia
     expect(BRICS).toContain('356'); // India
     expect(BRICS).toContain('156'); // China
@@ -86,7 +87,7 @@ describe('continent buckets cover the major economies', () => {
   });
 
   it('Brazil is in SOUTH_AMERICA', () => {
-    expect(SOUTH_AMERICA).toContain('76');
+    expect(SOUTH_AMERICA).toContain('076');
   });
 
   it('Germany is in EUROPE and not in ASIA', () => {
@@ -99,10 +100,17 @@ describe('continent buckets cover the major economies', () => {
   });
 
   it('Australia is in OCEANIA', () => {
-    expect(OCEANIA).toContain('36');
+    expect(OCEANIA).toContain('036');
   });
 
   it('AFRICA mirrors AU (same set of African Union members)', () => {
     expect(AFRICA).toBe(AU);
+  });
+
+  it('low-numbered countries are padded so they match world-atlas ids', () => {
+    expect(G20).toContain('032'); // Argentina
+    expect(MERCOSUR).toContain('068'); // Bolivia
+    expect(ASIA).toContain('004'); // Afghanistan
+    expect(NATO).toContain('008'); // Albania
   });
 });

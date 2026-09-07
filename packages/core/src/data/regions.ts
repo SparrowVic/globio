@@ -1,10 +1,12 @@
 /**
  * Pre-built region groupings as readonly arrays of country IDs.
  *
- * IDs are numeric ISO 3166-1 codes encoded as strings, matching the
- * convention used by world-atlas and `setCountryData`. Pass any of these
- * straight into `setCountryData` (categorical scale or a single color) to
- * highlight membership without copy-pasting ISO arrays around.
+ * IDs are numeric ISO 3166-1 codes as zero-padded 3-character strings
+ * ('032' Argentina, '840' United States) — exactly the ids world-atlas
+ * gives country features, so they compare equal to `country.id` in events
+ * and to `setCountryData` keys. Pass any of these straight into
+ * `setCountryData` (categorical scale or a single color) to highlight
+ * membership without copy-pasting ISO arrays around.
  *
  * Source notes (current as of 2024–2026):
  * - NATO and EU memberships reflect Finland/Sweden NATO accession, no UK in EU.
@@ -31,9 +33,9 @@ export const G7: ReadonlyArray<string> = [
 ];
 
 export const G20: ReadonlyArray<string> = [
-  '32',  // Argentina
-  '36',  // Australia
-  '76',  // Brazil
+  '032', // Argentina
+  '036', // Australia
+  '076', // Brazil
   '124', // Canada
   '156', // China
   '250', // France
@@ -53,8 +55,8 @@ export const G20: ReadonlyArray<string> = [
 ];
 
 export const NATO: ReadonlyArray<string> = [
-  '8',   // Albania
-  '56',  // Belgium
+  '008', // Albania
+  '056', // Belgium
   '100', // Bulgaria
   '124', // Canada
   '191', // Croatia
@@ -88,8 +90,8 @@ export const NATO: ReadonlyArray<string> = [
 ];
 
 export const EU: ReadonlyArray<string> = [
-  '40',  // Austria
-  '56',  // Belgium
+  '040', // Austria
+  '056', // Belgium
   '100', // Bulgaria
   '191', // Croatia
   '196', // Cyprus
@@ -118,7 +120,7 @@ export const EU: ReadonlyArray<string> = [
 ];
 
 export const BRICS: ReadonlyArray<string> = [
-  '76',  // Brazil
+  '076', // Brazil
   '643', // Russia
   '356', // India
   '156', // China
@@ -131,7 +133,7 @@ export const BRICS: ReadonlyArray<string> = [
 ];
 
 export const ASEAN: ReadonlyArray<string> = [
-  '96',  // Brunei
+  '096', // Brunei
   '116', // Cambodia
   '360', // Indonesia
   '418', // Laos
@@ -144,9 +146,9 @@ export const ASEAN: ReadonlyArray<string> = [
 ];
 
 export const OECD: ReadonlyArray<string> = [
-  '36',  // Australia
-  '40',  // Austria
-  '56',  // Belgium
+  '036', // Australia
+  '040', // Austria
+  '056', // Belgium
   '124', // Canada
   '152', // Chile
   '170', // Colombia
@@ -192,19 +194,19 @@ export const EFTA: ReadonlyArray<string> = [
 ];
 
 export const MERCOSUR: ReadonlyArray<string> = [
-  '32',  // Argentina
-  '76',  // Brazil
+  '032', // Argentina
+  '076', // Brazil
   '600', // Paraguay
   '858', // Uruguay
-  '68',  // Bolivia (acceded 2024)
+  '068', // Bolivia (acceded 2024)
 ];
 
 /** African Union — 55 member states. */
 export const AU: ReadonlyArray<string> = [
-  '12',  // Algeria
-  '24',  // Angola
+  '012', // Algeria
+  '024', // Angola
   '204', // Benin
-  '72',  // Botswana
+  '072', // Botswana
   '854', // Burkina Faso
   '108', // Burundi
   '120', // Cameroon
@@ -264,12 +266,12 @@ export const AU: ReadonlyArray<string> = [
  */
 
 export const EUROPE: ReadonlyArray<string> = [
-  '8',   // Albania
-  '20',  // Andorra
-  '40',  // Austria
+  '008', // Albania
+  '020', // Andorra
+  '040', // Austria
   '112', // Belarus
-  '56',  // Belgium
-  '70',  // Bosnia and Herzegovina
+  '056', // Belgium
+  '070', // Bosnia and Herzegovina
   '100', // Bulgaria
   '191', // Croatia
   '196', // Cyprus
@@ -312,13 +314,13 @@ export const EUROPE: ReadonlyArray<string> = [
 ];
 
 export const ASIA: ReadonlyArray<string> = [
-  '4',   // Afghanistan
-  '51',  // Armenia
-  '31',  // Azerbaijan
-  '48',  // Bahrain
-  '50',  // Bangladesh
-  '64',  // Bhutan
-  '96',  // Brunei
+  '004', // Afghanistan
+  '051', // Armenia
+  '031', // Azerbaijan
+  '048', // Bahrain
+  '050', // Bangladesh
+  '064', // Bhutan
+  '096', // Brunei
   '116', // Cambodia
   '156', // China
   '268', // Georgia
@@ -369,9 +371,9 @@ export const NORTH_AMERICA: ReadonlyArray<string> = [
   '484', // Mexico
   '840', // United States
   // Central America + Caribbean
-  '44',  // Bahamas
-  '52',  // Barbados
-  '84',  // Belize
+  '044', // Bahamas
+  '052', // Barbados
+  '084', // Belize
   '188', // Costa Rica
   '192', // Cuba
   '212', // Dominica
@@ -391,9 +393,9 @@ export const NORTH_AMERICA: ReadonlyArray<string> = [
 ];
 
 export const SOUTH_AMERICA: ReadonlyArray<string> = [
-  '32',  // Argentina
-  '68',  // Bolivia
-  '76',  // Brazil
+  '032', // Argentina
+  '068', // Bolivia
+  '076', // Brazil
   '152', // Chile
   '170', // Colombia
   '218', // Ecuador
@@ -406,7 +408,7 @@ export const SOUTH_AMERICA: ReadonlyArray<string> = [
 ];
 
 export const OCEANIA: ReadonlyArray<string> = [
-  '36',  // Australia
+  '036', // Australia
   '242', // Fiji
   '296', // Kiribati
   '584', // Marshall Islands
@@ -416,7 +418,7 @@ export const OCEANIA: ReadonlyArray<string> = [
   '585', // Palau
   '598', // Papua New Guinea
   '882', // Samoa
-  '90',  // Solomon Islands
+  '090', // Solomon Islands
   '776', // Tonga
   '798', // Tuvalu
   '548', // Vanuatu
