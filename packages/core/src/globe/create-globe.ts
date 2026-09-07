@@ -482,8 +482,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   // Queue for `setDataLayer` calls that arrive before features (and the
   // active kind's decorators) have loaded. Drained inside `initCountries`
-  // once `state.kindHandle` is built.
-  let pendingDataLayer: import('../data-layers/types').DataLayer | null = null;
+  // once `state.kindHandle` is built. Undefined means no explicit request;
+  // null is a queued removal that must override the initial country data.
+  let pendingDataLayer: import('../data-layers/types').DataLayer | null | undefined;
   let pendingCinematicData: CinematicDataset | null | undefined = undefined;
   // Resolves once the mounted kind's shaders are compiled; `ready` waits for
   // it so hosts can cross-fade to a globe that is actually drawing.
@@ -559,9 +560,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // decorators are live. setDataLayer queues silently when kindHandle is
       // null; here we drain the queue. Order matters: explicit dataLayer
       // overrides any pending choropleth set via setCountryData.
-      if (pendingDataLayer) {
+      if (pendingDataLayer !== undefined) {
         const queued = pendingDataLayer;
-        pendingDataLayer = null;
+        pendingDataLayer = undefined;
         instance.setDataLayer(queued);
       } else if (state.countryData) {
         instance.setDataLayer({ type: 'choropleth', data: state.countryData });
@@ -1198,6 +1199,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       state.countryData = data;
       state.kindHandle?.onCountryDataChange?.(data, prev);
       if (data === null) {
+        if (pendingDataLayer?.type === 'choropleth') pendingDataLayer = null;
         if (state.dataLayer?.config.type === 'choropleth') {
           instance.setDataLayer(null);
         }

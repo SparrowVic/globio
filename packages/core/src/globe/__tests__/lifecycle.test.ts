@@ -176,4 +176,66 @@ describe('globe lifecycle', () => {
     expect(lifecycle.start).not.toHaveBeenCalled();
     expect(lifecycle.loadCountries).not.toHaveBeenCalled();
   });
+
+  it('clears country data queued before initialization instead of mounting a stale choropleth', async () => {
+    const choropleth = vi.fn(() => ({ type: 'choropleth', dispose() {} }));
+    lifecycle.build.mockReturnValue({
+      dispose: lifecycle.dispose,
+      decorations: { dataLayers: { choropleth } },
+    });
+    const globe = makeGlobe();
+    const ready = vi.fn();
+    globe.on('ready', ready);
+    globe.mount();
+    globe.setCountryData({ '616': { value: 5 } });
+    globe.setCountryData(null);
+
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce());
+    expect(choropleth).not.toHaveBeenCalled();
+    expect(globe.getDataLayer()).toBeNull();
+    expect(globe.getCountryData()).toBeNull();
+  });
+
+  it('preserves a queued heatmap when country data is cleared before initialization', async () => {
+    const choropleth = vi.fn(() => ({ type: 'choropleth', dispose() {} }));
+    const heatmap = vi.fn(() => ({ type: 'heatmap', dispose() {} }));
+    lifecycle.build.mockReturnValue({
+      dispose: lifecycle.dispose,
+      decorations: { dataLayers: { choropleth, heatmap } },
+    });
+    const layer = { type: 'heatmap' as const, data: [{ position: [0, 0] as const, value: 3 }] };
+    const globe = makeGlobe();
+    const ready = vi.fn();
+    globe.on('ready', ready);
+    globe.mount();
+    globe.setCountryData({ '616': { value: 5 } });
+    globe.setDataLayer(layer);
+    globe.setCountryData(null);
+
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce());
+    expect(choropleth).not.toHaveBeenCalled();
+    expect(heatmap).toHaveBeenCalledOnce();
+    expect(globe.getDataLayer()).toBe(layer);
+    expect(globe.getCountryData()).toBeNull();
+  });
+
+  it('honors an explicit queued layer removal while retaining the bound country data', async () => {
+    const choropleth = vi.fn(() => ({ type: 'choropleth', dispose() {} }));
+    lifecycle.build.mockReturnValue({
+      dispose: lifecycle.dispose,
+      decorations: { dataLayers: { choropleth } },
+    });
+    const data = { '616': { value: 5 } };
+    const globe = makeGlobe();
+    const ready = vi.fn();
+    globe.on('ready', ready);
+    globe.mount();
+    globe.setCountryData(data);
+    globe.setDataLayer(null);
+
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce());
+    expect(choropleth.mock.calls.length).toBe(0);
+    expect(globe.getDataLayer()).toBeNull();
+    expect(globe.getCountryData()).toEqual(data);
+  });
 });
