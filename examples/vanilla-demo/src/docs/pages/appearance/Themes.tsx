@@ -44,8 +44,8 @@ export function Themes({ tab, group, page }: DocLocation) {
 
       <DocSection title="Extend a preset" id="extend" eyebrow="theme.extends">
         <p>
-          Start from the closest preset and override tokens by path. Unknown paths are a type error, so a typo never silently falls back to a default.
-          <code>resolveTheme()</code> returns the complete set the renderers see.
+          Start from the closest preset and override tokens by path. TypeScript checks token names in typed config objects. JavaScript callers should check names against the token reference.
+          <code>resolveTheme()</code> returns the complete token set. Choose the theme at creation; changing the theme field with update() does not reapply tokens to an existing scene.
         </p>
         <Callout tone="tip">
           The Studio's theme panel writes exactly this shape. Tune the colours there, then copy the <code>theme</code> object or register it as a preset at

@@ -7,7 +7,10 @@ export function Arcs({ tab, group, page }: DocLocation) {
     <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Great-circle connections lifted off the surface. Height, dashes and an animated head particle say what the line means.">
       <div className="docs-two-col">
         <CodePanel code={ARCS} caption="An auto-height animated route and a dashed one." />
-        <LivePreview kind="wireframe" caption="Wireframe draws arcs as glowing streams over the grid." />
+        <LivePreview kind="wireframe" arcs={[
+          { id: 'wro-nyc', from: [51.11, 17.03], to: [40.71, -74.01], height: 'auto', animated: true },
+          { id: 'wro-tyo', from: [51.11, 17.03], to: [35.68, 139.69], style: 'dashed', color: '#ff8a4c' },
+        ]} caption="Wireframe draws arcs as glowing streams over the grid." />
       </div>
       <DocSection title="Shape" id="shape" eyebrow="ArcConfig">
         <p>

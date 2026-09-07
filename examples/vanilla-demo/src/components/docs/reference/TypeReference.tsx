@@ -25,7 +25,7 @@ export function TypeReference({ type, heading = true }: TypeReferenceProps) {
           </p>
         )}
         {type.description && <DocText text={type.description} />}
-        <ConfigTree entries={type.members} nested guideLinks={false} depth={1} />
+        <ConfigTree entries={type.members} nested guideLinks={false} depth={1} anchorPrefix={`type-${type.name}`} />
       </>
     ) : (
       <>

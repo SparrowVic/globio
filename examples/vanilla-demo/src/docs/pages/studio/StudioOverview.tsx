@@ -12,16 +12,15 @@ const PANELS = [
 
 export function StudioOverview({ tab, group, page }: DocLocation) {
   return (
-    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="The Studio is the configurator: every GlobeConfig key as a control, a live globe in the middle, and an export that gives you the exact config back.">
+    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="The Studio is the configurator: controls for the supported globe and data-layer settings, a live globe in the middle, and an export that gives you the exact config back.">
       <DocSection title="A session">
         <Steps>
           <Step title="Pick a kind and a theme">The top bar lists the six kinds and the presets of the active one. The Workshop shows presets as live cards.</Step>
           <Step title="Tune the panels">
-            Every control maps to a config key. Changes apply live through <code>update()</code>; nothing is rebuilt unless the kind changes.
+            Controls build globe or data-layer configuration. Supported fields update in place; Studio recreates the preview when settings require new rendering resources.
           </Step>
           <Step title="Export">
-            <em>Export config as JSON</em> downloads the globe config and the active data layer. Paste the object into <code>createGlobe()</code> or spread it
-            onto a wrapper component.
+            <em>Export config as JSON</em> downloads the globe config and the active data layer. Use its globe member in createGlobe() or wrapper props, then pass dataLayer to setDataLayer().
           </Step>
         </Steps>
       </DocSection>

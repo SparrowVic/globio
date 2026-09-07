@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+import { KIND_DATA_LAYER_SUPPORT } from '../kind-support';
 import { FEATURES, featureForConfigPath, featureForEvent, featureForMethod } from '../features';
 import api from '../generated/api.json';
 import type { ApiEntry } from '../generated/api-types';
@@ -39,12 +42,47 @@ describe('feature registry', () => {
 
     const methodOwners = new Map<string, string[]>();
     const eventOwners = new Map<string, string[]>();
+    const configOwners = new Map<string, string[]>();
     for (const f of FEATURES) {
+      for (const p of f.configPaths ?? []) configOwners.set(p, [...(configOwners.get(p) ?? []), f.id]);
       for (const m of f.methods ?? []) methodOwners.set(m, [...(methodOwners.get(m) ?? []), f.id]);
       for (const e of f.events ?? []) eventOwners.set(e, [...(eventOwners.get(e) ?? []), f.id]);
     }
     expect([...methodOwners.entries()].filter(([, owners]) => owners.length > 1)).toEqual([]);
     expect([...eventOwners.entries()].filter(([, owners]) => owners.length > 1)).toEqual([]);
+    expect([...configOwners.entries()].filter(([, owners]) => owners.length > 1)).toEqual([]);
+    for (const path of CONFIG_PATHS) {
+      if (path !== 'container') expect(featureForConfigPath(path), path).toBeDefined();
+    }
+  });
+
+  it('resolves specialized feature owners before their kind or parent section', () => {
+    expect(featureForConfigPath('outline.hoverCrosshair.width')?.id).toBe('hover-crosshair');
+    expect(featureForConfigPath('cinematic.sun.mode')?.id).toBe('cinematic-sun');
+    expect(featureForConfigPath('performance.pauseWhenHidden')?.id).toBe('pausing');
+  });
+
+  it('keeps data-layer support aligned with registered kind decorators', () => {
+    const kinds = ['outline', 'dotted', 'wireframe', 'hologram', 'paper', 'cinematic'] as const;
+    for (const kind of kinds) {
+      const source = readFileSync(new URL(`../../../../../packages/core/src/kinds/${kind}/index.ts`, import.meta.url), 'utf8');
+      const file = ts.createSourceFile(`${kind}.ts`, source, ts.ScriptTarget.Latest, true);
+      const registered = new Set<string>();
+      const visit = (node: ts.Node) => {
+        if (ts.isPropertyAssignment(node) && node.name.getText(file) === 'dataLayers' && ts.isObjectLiteralExpression(node.initializer)) {
+          for (const property of node.initializer.properties) {
+            if (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) registered.add(property.name.getText(file));
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(file);
+      for (const row of KIND_DATA_LAYER_SUPPORT) expect(row.support[kind] === true, `${kind}.${row.label}`).toBe(registered.has(row.label));
+      for (const id of ['heatmap', 'hexbin', 'charts']) {
+        const feature = FEATURES.find((entry) => entry.id === id)!;
+        expect(feature.kinds === 'all' || feature.kinds.includes(kind), `${kind} feature ${id}`).toBe(registered.has(id));
+      }
+    }
   });
 });
 

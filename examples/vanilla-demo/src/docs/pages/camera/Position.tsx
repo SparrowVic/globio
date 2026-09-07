@@ -24,7 +24,7 @@ export function Position({ tab, group, page }: DocLocation) {
         </p>
         <ConfigKeys path="framing" />
         <Callout tone="tip">
-          The landing page uses padding 0.18 with the zoom locked for every decorative globe, and 0 for the hero, which is allowed to fill the stage.
+          Choose padding for the actual container aspect ratio and halo. Framing, axis tilt and initial position are applied at construction; use camera methods for later movement.
         </Callout>
       </DocSection>
     </DocPage>

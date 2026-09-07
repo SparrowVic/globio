@@ -13,13 +13,13 @@ npm i @your-globe/core three`,
 
 const CONTAINER = {
   vanilla: `<div id="globe" style="width: 100%; aspect-ratio: 1"></div>`,
-  react: `<div className="aspect-square w-full">
+  react: `<div style={{ width: '100%', aspectRatio: '1' }}>
   <Globe kind="outline" />
 </div>`,
-  vue: `<div class="aspect-square w-full">
+  vue: `<div style="width: 100%; aspect-ratio: 1">
   <VueGlobe kind="outline" />
 </div>`,
-  angular: `<div class="aspect-square w-full">
+  angular: `<div style="width: 100%; aspect-ratio: 1">
   <ng-globe kind="outline" />
 </div>`,
 };
@@ -43,19 +43,19 @@ export function Installation({ tab, group, page }: DocLocation) {
           <CodePanel code={WRAPPER_INSTALL} files={{ vanilla: 'terminal', react: 'terminal', vue: 'terminal', angular: 'terminal' }} lineNumbers={false} />
         </Step>
         <Step title="Give it a container">
-          <p>The globe fills its container and follows its size. Give the element a width and an aspect ratio, nothing else.</p>
+          <p>The globe fills its container and follows its size. Give the element a non-zero size. The examples below use inline CSS and need no styling framework.</p>
           <CodePanel code={CONTAINER} files={{ vanilla: 'index.html', react: 'App.tsx', vue: 'App.vue', angular: 'app.component.html' }} lineNumbers={false} />
         </Step>
       </Steps>
 
       <DocSection title="Requirements">
         <ul>
-          <li>A browser with WebGL 2. Every evergreen browser since 2021 qualifies.</li>
+          <li>A browser and graphics device with WebGL support compatible with the installed three.js version. Recent three.js versions require WebGL 2.</li>
           <li>three.js 0.160 or newer as a peer dependency. One copy per page; the bundlers guide explains dedupe.</li>
           <li>TypeScript 5 if you want the typed config. Types ship inside the packages.</li>
         </ul>
         <Callout tone="perf">
-          Country geometry loads on first mount: about 90 kB at low resolution, 400 kB at medium. Pick the resolution per globe with <code>countries.resolution</code>.
+          Country geometry is fetched on mount from world-atlas via jsDelivr and cached for the page. Low, medium and high use 110m, 50m and 10m datasets respectively. Pick the resolution per globe with <code>countries.resolution</code>.
         </Callout>
       </DocSection>
     </DocPage>

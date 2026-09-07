@@ -13,23 +13,33 @@ import { pageSource, resolvePage } from '@/docs/pages';
 const slugFrom = (pathname: string): string => pathname.replace(/^\/docs\/?/, '').replace(/\/+$/, '');
 
 /**
- * Scroll to a hash target, retrying briefly: reference tables render once
+ * Scroll to a hash target when it appears: reference tables render once
  * api.json has loaded, so the element may not exist on the first frame.
  */
 const scrollToHash = (hash: string): (() => void) => {
-  const id = hash.slice(1);
-  let frame = 0;
-  const started = performance.now();
-  const attempt = () => {
+  let id = hash.slice(1);
+  try { id = decodeURIComponent(id); } catch { /* Keep malformed hashes literal. */ }
+  let observer: MutationObserver | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const cancel = () => {
+    observer?.disconnect();
+    if (timeout !== undefined) clearTimeout(timeout);
+  };
+  const attempt = (): boolean => {
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ block: 'start' });
-      return;
+      cancel();
+      return true;
     }
-    if (performance.now() - started < 2000) frame = window.requestAnimationFrame(attempt);
+    return false;
   };
-  attempt();
-  return () => window.cancelAnimationFrame(frame);
+  if (!attempt()) {
+    observer = new MutationObserver(attempt);
+    observer.observe(document.body, { childList: true, subtree: true });
+    timeout = setTimeout(cancel, 10_000);
+  }
+  return cancel;
 };
 
 /**
@@ -50,11 +60,13 @@ export default function Docs() {
 
   useEffect(() => {
     const root = document.documentElement;
+    const previousScheme = root.style.colorScheme;
+    const previousScroll = root.style.scrollBehavior;
     root.style.colorScheme = 'dark';
-    root.style.scrollBehavior = 'smooth';
+    root.style.scrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
     return () => {
-      root.style.colorScheme = '';
-      root.style.scrollBehavior = '';
+      root.style.colorScheme = previousScheme;
+      root.style.scrollBehavior = previousScroll;
     };
   }, []);
 

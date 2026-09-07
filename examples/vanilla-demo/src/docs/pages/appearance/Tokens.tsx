@@ -3,6 +3,8 @@ import { DEFAULT_TOKENS, THEME_PRESETS, resolveTheme, type ThemePresetName } fro
 import { Callout, CodePanel, DocPage, DocSection, TokenSwatches, type TokenEntry } from '@/components/docs';
 import type { DocLocation } from '@/docs/manifest';
 import { THEME_EXTEND } from '@/docs/snippets';
+import { useApi } from '@/docs/api';
+import { DocText } from '@/components/docs/primitives/DocText';
 
 const GROUP_LABEL: Readonly<Record<string, string>> = {
   background: 'Background',
@@ -23,6 +25,9 @@ const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 const groupOf = (key: string): string => key.split('.')[0] ?? key;
 
 export function Tokens({ tab, group, page }: DocLocation) {
+  const api = useApi();
+  const tokenType = api?.types.TokenSet;
+  const descriptions = useMemo(() => new Map(tokenType?.kind === 'interface' ? tokenType.members.map((entry) => [entry.name, entry.description]) : []), [tokenType]);
   const presets = Object.keys(THEME_PRESETS) as ReadonlyArray<ThemePresetName>;
   const [preset, setPreset] = useState<ThemePresetName | 'defaults'>('defaults');
   const resolved = useMemo(() => (preset === 'defaults' ? DEFAULT_TOKENS : resolveTheme(preset)), [preset]);
@@ -33,11 +38,19 @@ export function Tokens({ tab, group, page }: DocLocation) {
     for (const [key, value] of Object.entries(resolved)) {
       const g = groupOf(key);
       const list = map.get(g) ?? [];
-      list.push({ name: key, value: value as string | number, description: declared.has(key) ? 'set by this preset' : undefined });
+      const description = descriptions.get(key);
+      list.push({
+        name: key,
+        value: value as string | number,
+        description: description || declared.has(key) ? <>
+          {description && <DocText text={description} inline />}
+          {declared.has(key) && <span> Set by this preset.</span>}
+        </> : undefined,
+      });
       map.set(g, list);
     }
     return [...map.entries()];
-  }, [resolved, declared]);
+  }, [resolved, declared, descriptions]);
 
   return (
     <DocPage

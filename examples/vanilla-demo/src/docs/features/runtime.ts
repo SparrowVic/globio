@@ -54,7 +54,7 @@ export const RUNTIME_FEATURES: ReadonlyArray<FeatureDoc> = [
   {
     id: 'country-ids',
     title: 'Country ids',
-    summary: 'Countries are keyed by zero-padded ISO 3166-1 numeric strings. Every id-taking call normalises numbers and short strings; alpha-2 codes match nothing.',
+    summary: 'Built-in countries use three-digit numeric ISO ids. Short numeric strings are padded automatically; use normalizeCountryId() to convert a number.',
     kinds: 'all',
     docs: { slug: 'api/country-ids' },
     related: ['country-data'],

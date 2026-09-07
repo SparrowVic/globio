@@ -19,6 +19,8 @@ export interface ConfigTreeProps {
   readonly guideLinks?: boolean;
   /** Nesting depth of `entries`, for heading levels. */
   readonly depth?: number;
+  /** Keep identically named fields of different public types addressable. */
+  readonly anchorPrefix?: string;
   readonly className?: string;
 }
 
@@ -33,28 +35,31 @@ const firstParagraph = (text: string): string => text.split(/\n\s*\n/)[0]?.split
  * the JSDoc on the type; when a top-level key has none, the feature
  * registry's summary stands in.
  */
-export function ConfigTree({ entries, nested = true, linkFor, guideLinks = true, depth = 0, className }: ConfigTreeProps) {
+export function ConfigTree({ entries, nested = true, linkFor, guideLinks = true, depth = 0, anchorPrefix = 'config', className }: ConfigTreeProps) {
+  const anchor = (path: string) => configAnchor(path, anchorPrefix);
   const here = useLocation().pathname.replace(/^\/docs\/?/, '').replace(/\/+$/, '');
   const rows: PropRow[] = entries.map((e) => {
-    const feature = featureForConfigPath(e.path);
+    const feature = anchorPrefix === 'config' ? featureForConfigPath(e.path) : undefined;
     // The registry summary stands in only for the key the feature is about, never for its sub-keys.
     const ownsExactly = feature?.configPaths?.includes(e.path) ?? false;
     const showGuide = guideLinks && feature && depth === 0 && feature.docs.slug !== here;
     const external = linkFor?.(e);
+    const hasChildren = Boolean(e.children?.length);
+    const typeHref = external ?? (nested && hasChildren ? `#${anchor(e.path)}` : undefined);
     const rowText = e.children && e.description ? firstParagraph(e.description) : e.description;
     const description: ReactNode = (
       <>
         {rowText ? <DocText text={rowText} inline /> : ownsExactly ? feature?.summary : ''}
-        {e.children && (
+        {hasChildren && (
           <span className="docs-row-note">
             {external ? (
               <Link to={external}>
-                {countKeys(e.children)} keys, own page
+                {countKeys(e.children ?? [])} nested options on the reference page
               </Link>
             ) : nested ? (
-              <a href={`#${configAnchor(e.path)}`}>{countKeys(e.children)} keys below</a>
+              <a href={`#${anchor(e.path)}`}>{countKeys(e.children ?? [])} nested options below</a>
             ) : (
-              <span>{countKeys(e.children)} keys</span>
+              <span>{countKeys(e.children ?? [])} nested options</span>
             )}
           </span>
         )}
@@ -73,8 +78,8 @@ export function ConfigTree({ entries, nested = true, linkFor, guideLinks = true,
     const kinds = e.kinds?.filter(isGlobeKind);
     return {
       name: e.name,
-      id: `${configAnchor(e.path)}-row`,
-      type: e.ref ? <a href={`#${configAnchor(e.path)}`}>{e.ref}</a> : e.type,
+      id: `${anchor(e.path)}-row`,
+      type: e.ref && typeHref ? <a href={typeHref}>{e.type}</a> : e.type,
       default: e.default,
       description,
       required: !e.optional,
@@ -91,17 +96,17 @@ export function ConfigTree({ entries, nested = true, linkFor, guideLinks = true,
       <PropsTable rows={rows} />
       {groups.map((g) =>
         depth === 0 ? (
-          <DocSubsection key={g.path} id={configAnchor(g.path)} title={g.path}>
+          <DocSubsection key={g.path} id={anchor(g.path)} title={g.path}>
             {g.description && <DocText text={g.description} />}
-            <ConfigTree entries={g.children ?? []} nested linkFor={linkFor} guideLinks={false} depth={depth + 1} />
+            <ConfigTree entries={g.children ?? []} nested linkFor={linkFor} guideLinks={false} depth={depth + 1} anchorPrefix={anchorPrefix} />
           </DocSubsection>
         ) : (
-          <section key={g.path} id={configAnchor(g.path)} className="docs-nested-group">
+          <section key={g.path} id={anchor(g.path)} className="docs-nested-group">
             <h4 className="docs-h4">
               <code>{g.path}</code>
             </h4>
             {g.description && <DocText text={g.description} />}
-            <ConfigTree entries={g.children ?? []} nested linkFor={linkFor} guideLinks={false} depth={depth + 1} />
+            <ConfigTree entries={g.children ?? []} nested linkFor={linkFor} guideLinks={false} depth={depth + 1} anchorPrefix={anchorPrefix} />
           </section>
         ),
       )}

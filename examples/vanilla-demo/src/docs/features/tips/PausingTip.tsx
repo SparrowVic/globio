@@ -16,7 +16,7 @@ export default function PausingTip() {
         <text x="14" y="62" fontSize="8" fill={C.mist} fontFamily="var(--font-mono)">frames drawn</text>
         <text x="256" y="62" textAnchor="end" fontSize="8" fill={C.mist} fontFamily="var(--font-mono)">resumes in step</text>
       </svg>
-      <TipCaption>Automatic for off-screen globes and hidden tabs; setPaused() does the same on demand.</TipCaption>
+      <TipCaption>Off-screen globes and hidden tabs pause by default. setPaused() also pauses drawing on demand.</TipCaption>
     </>
   );
 }

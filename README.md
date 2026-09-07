@@ -1,8 +1,8 @@
-# Interactive Globe Library
+# Globio
 
 Interactive 3D globe library for Angular, React and Vue, built on Three.js — six visual
 kinds, nine canonical layers, data layers, a story engine and a shared HDR post-processing
-pipeline, all live-updatable.
+pipeline. Supported runtime settings update in place; construction settings require a new instance.
 
 ## Architecture
 
@@ -29,7 +29,7 @@ packages/
 ```bash
 pnpm install
 pnpm build
-pnpm dev        # Vite demo on http://localhost:5173 (landing + /studio) with tsup --watch for core
+pnpm dev        # Vite demo on http://localhost:5173 (landing + /studio + /docs) with tsup --watch for core
 ```
 
 ## Releasing
@@ -60,7 +60,7 @@ globe.on('markerClick', ({ marker }) => console.log(marker));
 globe.on('ready', () => console.log('countries loaded, shaders compiled'));
 globe.mount();
 
-// Everything is live-updatable:
+// Supported cinematic settings update live:
 globe.update({ cinematic: { sun: { mode: 'orbit', speed: 6 } } });
 
 // Keep a globe warm without spending frames on it (e.g. behind a cross-fade):
@@ -68,8 +68,8 @@ globe.setPaused(true);
 ```
 
 Every globe on a page shares one animation-frame loop; globes that scroll out of view or
-sit in a hidden tab pause automatically. Building a kind is the one synchronous cost
-(60–400 ms depending on kind and `countries.resolution`); the engine records it as User
+sit in a hidden tab pause automatically when `performance.pauseWhenHidden` is enabled (the default).
+Building geometry and allocating rendering resources can block the main thread; the engine records User
 Timing measures (`globio:construct`, `globio:countries-load`, `globio:kind-build`,
 `globio:shader-compile`, `globio:mount-to-ready`) so you
 can see it in DevTools or read it with `performance.getEntriesByType('measure')`.
@@ -79,8 +79,27 @@ can see it in DevTools or read it with `performance.getEntriesByType('measure')`
 Six visual personalities share one engine and the same nine canonical layers
 (labels, focus pulse, starfield, selection, country fill, arcs, markers,
 atmosphere, crosshair): `cinematic`, `outline`, `dotted`, `wireframe`, `paper`,
-`hologram`. Data layers (`setDataLayer`: choropleth, heatmap, hexbin, charts) and
-the Story API (`setStory`) work on every kind. See `FEATURES.md` for the catalog.
+`hologram`. The crosshair is available on all except Wireframe; its shared settings
+remain under `outline.hoverCrosshair`. Story playback works on every kind; Wireframe
+requires flyTo scenes because it does not build country picking or country focus.
+
+Data layers have a single slot and the following rendering support:
+
+| Data layer | Outline | Dotted | Cinematic | Wireframe / Paper / Hologram |
+|---|:---:|:---:|:---:|:---:|
+| Choropleth (`setCountryData` included) | Yes | Yes | Yes | No |
+| Bars / extruded countries | Yes | Yes | No | No |
+| Heatmap | Yes | Yes | Yes | No |
+| Hexbin / charts | Yes | No | No | No |
+
+Unsupported layers log a warning and do not render. `countries.fill` is available on Outline, Dotted and Cinematic. Paper uses its own
+`paper.fill` controls; Wireframe and Hologram do not mount country fills. See `FEATURES.md` for the catalog and `/docs` in the demo
+for working examples, reference tables and Studio guidance.
+
+Kind, theme, country resolution, framing, camera limits and renderer options are
+chosen when the instance is created. `update()` accepts their types but does not
+recreate these resources. Destroy and recreate the globe to change them; remount
+framework components when changing construction settings.
 
 ### Cinematic
 
@@ -138,9 +157,12 @@ component ref in Vue and on the `GlobeComponent` in Angular.
 ## Angular
 
 ```ts
+import { Component } from '@angular/core';
 import { GlobeComponent } from '@your-globe/angular';
+import type { MarkerConfig, MarkerEvent } from '@your-globe/core';
 
 @Component({
+  standalone: true,
   imports: [GlobeComponent],
   template: `
     <ng-globe
@@ -154,7 +176,10 @@ import { GlobeComponent } from '@your-globe/angular';
     />
   `,
 })
-export class AppComponent {}
+export class AppComponent {
+  markers: ReadonlyArray<MarkerConfig> = [{ id: 'waw', position: [52.23, 21.01], label: 'Warsaw' }];
+  onMarkerClick(event: MarkerEvent) { console.log(event.marker); }
+}
 ```
 
 ## Vue
@@ -176,3 +201,14 @@ import { VueGlobe } from '@your-globe/vue';
   />
 </template>
 ```
+
+## Documentation checks
+
+```bash
+pnpm --dir examples/vanilla-demo docs:extract
+pnpm --dir examples/vanilla-demo exec vitest run
+```
+
+The API reference reads JSDoc and types from the source. Regenerate it alongside
+public type changes. Tests cover registry links, page anchors, generated reference
+freshness, Studio tooltip ownership and representative snippet compilation.

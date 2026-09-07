@@ -61,12 +61,23 @@ export function LivePreview({
   const setupRef = useRef(setup);
   setupRef.current = setup;
   const cleanupRef = useRef<(() => void) | void>(undefined);
+  const readyUnsubscribeRef = useRef<(() => void) | undefined>(undefined);
   const handleReady = useCallback((api: DecorationGlobeReadyApi) => {
+    readyUnsubscribeRef.current?.();
     cleanupRef.current?.();
-    cleanupRef.current = setupRef.current?.(api.instance);
+    cleanupRef.current = undefined;
+    // DecorationGlobe exposes the mounted instance before its asynchronous
+    // country loading and kind construction have completed.
+    readyUnsubscribeRef.current = api.instance.on('ready', () => {
+      readyUnsubscribeRef.current?.();
+      readyUnsubscribeRef.current = undefined;
+      cleanupRef.current = setupRef.current?.(api.instance);
+    });
   }, []);
   useEffect(
     () => () => {
+      readyUnsubscribeRef.current?.();
+      readyUnsubscribeRef.current = undefined;
       cleanupRef.current?.();
       cleanupRef.current = undefined;
     },

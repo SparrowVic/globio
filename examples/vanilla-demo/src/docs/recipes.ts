@@ -1,4 +1,4 @@
-import type { ArcConfig, GlobeInstance, MarkerConfig, ScaleConfig, StoryConfig } from '@your-globe/core';
+import type { ArcConfig, CountryDataMap, GlobeInstance, MarkerConfig, ScaleConfig, StoryConfig } from '@your-globe/core';
 import type { FrameworkCode } from './frameworks';
 
 /**
@@ -8,7 +8,7 @@ import type { FrameworkCode } from './frameworks';
  */
 
 // ---- Choropleth dashboard --------------------------------------------------
-export const DASHBOARD_DATA: Readonly<Record<string, { readonly value: number }>> = {
+export const DASHBOARD_DATA: CountryDataMap = {
   '616': { value: 82 }, // Poland
   '276': { value: 71 }, // Germany
   '250': { value: 64 }, // France
@@ -39,13 +39,12 @@ export const DASHBOARD_CODE: FrameworkCode = {
   vanilla: `import { createGlobe } from '@your-globe/core';
 
 const scale = { type: 'sequential', palette: 'viridis', domain: [0, 100] } as const;
-const values = { '616': { value: 82 }, '276': { value: 71 }, '840': { value: 66 }, '076': { value: 38 } };
+const values: import('@your-globe/core').CountryDataMap = ${JSON.stringify(DASHBOARD_DATA, null, 2)};
 
 const globe = createGlobe({
-  container: document.querySelector('#globe')!,
+  container: document.querySelector<HTMLElement>('#globe')!,
   kind: 'outline',
   theme: 'outline-dark',
-  countryData: values,
   countries: { fill: { hoverColor: '#dcebff', hoverOpacity: 0.35 } },
 });
 globe.mount();
@@ -60,20 +59,19 @@ globe.on('countryClick', ({ country }) => {
   renderPanel(country, values[country.id]?.value);
 });
 
-// New numbers arrive: fills tween, nothing is rebuilt.
+// New numbers arrive: colours update without rebuilding this choropleth.
 socket.on('update', (next) => globe.setCountryData(next, scale));`,
   react: `import { useRef } from 'react';
 import { Globe, type GlobeHandle } from '@your-globe/react';
 
 const scale = { type: 'sequential', palette: 'viridis', domain: [0, 100] } as const;
 
-export function Dashboard({ values }) {
+export function Dashboard({ values }: { values: import('@your-globe/core').CountryDataMap }) {
   const ref = useRef<GlobeHandle>(null);
   return (
     <Globe
       kind="outline"
       theme="outline-dark"
-      countryData={values}
       onReady={() => {
         const globe = ref.current?.getInstance();
         globe?.setCountryData(values, scale);
@@ -87,7 +85,8 @@ export function Dashboard({ values }) {
   vue: `<script setup lang="ts">
 import { ref } from 'vue';
 import { VueGlobe } from '@your-globe/vue';
-const globeRef = ref();
+const globeRef = ref<InstanceType<typeof VueGlobe>>();
+const values: import('@your-globe/core').CountryDataMap = ${JSON.stringify(DASHBOARD_DATA)};
 const scale = { type: 'sequential', palette: 'viridis', domain: [0, 100] } as const;
 const onReady = () => {
   const globe = globeRef.value?.getInstance();
@@ -97,16 +96,21 @@ const onReady = () => {
 </script>
 
 <template>
-  <VueGlobe ref="globeRef" kind="outline" theme="outline-dark" :country-data="values" @ready="onReady"
+  <VueGlobe ref="globeRef" kind="outline" theme="outline-dark" @ready="onReady"
     @country-click="({ country }) => globeRef?.getInstance()?.setActiveCountry(country.id)" />
 </template>`,
-  angular: `@Component({
+  angular: `import { Component, ViewChild } from '@angular/core';
+import { GlobeComponent } from '@your-globe/angular';
+import type { CountryDataMap, CountryEvent } from '@your-globe/core';
+
+@Component({
   standalone: true,
   imports: [GlobeComponent],
-  template: \`<ng-globe kind="outline" theme="outline-dark" [countryData]="values" (ready)="onReady()" (countryClick)="select($event)" />\`,
+  template: \`<ng-globe kind="outline" theme="outline-dark" (ready)="onReady()" (countryClick)="select($event)" />\`,
 })
 export class DashboardComponent {
   @ViewChild(GlobeComponent) globe!: GlobeComponent;
+  values: CountryDataMap = ${JSON.stringify(DASHBOARD_DATA)};
   scale = { type: 'sequential', palette: 'viridis', domain: [0, 100] } as const;
   onReady() {
     const g = this.globe.getInstance();
@@ -144,23 +148,16 @@ export const routesSetup = (globe: GlobeInstance): (() => void) => {
 };
 
 export const ROUTES_CODE: FrameworkCode = {
-  vanilla: `const hubs = [
-  { id: 'waw', position: [52.17, 20.97], label: 'Warsaw', pulse: true, color: '#ff8a4c' },
-  { id: 'lhr', position: [51.47, -0.46], label: 'London' },
-  { id: 'jfk', position: [40.64, -73.78], label: 'New York' },
-  { id: 'dxb', position: [25.25, 55.36], label: 'Dubai' },
-];
-const routes = [
-  { id: 'waw-lhr', from: [52.17, 20.97], to: [51.47, -0.46], height: 'auto', animated: true },
-  { id: 'waw-jfk', from: [52.17, 20.97], to: [40.64, -73.78], height: 'auto', animated: true, animationDuration: 3 },
-  { id: 'waw-dxb', from: [52.17, 20.97], to: [25.25, 55.36], height: 'auto', style: 'dashed' },
-];
+  vanilla: `import { createGlobe, type ArcConfig, type MarkerConfig } from '@your-globe/core';
+
+const hubs: ReadonlyArray<MarkerConfig> = ${JSON.stringify(HUBS, null, 2)};
+const routes: ReadonlyArray<ArcConfig> = ${JSON.stringify(ROUTES, null, 2)};
 
 const globe = createGlobe({ container, kind: 'outline', theme: 'outline-cyber', markers: hubs, arcs: routes });
 globe.mount();
 
 globe.on('markerHover', (e) => (tooltip.textContent = e ? e.marker.label ?? '' : ''));
-globe.on('markerClick', ({ marker }) => globe.focusOnCountry(countryOf(marker.id), { padding: 0.3 }));`,
+globe.on('markerClick', ({ marker }) => globe.flyTo(marker.position, 2.4));`,
   react: `<Globe
   kind="outline"
   theme="outline-cyber"
@@ -189,11 +186,10 @@ export const storySetup = (globe: GlobeInstance): (() => void) => {
 };
 
 export const STORY_CODE: FrameworkCode = {
-  vanilla: `const captions = { poland: 'Where it started', japan: 'First customer abroad', brazil: 'Today: three continents' };
+  vanilla: `const captions: Record<string, string> = { poland: 'Where it started', japan: 'First customer abroad', brazil: 'Today: three continents' };
 
 const globe = createGlobe({ container, kind: 'cinematic', theme: 'cinematic-dawn', autoRotate: { enabled: true, speed: 0.2 } });
-globe.mount();
-
+globe.on('sceneEnter', ({ scene }) => (caption.textContent = captions[scene.id] ?? ''));
 globe.on('ready', () => globe.setStory({
   autoPlay: true,
   loop: true,
@@ -204,7 +200,7 @@ globe.on('ready', () => globe.setStory({
   ],
 }));
 
-globe.on('sceneEnter', ({ scene }) => (caption.textContent = captions[scene.id]));
+globe.mount();
 next.addEventListener('click', () => globe.nextScene());`,
   react: `<Globe
   kind="cinematic"
@@ -222,7 +218,7 @@ next.addEventListener('click', () => globe.nextScene());`,
 // ---- Hero globe ------------------------------------------------------------
 export const HERO_CODE: FrameworkCode = {
   vanilla: `const globe = createGlobe({
-  container: document.querySelector('#hero-globe')!,
+  container: document.querySelector<HTMLElement>('#hero-globe')!,
   kind: 'cinematic',
   theme: 'cinematic-night',
   transparent: true,                      // the page gradient shows through
@@ -233,7 +229,7 @@ export const HERO_CODE: FrameworkCode = {
   performance: { maxFps: 30, pauseWhenHidden: true, adaptiveQuality: true },
 });
 globe.mount();
-globe.on('ready', () => hero.classList.add('is-live')); // fade the canvas in on the first real frame`,
+globe.on('ready', () => hero.classList.add('is-live')); // reveal after country setup and shader preparation`,
   react: `<Globe
   kind="cinematic"
   theme="cinematic-night"
@@ -276,6 +272,8 @@ export const feedSetup = (globe: GlobeInstance): (() => void) => {
     n += 1;
     const id = `${city.id}-${n}`;
     globe.addMarker({ id, position: city.position, label: city.label, pulse: { speed: 2, amplitude: 0.6 }, color: '#ff8a4c', size: 1.2 });
+    const previous = live.indexOf(id);
+    if (previous !== -1) live.splice(previous, 1);
     live.push(id);
     while (live.length > 8) {
       const oldest = live.shift();
@@ -300,6 +298,8 @@ const MAX = 8;
 source.addEventListener('message', (event) => {
   const { id, lat, lng, city } = JSON.parse(event.data);
   globe.addMarker({ id, position: [lat, lng], label: city, pulse: { speed: 2, amplitude: 0.6 }, color: '#ff8a4c', size: 1.2 });
+  const previous = live.indexOf(id);
+  if (previous !== -1) live.splice(previous, 1);
   live.push(id);
   while (live.length > MAX) globe.removeMarker(live.shift()!);   // keep the newest eight
 });`,
@@ -310,18 +310,47 @@ source.addEventListener('message', (event) => {
   const onMessage = (e: MessageEvent) => {
     const { id, lat, lng, city } = JSON.parse(e.data);
     globe.addMarker({ id, position: [lat, lng], label: city, pulse: true });
+    const previous = live.indexOf(id);
+    if (previous !== -1) live.splice(previous, 1);
     live.push(id);
     while (live.length > 8) globe.removeMarker(live.shift()!);
   };
   source.addEventListener('message', onMessage);
   return () => source.removeEventListener('message', onMessage);
 }, [ready]);`,
-  vue: `watch(ready, () => {
+  vue: `watch(ready, (isReady, _previous, onCleanup) => {
   const globe = globeRef.value?.getInstance();
-  source.onmessage = (e) => globe?.addMarker({ ...JSON.parse(e.data), pulse: true });
+  if (!isReady || !globe) return;
+  const live: string[] = [];
+  const onMessage = (event: MessageEvent<string>) => {
+    const { id, lat, lng, city } = JSON.parse(event.data);
+    globe.addMarker({ id, position: [lat, lng], label: city, pulse: true });
+    const previous = live.indexOf(id);
+    if (previous !== -1) live.splice(previous, 1);
+    live.push(id);
+    while (live.length > 8) globe.removeMarker(live.shift()!);
+  };
+  source.addEventListener('message', onMessage);
+  onCleanup(() => source.removeEventListener('message', onMessage));
 });`,
-  angular: `onReady() {
+  angular: `private removeFeedListener?: () => void;
+
+onReady() {
+  this.removeFeedListener?.();
   const globe = this.globe.getInstance();
-  this.source.onmessage = (e) => globe?.addMarker({ ...JSON.parse(e.data), pulse: true });
-}`,
+  if (!globe) return;
+  const live: string[] = [];
+  const onMessage = (event: MessageEvent<string>) => {
+    const { id, lat, lng, city } = JSON.parse(event.data);
+    globe.addMarker({ id, position: [lat, lng], label: city, pulse: true });
+    const previous = live.indexOf(id);
+    if (previous !== -1) live.splice(previous, 1);
+    live.push(id);
+    while (live.length > 8) globe.removeMarker(live.shift()!);
+  };
+  this.source.addEventListener('message', onMessage);
+  this.removeFeedListener = () => this.source.removeEventListener('message', onMessage);
+}
+
+ngOnDestroy() { this.removeFeedListener?.(); }`,
 };

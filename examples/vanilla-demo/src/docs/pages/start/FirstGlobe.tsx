@@ -19,7 +19,7 @@ export function FirstGlobe({ tab, group, page }: DocLocation) {
           rows={[
             { name: 'container', type: 'HTMLElement', description: 'The element the canvas fills. Size it with CSS.', required: true },
             { name: 'kind', type: 'GlobeKind', default: "'outline'", description: 'Which renderer draws the globe.' },
-            { name: 'theme', type: 'ThemePresetName | ThemeInput', default: 'kind default', description: 'A preset name or a preset extended with your tokens.' },
+            { name: 'theme', type: 'ThemePresetName | ThemeInput', default: 'default tokens', description: 'A preset name or a preset extended with your tokens.' },
             { name: 'autoRotate', type: 'AutoRotateConfig', default: '{ enabled: false }', description: 'Ambient rotation. Yields to the pointer and resumes.' },
             { name: 'countries.resolution', type: "'low' | 'medium' | 'high'", default: "'medium'", description: 'Geometry detail; low for decoration, medium for a hero.' },
           ]}
@@ -31,18 +31,18 @@ export function FirstGlobe({ tab, group, page }: DocLocation) {
         <CodePanel code={EVENTS} />
         <Callout tone="note">
           Country ids are zero-padded ISO 3166-1 numeric strings such as <code>'616'</code> for Poland and <code>'010'</code> for Antarctica. Keys you pass in
-          are normalised, so <code>616</code> and <code>'616'</code> both work.
+          are normalised, so map keys such as <code>'32'</code> become <code>'032'</code>. Methods typed with a string id still require a string.
         </Callout>
       </DocSection>
 
-      <DocSection title="Change anything live">
+      <DocSection title="Update the instance">
         <p>
-          <code>update()</code> takes a partial config. Switching the kind rebuilds the renderer in place; every other key is patched on the running scene.
+          <code>update()</code> takes a partial config. Live setters apply supported fields to the running scene. Kind, theme, geometry resolution, camera limits, framing and renderer settings are chosen at construction; destroy and recreate the instance to change them.
         </p>
         <CodePanel code={kindSnippet('outline', 'outline-cyber')} />
         <DocSubsection title="Tear down">
           <p>
-            Call <code>destroy()</code> when the element leaves the page. It releases the WebGL context, the workers and every listener. The wrappers do this
+            Call <code>destroy()</code> when the element leaves the page. It releases rendering resources, overlays and event listeners. The wrappers do this
             for you on unmount.
           </p>
         </DocSubsection>

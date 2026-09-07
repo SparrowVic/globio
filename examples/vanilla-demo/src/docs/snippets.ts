@@ -1,16 +1,12 @@
 import type { GlobeKind, ThemePresetName } from '@your-globe/core';
 import type { FrameworkCode } from './frameworks';
 
-/**
- * Snippets reused across the skeleton pages. The real documentation pass
- * will generate these from one config per example; for now they show what
- * the code panel looks like with all four frameworks filled in.
- */
+/** Examples shared by the guide, API and framework pages. */
 export const QUICK_START: FrameworkCode = {
   vanilla: `import { createGlobe } from '@your-globe/core';
 
 const globe = createGlobe({
-  container: document.querySelector('#globe')!,
+  container: document.querySelector<HTMLElement>('#globe')!,
   kind: 'outline',
   theme: 'outline-cyber',
   autoRotate: { enabled: true, speed: 0.05 },
@@ -70,8 +66,8 @@ export const kindSnippet = (kind: GlobeKind, theme: ThemePresetName): FrameworkC
 });
 globe.mount();
 
-// Switch kinds later without remounting.
-globe.update({ kind: 'dotted', theme: 'dotted-dark' });`,
+// Kind and theme are chosen when the instance is created.
+// Destroy this instance before creating one with another kind or theme.`,
   react: `<Globe kind="${kind}" theme="${theme}" />`,
   vue: `<VueGlobe kind="${kind}" theme="${theme}" />`,
   angular: `<ng-globe kind="${kind}" theme="${theme}" />`,
@@ -83,31 +79,48 @@ export const MARKERS: FrameworkCode = {
   { id: 'nyc', position: [40.71, -74.01], color: '#ff8a4c', size: 1.4 },
 ]);
 
-globe.on('markerClick', ({ marker }) => open(marker.data?.url));`,
+globe.on('markerClick', ({ marker }) => console.log(marker.id, marker.data));`,
   react: `<Globe
   markers={[
     { id: 'wro', position: [51.11, 17.03], pulse: true, label: 'Wrocław' },
     { id: 'nyc', position: [40.71, -74.01], color: '#ff8a4c', size: 1.4 },
   ]}
-  onMarkerClick={({ marker }) => open(marker.data?.url)}
+  onMarkerClick={({ marker }) => console.log(marker.id, marker.data)}
 />`,
-  vue: `<VueGlobe :markers="markers" @marker-click="({ marker }) => open(marker.data?.url)" />`,
+  vue: `<VueGlobe :markers="markers" @marker-click="({ marker }) => console.log(marker.id, marker.data)" />`,
   angular: `<ng-globe [markers]="markers" (markerClick)="open($event.marker.data?.url)" />`,
 };
 
 export const COUNTRY_DATA: FrameworkCode = {
-  vanilla: `globe.setCountryData(
-  { '616': 82, '276': 71, '840': 64, '076': 38 },
-  { type: 'sequential', domain: [0, 100], range: ['#15181d', '#6fb4ff'] },
-);
+  vanilla: `const values = {
+  '616': { value: 82 }, '276': { value: 71 },
+  '840': { value: 64 }, '076': { value: 38 },
+};
+const scale = {
+  type: 'sequential', domain: [0, 100], palette: ['#15181d', '#6fb4ff'],
+} as const;
 
-globe.showLegend({ type: 'sequential', domain: [0, 100], range: ['#15181d', '#6fb4ff'] });`,
+globe.setCountryData(values, scale);
+globe.showLegend(scale);`,
   react: `<Globe
-  countryData={{ '616': 82, '276': 71, '840': 64, '076': 38 }}
-  scale={{ type: 'sequential', domain: [0, 100], range: ['#15181d', '#6fb4ff'] }}
+  kind="outline"
+  ref={ref}
+  onReady={() => {
+    const globe = ref.current?.getInstance();
+    globe?.setCountryData(values, scale);
+    globe?.showLegend(scale);
+  }}
 />`,
-  vue: `<VueGlobe :country-data="risk" :scale="scale" />`,
-  angular: `<ng-globe [countryData]="risk" [scale]="scale" />`,
+  vue: `<VueGlobe ref="globeRef" kind="outline"
+  @ready="() => { const g = globeRef?.getInstance(); g?.setCountryData(values, scale); g?.showLegend(scale); }" />`,
+  angular: `<ng-globe kind="outline" (ready)="onReady()" />
+
+// In the component, with @ViewChild(GlobeComponent) globe!: GlobeComponent:
+onReady() {
+  const globe = this.globe.getInstance();
+  globe?.setCountryData(this.values, this.scale);
+  globe?.showLegend(this.scale);
+}`,
 };
 
 export const EVENTS: FrameworkCode = {
@@ -116,7 +129,7 @@ export const EVENTS: FrameworkCode = {
   if (event) tooltip.textContent = event.country.name;
 });
 
-globe.on('surfaceClick', ({ lat, lng }) => globe.flyTo([lat, lng]));`,
+globe.on('surfaceClick', ({ point }) => globe.flyTo(point));`,
   react: `<Globe
   onCountryHover={(event) => setHovered(event?.country.name ?? null)}
   onCountryClick={({ country }) => select(country.id)}
@@ -126,19 +139,30 @@ globe.on('surfaceClick', ({ lat, lng }) => globe.flyTo([lat, lng]));`,
 };
 
 export const FLY_TO: FrameworkCode = {
-  vanilla: `globe.flyTo([52.23, 21.01], 2.4, {
+  vanilla: `import { easeInOutCubic } from '@your-globe/core';
+
+globe.setActiveCountry('616');
+globe.flyTo([52.23, 21.01], 2.4, {
   duration: 1400,
   easing: easeInOutCubic,
-  onComplete: () => globe.setActiveCountry('616'),
 });
 
-globe.focusOnCountry('036', { padding: 0.2 });`,
-  react: `const ref = useRef<GlobeHandle>(null);
-ref.current?.instance.flyTo([52.23, 21.01], 2.4, { duration: 1400 });`,
-  vue: `const globe = ref<InstanceType<typeof VueGlobe>>();
-globe.value?.instance.flyTo([52.23, 21.01], 2.4, { duration: 1400 });`,
+// Alternatively, frame a country instead of flying to coordinates:
+// globe.focusOnCountry('036', { padding: 0.2 });`,
+  react: `import { useRef } from 'react';
+import type { GlobeHandle } from '@your-globe/react';
+
+const ref = useRef<GlobeHandle>(null);
+// In an event handler after <Globe ref={ref} /> is mounted:
+ref.current?.getInstance()?.flyTo([52.23, 21.01], 2.4, { duration: 1400 });`,
+  vue: `import { ref } from 'vue';
+import { VueGlobe } from '@your-globe/vue';
+
+const globe = ref<InstanceType<typeof VueGlobe>>();
+// In an event handler after <VueGlobe ref="globe" /> is mounted:
+globe.value?.getInstance()?.flyTo([52.23, 21.01], 2.4, { duration: 1400 });`,
   angular: `@ViewChild(GlobeComponent) globe!: GlobeComponent;
-this.globe.instance.flyTo([52.23, 21.01], 2.4, { duration: 1400 });`,
+this.globe.getInstance()?.flyTo([52.23, 21.01], 2.4, { duration: 1400 });`,
 };
 
 export const INSTALL: Readonly<Record<'npm' | 'pnpm' | 'yarn', string>> = {
@@ -177,8 +201,8 @@ export const LEGEND: FrameworkCode = {
 globe.setCountryData(values, scale);
 globe.showLegend(scale, { title: 'Index', position: 'bottom-left', format: (v) => \`\${v}%\` });
 
-// Remove it again:
-globe.hideLegend();`,
+// Later, remove it:
+// globe.hideLegend();`,
   react: `const globe = ref.current?.getInstance();
 globe?.showLegend(scale, { title: 'Index', position: 'bottom-left' });`,
   vue: `globeRef.value?.getInstance()?.showLegend(scale, { title: 'Index' });`,
@@ -197,19 +221,22 @@ export const DATA_LAYER: FrameworkCode = {
   animateOnMount: 'rise',
 });
 
-// One layer at a time; null removes it.
-globe.setDataLayer(null);`,
+// Later, remove the current layer:
+// globe.setDataLayer(null);`,
   react: `useEffect(() => {
-  ref.current?.getInstance()?.setDataLayer({ type: 'heatmap', data: points, kernel: 'gaussian' });
-}, [points]);`,
-  vue: `watchEffect(() => globeRef.value?.getInstance()?.setDataLayer({ type: 'hexbin', data: samples, resolution: 3 }));`,
-  angular: `ngAfterViewInit() {
+  if (ready) ref.current?.getInstance()?.setDataLayer({ type: 'heatmap', data: points, kernel: 'gaussian' });
+}, [points, ready]);`,
+  vue: `watchEffect(() => ready.value && globeRef.value?.getInstance()?.setDataLayer({ type: 'hexbin', data: samples, resolution: 3 }));`,
+  angular: `onReady() {
   this.globe.getInstance()?.setDataLayer({ type: 'charts', chartType: 'donut', data: this.charts, series: this.series });
 }`,
 };
 
 export const STORY: FrameworkCode = {
-  vanilla: `globe.setStory({
+  vanilla: `// Run after ready so countries can be framed. Subscribe before autoplay.
+globe.on('sceneEnter', ({ scene, index }) => setCaption(scene.id, index));
+
+globe.setStory({
   autoPlay: true,
   loop: true,
   scenes: [
@@ -220,8 +247,8 @@ export const STORY: FrameworkCode = {
   ],
 });
 
-globe.on('sceneEnter', ({ scene, index }) => setCaption(scene.id, index));
-globe.nextScene();`,
+// From a Next button handler:
+// globe.nextScene();`,
   react: `const globe = ref.current?.getInstance();
 globe?.setStory(story);
 globe?.playStory();`,
@@ -289,13 +316,15 @@ createGlobe({
 };
 
 export const PROJECTION: FrameworkCode = {
-  vanilla: `const place = () => {
+  vanilla: `let frame = 0;
+const place = () => {
   const px = globe.project(52.23, 21.01);
   label.hidden = px === null;                 // behind the globe or off-canvas
   if (px) label.style.transform = \`translate(\${px[0]}px, \${px[1]}px)\`;
-  requestAnimationFrame(place);
+  frame = requestAnimationFrame(place);
 };
 place();
+// On cleanup: cancelAnimationFrame(frame);
 
 // A PNG of the current frame, e.g. for a share card:
 const dataUrl = await globe.toImage({ width: 1200, height: 630 });`,
@@ -392,4 +421,81 @@ export const POSTFX: FrameworkCode = {
   react: `<Globe kind="cinematic" postprocessing={{ bloom: { strength: 0.5 }, grain: { enabled: false } }} />`,
   vue: `<VueGlobe kind="cinematic" :postprocessing="{ bloom: { strength: 0.5 } }" />`,
   angular: `<ng-globe kind="cinematic" [postprocessing]="{ bloom: { strength: 0.5 } }" />`,
+};
+
+export const HEATMAP: FrameworkCode = {
+  vanilla: `globe.setDataLayer({
+  type: 'heatmap',
+  data: [
+    { position: [52.23, 21.01], value: 82, id: '616' },
+    { position: [35.68, 139.69], value: 64, id: '392' },
+  ],
+  kernel: 'gaussian',
+  normalize: 'absolute',
+  absoluteMax: 100,
+  scale: { type: 'sequential', palette: 'magma', domain: [0, 100] },
+  countryDomes: false,
+  contours: { enabled: true },
+  animation: { duration: 1200, easing: 'ease-out-cubic' },
+});`,
+};
+
+export const HEXBIN: FrameworkCode = {
+  vanilla: `globe.setDataLayer({
+  type: 'hexbin',
+  data: [
+    { position: [52.23, 21.01], value: 12 },
+    { position: [52.1, 21.1], value: 7 },
+  ],
+  resolution: 3,
+  aggregate: 'sum',
+  scale: { type: 'sequential', palette: 'viridis' },
+  highlight: true,
+  events: { onClick: (cell) => console.log(cell.value, cell.sampleCount) },
+});`,
+};
+
+export const CHARTS: FrameworkCode = {
+  vanilla: `globe.setDataLayer({
+  type: 'charts',
+  chartType: 'donut',
+  series: [
+    { key: 'online', label: 'Online', color: '#6fb4ff' },
+    { key: 'retail', label: 'Retail', color: '#ff8a4c' },
+  ],
+  data: [{ id: '616', values: { online: 82, retail: 38 }, label: 'Poland' }],
+  labels: { enabled: true },
+  events: { onClick: ({ entry, seriesKey, value }) => console.log(entry.id, seriesKey, value) },
+});`,
+};
+
+export const CINEMATIC_SURFACE: FrameworkCode = {
+  vanilla: `const globe = createGlobe({
+  container,
+  kind: 'cinematic',
+  theme: 'cinematic-day',
+  cinematic: {
+    sun: { mode: 'fixed', direction: [-3, 1.2, 2] },
+    clouds: { enabled: true, coverage: 0.42, shadows: true, shadowStrength: 0.45 },
+    aurora: { enabled: true },
+    textures: { day: '/textures/earth/earth_atmos_2048.jpg' },
+  },
+});
+globe.mount();
+
+// Live lighting update; speed is degrees per second in orbit mode.
+globe.update({ cinematic: { sun: { mode: 'orbit', speed: 6 } } });`,
+};
+
+export const CINEMATIC_DATA: FrameworkCode = {
+  vanilla: `globe.setCinematicData({
+  cityLights: [
+    { id: 'waw', lat: 52.23, lng: 21.01, value: 82 },
+    { id: 'tyo', lat: 35.68, lng: 139.69, value: 64 },
+  ],
+  routes: [{ id: 'waw-tyo', from: 'waw', to: 'tyo', value: 2, height: 0.04 }],
+});
+
+// Later, restore the built-in decorative distribution:
+// globe.setCinematicData(null);`,
 };

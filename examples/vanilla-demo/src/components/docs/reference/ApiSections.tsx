@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { findEntry, useApi } from '@/docs/api';
+import { findEntry, loadApi, useApi } from '@/docs/api';
 import { featureForEvent, featureForMethod } from '@/docs/features';
 import type { ApiEntry } from '@/docs/generated/api-types';
 import { pageHref } from '@/docs/manifest';
@@ -11,6 +11,13 @@ import { TypeReference } from './TypeReference';
 
 /** Placeholder rows while `api.json` loads. */
 export function ApiLoading() {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void loadApi().catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, []);
+  if (failed) return <p role="alert">The API reference could not load. Reload this page to try again.</p>;
   return <div className="docs-api-loading" aria-busy="true" />;
 }
 

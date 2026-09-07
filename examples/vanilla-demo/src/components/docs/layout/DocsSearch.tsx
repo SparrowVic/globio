@@ -17,6 +17,7 @@ const KIND_LABEL: Readonly<Record<SearchKind, string>> = {
   key: 'key',
   method: 'method',
   event: 'event',
+  token: 'token',
 };
 
 let staticIndex: ReadonlyArray<SearchEntry> | null = null;
@@ -31,6 +32,7 @@ export function DocsSearch({ open, onOpenChange }: DocsSearchProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [api, setApi] = useState<ApiJson | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -45,9 +47,12 @@ export function DocsSearch({ open, onOpenChange }: DocsSearchProps) {
 
   useEffect(() => {
     if (!open || api) return undefined;
+    setLoadFailed(false);
     let alive = true;
     void loadApi().then((a) => {
       if (alive) setApi(a);
+    }).catch(() => {
+      if (alive) setLoadFailed(true);
     });
     return () => {
       alive = false;
@@ -73,7 +78,7 @@ export function DocsSearch({ open, onOpenChange }: DocsSearchProps) {
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} title="Search documentation" description="Pages, features, config keys, methods and events" className="docs-search-dialog" shouldFilter={false}>
+    <CommandDialog open={open} onOpenChange={onOpenChange} title="Search documentation" description="Pages, features, config keys, methods, events and theme tokens" className="docs-search-dialog" shouldFilter={false}>
       <CommandInput placeholder="Search docs — a page, a config key, a method…" value={query} onValueChange={setQuery} />
       <CommandList className="docs-search-list">
         {query.trim() === '' ? (
@@ -104,7 +109,7 @@ export function DocsSearch({ open, onOpenChange }: DocsSearchProps) {
                 ))}
               </CommandGroup>
             ))}
-            {!api && <p className="docs-search-loading">Loading config keys, methods and events…</p>}
+            {!api && <p className="docs-search-loading" role="status">{loadFailed ? 'API search could not load. Pages and theme tokens are still available; reopen search to retry.' : 'Loading config keys, methods and events…'}</p>}
           </>
         )}
       </CommandList>

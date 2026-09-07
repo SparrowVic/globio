@@ -7,7 +7,9 @@ export function SsrPage({ tab, group, page }: DocLocation) {
       <DocSection title="Pattern">
         <CodePanel
           code={{
-            react: `// Next.js (app router): a client-only import with a sized placeholder.
+            react: `'use client';
+
+// Next.js (app router): a client-only import with a sized placeholder.
 import dynamic from 'next/dynamic';
 
 const Globe = dynamic(() => import('@your-globe/react').then((m) => m.Globe), {
@@ -69,7 +71,7 @@ export function BundlersPage({ tab, group, page }: DocLocation) {
       <DocSection title="One three.js">
         <Steps>
           <Step title="Install three once at the app level">
-            <p>The wrappers and the core both declare <code>three</code> as a peer; your app's copy satisfies all of them.</p>
+            <p>The core declares <code>three</code> as a peer; your app's copy satisfies all of them.</p>
           </Step>
           <Step title="Dedupe when a library brings its own">
             <CodePanel
@@ -89,7 +91,7 @@ resolve: { alias: { three: path.resolve('./node_modules/three') } }
             />
           </Step>
           <Step title="Check">
-            <p>Two copies show up as a silent second WebGL context or as "Multiple instances of Three.js being imported" in the console.</p>
+            <p>Inspect your package manager dependency tree and bundler output for duplicate versions. Three.js may also warn about multiple imports; each globe normally has its own WebGL context regardless.</p>
           </Step>
         </Steps>
         <Callout tone="perf">

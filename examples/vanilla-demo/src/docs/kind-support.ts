@@ -1,16 +1,11 @@
 import type { MatrixFeature } from '@/components/docs';
 
-/**
- * Which layers and data layers each kind renders. Layers: every kind
- * registers the shared layer classes (fill, labels, markers, arcs,
- * atmosphere, starfield, selection, focus pulse); the crosshair and the
- * border linework are the exceptions. Data layers: taken from the
- * `decorations` each kind module registers.
- */
+/** Actual mounted layers and registered data decorators, not only declared layer classes. */
 export const KIND_LAYER_SUPPORT: ReadonlyArray<MatrixFeature> = [
-  { label: 'Country borders', support: { outline: true, paper: true, cinematic: true, hologram: true, dotted: 'partial' }, note: 'Dotted stands in for borders with its dot field; Wireframe draws no countries.' },
-  { label: 'Country fills and choropleth', support: { outline: true, dotted: true, wireframe: true, hologram: true, paper: true, cinematic: true } },
-  { label: 'Hover and active states', support: { outline: true, dotted: true, wireframe: 'partial', hologram: true, paper: true, cinematic: true }, note: 'Wireframe marks the active country with a geodesic ring.' },
+  { label: 'Country borders', support: { outline: true, paper: true, cinematic: true, hologram: true }, note: 'Dotted uses dot hover/active feedback; Wireframe has no base country borders.' },
+  { label: 'Country fills (countries.fill)', support: { outline: true, dotted: true, cinematic: true }, note: 'Paper has a separate paper.fill layer; Wireframe and Hologram do not mount the shared fill.' },
+  { label: 'Country hover and focusOnCountry', support: { outline: true, dotted: true, hologram: true, paper: true, cinematic: true }, note: 'Wireframe does not build country picking; use flyTo for camera movement.' },
+  { label: 'Active country', support: { outline: true, dotted: true, wireframe: true, hologram: true, paper: true, cinematic: true }, note: 'Wireframe marks the active country with a geodesic ring.' },
   { label: 'Country labels', support: { outline: true, dotted: true, wireframe: true, hologram: true, paper: true, cinematic: true } },
   { label: 'Markers and HTML markers', support: { outline: true, dotted: true, wireframe: true, hologram: true, paper: true, cinematic: true } },
   { label: 'Arcs', support: { outline: true, dotted: true, wireframe: true, hologram: true, paper: true, cinematic: true } },

@@ -7,14 +7,20 @@ export function Selection({ tab, group, page }: DocLocation) {
     <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Hover highlights the country under the pointer; the active country stays highlighted until you clear it. The focus pulse marks the moment a country is chosen.">
       <div className="docs-two-col">
         <CodePanel code={SELECTION} caption="Toggle the active country on click; pulse from the clicked point." />
-        <LivePreview kind="hologram" interactive caption="Interactive: hover, then click to pin a country." />
+        <LivePreview kind="hologram" interactive setup={(globe) => globe.on('countryClick', ({ country }) => {
+          globe.setActiveCountry(globe.getActiveCountry() === country.id ? null : country.id);
+        })} caption="Interactive: hover, then click to pin a country." />
       </div>
       <DocSection title="Hover" id="hover" eyebrow="countries.hoverEnabled">
         <p>
-          Hover is on by default and picks against the actual country polygons, holes included, so Lesotho and the Vatican pick as themselves. The far side
+          Hover is on by default on the five kinds with country picking; Wireframe does not build it. Picking tests loaded country polygons, including holes. Small countries are selectable only when included in the chosen world-atlas resolution. The far side
           of a country is hidden unless you turn occlusion off for an x-ray look.
         </p>
         <ConfigKeys path="countries" only={['hoverEnabled', 'hoverOccludeBackSide']} nested={false} intro={false} />
+      </DocSection>
+      <DocSection title="Hover crosshair" id="crosshair" eyebrow="outline.hoverCrosshair">
+        <p>A surface reticle and cursor label show latitude, longitude and the hovered country. The legacy outline.hoverCrosshair group controls this feature on Outline, Dotted, Paper, Hologram and Cinematic; Wireframe has no crosshair layer.</p>
+        <ConfigKeys path="outline.hoverCrosshair" />
       </DocSection>
       <DocSection title="Active country" id="active-country" eyebrow="setActiveCountry()">
         <p>

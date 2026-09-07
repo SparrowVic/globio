@@ -23,12 +23,18 @@ export function Markers({ tab, group, page }: DocLocation) {
     <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Pins drawn by the kind, and DOM elements anchored to coordinates when a pin is not enough.">
       <div className="docs-two-col">
         <CodePanel code={MARKERS} caption="Two pins, one pulsing, one custom-coloured, and a click handler." />
-        <LivePreview kind="outline" theme="outline-cyber" caption="Pins scale up on hover and show their label in a tooltip." />
+        <LivePreview kind="outline" theme="outline-cyber" interactive setup={(globe) => {
+          globe.setMarkers([
+            { id: 'wro', position: [51.11, 17.03], pulse: true, label: 'Wrocław' },
+            { id: 'nyc', position: [40.71, -74.01], color: '#ff8a4c', size: 1.4 },
+          ]);
+          return () => globe.setMarkers([]);
+        }} caption="Pins scale up on hover and show their label in a tooltip." />
       </div>
 
       <DocSection title="Pins" id="pins" eyebrow="markers">
         <p>
-          Markers are one instanced mesh per kind, so thousands cost the same as ten. Each kind draws them in its own style. Hover scales a pin up and shows
+          Markers share an instanced mesh, which keeps draw calls low. Per-marker animation, picking and GPU work still grow with the marker count. Each kind draws them in its own style. Hover scales a pin up and shows
           a tooltip with its <code>label</code>; click and hover events return the marker you passed in, <code>data</code> included.
         </p>
         <Types names={['MarkerConfig']} />
@@ -46,7 +52,7 @@ export function Markers({ tab, group, page }: DocLocation) {
         <Methods names={['setHtmlMarkers', 'addHtmlMarker', 'removeHtmlMarker']} guide={false} />
         <DocSubsection title="Cost">
           <Callout tone="perf">
-            Hundreds of pins are fine; hundreds of HTML markers are not, because each is a DOM node repositioned per frame. Prefer pins with{' '}
+            HTML markers add DOM nodes that are projected and repositioned every frame. Keep their count small and measure layout and rendering cost on your target devices. Prefer pins with{' '}
             <code>data</code> and one shared tooltip, or <code>project()</code> for a handful of overlays you position yourself.
           </Callout>
         </DocSubsection>

@@ -57,7 +57,7 @@ export function FrameworkPage({ tab, group, page }: DocLocation) {
           <p>
             {id === 'vanilla'
               ? 'Every key of GlobeConfig, passed to createGlobe() and later to update().'
-              : 'Every key of GlobeConfig is a prop; changing one calls update() with that key. Generated from the wrapper source.'}
+              : 'Every GlobeConfig key except container is a prop. Changes are forwarded to update(); creation-only settings still require remounting the component. Generated from wrapper source.'}
           </p>
           {api ? (
             <PropsTable
@@ -109,7 +109,7 @@ export function FrameworkPage({ tab, group, page }: DocLocation) {
           <MethodsTable rows={wrapper.angular.methods.map((m) => ({ name: m.name, signature: m.signature, description: m.name === 'getInstance' ? 'The whole GlobeInstance.' : 'Forwarded to the instance.' }))} />
         )}
         <Callout tone="note" title="Server rendering">
-          The engine touches <code>window</code> on creation. Render the component on the client only; the server rendering guide has the pattern for each
+          The engine needs browser APIs at creation. Wrappers defer creation until browser mounting; the server rendering guide has the pattern for each
           framework.
         </Callout>
       </DocSection>

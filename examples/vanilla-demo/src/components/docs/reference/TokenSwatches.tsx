@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { tokenAnchor } from '@/docs/api';
 
 export interface TokenEntry {
   readonly name: string;
@@ -15,7 +16,7 @@ export function TokenSwatches({ tokens, className }: { readonly tokens: Readonly
   return (
     <ul className={cn('docs-tokens', className)}>
       {tokens.map((t) => (
-        <li key={t.name} className="docs-token">
+        <li key={t.name} id={tokenAnchor(t.name)} className="docs-token">
           {looksLikeColor(t.value) ? (
             <span className="docs-swatch" style={{ background: t.value }} aria-hidden="true" />
           ) : (

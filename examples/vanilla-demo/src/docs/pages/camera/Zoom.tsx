@@ -4,7 +4,7 @@ import { ZOOM } from '@/docs/snippets';
 
 export function Zoom({ tab, group, page }: DocLocation) {
   return (
-    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Wheel and pinch change the camera distance; drag rotates. Three zoom modes decide what happens to the point under the cursor.">
+    <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="The mouse wheel changes the camera distance; drag rotates. Three zoom modes decide what happens to the point under the cursor.">
       <CodePanel code={ZOOM} caption="Cursor-anchored zoom with limits, and a locked decoration." />
       <DocSection title="Modes" id="modes" eyebrow="zoom.mode">
         <ul>
@@ -28,7 +28,7 @@ export function Zoom({ tab, group, page }: DocLocation) {
         </p>
         <ConfigKeys only={['minZoom', 'maxZoom']} nested={false} intro={false} />
         <Callout tone="note">
-          Drag rotation has no inertia yet; the camera stops where the pointer stops. Keyboard navigation is on the roadmap.
+          Pointer drag rotates the globe. With zoom.smooth enabled, the camera interpolates toward its target after pointer input. Dedicated pinch gestures and keyboard navigation are not implemented.
         </Callout>
       </DocSection>
     </DocPage>

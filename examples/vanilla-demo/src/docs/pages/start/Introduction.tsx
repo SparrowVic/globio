@@ -9,7 +9,7 @@ export function Introduction({ tab, group, page }: DocLocation) {
       crumbs={[tab.label, group.label]}
       eyebrow={page.eyebrow}
       title="A globe engine, not a map engine."
-      lead="Globio renders an interactive 3D Earth from one typed config: six visual kinds, country interaction, data layers, a story engine and wrappers for React, Vue and Angular. three.js is the only peer dependency."
+      lead="Globio renders an interactive 3D Earth from one typed config: six visual kinds, country interaction, data layers, a story engine and wrappers for React, Vue and Angular. The core uses three.js as a peer dependency."
       meta={
         <>
           <Pill tone="accent">v0.1.0</Pill>
@@ -20,8 +20,7 @@ export function Introduction({ tab, group, page }: DocLocation) {
     >
       <DocSection title="What it renders">
         <p>
-          One <code>createGlobe()</code> call mounts a WebGL globe into any element. The <code>kind</code> key picks the renderer; everything else in the config
-          is shared, so a dashboard can switch from Outline to Dotted without touching its data code.
+          Call <code>createGlobe()</code> with an element, then <code>mount()</code> to attach the WebGL canvas. The <code>kind</code> key picks the renderer at creation; shared settings and the supported data layers can then be updated through the instance.
         </p>
         <p>
           <KindBadges kinds="all" /> support countries, markers and arcs. Choropleth fills, labels and the cinematic surface differ per kind; the matrix on
@@ -33,7 +32,7 @@ export function Introduction({ tab, group, page }: DocLocation) {
       <DocSection title="What it leaves out">
         <ul>
           <li>No map tiles, street data or geocoding. Globio draws countries, not addresses.</li>
-          <li>No charting inside the canvas. Legends and tooltips are DOM overlays you own.</li>
+          <li>Outline can render charts inside the canvas. Legends, country labels and tooltips use DOM overlays; HTML markers let you add your own content.</li>
           <li>No state management. The instance is imperative; the wrappers make it declarative.</li>
         </ul>
         <Callout tone="tip" title="Design it first">

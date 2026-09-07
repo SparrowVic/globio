@@ -65,12 +65,12 @@ export interface GlobeInstance {
    * Mount or replace the active **data layer** — the high-level data
    * visualisation slot orthogonal to the kind. Pass `null` to remove.
    *
-   * `globe.setDataLayer({ type: 'choropleth' | 'bars' | 'extruded' | 'heatmap' | 'hexbin' | 'charts', ... })`
+   * `globe.setDataLayer({ type: 'choropleth', data: { '616': { value: 42 } } })`
    *
-   * Only one data layer can be active at a time. Visual rendering is
-   * delegated to the active kind's decoration; if the kind doesn't ship
-   * a decoration for the requested type, the call is a no-op (with a
-   * single console.warn). See `FEATURES.md` section 5c for the catalogue.
+   * Only one data layer can be active at a time. Visual rendering is delegated
+   * to the active kind's decoration. Unsupported types remove the current layer,
+   * leave the slot empty and log a warning. Calls before initialization queue
+   * the requested layer until the kind is ready. See `FEATURES.md` for support.
    */
   readonly setDataLayer: (layer: import('../data-layers/types').DataLayer | null) => void;
   /** The active data layer config, if any. */

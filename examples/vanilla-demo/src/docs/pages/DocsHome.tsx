@@ -31,8 +31,8 @@ export function DocsHome() {
 
       <Prose>
         <div className="docs-two-col">
-          <CodePanel code={QUICK_START} caption="A globe in one call. Change any key later with update()." />
-          <LivePreview kind="outline" theme="outline-cyber" caption="What that config renders." />
+          <CodePanel code={QUICK_START} caption="Create and mount a globe. Supported runtime settings can be changed with update()." />
+          <LivePreview kind="outline" theme="outline-cyber" caption="Outline Cyber, shown with decorative preview framing." />
         </div>
 
         <DocSection title="Start here" id="start-here">

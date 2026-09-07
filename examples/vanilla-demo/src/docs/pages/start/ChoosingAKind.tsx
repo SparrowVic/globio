@@ -9,14 +9,13 @@ export function ChoosingAKind({ tab, group, page }: DocLocation) {
       <DocSection title="By job">
         <ul>
           <li>
-            <strong>Dashboards and choropleths</strong> — Outline or Dotted. Fills read best on a quiet surface, and both render every data layer they
-            need.
+            <strong>Dashboards and choropleths</strong> — Outline renders all six data layer types. Dotted supports choropleth, bars, extruded countries and heatmaps; use Outline for hex bins and charts.
           </li>
           <li>
             <strong>Hero sections and product shots</strong> — Cinematic. Bloom, clouds and a sun you can time.
           </li>
           <li>
-            <strong>Status, network and infrastructure views</strong> — Wireframe or Hologram. Pulses and streams instead of fills.
+            <strong>Status, network and infrastructure views</strong> — Wireframe or Hologram. Grid pulses and scanline effects; choose another kind when country fills are required.
           </li>
           <li>
             <strong>Editorial and print-like pages</strong> — Paper. Grain, ink borders and atlas labels.

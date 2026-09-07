@@ -7,14 +7,14 @@ export function Countries({ tab, group, page }: DocLocation) {
     <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead="Which geometry loads, whether the pointer picks countries, and how borders and fills look on this globe.">
       <div className="docs-two-col">
         <CodePanel code={COUNTRIES_STYLE} caption="Medium geometry, a glowing hover stroke, an ember active stroke and a palette fill." />
-        <LivePreview kind="outline" theme="outline-light" interactive caption="Hover to see the border highlight; click pins a country." />
+        <LivePreview kind="outline" theme="outline-light" interactive setup={(globe) => globe.on('countryClick', ({ country }) => {
+          globe.setActiveCountry(globe.getActiveCountry() === country.id ? null : country.id);
+        })} caption="Hover to see the border highlight; click pins a country." />
       </div>
 
       <DocSection title="Resolution" id="resolution" eyebrow="countries.resolution">
         <p>
-          Three resolutions of the same world-atlas source. Low is about 90 kB and builds in tens of milliseconds; medium is the default and holds up at
-          hero size; high is for close-ups. Every polygon is normalised the same way, so Antarctica, the antimeridian and enclaves render correctly at
-          every level.
+          Three world-atlas datasets: low uses 110m geometry, medium (the default) uses 50m, and high uses 10m. Higher detail increases download, triangulation and rendering cost; it can also include small countries absent at lower resolutions. Resolution is chosen at construction.
         </p>
         <ConfigKeys path="countries" only={['resolution', 'hoverEnabled', 'hoverOccludeBackSide']} nested={false} intro={false} />
       </DocSection>
@@ -30,12 +30,11 @@ export function Countries({ tab, group, page }: DocLocation) {
       <DocSection title="Fills" id="fills" eyebrow="countries.fill">
         <p>
           The fill layer sits between the surface and the borders. <code>mode</code> decides what it paints; <code>setCountryData()</code> switches it to{' '}
-          <code>'data'</code> on its own. Hover and active colours recolour a single country in place.
+          <code>'data'</code> on supported kinds (Outline, Dotted and Cinematic). Hover and active colours recolour a single country in place.
         </p>
         <ConfigKeys path="countries" only={['fill']} intro={false} />
         <Callout tone="note">
-          Fills are drawn with a depth prepass, so overlapping slivers along coastlines never double-blend. Transparent fills therefore look flat, as they
-          should.
+          Shared countries.fill controls are implemented by Outline, Dotted and Cinematic. Paper has its own paper.fill layer and controls. Wireframe and Hologram register fill classes internally but do not currently mount them.
         </Callout>
       </DocSection>
     </DocPage>

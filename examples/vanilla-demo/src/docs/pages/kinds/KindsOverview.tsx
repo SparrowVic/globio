@@ -11,13 +11,11 @@ export function KindsOverview({ tab, group, page }: DocLocation) {
         <DocSubsection title="Data layers">
           <SupportMatrix features={KIND_DATA_LAYER_SUPPORT} />
           <p>
-            Data layers are rendered by per-kind decorations. Outline renders every type; Dotted and Cinematic a subset; the other kinds accept{' '}
-            <code>setCountryData()</code> but ignore <code>setDataLayer()</code> with a warning.
+            Data layers are rendered by per-kind decorations. Outline renders every type; Dotted and Cinematic a subset; Wireframe, Paper and Hologram have no data-layer decorators. Calling setDataLayer() or setCountryData() on them does not render the requested dataset and logs a warning.
           </p>
         </DocSubsection>
         <Callout tone="perf" title="Build cost">
-          Building a kind is the one synchronous cost: roughly 60 ms (Wireframe, low resolution) to 400 ms (Cinematic, medium) on a 2023 laptop. Keep one globe
-          building at a time and never during scroll.
+          Building geometry and allocating resources can block the main thread. Measure with the engine’s User Timing entries; build previews sequentially and outside active scrolling.
         </Callout>
       </DocSection>
       <DocSection title="Pages">

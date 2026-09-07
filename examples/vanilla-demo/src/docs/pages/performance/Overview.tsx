@@ -12,14 +12,13 @@ export function PerformanceOverview({ tab, group, page }: DocLocation) {
       <DocSection title="Where the time goes" id="costs">
         <ul>
           <li>
-            <strong>Build</strong> — one synchronous cost per kind and resolution: about 60 ms at low resolution, 200 to 400 ms at medium. Triangulated country
-            geometry is cached per resolution, so a second globe of the same resolution builds in a few milliseconds.
+            <strong>Build</strong> — country triangulation, geometry allocation and materials can block the main thread. Cached country geometry reduces repeated work, but each globe still creates its own rendering resources.
           </li>
           <li>
             <strong>Frame</strong> — dominated by pixel ratio and post-processing. A globe at pixel ratio 2 draws four times the pixels of one at 1.
           </li>
           <li>
-            <strong>Download</strong> — country geometry, about 90 kB at low and 400 kB at medium resolution, fetched once and shared.
+            <strong>Download</strong> — world-atlas country geometry is fetched and parsed once per resolution per page. Higher-resolution datasets are larger.
           </li>
         </ul>
         <DocSubsection title="Rules that hold">
@@ -30,7 +29,7 @@ export function PerformanceOverview({ tab, group, page }: DocLocation) {
           </ul>
         </DocSubsection>
         <Callout tone="perf">
-          The landing page keeps seven globes warm and scrolls with zero long tasks by following exactly these rules.
+          Profile build time and frames on representative devices. These settings reduce work; they do not guarantee a particular frame rate or eliminate long tasks.
         </Callout>
       </DocSection>
     </DocPage>

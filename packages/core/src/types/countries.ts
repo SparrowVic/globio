@@ -36,7 +36,7 @@ export interface CountryDataEntry {
    * entry with `getCountryData()`.
    */
   readonly value?: number;
-  /** Per-country fill opacity. Omitted uses the resolved `countries.fill.defaultOpacity`. */
+  /** Per-country fill opacity. Omitted uses `countries.fill.defaultOpacity`, falling back to the `countries.fill.opacity` theme token. */
   readonly opacity?: number;
 }
 

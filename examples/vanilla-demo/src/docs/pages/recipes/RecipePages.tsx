@@ -47,10 +47,10 @@ export function ChoroplethDashboard({ tab, group, page }: DocLocation) {
             </p>
           </Step>
           <Step title="Pick one scale and use it twice">
-            <p>The same object drives <code>setCountryData()</code> and <code>showLegend()</code>, so the legend can never disagree with the fills.</p>
+            <p>The same object drives <code>setCountryData()</code> and <code>showLegend()</code>, with an explicit domain, so the legend and fills use the same numeric range.</p>
           </Step>
           <Step title="Update in place">
-            <p>Call <code>setCountryData()</code> whenever the numbers change. Fills tween between values; nothing is rebuilt.</p>
+            <p>Call <code>setCountryData()</code> whenever the numbers change. Colours update directly while the existing choropleth geometry is reused.</p>
           </Step>
         </Steps>
         <Callout tone="tip">
@@ -78,7 +78,7 @@ export function FlightRoutes({ tab, group, page }: DocLocation) {
       <DocSection title="Steps" id="steps">
         <Steps>
           <Step title="Markers first, arcs second">
-            <p>Both are keyed by id, so a route can reference its hubs and be removed with them.</p>
+            <p>Both have their own ids. Arcs store endpoint coordinates rather than marker references; remove the associated arcs explicitly when removing a hub.</p>
           </Step>
           <Step title="Let long routes climb">
             <p>
@@ -119,7 +119,7 @@ export function StoryLanding({ tab, group, page }: DocLocation) {
           </Step>
           <Step title="Give the flight room">
             <p>
-              A little <code>transitionElevation</code> turns a straight slerp into a fly-over. Keep <code>padding</code> generous so the country never touches the
+              A little <code>transitionElevation</code> turns a direct camera transition into a fly-over. Keep <code>padding</code> generous so the country never touches the
               edge on arrival.
             </p>
           </Step>
@@ -143,7 +143,7 @@ export function HeroGlobe({ tab, group, page }: DocLocation) {
     <DocPage crumbs={[tab.label, group.label]} eyebrow={page.eyebrow} title={page.title} lead={page.summary}>
       <div className="docs-two-col">
         <CodePanel code={HERO_CODE} caption="Transparent, padded, zoom locked, low geometry, 30 fps, paused when hidden." />
-        <LivePreview kind="cinematic" theme="cinematic-night" starfield speed={0.05} caption="The landing page's hero uses this setup at medium resolution." />
+        <LivePreview kind="cinematic" theme="cinematic-night" starfield speed={0.05} caption="Cinematic night with a starfield; this lightweight preview uses low resolution." />
       </div>
       <DocSection title="Why each line" id="why">
         <ul>
@@ -157,7 +157,7 @@ export function HeroGlobe({ tab, group, page }: DocLocation) {
             <strong>framing.lockZoom</strong> — the wheel scrolls the page; a decoration must never trap the cursor.
           </li>
           <li>
-            <strong>countries.resolution: 'low'</strong> and <strong>hoverEnabled: false</strong> — a tenth of the geometry and no picking work per frame.
+            <strong>countries.resolution: 'low'</strong> and <strong>hoverEnabled: false</strong> — less geometry and no country-hover processing. Marker and surface interactions can still run.
           </li>
           <li>
             <strong>performance</strong> — a 30 fps cap and pausing when hidden leave the budget to the rest of the page.
@@ -189,7 +189,7 @@ export function LiveFeed({ tab, group, page }: DocLocation) {
         <Steps>
           <Step title="Add, do not replace">
             <p>
-              <code>addMarker()</code> is cheap and keeps the other markers' animation state; <code>setMarkers()</code> would restart every pulse.
+              <code>addMarker()</code> updates or adds one id. <code>setMarkers()</code> clears and repopulates the set, resetting per-marker hover interpolation. Pulse phase uses the shared marker clock.
             </p>
           </Step>
           <Step title="Cap the set">

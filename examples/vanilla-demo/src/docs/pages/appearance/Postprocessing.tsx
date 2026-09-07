@@ -12,8 +12,7 @@ export function Postprocessing({ tab, group, page }: DocLocation) {
       <DocSection title="Pipeline" id="pipeline" eyebrow="postprocessing">
         <ConfigKeys path="postprocessing" />
         <Callout tone="perf">
-          The bloom chain runs at <code>resolutionScale</code> of the drawing buffer; 0.5 halves it and the blur hides the loss. Turning the pipeline on for a
-          non-cinematic kind adds one off-screen pass and the composite; on integrated graphics keep <code>pixelRatio</code> at 1 alongside it.
+          The bloom chain runs at <code>resolutionScale</code> of the drawing buffer; 0.5 halves it and the blur hides the loss. The pipeline adds an off-screen scene render, bloom downsample and blur passes, and a final composite; on integrated graphics keep <code>pixelRatio</code> at 1 alongside it.
         </Callout>
       </DocSection>
     </DocPage>

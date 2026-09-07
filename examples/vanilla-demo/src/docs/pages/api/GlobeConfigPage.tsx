@@ -12,7 +12,7 @@ const GROUPS: ReadonlyArray<{ readonly id: string; readonly title: string; reado
   { id: 'layers', title: 'Layers', lead: 'Pins, DOM markers, arcs, the rim glow, the stars and the focus pulse.', keys: ['markers', 'htmlMarkers', 'arcs', 'atmosphere', 'starfield', 'focusPulse'] },
   { id: 'camera', title: 'Camera', lead: 'What faces the camera, how it moves, and how far it can zoom.', keys: ['initialPosition', 'axisTilt', 'autoRotate', 'zoom', 'minZoom', 'maxZoom', 'framing'] },
   { id: 'rendering', title: 'Rendering', lead: 'Post-processing, the frame budget and the canvas itself.', keys: ['postprocessing', 'performance', 'transparent'] },
-  { id: 'kinds', title: 'Kind options', lead: 'Each kind reads only its own section; a config can carry all six and switch freely.', keys: KIND_KEYS },
+  { id: 'kinds', title: 'Kind options', lead: 'Kind-specific rendering options; outline.hoverCrosshair also configures the crosshair on Dotted, Paper, Hologram and Cinematic.', keys: KIND_KEYS },
 ];
 
 const kindLink = (entry: ApiEntry): string | undefined => (KIND_KEYS.includes(entry.name) ? pageHref(`kinds/${entry.name}`) : undefined);
@@ -24,7 +24,7 @@ export function GlobeConfigPage({ tab, group, page }: DocLocation) {
       crumbs={[tab.label, group.label]}
       eyebrow={page.eyebrow}
       title={page.title}
-      lead="Every key createGlobe() and update() accept, generated from the TypeScript types. Types, defaults and descriptions here are the ones in the source."
+      lead="Every configuration key accepted by createGlobe() and the partial update() type, generated from the TypeScript types. Types, defaults and descriptions here are the ones in the source."
       meta={
         api && (
           <>

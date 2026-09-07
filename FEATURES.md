@@ -1,783 +1,552 @@
 # Globio — Features Catalog
 
-> Living document. Decyzje o featurach, ich scope, audytorium i statusie wersji. Każdy feature
-> ma jednoznacznie określone tagi — to jest jednocześnie roadmapa, vision i source of truth dla
-> API.
+This document describes the implementation as of **2026-09-07**. Sections 1–5c
+cover current capabilities and their limits. Section 6 records unimplemented
+ideas, without release dates or promised APIs. The numbered sections remain for
+references from earlier design plans; those plans describe historical intent.
 
----
-
-## Notation
-
-Każdy feature poniżej oznaczany jest tagami w nawiasie kwadratowym:
-
-| Symbol | Znaczenie |
-|---|---|
-| **Audience** | `A·marketing` `B·dataviz` `C·edu` `D·travel` `F·gry` (v1) — `E·news` `G·sym` `H·universal` (future) |
-| **Scope** | `[GLOBAL]` jedna wartość per instancja `·` `[STYLE]` zmienia się z presetem `·` `[LAYER]` per warstwa danych `·` `[EVENT]` interakcja `·` `[INSTANCE]` per integracja frameworkowa |
-| **Status** | `[v1]` `[v1.x]` `[v2+]` `[stretch]` |
-| **Effort** | `[S]` ≤ kilka dni `·` `[M]` 1-2 tyg. `·` `[L]` 2-6 tyg. `·` `[XL]` > 1.5 mies. |
-| 🌟 | **Differentiator** — feature który wyróżnia Globio na tle istniejących bibliotek |
-
----
+For exact signatures, defaults and examples, use the demo's `/docs` pages and the
+source types: [configuration](packages/core/src/types/globe-config.ts),
+[kinds](packages/core/src/types/kinds.ts), [instance methods](packages/core/src/types/instance.ts),
+[data layers](packages/core/src/data-layers/types.ts), [themes](packages/core/src/theme/types.ts)
+and [stories](packages/core/src/story/types.ts).
 
 ## 1. Vision & non-goals
 
-**Vision.** Globio jest interaktywną biblioteką globusa 3D budowaną raz w czystym TS na Three.js,
-z pierwszorzędnymi wrapperami React/Angular/Vue. Trzy filary, które wyróżniają ją na tle
-istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
+Globio is a browser-based 3D globe library built in TypeScript and Three.js, with
+React, Vue and Angular wrappers. It combines six visual kinds, typed theme tokens,
+geographic overlays and a scene-based story controller. The host application owns
+its data, application state and business logic.
 
-1. **Curated visual styles** — 6 starannie zaprojektowanych kindów (cinematic, outline,
-   dotted, wireframe, paper, hologram; choropleth stał się data layerem). Zmiana stylu =
-   jedna linijka.
-2. **Theme token system** — wszystkie kolory/efekty wyrażone designerskimi tokenami
-   (`globe.surface`, `markers.default`, `atmosphere.color`...). Override 1 tokena albo własny pełny preset.
-3. **Story / Narrative engine** — deklaratywny timeline scen kamery + highlight + popup; killer feature dla
-   marketing landing pages oraz edukacji.
-
-**Non-goals (dla v1, świadome cięcia).**
-
-- 2D map projections (Mercator/Albers/...) — to jest terytorium `d3-geo`; nie reimplementujemy.
-- Precyzja GIS poziomu sub-metr — jesteśmy lib wizualizacyjnym, nie geo-platformą.
-- Server-side rendering pełnego interaktywnego globusa — tylko static snapshot.
-- Wbudowany geocoder, edytor shapefile, ephemeris satelitów.
-- Symulacja fizyczna atmosfery / pogody / orbity (zostaje w `G·sym`, future).
-- Game engine — nawet jeśli wspieramy use-case `F·gry`, ograniczamy się do warstwy widoku.
-
----
+Globio renders a sphere. It is not a GIS analysis platform, a geocoder, a map-tile
+service or a simulation engine. Interactive rendering requires a DOM and WebGL;
+server-rendered globe snapshots are not implemented. See section 7 for boundaries.
 
 ## 2. Use cases
 
-| Tag | Use case | Status | Co to znaczy w praktyce |
-|---|---|---|---|
-| **A·marketing** | Landing pages / hero | v1 | Estetyka, atmosphere glow, subtelna rotacja, snapshot do socials |
-| **B·dataviz** | Dashboardy, analityka | v1 | Wiele markerów, arcs, choropleth, klastrowanie, legenda, eksport |
-| **C·edu** | Edukacja, story-telling | v1 | Etykiety, popupy, sceny narracyjne, focus-on-country |
-| **D·travel** | Travel / logistics | v1 | POI, routy, animowane arcs, klikalne punkty, czasy podróży |
-| **F·gry** | Geo-gry / quizy | v1 | "Kliknij Polskę", efekty po dobrej/złej, leaderboard hooks |
-| **E·news** | Embed do artykułów | future | Lekka waga, statyczne snapshoty, autoplay scen |
-| **G·sym** | Symulacje (pożary, orbity, satelity) | future | Realistyczne tekstury, day/night, time-keyframed data |
-| **H·universal** | Uniwersalność jako meta-cel | future | "Każdy use-case obsłużony równo" — strategiczny cel długoterminowy |
+| Use case | Available building blocks | Host application responsibilities |
+|---|---|---|
+| Marketing and landing pages | Six kinds, themes, atmosphere, rotation, Cinematic effects | Page composition, loading treatment, motion preferences |
+| Dashboards and analytics | Country fills, bars, extrusion, heatmaps, hexbin, charts and legends | Data acquisition, filtering, meaningful scale domains |
+| Education and storytelling | Country labels, active selection, camera moves, timed scenes and popups | Narrative content, accessible controls and alternatives |
+| Travel and logistics | Position-based markers, HTML markers and animated arcs | Routing, travel-time calculations and live data |
+| Geographic games and quizzes | Country and marker events, active states, focus effects | Rules, scoring, answer validation and persistence |
 
----
+Data-layer support depends on the kind (section 5c.2). Wireframe supports surface
+and marker interaction but has no country picking or `focusOnCountry()`.
 
 ## 3. Globe styles catalog
 
-### 3.1 Outline (default) `[v1·M·built]` 🎨 `A·B·C·D`
+Select a visual style with `kind`. When omitted, a recognized theme preset selects
+its associated kind; otherwise the fallback is Outline. Choosing a kind alone
+does not select that kind's preset. Kind and theme are construction settings:
+create a new instance, or remount a wrapper, to change them.
 
-- **Vibe:** ciemna kosmiczna sfera, wektorowe granice, atmosphere glow.
-- **Anatomia:** solid sphere + LineSegments per kraj + atmosphere shader.
-- **Tokens:** `globe.surface`, `globe.borders`, `borders.width`, `atmosphere.color`,
-  `atmosphere.intensity`, `background`.
-- **Best for:** uniwersalny default; doskonały do dataviz i marketingu.
-- **References:** react-globe.gl default look.
-- **Status:** ✅ częściowo zaimplementowany (potrzebuje refinement: hover/click na krajach,
-  lepsza typografia atmosphere, dotted/filled subwarianty).
+### 3.1 Outline
 
-### 3.2 Dotted (Apple/Stripe-style) `[v1·M·built]` 🌟 🎨 `A·B`
+A solid sphere with country borders, hover glow and active-country styling. It is
+the broadest data-visualization kind: all six data-layer types are implemented.
+Outline also provides optional continent dimming, a focus pulse and a hover
+crosshair. Shared fills can show a uniform color, a cyclic palette or country data.
 
-- **Vibe:** świetlne kropki wypełniające kraje na czarnej kuli (Stripe / Apple
-  privacy / OpenAI DALL-E hero).
-- **Anatomia:** `CountriesDottedLayer` — `THREE.Points` per kraj, vertices
-  sampled na regularnej siatce lat/lng wewnątrz polygon-with-holes (ray-casting
-  point-in-polygon, holes subtracted). Antymerydian obsłużony przez running
-  +360 shift dla rings z bbox δlng > 180. Dots renderowane z `PointsMaterial`
-  (`sizeAttenuation: true`, additive blending) i runtime-generated radial-gradient
-  alpha texture — okrągłe, miękkie krawędzie zamiast domyślnych kwadratów.
-- **API:** ustawiasz `countries: { style: 'dotted' }` w `GlobeConfig`; layer
-  zastępuje borders. Picking layer zostaje, więc hover/click działa normalnie.
-- **Tokens:** `countries.dotted.color`, `countries.dotted.size` (world units),
-  `countries.dotted.density` (degree step na siatce), `countries.dotted.opacity`.
-  Zarejestrowane w `TokenSet` i obecne we wszystkich pre-presetach + nowym
-  `dotted-dark`.
-- **Preset:** `'dotted-dark'` — czarna sfera (`globe.surfaceColor: #000`),
-  cyan dots (`#7fdfff`), borders ukryte (`opacity: 0`), atmosphere `#4a9eff`.
-  Przełącznik "Dotted" w demo's theme buttons row.
-- **Best for:** premium SaaS hero, B2B marketing, "globalna obecność".
-- **References:** stripe.com hero, apple privacy globe, openai DALL-E hero.
-- **Sub-warianty (`v1.x`):** dotted-organic (Poisson), dotted-data (gęstość
-  zależna od metryki).
+Presets: `outline-dark`, `outline-cyber`, `outline-sunset`, `outline-light` and
+`outline-monochrome`. Relevant shared tokens include `globe.surfaceColor`,
+`countries.border.color`, `countries.borderHover.color` and `atmosphere.color`.
 
-### 3.3 Wireframe / Retro Tron `[v1·S·built]` 🌟 🎨 `A·F`
+### 3.2 Dotted
 
-- **Vibe:** sama siatka południków/równoleżników, brak kontynentów.
-- **Anatomia:** generowane LineSegments dla siatki lat/long + opcjonalne pulsowanie linii.
-- **Tokens:** `wireframe.color`, `wireframe.density`, `wireframe.opacity`, `wireframe.pulse`.
-- **Best for:** vintage-tech, hacker-look, gry retro, also tryb "bez danych geo" (offline-first).
-- **References:** Tron, Mass Effect Galaxy Map, retro Apple ][.
-- **Status:** ✅ shipped. Preset `wireframe-tron` (cyan `#22d3ee` na pure black, density 1.2,
-  pulse 0.15) renderuje sferyczną siatkę lat/lng jako pojedynczy `LineSegments` (jeden draw call),
-  z opcjonalnym sin-wave pulsowaniem opacity. `CountryStyle = 'none'` ukrywa geometrię państw,
-  pozostawiając picking layer aktywną — hover/click nadal działa. API: `wireframe?: { enabled?,
-  density?, pulse?, pulseSpeed? }` w `GlobeConfig`. Auto-enable, gdy aktywny preset ma
-  `wireframe.opacity > 0`. Demo: nowy przycisk "Wireframe" obok 5 outline'owych presetów.
+Land is sampled into a field of dots. Optional effects include drift, click
+ripples, hover lift and brightness, active-country pulses, emphasized coastlines,
+cursor wakes, latitude bands, breathing and constellation links. Latitude bands,
+breathing and constellation links are disabled by default. Hover and active
+feedback emerge from the dots; the kind skips the standard country-outline layer.
 
-### 3.4 Choropleth Heatmap `[v1·M-L]` 🎨 `B·C`
+Preset: `dotted-dark`. Dot styling uses `countries.dotted.*` tokens and `dotted.*`
+configuration. Theme and palette dot colors work. The declared `dotted.dots.mode:
+'data'` does not yet map values onto dots: choropleth colors fill country polygons
+beneath the dots, while `setCountryData()` can trigger data-flash feedback.
+Dotted supports choropleth, bars, extruded countries and heatmaps.
 
-- **Vibe:** kraje wypełnione kolorem z gradientu wg metryki + wbudowana legenda.
-- **Anatomia:** per-country mesh (earcut triangulacja) z dynamic vertex/material colors +
-  scale legend HUD.
-- **Tokens:** `choropleth.scale` (sequential/diverging/categorical), `choropleth.noData`,
-  `legend.bg`, `legend.font`.
-- **Best for:** dashboardy ekonomiczne, demograficzne, polityczne; również baza dla edukacyjnych map.
-- **References:** datamaps, observable choropleths, kepler.gl.
+### 3.3 Wireframe
 
-### 3.5 Paper / Illustrated `[v1·M]` 🎨 `C·D·F`
+A latitude/longitude grid with optional major-line hierarchy, front/back emphasis,
+equator beam, glitches, pole streams, moving data packets, compass markings and
+grid or pole pulses. Grid colors, density and opacity use `wireframe.*` tokens and
+configuration. Preset: `wireframe-tron`.
 
-- **Vibe:** kremowy "pergamin", lekko nierówne hand-drawn granice, pastelowe kontynenty,
-  delikatne cienie i tekstura papieru.
-- **Anatomia:** textured sphere (procedural paper noise) + custom rough-line shader dla granic +
-  filled country meshes z lekko organicznymi kolorami.
-- **Tokens:** `paper.bg`, `paper.land`, `paper.border`, `paper.borderRoughness`, `paper.gridLines`.
-- **Best for:** edukacja dziecięca, gry geo, Mappa-Mundi-style infographics, story-telling.
-- **References:** napkin sketches, infographic atlases, Studio Ghibli maps.
+Wireframe has no country picking, country hover/click events, standard country
+fills, hover crosshair or data layers. `setActiveCountry()` can show its dedicated
+geodesic active ring. Surface clicks, markers, arcs, labels and coordinate-based
+camera moves remain available. It still participates in the globe's geographic
+loading lifecycle; it is not a separate offline renderer.
 
-### 3.6 Hologram `[v1·M-L]` 🎨 `A·F`
+### 3.4 Choropleth — a data layer
 
-- **Vibe:** półprzezroczysty turkusowy globus, scanline'y CRT, drobne glitch'e, emisyjna obwódka.
-- **Anatomia:** transparent shell mesh + scanline shader + animated glitch displacement +
-  atmosphere-emission.
-- **Tokens:** `hologram.color`, `hologram.scanlineFreq`, `hologram.glitchAmount`,
-  `hologram.flickerRate`.
-- **Best for:** sci-fi UI, premiery produktów tech, gry, military/intel mockupy.
-- **References:** Anduril, Mass Effect, Westworld console UI.
+Choropleth maps country values or explicit colors onto filled polygons in Outline,
+Dotted and Cinematic. It is selected through `setDataLayer()` or the convenience
+method `setCountryData()`, not through `kind`. Scales and legends are described in
+section 5c.3. Paper's decorative fill is separate from choropleth data support.
 
-### 3.7 Cinematic — filmowa Ziemia z warstwą danych `[v1·L·built]` 🌟 🎨 `A·B·G`
+### 3.5 Paper
 
-- **Vibe:** keynote'owa planeta (Apple / SpaceX): fizycznie oświetlony ocean, relief, biomy,
-  lód, chmury z cieniami, atmosfera z rozpraszaniem, zorza, tarcza słońca, Droga Mleczna —
-  plus ciepłe akcenty danych (sieć połączeń, łuki, opcjonalnie światła miast).
-- **Dwa tryby:** (a) w pełni proceduralny, zero assetów (domyślny); (b) `cinematic.textures`
-  z URL-ami map day / night / normal / specular / clouds — ten sam shader, crossfade po
-  załadowaniu. Demo ma zestaw Earth 2k (mapy planet z repo three.js) pod
-  `examples/vanilla-demo/public/textures/earth`, przełącznik w Studio.
-- **Anatomia:** `kinds/cinematic/` — `surface-shader.ts` (relief z wypiekanego atlasu terenu,
-  biomy z szerokości/wysokości/wilgotności, pole odległości od wybrzeża → płycizny i plaże,
-  glint, księżyc, cienie chmur, zorza, saturacja), `clouds.ts` (powłoka chmur, to samo pole
-  co cienie), `atmosphere.ts` (single scattering Rayleigh/Mie, pas zmierzchu, airglow),
-  `sun.ts` (tryby `fixed` / `realtime` / `orbit`, punkt podsłoneczny z daty, tarcza słońca),
-  `starfield.ts` (rozkład jasności, klasy barwne, pas Drogi Mlecznej), `textures.ts`,
-  `atlas.ts` (scanline rasterizer + chamfer distance transform + terrain bake, ~150 ms),
-  `engine.ts` (wspólny blok uniformów, auto-quality po FPS).
-- **Post-processing:** wspólny `GlobeConfig.postprocessing` (bloom, anamorficzny streak,
-  aberracja, winieta, ziarno, ekspozycja, miękkie ramię świateł); domyślnie włączony tylko dla
-  cinematic, alpha-safe na przezroczystym canvasie, fail-closed do zwykłego renderu.
-- **Tokens:** `cinematic.*` (ocean / land / cloud / night / rim / city / network / border,
-  `iceColor`, `vegetationColor`, `desertColor`, `shallowWaterColor`, `auroraColor`,
-  `auroraTopColor`, `moonColor`, `sunColor`, `saturation`, kierunek światła, terminator).
-- **Presety:** `cinematic-night`, `cinematic-day`, `cinematic-dawn`, `cinematic-noir`.
-- **Config:** `cinematic.surface` (relief, biomes, shallows, moonlight, snowLine, saturation,
-  kolory), `cinematic.clouds`, `cinematic.atmosphere`, `cinematic.sun`, `cinematic.aurora`,
-  `cinematic.textures`, `cinematic.cityLights`, `cinematic.network`, `cinematic.reactivity`,
-  `cinematic.quality` (`auto` = tiery po zmierzonym FPS). Wszystko live przez `globe.update()`.
-- **Status:** ✅ shipped 2026-09-07 (commit 58c1072). Światła miast są w demo wyłączone
-  (`cityLights.enabled: false`, `reactivity.cityNightResponse: 0`) do czasu ponownego
-  strojenia — efekt zostaje dostępny w API. Bez testów jednostkowych (odłożone).
+An illustrated globe with procedural paper grain, fibers, stains, watercolor-like
+surface treatment and rough country borders. Options include border stippling and
+ink bleed, single-color or pastel country fills, a geographic grid, sepia tint,
+vignette, compass rose, aging marks and a watermark. Preset: `paper-default`.
 
-### 3.8 Topographic / Satellite `[v2+·M]` 🎨 `C·D·G·sym(future)` 🚀 *future*
+Paper supports country picking, active selection and shared overlays. Its country
+fill is configured with `paper.fill`; it does not mount the shared `countries.fill`
+layer or any data-layer variant. Relevant tokens include `paper.surfaceColor`,
+`paper.borderColor` and `paper.fillColor`.
 
-> Częściowo pokryte przez tryb tekstur kindu cinematic (§3.7): własne mapy day/night/normal
-> dają realistyczną Ziemię bez nowego kindu. Ta pozycja zostaje dla pełnego satellite look
-> z kafelkami / wysoką rozdzielczością.
+### 3.6 Hologram
 
-- **Vibe:** realistyczna tekstura Ziemi (oceany, terrain, lód) + opcjonalne wektorowe obrysy państw.
-- **Anatomia:** sphere z Earth equirectangular texture + bump/normal map + opcjonalna warstwa borders.
-- **Trade-off:** wymaga licencjonowanej tekstury (Natural Earth, NASA Visible Earth) — kilka MB.
-  Bundle albo lazy-load.
-- **Inspiracje (globe.gl screenshots):** "Daytime/Nighttime", "Realistic Earth", "Satellite View".
-- **API kierunek:** nowy `kind: 'satellite'` z opcjonalnym day/night terminator (§4.10) jako global effect, nie cześć kindu.
+An emissive shell with scanlines, rim and outer glow, glitches and optional
+chromatic aberration, noise, projector pulses, scanning bands, phase shimmer and
+calibration ticks. Preset: `hologram-cyan`; styling combines `hologram.*` tokens and
+configuration.
 
-### 3.9 Neon Cyberpunk `[v2+·S]` 🎨 `A·F` 🚀 *future*
+Country picking, active selection, the hover crosshair and shared overlays are
+available. Hologram does not mount shared country fills or data layers.
 
-- **Vibe:** wariant outline'u + bloom + dwukolorowe granice (magenta/cyan) + scanline subtelny.
-- **Anatomia:** outline + post-processing bloom pass + dwa style passes dla granic.
-- **Trade-off:** prosty technicznie (w gruncie rzeczy outline z post-fx), ale wymaga post-processing
-  pipeline który dotąd nie był potrzebny.
+### 3.7 Cinematic
 
-### 3.10 Hollow Globe `[v2+·M]` 🎨 `A·F` 🚀 *future*
+A procedural Earth with relief, biome variation, ice, shallow-water treatment,
+specular lighting, clouds and cloud shadows. The atmosphere adds scattering,
+twilight color and night-side airglow. Other features include aurora, city lights,
+route networks and a Milky Way background when the Cinematic stars are enabled.
+Presets: `cinematic-night`, `cinematic-day`, `cinematic-dawn`, `cinematic-noir`.
 
-- **Vibe:** brak wypełnionej kuli — same kraje jako "wycięte" wektorowe sylwetki w pustce. Wnętrze widoczne (back-side wystaje).
-- **Anatomia:** brak globe surface mesh; tylko `CountriesLayer` z DoubleSide rendering, depthWrite off.
-  Picking layer pozostaje jako invisible mesh.
-- **Inspiracja (globe.gl):** "Hollow Globe".
-- **Best for:** futurystyczne UI, info-graphics, marketing teasery.
+The sun supports a fixed world-space light vector, real-time solar position or an
+orbiting longitude. A visible disc and glare are independent of directional
+lighting. Clouds default to coverage `0.42` and shadow strength `0.45`; disabling
+the cloud shell and disabling shadows are separate controls.
 
-### 3.11 Tiled / Map-tile Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
+Optional day, night, normal, specular and cloud textures accept URLs or Three.js
+textures. Missing channels retain their procedural fallback; loading can crossfade
+from procedural rendering. Procedural mode needs no external Earth texture, but
+still uses downloaded country geometry. It is not a geophysical simulation.
 
-- **Vibe:** prawdziwe slippy-map tiles (OSM / Mapbox) zwinięte na sferze — z możliwością zoom-in do poziomu street.
-- **Anatomia:** sphere z dynamic tile loader (XYZ → spherical UV mapping), level-of-detail per zoom.
-- **Inspiracja (globe.gl):** "Map tiles".
-- **Trade-off:** wymaga tile servera (zewnętrzny lub bundle podstawowych); spore complexity.
+`setCinematicData()` supplies city-light and route data independently of the data
+layer, markers and arcs. Routes can reference city ids or coordinates. Omitted or
+empty arrays use the built-in decorative fallback; `null` restores that fallback.
+Use the layer's `enabled: false` setting to hide it. A city-light `count` or network
+`maxConnections` of zero also caps custom data at zero. These decorative objects do
+not emit the standard marker events.
 
-### 3.12 Hex Polygons Globe `[v2+·L]` 🎨 `B·D` 🚀 *future*
+Cinematic supports country picking, shared fills, choropleth and heatmap. Its
+quality setting can adapt shader detail; shared post-processing is enabled by
+default for this kind.
 
-- **Vibe:** glob pokryty siatką hexagonalną (h3-grid); kraje wypełnione kolorem heksów.
-- **Anatomia:** generowany h3 hex tessellation; każdy hex to mały Three.js mesh; kolor per-hex z data binding.
-- **Inspiracja (globe.gl):** "Hexed Polygons", "Polygons Per Capita".
-- **Best for:** dataviz dashboardy, density z naturalnym binningiem.
+## 4. Cross-cutting capabilities
 
----
+### 4.1 Theme tokens and presets
 
-## 4. Cross-cutting feature catalog
+Themes resolve in this order: base tokens, selected preset, inline token overrides.
+Undefined overrides are ignored. Tokens are flat, typed keys such as
+`background.color`, `globe.surfaceColor`, `countries.border.color`,
+`countries.fill.opacity`, `markers.defaultColor`, `arcs.color` and
+`legend.backgroundColor`. They are not nested configuration objects.
 
-### 4.1 Theming & color system 🌟
+There are 13 built-in presets: five Outline, four Cinematic and one for each other
+kind. `registerThemePreset()`, `unregisterThemePreset()` and `listCustomPresets()`
+manage custom presets; `resolveTheme()` resolves the complete token set. Custom
+names can shadow built-in names. A custom name alone does not register a default
+kind, so specify `kind` when needed. Presets are resolved at construction; live
+theme replacement and animated theme transitions are not implemented.
 
-> Centralny system designerski — wszystkie kolory, gradienty i parametry estetyczne wyrażone tokenami.
+### 4.2 Camera and controls
 
-- **Theme tokens** `[v1·GLOBAL·M·built]` 🌟 — **23 tokeny** z hierarchicznym, opisowym nazewnictwem:
-  `background.color`, `globe.surfaceColor/surfaceTextureUrl`, `countries.border.{color,width,opacity}`,
-  `countries.borderHover.{color,width,opacity}`, `countries.borderActive.{color,width,opacity}`,
-  `tooltip.{backgroundColor,textColor,fontSize,fontFamily,padding,borderRadius}`,
-  `lights.ambient.{color,intensity}`, `lights.directional.{color,intensity}`, `markers.defaultColor`,
-  `atmosphere.{color,intensity}`. Każdy token to string (kolor/URL/CSS) albo number;
-  w przyszłości też gradient i function `(value, ctx)`.
-- **Theme tokens override** `[v1·GLOBAL·S·built]` — `theme: { tokens: { 'globe.surfaceColor': '#f00' } }`.
-- **Built-in theme presets** `[v1·GLOBAL·S·built]` — v0.2.x ships 5 outline-style presets:
-  `outline-dark`, `outline-light`, `outline-sunset`, `outline-cyber`, `outline-monochrome`. Presety dla
-  pozostałych stylów (dotted, paper, hologram) dochodzą wraz z ich implementacją.
-- **Custom theme presets (`registerThemePreset`)** `[v1·GLOBAL·S·built]` 🌟 — `registerThemePreset('my-brand', tokens)`
-  rejestruje własny preset jako pełnoprawnego obywatela; działa wszędzie gdzie built-in
-  (`theme: 'my-brand'` lub `theme: { extends: 'my-brand', tokens: {...} }`). Custom shadow built-in (rebrand without fork).
-- **Theme `extends` (inherit from named preset)** `[v1·GLOBAL·S·built]` — `theme: { extends: 'outline-cyber', tokens: { 'markers.defaultColor': '#f00' } }`. Skrót: `theme: 'outline-cyber'`.
-- **Light / dark variants per styl** `[v1.x·GLOBAL·S]` — `theme: { name: 'paper', mode: 'dark' }`.
-- **Live theme transition** `[v1.x·GLOBAL·M]` — animacja zmian tokenów (np. day→night switch).
-- **CSS variable bridge** `[v2+·GLOBAL·S]` — `theme: 'css-vars'` czyta `--globio-globe-surface` etc.
-- **Color-blind safe wariants** `[v1.x·GLOBAL·S]` — zapakowane alternatywy dla choropleth scale.
+- Pointer dragging rotates the globe; the wheel controls distance. Zoom modes are
+  `classic`, `repel` and `attract`, with configurable strength and smoothing.
+- `flyTo()` moves toward a latitude/longitude and optional distance, with duration,
+  easing and optional midpoint elevation. Defaults are 1500 ms, `easeInOutCubic`
+  and no extra elevation.
+- `focusOnCountry()` derives a camera position and distance from loaded country
+  bounds. It works on the five kinds with country picking, excluding Wireframe.
+- `setRotation(position, animate?)` changes orientation while preserving distance;
+  omitted or false `animate` applies immediately. Coordinates are `[lat, lng]` in
+  degrees, and distances are in globe-radius units.
+- Auto-rotation is disabled by default, yields to dragging and camera transitions,
+  and has default speed `0.5`. Speed `1` corresponds to about `0.2` radians/second.
+  Country focus pauses it by default until the host enables it again.
+- Initial position, axis tilt, zoom limits and framing are construction settings.
+  Without an initial position, an untilted globe faces `[0, -90]`. Framing uses
+  vertical field of view; it does not guarantee horizontal fit in a narrow host.
 
-### 4.2 Camera, navigation & focus
+Dedicated pinch gestures, keyboard globe navigation and momentum-based drag
+inertia are not implemented. Smooth zoom interpolation is not drag inertia.
 
-- **Free orbit / drag rotate** `[v1·GLOBAL·S·built]` — bazowe; już mamy.
-- **Wheel/pinch zoom** `[v1·GLOBAL·S·built]` — 3 tryby (`classic` / `repel` / `attract`) +
-  smooth interpolation. `repel` zachowuje punkt pod kursorem zakotwiczony do tego pixela
-  (Google-Maps-style); `attract` przyciąga punkt pod kursorem ku środkowi; `strength` 0..1
-  reguluje siłę. `smooth: true` (default) interpoluje radius+kąty po `targetSpherical`.
-- **Auto-rotate** `[v1·GLOBAL·S·built]` — z konfigurowalną osią, prędkością i easeOnInteract.
-- **Smooth `flyTo(lat, lng, distance)`** `[v1·GLOBAL·M·built]` — `globe.flyTo([lat, lng], distance?, { duration?, easing? })`. Easings exported (`linear`, `easeOutCubic`, `easeInOutCubic`); cancellation on drag/wheel.
-- **`focusOnCountry(id)`** `[v1·GLOBAL·M·built]` 🌟 — `globe.focusOnCountry('616', { duration?, padding? })`. Auto-computes camera distance from country bbox + FOV; default padding 15%.
-- **`focusOnRegion(bounds)`** `[v1·GLOBAL·S]` — frame dowolny obszar (osobny plan, używa tej samej infrastruktury).
-- **Inertia / damping** `[v1·GLOBAL·S]` — momentum po puszczeniu drag.
-- **Keyboard navigation** `[v1·GLOBAL·M]` — WASD/strzałki/Tab; bazowe a11y.
-- **Camera distance limits** `[v1·GLOBAL·S·built]` — `minZoom` / `maxZoom` albo `framing.lockZoom`.
-  Gdy zoom jest zablokowany (min == max), kółko myszy nad canvasem NIE jest przechwytywane —
-  strona przewija się dalej, więc dekoracyjny globus nie łapie kursora.
-- **Lock-to-region / sandbox mode** `[v1.x·GLOBAL·M]` — restrykcja navigacji w bounds (np. "globus dziecięcy zamknięty na Europę").
-- **Trackpad-aware gestures** `[v1.x·GLOBAL·M]` — pinch, two-finger pan, smart-zoom.
-- **Camera preset views** `[v1.x·GLOBAL·S]` — `view: 'globe' | 'arctic' | 'antarctic' | 'pacific' | 'europe'`.
-- **Cinematic camera paths** `[v2+·GLOBAL·M]` — Bezier path między punktami zamiast great-circle interpolacji.
+### 4.3 Countries, selection and events
 
-### 4.3 Country interaction
+Country geometry uses World Atlas at low (110m), medium (50m, default) or high
+(10m) resolution. Source data loads asynchronously; very small countries may be
+absent at a given resolution. Numeric ids are normalized to three-digit strings,
+for example `32` to `032`; nonnumeric ids are not translated from names or ISO
+alpha codes.
 
-- **Hover events** `[v1·EVENT·S·built]` — `countryHover` z `CountryData` + `point: LatLng`.
-- **Visual hover indicator** `[v1·EVENT·S·built]` — granice hovered country są przerysowane w `countries.hoverColor` o szerokości `countries.hoverWidth`. Tokeny per-preset (gold/dark-blue/cream/magenta/white).
-- **Click events** `[v1·EVENT·S·built]` — `countryClick` z `CountryData` + `point: LatLng`. Markery mają wyższy priorytet w raycaster.
-- **Geometry normalisation** `[v1·GLOBAL·M·built]` — `utils/polygon-normalize.ts` jest jednym
-  źródłem prawdy dla wszystkiego, co czyta ringi krajów w płaszczyźnie lng/lat (wypełnienia,
-  picking, sampler kropek, maska lądu cinematic): antymerydian jest rozwijany (Rosja, Fidżi,
-  Kiribati), dziury trafiają do układu ringu zewnętrznego (Lesotho, Watykan pickują się jako
-  one same), a ring okrążający glob domyka się nad biegunem — Antarktyda rysuje się po sam
-  biegun w każdym kindzie i w każdej rozdzielczości (110 m domyka ring na −84,7°, 50 m trzyma
-  wybrzeże jako drugi ring za degenerowanym ringiem wzdłuż −90°). Podział trójkątów trzyma
-  krawędzie do bieguna na południku wierzchołka, a kropki rzedną ku biegunom, żeby odstęp na
-  sferze był stały.
-- **Active / selected state** `[v1·EVENT·M]` — pin kraju (zostaje highlighted nawet po hover-out).
-- **Country -> data binding** `[v1·LAYER·M·built]` 🌟 — `globe.setCountryData({ '616': { color: '#1e6fff', value: 38, opacity: 0.85 } })` (id = numeric ISO 3166-1). Driver dla choropleth (population, GDP), set membership (NATO, EU, G7) i custom dataviz. Per-country `MeshBasicMaterial` siedzi pomiędzy globe surface a borders, więc granice rysują się na wierzchu. Dostępne także via `countryData` na `GlobeConfig` i przez `update()`. Kolor i opacity mają fallback na tokeny `countries.fill.defaultColor` / `countries.fill.opacity`.
-- **Country labels on hover** `[v1·LAYER·S]` — auto-pop tooltip z nazwą + custom content.
-- **Sub-divisions (states/provinces)** `[v1.x·LAYER·L]` — admin-1 GeoJSON, lazy load per kraj (`lazyAdmin1: ['US', 'PL']`).
-- **Country ids** `[v1·GLOBAL·S·built]` — id kraju to numeryczny kod ISO 3166-1 jako
-  3-znakowy string z zerami wiodącymi (`'032'` Argentyna, `'840'` USA) — dokładnie to, co
-  world-atlas daje feature'om i co przychodzi w `country.id` w eventach. Loader normalizuje
-  numeryczne id (także z własnego TopoJSON), a `setCountryData`, `setCountryLabels`,
-  `focusOnCountry`, `setActiveCountry` i sceny story przepuszczają wejście przez
-  `normalizeCountryId` (eksportowany razem z `normalizeCountryKeys`), więc `'32'` i `32`
-  też działają. Id nienumeryczne (np. `'XK'`) zostają bez zmian.
-- **Region groupings** `[v1·LAYER·S·built]` 🌟 — wbudowane importowalne arrays ISO 3166-1: `G7 / G20 / NATO / EU / BRICS / ASEAN / OECD / EFTA / MERCOSUR / AU` + kontynentalne `EUROPE / ASIA / AFRICA / NORTH_AMERICA / SOUTH_AMERICA / OCEANIA`. Aktualne na 2024–2026 (Finland/Sweden NATO, BRICS expansion, brak UK w EU). Id są wyzerowane do 3 znaków (`'076'` Brazylia), tak jak feature'y. Wstawiasz prosto: `globe.setCountryData(Object.fromEntries(NATO.map((id) => [id, { color: '#1e6fff' }])))`.
-- **Highlight neighbors** `[v2+·LAYER·M]` — auto-find sąsiadów (graph adjacency).
-- **Custom border styles per kraj** `[v1·STYLE·S]` — override per ISO.
+Country picking and hover/click events work on Outline, Dotted, Paper, Hologram and
+Cinematic. Wireframe skips the picking layer. Active-country state is supported
+by all six kinds, with a dedicated ring on Wireframe. Hover crosshairs use the
+shared `outline.hoverCrosshair` option on the five picking kinds.
 
-### 4.4 Markers (POI / pins)
+`countryClick` and `countryHover` identify the country and pointer coordinates;
+bound values are obtained with `getCountryData()`. `surfaceClick` contains
+`{ point: [lat, lng] }`. Shared `countries.fill` modes are `none`, `always`,
+`palette` and `data`, supported by Outline, Dotted and Cinematic. Active fill
+styling takes precedence over hover styling. Paper instead uses `paper.fill`.
 
-- **Dot marker (instanced)** `[v1·LAYER·S·built]` — InstancedMesh, do 10k+ markerów.
-- **Pin marker** `[v1·LAYER·M]` — 3D pin sticking out of surface (Google-Maps-style).
-- **HTML overlay marker** `[v1·LAYER·M]` 🌟 — DOM div anchored to lat/lng, rendered above canvas;
-  pełna kontrola CSS/own components (React/Angular/Vue overlay komponentów).
-- **Image / sprite marker** `[v1.x·LAYER·S]` — texture billboard (logo firm itp.).
-- **Custom 3D model marker** `[v1.x·LAYER·M]` — user supplies GLTF (np. samolot).
-- **Cluster markers** `[v1.x·LAYER·L]` — auto-cluster przy zoom-out, smooth uncluster przy zoom-in.
-- **Marker label / tooltip** `[v1·LAYER·S]` — wbudowany tooltip + auto-placement.
-- **Marker pulse / halo animacja** `[v1·LAYER·S·built]` 🌟 — `marker.pulse: true | { speed?, amplitude? }`. Marker rytmicznie oscyluje rozmiarem (sin wave); `speed` w cyklach na sekundę (default 1.5), `amplitude` jako frakcja base size dodawana w peaku (default 0.4). Działa na InstancedMesh — brak narzutu rendering, animacja przez per-frame matrix update.
-- **Marker hit-zone radius** `[v1·LAYER·S]` — większy hit-zone niż visual size, dla mobile.
-- **Bulk add / streaming markers** `[v1·LAYER·M]` — batch updates per frame, real-time perf.
-- **Marker size by data** `[v1·LAYER·S]` — `size: (m) => m.data.population / 1e6`.
-- **Marker color by data** `[v1·LAYER·S]` — analogicznie.
-- **Marker hover state** `[v1·EVENT·S·built]` 🌟 — auto scale-up hovered markera (default 1.5×, konfigurowalne via layer option `hoverScale`), eased 150ms. Plus `MarkerTooltip` (DOM, follows cursor, fade 80ms) pokazujący `marker.label ?? marker.id`. Eventy `markerHover` / `markerClick` z payloadem `{ marker }`.
+Exported region arrays include continents and groups such as G7, G20, NATO, EU,
+BRICS, ASEAN, OECD, EFTA, MERCOSUR and AU. They are static convenience datasets,
+not a current geopolitical membership service.
 
-### 4.5 Connections (arcs, paths, routes)
+### 4.4 Markers and HTML overlays
 
-- **Static arc-line (great-circle)** `[v1·LAYER·S]` — A→B, gradient color, width.
-- **Animated arc-line** `[v1·LAYER·M]` — głowica linii animowana along path, fade-in/out.
-- **Particle flow on arc** `[v1.x·LAYER·M]` — moving dots/sparks along path (np. ruch danych).
-- **Multi-stop route** `[v1.x·LAYER·M]` — A→B→C→D z waypointami.
-- **Width by data** `[v1·LAYER·S]` — line thickness from value.
-- **Color gradient by progress** `[v1·LAYER·S]`.
-- **Time-window arcs** `[v1.x·LAYER·M]` — appear/disappear w synchronizacji z time slider.
-- **Bezier elevation control** `[v1·LAYER·S]` — kontrola wysokości łuku (0=płasko po globusie, 1=daleko).
+Instanced markers accept stable ids, geographic positions, scalar size and color,
+labels, hover styling and optional pulses. Methods replace the whole marker set,
+add or replace one id, or remove one id. Marker hover and click events are typed.
+The default instance capacity is 10,000; this is an allocation limit, not a frame
+rate guarantee. Size and color functions or geographic clustering are not built in.
 
-### 4.6 Heat & area layers
+HTML markers anchor trusted HTML strings or DOM factories to coordinates. They
+support offsets, anchors and far-side occlusion. The host can attach its own DOM
+interaction to factory-created elements. Marker removal and globe destruction
+remove the associated overlays.
 
-> Wszystkie 4 cztery typy z tej sekcji wchodzą jeden-spod-drugiego przez wspólne API `globe.setDataLayer(layer)` — patrz §5c "Data layers" po szczegóły architektoniczne i tabelę dekoracji per kind.
+### 4.5 Arcs and routes
 
-- **Choropleth (country-scale)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'choropleth', data, scale? })`. Per-country fill (`CountryFillLayer`), value-mapped color via `scale`, fade-in tween 250ms. Legacy `setCountryData(map, scale?)` routes through this same pipeline. Decorations: outline (solid fill).
-- **Bars (lat/lng or country centroid)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'bars', data: [{ id?, position?, value, color? }], scale?, height?, width?, animateOnMount? })`. Per-bar `CylinderGeometry`, anchored at sphere surface, oriented along normal, height `value`-mapped to `[height.min, height.max]`. Mount animation: `'rise'` grows from 0 over `mountDurationMs` (default 700, easeOutCubic). Decorations: outline (solid `MeshBasicMaterial`), dotted (additive glow blending).
-- **Extruded countries (3D choropleth)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'extruded', data, scale?, height?, animateOnMount? })`. Each country polygon lifted along surface normal at value-mapped height; side walls connect surface ring to elevated cap. Per-vertex `directions` array drives rise animation by pushing only the elevated set outward. Decorations: outline (opaque `DoubleSide`), dotted (additive glow).
-- **Density heatmap (volumetric, shader-based)** `[v1·LAYER·L·built]` 🌟 — `globe.setDataLayer({ type: 'heatmap', data: [{ position, value, id?, name?, radius?, weight?, animation? }], scale?, ... })`. **Architektura:** equirectangular density texture (default 2048×1024 Float32 R) bake'owana CPU-side, `SphereGeometry` (auto 256² flat / 1024² displaced / 2048² hero), shader robi displacement w vertexie i palette-lookup w fragmencie. Per-fragment UV liczone z 3D direction (omija seam na antymerydianie). Pełna kontrola wizualna:
-  - **Kernels** (`kernel: 'gaussian' | 'epanechnikov' | 'quartic' | 'dome' | 'uniform'`) — różne kształty rozmycia. Hot loop optimized: `cosD` zamiast `acos`, kernel weights z `chord²` zamiast great-circle arc.
-  - **Country-aware domes** (`countryDomes: { centerArea, shoulderHeight, edgeSteepness, valuePreScale: 'log'|'sqrt'|'linear', rounding, perCountryNormalize }`) — entry z `id`/`name` raster'uje się w polygonie kraju (distance-to-edge field via 16×N spatial-hash edge grid + opcjonalny ray-cast blend dla polygon-shape vs bubble). Pole-of-inaccessibility jako anchor, `accumulate=max` przy enclave overlap. Demo presetuje `surface: 'country'` jako landing view.
-  - **Normalize** (`'peak' | 'absolute' | 'log'` + `absoluteMax`) — globalna kontrola kontrastu.
-  - **Curves** (`curve` dla koloru, `displacementCurve` osobno: `'linear'|'smoothstep'|'cubic'|'sqrt'`) — decoupled żeby 3D miało gładki bell-curve nawet gdy kolor używa cubic dla ostrych hotspotów.
-  - **Intensity** (`pow(d, 1/intensity)` gamma — boost'uje midy bez plateau saturacji).
-  - **Threshold** — pixele poniżej fraction-of-peak są transparent.
-  - **Grid + contours** (`grid: { stepDeg, widthDeg, opacity, majorEvery, color }`, `contours: { interval, width, opacity, majorEvery, color }`) — proceduralne in-shader, anti-aliased przez `fwidth`, `densityFade` ukrywa je w cool regions. Bez extra geometrii / z-fightingu z borderami.
-  - **Zoom scaling** (`zoomScaling: { closeDistance, farDistance, closeHeightScale, farHeightScale, closeOpacityScale, farOpacityScale, thresholdBoost, gridBoost, contourBoost }`) — view-dependent shader uniformy bez re-bake. Layer nie wygląda wielki przy zoom-in.
-  - **Animation system** (`animation: { style: 'rise'|'pop'|'fade', duration, delay, stagger, easing, trigger: 'init'|'manual' }`) — init mount: domeny "wyrastają z wnętrza globu" (vertex skaluje displacement przez `t∈[0,1]`, fragment skaluje alpha). 33 krzywe easing (CSS keyword cubic-bezier + pełen Penner: `linear / ease(-in/-out/-in-out) / quad / cubic / quart / quint / sine / expo / circ / back / elastic / bounce`). Per-warstwa **lub** per-rekord (`HeatmapDataEntry.animation: { delay?, enabled? }`) — bake'uje delay map (Float32 R, taka sama jak density) gdy `stagger > 0` lub jakikolwiek entry ma `delay`; shader sampluje delay → liczy `localT = (timeSec - pixelDelay) / duration` → easing przez 256-binową LUT. Bez delay'i mapa nie jest alokowana (1×1 stub, zero kosztu). `playAnimation()` jako publiczny hook reset'uje timeline (story-ready, patrz §4.9.1).
-  - **Bake-key cache** — `setData(layer)` z tym samym `samples` reference + bake-affecting params (kernel/radius/blur/normalize/absoluteMax/animation timing) skip'uje re-bake i tylko refresh'uje shader uniformy. Slidery intensity/threshold/curve/duration/easing są shader-only (instant). Bake jest in-place (Float32Array re-fill, jedna `DataTexture` cały czas).
-  - **Demo** — `examples/vanilla-demo/heatmap.html` ma 5 surface presetów (country / topographic / smooth / peaks), 8 datasetów (countries+population, megacities, worldcities, earthquakes, random, +3 live USGS feeds), pełny HUD z slider'ami radius / height / intensity / threshold / blur / texture-resolution / dome-shape / animation.
-  - **Modularna struktura:** `data-layers/heatmap/` jest 11 plików (`heatmap-layer.ts` orchestrator + `shaders / kernels / polygon-utils / palette / bake-keys / config / radial-baker / edge-grid / country-features / country-dome / animation`).
-  - **Decorations:** outline (built — pełna funkcjonalność), dotted (legacy additive glow displaced sphere — czeka na port na shader-based pipeline). Inne kindy = future.
-  - **TODO / potencjał:** per-record easing/style (dziś tylko delay per-entry — wymaga 2D LUT z entryEasingRow), `playAnimation({ trigger: 'enter'|'leave', target: { id } })` faktyczna implementacja dla story-tellingu, smooth data-update crossfade przy zmianie datasetu, hex-bin agregacja (§4.6 niżej), particle-flow over density field, time-keyframed heat (§4.11).
-- **Hex-bin aggregation** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'hexbin', data, resolution?, aggregate?, height?, scale?, cellBorder?, highlight?, animation?, events? })`. Lat/lng point samples binned into faces of a subdivided icosphere — visually triangular cells (the "hex" name follows the geographic-binning convention; goldberg-polyhedron real-hexagon variant is a future upgrade). Subdivision levels 0..5 (20 → 20480 cells, default 3 = 1280); **7 aggregate modes** (`sum / count / mean / min / max / median / p90`); per-face value drives both colour (via `scale`) and outward extrusion (`height: { min, max }`). Cells render as vertex-coloured `BufferGeometry` triangles, each face with its own 3 unshared vertices so colours don't bleed into neighbours.
-  - **Animation system** — reuses the heatmap easing library (33 curves). 4 visual styles: `'rise' / 'pop' / 'fade' / 'pulse'` (pulse is a continuous heartbeat that loops). 5 stagger orders: `'sequential' / 'radial' / 'value' / 'reverse-value' / 'random'` — radial auto-defaults its origin to the data's spherical centroid when none is provided. Per-face stagger drives a visible wave bloom across the globe (cell-index → start-time mapping in `face-ordering.ts`).
-  - **Interaction** — pointer hover/click via internal Three.js raycaster; `events.onHover/onClick` receive `HexBinHoverPayload { cellIndex, value, empty, position }`. Optional triangle-overlay `highlight` overlay sits on top of the hovered cell, lifted along the radial normal (`HexBinHighlight` module). Optional `cellBorder` LineSegments draw the cell edges for topographic-map look.
-  - **Visual fidelity** — per-face vertex RGB scales with the per-face `t` so cells visibly fade in (not just rise) during the bloom; layer-wide opacity stays at the slider value.
-  - **Module:** `data-layers/hexbin/` split into `icosphere / aggregator / hexbin-mesh / hexbin-layer / hexbin-highlight / face-ordering`.
-  - **Demo:** `examples/vanilla-demo/hexbin.html` — 4 datasets (random 2k/10k, 3-region clusters, latitude bands), full HUD (resolution / aggregate / cellInset / opacity / borders / highlight / animation style+order+easing+duration+stagger), floating tooltip on hover.
-  - **TODO / potencjał:** smooth dataset crossfade (lerp colours+heights between sets), goldberg-polyhedron real hex tiles, time-keyframed bins (samples have `timestamp`), streaming `addSamples()`, port decoration to dotted/wireframe/paper/hologram kinds.
-- **Charts (multi-series, anchored)** `[v1·LAYER·M·built]` 🌟 — `globe.setDataLayer({ type: 'charts', data, chartType, series, scale?, size?, height?, innerRadius?, padAngle?, gaugeMax?, segmentStagger?, labels?, animation?, events? })`. **7 sub-types**: `'bars-grouped'` (parallel bars side-by-side), `'bars-stacked'` (single column with composition segments), `'pie'`, `'donut'` (pie with hollow centre), `'radial'` (bars in a circle), `'gauge'` (180° progress arc reading `series[0]/gaugeMax`), `'sunburst'` (two concentric rings — outer = series segments, inner = total mapped through `scale`). Each chart anchored at lat/lng or country centroid (resolved via `id` matching the active kind's feature index — same pattern as Bars). Per-series colour wins over the layer-level `scale`; pie/donut/gauge/sunburst billboard toward the camera so they stay readable at high latitudes.
-  - **Per-segment animations** — `segmentStagger` (ms) staggers within-chart segment reveals: stacked grows bottom-up (with mid-anim re-stacking so growing segments sit on top of finished ones), radial sweeps clockwise, pie/donut wipes alpha around the ring, grouped reveals bars left→right. Per-entry `animation` override (delay + enabled) composes with the layer-level stagger.
-  - **Interaction** — pointer hover/click via internal raycaster (`ChartsHoverPayload { entry, entryIndex, seriesKey, seriesIndex, value }`); mesh-uuid index built at applyData() resolves a hit triangle back to its (chart, segment) pair in O(1).
-  - **HTML labels overlay** — `labels: bool | { mode, format, fontSize, color, ... }`. Pure DOM (no CSS3DRenderer); container appended next to the renderer canvas; per-frame Vector3.project() per label tracks its anchor including parent globeGroup transforms (axisTilt, autoRotate). Three modes: `'hover'` (only the hovered chart's label shown — default), `'always'` (all labels with limb-fade), `'occlusion'` (visible hemisphere only).
-  - **Module:** `data-layers/charts/` split into `anchors / bars-builder / pie-builder / charts-layer / labels-overlay`.
-  - **Demo:** `examples/vanilla-demo/charts.html` — 4 datasets (G7 energy mix, population age brackets, quarterly sales, renewables-% KPI for gauge), full HUD (chart type / dataset / size / height / inner radius / pad angle / labels mode / easing / duration / stagger / segment stagger), floating tooltip on hover, click logs payload to console.
-  - **TODO / potencjał:** per-bar value labels (today: only entry-level label), arbitrary-depth sunburst (today: 2-level), link arcs between chart anchors when sharing a series key, declarative "highlight series" (dim everything except chosen key), port to dotted/hologram kinds (additive glow / scanline variants), 3D extrusion on pie segments (currently flat).
-- **Pulse / halo na markerach** `[v1·LAYER·S]` — emphasizing data points.
-- **Color scale builder** `[v1·LAYER·S·built]` 🌟 — wspólny dla wszystkich data-layerów (choropleth/bars/extruded/heatmap). `{ type: 'sequential' \| 'diverging' \| 'threshold' \| 'categorical', palette, domain?, noDataColor? }`. Built-in palety: `blues / reds / greens / oranges / purples / viridis / magma / plasma / inferno / RdBu / BrBG / PiYG`, plus własna lista hex-stops. Linear-RGB interpolation między stopami; explicit `color` na entry zawsze wygrywa nad skalą; `domain` defaultuje do data extent.
-- **Legend HUD** `[v1·LAYER·S·built]` 🌟 — `globe.showLegend(scale, { title?, format?, tickCount?, position?, width?, style? })` / `globe.hideLegend()`. Auto-renders gradient bar + ticks dla sequential / diverging, swatch list dla threshold (z labelkami `< t0`, `t0 – t1`, `≥ tN`) i categorical. Tokens: `legend.backgroundColor / textColor / titleColor / fontSize / fontFamily / padding / borderRadius`. Przyklejony do containera globusa (4 pozycje), pointer-events disabled (nie blokuje interakcji). Standalone `createLegend({ container, scale, ... })` dla custom umieszczenia.
-- **Polygon overlay (custom area)** `[v1.x·LAYER·M]` — własne wielokąty (np. strefy ekonomiczne).
-- **Iso-lines / contours** `[v2+·LAYER·L]` — np. linie temperatury.
+Arcs connect coordinate pairs and remain independent of marker ids. They support
+color, width, opacity, solid or dashed styling, fixed or distance-based height,
+and animated heads with duration and easing. Removing a marker does not remove an
+arc. Application-level routing, multi-stop itineraries and travel times belong to
+the host. Cinematic route networks are a separate decorative facility (§3.7).
 
-### 4.7 Labels & overlays
+### 4.6 Data visualization
 
-- **Country name labels** `[v1·LAYER·M·built]` 🌟 — `globe.setCountryLabelsEnabled(true)` + `globe.setCountryLabels({ '276': 'Niemcy' })` lub config `{ countryLabels: { enabled: true, labels?, minScreenSize? } }`. HTML overlays na centroid (przez `boundsCenter` z polar-cap heuristic), occlusion fade na drugiej stronie globusa, smoothstep fade-by-zoom (małe kraje znikają przy oddaleniu — próg `minScreenSize` w pikselach, default 60). Tokens: `countries.label.color / fontSize / fontFamily / fontWeight / textShadow`. `pointer-events: none` żeby nie blokować klików.
-- **Marker labels** `[v1·LAYER·S]` — tooltip lub permanent.
-- **HTML popup** `[v1·LAYER·M]` — anchored to lat/lng, portal w React/Angular/Vue.
-- **Leader-line overlays** `[v1.x·LAYER·M]` — annotation lines z label box.
-- **Custom 3D text on globe** `[v1.x·LAYER·M]` — text geometry leżący na powierzchni.
-- **Auto-fade by zoom level** `[v1·LAYER·S]` — labels uchodzą/pojawiają się.
-- **Collision detection / declutter** `[v1.x·LAYER·M]` — hide overlapping labels.
-- **Locale-aware country names** `[v1·GLOBAL·M]` — bundled (EN/PL/DE/FR/ES/JA/ZH) + customizable.
+The six data-layer variants are choropleth, bars, extruded countries, heatmap,
+hexbin and charts. One data layer is active per globe, alongside independent
+markers, arcs, labels and Cinematic data. Section 5c covers the support matrix,
+scales, lifecycle and interaction limits.
 
-### 4.8 Story / narrative engine 🌟
+### 4.7 Country labels and tooltips
 
-> Killer feature. Większość bibliotek tego nie ma. Szczególnie wartościowe dla `C·edu` i `A·marketing`.
+Country labels are DOM overlays at country centroids, disabled by default.
+`countryLabels` controls visibility, typography, custom names and minimum apparent
+country size (default 60 screen pixels). Labels fade with occlusion and size;
+`setCountryLabels()` replaces custom names. Built-in names come from the source
+geometry. Marker labels also provide hover tooltip content.
 
-- **Scene definition (declarative)** `[v1·GLOBAL·M·built]` 🌟 — `globe.setStory({ scenes: [{ id, duration, transitionDuration?, transitionDelay?, transitionElevation?, easing?, autoRotate?, flyTo?, focusOnCountry?, activeCountry?, popup? }] })`.
-- **Auto-playback** `[v1·GLOBAL·M·built]` — `autoPlay`, `loop`, `startAt: sceneId`.
-- **Manual controls** `[v1·GLOBAL·S·built]` — `playStory()`, `pauseStory()`, `nextScene()`, `prevScene()`, `goToScene(id)`, `getCurrentScene()`, `isStoryPlaying()`.
-- **Scene events** `[v1·EVENT·S·built]` — `sceneEnter`, `sceneExit`, `storyComplete` z payload `{ scene, index }`.
-- **Easing per transition** `[v1·GLOBAL·S·built]` — `scene.easing: EasingFunction | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut'` (CSS-like).
-- **Transition arc + delay + autoRotate per scene** `[v1·GLOBAL·S·built]` — `transitionElevation` (cinematic fly-over arc), `transitionDelay` (popup-first then move), per-scene `autoRotate` toggle, `focusOnCountry` z opcjonalnym `padding` override.
-- **Highlight stack** `[v1·GLOBAL·S]` — kraje/markery pokolorowane per scena, smooth restore (single active country wired; multi-highlight stack to do separately).
-- **Scrollytelling hook** `[v2+·GLOBAL·M]` — sceny powiązane z scroll position (intersection observer).
-- **Branching scenes** `[v2+·GLOBAL·L]` — `scene.branches: [{ if, goTo }]` — interaktywne narracje (great for `F·gry`).
-- **Audio narration sync** `[v2+·GLOBAL·M]` — sync popup texts z audio track.
-- **Scene editor / WYSIWYG** `[stretch·XL]` — visual builder w devtools.
+### 4.8 Story / narrative engine
 
-### 4.9 Animation system
+`setStory()` accepts ordered scenes with unique ids and durations. Each scene may
+move the camera, set an active country, change auto-rotation and show an anchored
+HTML popup. Camera movement supports delay, duration, elevation and easing;
+`focusOnCountry` takes precedence over `flyTo` when both are supplied. Use `flyTo`
+on Wireframe. Scene duration includes transition delay and camera movement.
 
-- **Easing primitives** `[v1·GLOBAL·S·partially-built]` — `utils/easing.ts` ma `linear / easeIn / easeOut / easeInOut` + `resolveEasing()` (używane przez story engine i flyTo). Heatmap-specific biblioteka 33 krzywych (CSS keyword cubic-bezier + pełen Penner: `quad/cubic/quart/quint/sine/expo/circ/back/elastic/bounce` × `in/out/in-out`) leży w `data-layers/heatmap/animation.ts` — kandydat na promocję do globalnego `utils/easings.ts` jak inne layery zaczną tego potrzebować.
-- **Heatmap mount animation** `[v1·LAYER·M·built]` 🌟 — `HeatmapDataLayer.animation: { style: 'rise'|'pop'|'fade', duration, delay, stagger, easing, trigger: 'init'|'manual' }`. Domeny "wyrastają z wnętrza globu" przy `setData()`; per-warstwa LUB per-rekord (`HeatmapDataEntry.animation`). Shader-side easing przez 1D LUT (256 sampli), per-pixel delay map (Float32 R, alokowana lazy gdy `stagger > 0` lub jakikolwiek entry ma `delay`). `HeatmapLayer.tick(deltaSec)` wpięte w `kindHandle.update()` → globe `onRender` loop. `playAnimation()` publiczny hook reset'uje timeline. Patrz §4.6 po pełną listę pól.
-- **Bars / extruded mount animation** `[v1·LAYER·S·built]` — `animateOnMount: 'rise' | 'none'` + `mountDurationMs`. Bars: `easeOutCubic` od `height=0`. Extruded: per-vertex `directions` array push'uje tylko elevated set outward.
-- **Tween manager** `[v1·GLOBAL·S]` — per-instance, cancellable, chainable.
-- **Style transition animation** `[v1.x·GLOBAL·L]` — animowana zmiana z stylu A → B (cross-fade albo morph).
-- **Marker pulse animation** `[v1·LAYER·S]` — opisana w 4.4.
-- **Auto-rotate z custom osią** `[v1·GLOBAL·S]` — np. obrót wokół pochylonej osi (efekt globusa szkolnego).
-- **Reduced-motion support** `[v1·GLOBAL·S]` — respect `prefers-reduced-motion`; skipping animacji + animation timeline'y skacze do końcowego stanu.
-- **Frame-budget primitives** `[v1·GLOBAL·S]` — `requestIdleCallback`-style queue, żeby nie psuć FPS.
+Playback supports autoplay, looping, an initial `startAt` id, play/pause,
+next/previous and jumping by scene id. `startAt` enters immediately even without
+autoplay. An omitted active country inherits the previous scene's state; `null`
+clears it. Popups are removed on scene exit.
 
-### 4.9.1 Data-layer lifecycle hooks (planned) 🌟
+`sceneEnter`, `sceneExit` and `storyComplete` expose timeline events. A completed
+non-looping story keeps its last scene available to `getCurrentScene()`; repeated
+`nextScene()` calls do not repeat completion. `playStory()` after completion
+restarts at scene zero. Completion handlers may start another story or replay.
 
-> **Cel:** spiąć animation system z story enginem (§4.8) tak, żeby `scene.focusOnCountry: 'PL'` mógł odpalać per-country bloom na heatmapie (`onEnter`) i fade'ować przy wyjściu (`onLeave`), bez wiedzy story-engine'u o specyfice każdego data layera.
->
-> **Inspiracja:** Angularowy lifecycle (`ngOnInit / ngOnDestroy / ngOnChanges`) — deklaratywne hooki na konkretnych momentach flow'u globe'a, każdy data layer może je opcjonalnie zaimplementować.
+`pauseStory()` stops automatic scene advancement. It does not stop camera motion
+or a scheduled transition; resuming starts a fresh full-duration scene timer.
+Rendering pauses and story scheduling are independent. There is no automatic
+story-to-data-layer bridge; hosts can use scene events to update a data layer.
 
-- **Lifecycle interface** `[v1.x·LAYER·M]` 🚀 *future* — rozszerzyć `DataLayerHandle` o:
-  ```ts
-  interface DataLayerHandle {
-    onMount?(ctx: LayerContext): void;          // raz, po build (dziś = constructor)
-    onEnter?(ctx: LayerContext, target?: { id: string }): void;  // story focus enter
-    onLeave?(ctx: LayerContext, target?: { id: string }): void;  // story focus leave
-    onSceneChange?(ctx: LayerContext, scene: Scene): void;  // dowolna zmiana sceny
-    onDispose?(ctx: LayerContext): void;        // przed teardown
-  }
-  ```
-  Każdy hook może zwrócić `{ playUntil: number }` żeby story engine poczekał na zakończenie animacji przed `transitionDelay`. Domyślne implementacje są no-op'em.
-- **Heatmap.playAnimation({ trigger, target })** `[v1.x·LAYER·M]` 🚀 — dziś `playAnimation()` resetuje całą warstwę. Future: `target.id` przerysuje delay map maskując tylko piksele wskazanego kraju (reszta zostaje w `t=1`), `trigger: 'leave'` puszcza animację w odwrotną stronę (alpha + displacement od 1→0).
-- **Story → heatmap bridge** `[v1.x·GLOBAL·M]` 🚀 — w `setStory()` payload sceny może zawierać `dataLayer: { animation: HeatmapAnimationConfig }` override'ujący globalny config przy wejściu do sceny. Story engine wywoła `handle.onEnter(ctx, { id: scene.focusOnCountry })` po flyTo settle.
-- **Reverse / chained animations** `[v2+·LAYER·M]` 🚀 — `animation.chain: [{ at: 0.5, animation: {...} }]` — sekwencjonowanie wielu pulsów / kolorów na timeline.
-- **Loop / heartbeat mode** `[v2+·LAYER·S]` 🚀 — `animation.style: 'pulse'` z `period` zamiast `duration`; pulsuje wartość w zakresie `[shoulder, peak]` w nieskończoność (dobre do live-data flagging'u: każdy nowy earthquake "tętni" przez kilka sekund).
+### 4.9 Animation and timing
 
-### 4.10 Backgrounds & sky
+Camera easing, marker pulses, arc heads, focus pulses and per-kind shader effects
+are implemented. Bars and extruded countries can animate on construction.
+Heatmap, hexbin and chart animation is opt-in and supports replay through
+`playDataLayerAnimation()` when the current handle implements it. Each layer has
+its own animation options; there is no universal animation controller or global
+reduced-motion policy.
 
-- **Solid color background** `[v1·GLOBAL·S·built]`.
-- **Linear/radial gradient background** `[v1·GLOBAL·S]` — z konfigurowalnymi stops.
-- **Custom image background** `[v1.x·GLOBAL·S]` — `cover`, `contain`, `tile`.
-- **Procedural starfield** `[v1·GLOBAL·M·built]` — twinkling stars w 3D, gęstość/kolor konfigurowalne;
-  kind cinematic ma własną wersję z rozkładem jasności i klasami barwnymi gwiazd.
-- **Milky Way band** `[v1·GLOBAL·S·built]` — proceduralny pas (`starfield.milkyWay`) w kindzie
-  cinematic; bundled HDR skybox nadal `[v1.x]`.
-- **Custom skybox / equirectangular** `[v1.x·GLOBAL·S]` — user image.
-- **Day/night terminator** `[v1·STYLE·M·built]` — w kindzie cinematic: `cinematic.sun` z trybami
-  `fixed` / `realtime` (punkt podsłoneczny z daty) / `orbit` (time-lapse); inne kindy `[v2+]`.
-- **Sun glare / lens flare** `[v1·STYLE·S·built]` — tarcza słońca cinematic + bloom/streak z
-  post-processingu; generyczny lens flare dla innych kindów `[v2+]`.
+### 4.10 Atmosphere, stars and post-processing
 
-### 4.11 Time & data binding
+Atmosphere is enabled unless explicitly disabled. Starfields require explicit
+enabling. Their appearance follows the kind and tokens. Focus pulses have common
+controls for enabling, origin and optional feedback on otherwise empty surface
+clicks, with per-kind rendering.
 
-- **Real-time data subscription** `[v1.x·LAYER·M]` — `markers: observable<MarkerConfig[]>`; push-based updates.
-- **Time slider component** `[v1.x·LAYER·L]` — wbudowany scrubber HUD.
-- **Time-keyframed data** `[v1.x·LAYER·M]` — markers/heat/arcs zmieniają się w czasie.
-- **Data update animations** `[v1.x·LAYER·M]` — smooth transitions na zmianę danych.
-- **Replay / playback speed** `[v1.x·GLOBAL·S]` — `0.5x`, `2x`, `step`.
-- **Event-driven updates** `[v1·LAYER·S]` — imperative API (`addMarker`, `removeMarker`).
+Post-processing is available to every kind, enabled by default only for Cinematic.
+It combines offscreen rendering, bloom, anamorphic streaks, vignette, chromatic
+aberration, grain, exposure and highlight roll-off. It adds render-target memory
+and GPU work; a failed post-processing setup falls back to direct rendering.
 
-### 4.12 Performance
+### 4.11 Updating data and time
 
-- **InstancedMesh markers** `[v1·LAYER·S·built]`.
-- **Adaptive quality (auto-downgrade)** `[v1·GLOBAL·M·partially-built]` — auto-FPS measurement
-  (pixel ratio); kind cinematic dodatkowo `quality: 'auto'` = tiery ultra/high/balanced po
-  zmierzonym FPS (mniej oktaw noise, bloom w połowie rozdzielczości, cienie chmur off).
-- **Post-processing pipeline** `[v1·GLOBAL·M·built]` — `GlobeConfig.postprocessing`: HDR target,
-  bloom, anamorficzny streak, aberracja, winieta, ziarno, ekspozycja; domyślnie on tylko dla
-  cinematic, fail-closed do bezpośredniego renderu.
-- **Pixel-ratio cap** `[v1·GLOBAL·S·built]`.
-- **Shared frame scheduler + pausing** `[v1·GLOBAL·M·built]` — jeden `requestAnimationFrame`
-  dla wszystkich instancji na stronie (`performance.maxFps` per instancja), pauza poza
-  viewportem i w ukrytej karcie (`performance.pauseWhenHidden`, default on) oraz ręczna pauza
-  `globe.setPaused(true|false)` — instancja trzyma scenę i kontekst WebGL, ale nie kosztuje
-  klatek (globusy „na ciepło” za cross-fade'em, nieaktywne zakładki).
-- **User Timing marks** `[v1·GLOBAL·S·built]` — `performance.measure` dla `globio:construct`
-  (renderer + warstwy), `globio:countries-load`, `globio:kind-build` (synchroniczna budowa kindu
-  po załadowaniu krajów), `globio:shader-compile` i `globio:mount-to-ready`; widoczne w DevTools
-  i przez `performance.getEntriesByType('measure')`.
-  Budowa kindu to jedyny długi task — `countries.resolution: 'low'` skraca ją ~2-3×.
-- **Frustum culling markerów** `[v1·LAYER·M]` — pomocnicze nad InstancedMesh (Three.js sam tego nie umie dla per-instance).
-- **Level-of-detail country borders** `[v1.x·LAYER·M]` — switch low/med/high res w zależności od distance.
-- **Web worker geo parsing** `[v1.x·LAYER·M]` — offload ciężki TopoJSON parse off main thread.
-- **Lazy data loading** `[v1·GLOBAL·S·built]`.
-- **Resource caching across instances** `[v1.x·GLOBAL·M]` — wspólny cache parsed geometry.
-- **Debug performance overlay** `[v1·GLOBAL·S]` — FPS, draw calls, triangle count.
+The host updates data through instance setters or wrapper props. Same-type data
+layers can reuse resources when supported; structural changes may rebuild them.
+There is no observable subscription API, shared time axis, built-in feed client
+or automatic interpolation between arbitrary datasets. Cinematic solar time is a
+lighting feature, not a general data playback engine.
+
+### 4.12 Performance and lifecycle
+
+Globes on a page share a frame scheduler with a per-instance frame-rate ceiling
+(default 60). Renderer defaults include antialiasing, adaptive quality and pixel
+ratio `min(devicePixelRatio, 2)`. Hidden tabs and offscreen globes pause by default.
+`setPaused()` holds the scene and WebGL resources while stopping its frame work;
+frame-driven animation does not catch up the entire hidden wall-clock interval.
+
+Geographic fetch/parse results and triangulated geometry are cached across
+instances. Resize observation follows the container. `destroy()` tears down
+rendering, listeners, layers and overlays. Performance depends on viewport size,
+resolution, effects, overlays and hardware; no fixed marker-count/FPS guarantee
+is part of the API.
+
+User Timing measurements include `globio:construct`, `globio:countries-load`,
+`globio:kind-build`, `globio:shader-compile` and `globio:mount-to-ready`.
+`ready` follows geographic loading, kind construction and shader preparation.
 
 ### 4.13 Accessibility
 
-- **Keyboard navigation** `[v1·GLOBAL·M]` — WASD/strzałki/Tab.
-- **Focus indicators** `[v1·GLOBAL·S]` — visible focus outline na klikalnych elementach.
-- **Reduced-motion support** `[v1·GLOBAL·S]` — auto-pause auto-rotate, skipping animacji.
-- **Screen reader announcements** `[v1.x·GLOBAL·M]` — ARIA live regions na hover/select.
-- **High-contrast theme variant** `[v1.x·GLOBAL·S]` — built-in WCAG AA-compliant preset.
-- **Color-blind safe palettes** `[v1.x·GLOBAL·S]` — opisane w 4.1.
-- **Alt-text dla snapshot eksportu** `[v1.x·GLOBAL·S]`.
-- **Touch target size compliance** `[v1·GLOBAL·S]` — markery min 44px hit-zone na mobile.
+The host currently provides accessible controls, meaningful labels, textual or
+tabular data alternatives and motion preferences. The core has no keyboard country
+selection, screen-reader announcements or centralized reduced-motion setting.
+No preset is advertised as an audited contrast or color-vision accessibility
+solution. DOM overlays can participate in the host's accessible interface.
 
-### 4.14 Export / embed
+### 4.14 Export and projection
 
-- **PNG snapshot** `[v1·GLOBAL·S]` — `globe.toImage({ width, height })`.
-- **High-resolution snapshot (4K/8K)** `[v1.x·GLOBAL·S]` — temporary upscale renderera.
-- **State serialization (URL hash)** `[v1.x·GLOBAL·M]` — share specific view (camera, scena, filtry).
-- **Embed iframe wrapper** `[v1.x·GLOBAL·S]` — `<iframe src="https://...">`-friendly distribution.
-- **Static SSR snapshot** `[v2+·GLOBAL·L]` — render do PNG na serwerze (Node + headless GL) jako fallback dla SEO.
-- **Video / GIF export** `[v2+·GLOBAL·L]` — record N seconds, dump WebM lub frames.
-- **Print-friendly mode** `[v2+·GLOBAL·S]` — wysoka kontrastowość, zminimalizowane efekty.
+`toImage()` returns a PNG of the WebGL canvas. Optional custom dimensions must
+provide both positive finite `width` and `height`; these are renderer CSS dimensions
+and the current pixel ratio affects output pixels. The renderer size and camera
+aspect are restored afterward. HTML markers, labels, tooltips and legends are not
+included. External textures remain subject to browser CORS rules.
 
-### 4.15 i18n
+`project()` converts a coordinate to canvas-relative pixels, accounting for camera
+position and axis tilt, and returns `null` for hidden or clipped points. It can
+help the host position its own overlays. Server snapshots, video export and
+shareable URL state are not implemented.
 
-- **Locale-aware country names** `[v1·GLOBAL·M]` — bundled core (EN), opt-in dla pozostałych.
-- **Custom labels per locale** `[v1·LAYER·S]` — user może podać swoje tłumaczenia.
-- **RTL layout dla HTML overlays** `[v1.x·LAYER·S]` — dla popup/legend w arabskim/hebrajskim.
-- **Date/number formatting w popups** `[v1.x·LAYER·S]` — `Intl` based.
-- **Pluralizacja** `[v1.x·LAYER·S]`.
+### 4.15 Localization
 
-### 4.16 Plugin / extension API 🌟
+Custom country-label maps and host-provided marker or popup content can be
+localized. Legends accept formatting callbacks. Core does not bundle a locale
+catalog, translation service or general date/number formatting layer.
 
-> Otwartość architektury — każdy może dopisać własny styl, layer, marker.
+### 4.16 Extension points
 
-- **Custom layer registration** `[v1.x·GLOBAL·L]` 🌟 — implement `Layer` interface, add to globe.
-- **Custom marker type** `[v1.x·GLOBAL·M]` — register reusable visual marker definition.
-- **Theme plugin** `[v1.x·GLOBAL·S]` — publish themes jako separate npm packages (`@globio-themes/sunrise`).
-- **Event middleware** `[v1.x·GLOBAL·M]` — intercept events przed propagacją (np. analytics hooks).
-- **Custom shader hook** `[v2+·STYLE·L]` — inject GLSL do pipeline.
-- **Custom data adapter** `[v1.x·LAYER·M]` — plugin do load custom GeoJSON sources.
+Public extension points include custom theme registration, typed instance events,
+HTML marker factories and data/configuration setters. Kind constructors and layer
+decorations are internal architecture, not a supported public plugin-registration
+API. Section 5b separates the current mechanism from future decoration ideas.
 
 ### 4.17 Framework integrations
 
-- **Vanilla TS API** `[v1·INSTANCE·M·built]` — `createGlobe()` factory.
-- **React wrapper** `[v1·INSTANCE·M·skeleton]` — `<Globe>`, hooks, context, ref imperatives.
-- **Angular wrapper** `[v1·INSTANCE·M·skeleton]` — standalone component, OnPush, `runOutsideAngular`.
-- **Vue wrapper** `[v1·INSTANCE·M·skeleton]` — Composition API, `<VueGlobe>`.
-- **SSR safety** `[v1·INSTANCE·S]` — graceful no-op podczas SSR (Next/Nuxt/Angular Universal).
-- **Hot-reload-safe** `[v1·INSTANCE·M]` — clean teardown na unmount, no leaks.
-- **TypeScript strict types end-to-end** `[v1·INSTANCE·S·built]`.
-- **Svelte wrapper** `[v2+·INSTANCE·M]` — gdy będzie popyt.
-- **Web Component wrapper** `[v2+·INSTANCE·M]` — `<globio-globe>` framework-agnostic.
+Vanilla uses `createGlobe()`. React, Vue and Angular expose typed configuration
+props, forward all ten core events and provide `getInstance()`. React uses callback
+props and a ref handle; Vue exposes the instance through its component ref; Angular
+uses a standalone OnPush component with rendering outside Angular's zone. Angular
+names the core error output `globeError`.
 
-### 4.18 Dev experience
+Wrappers create the renderer at browser mount and destroy it on unmount. Direct
+`createGlobe()` requires browser APIs. A ref can return `null` before mount;
+`ready` signals completion of asynchronous setup. Construction-setting changes
+require remounting, because wrapper prop updates forward to `update()` rather than
+recreating the globe. Wrapper error-boundary UI and server snapshots are absent.
 
-- **Debug overlay** `[v1·GLOBAL·S]` — FPS, draw calls, scene tree.
-- **Verbose logger toggle** `[v1·GLOBAL·S]` — `debug: true` → console events.
-- **Type-safe events** `[v1·INSTANCE·S·built]` — `ready` odpala się dopiero po załadowaniu krajów,
-  zbudowaniu kindu i skompilowaniu shaderów (host może wtedy bezpiecznie zrobić cross-fade).
-- **Source maps + DTS** `[v1·INSTANCE·S·built]`.
-- **Error boundary** `[v1·INSTANCE·S]` — graceful runtime fallback w wrapperach.
-- **Scene inspector** `[v1.x·GLOBAL·M]` — live list layers/markers, toggle visibility.
-- **Storybook integration** `[v1.x·INSTANCE·M]` — gotowe stories per styl + per use-case.
-- **Playground / sandbox** `[v1.x·GLOBAL·M]` — embedded codepen-like na docs site.
-- **Headless test mode** `[v1.x·GLOBAL·M]` — `headless: true` skips render dla unit testów.
+### 4.18 Developer experience
 
----
+The monorepo includes core and wrapper packages, TypeScript declarations, tests,
+a demo landing page, Studio and a searchable documentation site. Docs include
+source-generated configuration, method, event and type references, live examples
+and recipes. Shared runnable snippets are checked against the public types.
+
+Studio provides kind/theme selection, grouped controls, help linked to docs,
+data-layer configuration, local presets and code/config export. Its controls do
+not expose every core field. JSON export contains globe configuration and a
+separate data-layer value; functions cannot be serialized. A custom theme name
+requires matching registration or token data in the consuming application. Studio
+has no JSON-import or shared-URL workflow.
 
 ## 5. Configuration scope cheat-sheet
 
-Co się gdzie konfiguruje. Kolumny = scope, wiersze = rodzaj opcji.
-
-| Klucz w configu | GLOBAL | STYLE | LAYER | EVENT | INSTANCE |
-|---|:-:|:-:|:-:|:-:|:-:|
-| `theme.tokens.*` (kolory, gradienty) | ✅ | inherits | inherits | — | — |
-| `style: 'outline' \| 'dotted' \| ...` | ✅ | — | — | — | — |
-| `mode: 'sphere' \| 'flat'` *(future)* | ✅ | — | — | — | — |
-| `countries.*` (style granic) | ✅ | overrides | — | hover-state | — |
-| `countriesData[ISO].*` (per-country fill) | — | — | ✅ | — | — |
-| `markers[i].*` (per marker) | — | — | ✅ | — | — |
-| `arcs[i].*` (per arc) | — | — | ✅ | — | — |
-| `scenes[i].*` (narrative engine) | ✅ | — | — | per-scene | — |
-| `autoRotate.*` | ✅ | — | — | — | — |
-| `atmosphere.*` | ✅ | overrides | — | — | — |
-| `cinematic.*` (surface / clouds / sun / aurora / textures / …) | — | ✅ | — | — | — |
-| `postprocessing.*` (bloom, streak, grade) | ✅ | default per kind | — | — | — |
-| `background.*` | ✅ | overrides | — | — | — |
-| `performance.*` | ✅ | — | — | — | — |
-| `accessibility.*` | ✅ | — | — | — | — |
-| `i18n.locale` | ✅ | — | — | — | — |
-| `i18n.countryNames` | ✅ | — | — | — | — |
-| `events.*` callbacks | — | — | — | ✅ | — |
-| Framework wrapper props | — | — | — | — | ✅ |
-
-**Reguła kciuka:** Jeśli opcja zmienia się od stylu (kolor granic, gęstość kropek) → `STYLE`.
-Jeśli per warstwa danych → `LAYER`. Jeśli reaguje na akcję → `EVENT`. Jeśli całe ustawienie ma sens
-raz na cały globus → `GLOBAL`. Wrappery frameworkowe = `INSTANCE`.
-
----
-
-## 5b. Decoration pattern roadmap 🌟
-
-Niektóre featury są **shared semantically** (każdy rodzaj globu je MA), ale ich **wygląd / animacja / styl** powinny żyć **per rodzaj globu** — outline'owy arc świeci złotem, hologramowy migocze cyanem ze scanlinem, paperowy jest ledwo widocznym tuszem na pergaminie. Rozwiązaniem jest **decoration pattern**: kind module deklaruje opcjonalne `decorations: { focusPulse?, arcs?, markers?, … }`, które nadpisują domyślne shared rendery konkretnym stylem dla aktywnego kindu. Presety nadal sterują tokenami; decorations sterują strukturą rendering pipeline.
-
-**Kandydaci do migracji** (od najpilniejszych do najmniej):
-
-| Feature | Status dziś | Wariacje per kind (pomysły) |
+| Scope | Configuration or API | Update behavior |
 |---|---|---|
-| **Focus pulse** | shipped via decorations (5 kindów) | outline: spherical band gold; dotted: cyan band + dot brightness wave; wireframe: cyan band + grid pulse propagation; paper: warm-ink band fading slowly; hologram: cyan band + scanline rim sync |
-| **Animated arcs** | shared `ArcsLayer`, tylko tokeny | wireframe: arc as glitching scanline; hologram: dashed cyan with glitch transient on segments; paper: hand-drawn dashed ink trail; dotted: arc-as-flowing-particles; outline: existing |
-| **Country borders on hover** | shared `SelectionLayer` + tokens | paper: ink-bleed thicker edge; hologram: cyan edge glow + scanline overlay; dotted: edge-ring of brighter dots; wireframe: pulse along grid towards country |
-| **Country active/click state** | shared `CountryActiveLayer` (separate) | wireframe: spinning geodesic ring (already shipped as kind-extra); paper: stamped ink seal; hologram: rotating bracket targeting reticle; dotted: persistent dot brightness |
-| **Markers (instanced dots)** | shared `MarkersLayer` | paper: stamped ink dots with slight rotation; hologram: cyan diamond with halo; wireframe: small intersection cross; dotted: integrated with existing dot grid |
-| **HTML overlay markers** | shared `HtmlMarkersLayer` | paper: serif label box on cream background; hologram: bracketed terminal label "[ Tokyo ]"; wireframe: monospace coords + bracket frame; dotted: rounded soft pill |
-| **Country labels on globe** | shared `LabelsLayer` | paper: serif italic, atlas-style; hologram: monospace cyan with bracket prefix; wireframe: monospace cyan; dotted: clean sans; outline: existing |
-| **Starfield background** | shared `StarfieldLayer` | hologram: scanline dim across stars; paper: faint pencil-dot constellation lines; wireframe: brighter cyan stars; dotted: more density; outline: existing |
-| **Tooltip / legend** | shared DOM, theme-driven | paper: parchment-style border + serif; hologram: terminal-style frame; wireframe: ASCII-bracket frame + monospace |
-| **Hover crosshair + cursor readout** | outline-only today (`HoverCrosshairLayer` — 3D reticle on surface + DOM label with lat/lng + country name following cursor) | outline: existing minimal cyan reticle; wireframe: monospace `[ 47.50°N, 12.34°E ]` + bracketed crosshair; hologram: bracketed terminal label `[ TARGET → POL ]` + scanline-tinted reticle; paper: pencil-tick on parchment + cursive serif coords (`47.5°N · 12.3°E`); dotted: ring of brighter dots around cursor + soft rounded pill label |
-| **Atmosphere outer glow** | shared `AtmosphereLayer` | per-kind already partially — but could become a decorator with custom shaders (paper: vignette; hologram: scanline-cut halo) |
-| **Click feedback on water** | not shipped yet | tied to focus-pulse `pulseOnSurfaceClick` option; per-kind variant naturally inherits style from above |
+| Construction | Kind, theme, country resolution, axis tilt, initial position, framing, zoom limits, transparency and renderer/performance options | Create a new instance to apply changes reliably |
+| Shared visual layers | Country styles, atmosphere, markers, arcs, labels and supported post-processing fields | Use documented setters or supported `update()` fields |
+| Kind appearance | `outline`, `dotted`, `wireframe`, `paper`, `hologram`, `cinematic` | Read by the selected kind; structural options may need a rebuild |
+| Country data | `countryData`, `setCountryData(map, scale?)` | Selects choropleth; map entries are objects with value/color/opacity |
+| Data layer | `setDataLayer(config)` | One slot; reusable handles update in place, structural changes rebuild |
+| Cinematic data | `setCinematicData(dataset)` | Independent city-light/network dataset |
+| Camera and playback | Camera setters, auto-rotation and story methods | Imperative runtime controls |
+| Application behavior | `on()`/`off()` and wrapper event handlers | Host-owned listeners and state |
 
-**Mechanika:** każdy decorator to mała klasa z `dispose / update? / spawn?` (depending on the feature). Kind module wystawia je przez `KindHandle.decorations`. Globe.ts dispatcher kieruje wywołania (`onCountryFocus → decorations.focusPulse.spawn`, etc.) do aktywnego kindu. Kindy które nie mają decoratora dla danego feature'a fall-backują do shared default lub po prostu nie reagują.
+There is no top-level `scale` configuration field. `mode: 'flat'` is declared but
+currently still renders a sphere. `update()` merging a field into stored config
+does not imply that every construction setting is reapplied to rendering.
 
-**Order of work:** focus-pulse jako pierwszy ✅ (shipped). Następne: arcs (high-impact wizualnie + już często widoczne w demach), potem country hover/active borders, potem markers, html overlay, country labels, starfield, tooltip/legend.
+## 5b. Decoration pattern roadmap
 
----
+The current internal kind contract combines a constructor registry for shared
+layers with optional `focusPulse` and `dataLayers` decorations. Focus pulses have
+per-kind implementations; data-layer builders define the matrix below. Kind-local
+classes also style shared markers, arcs, labels, atmosphere and selection.
+A registered class does not mean its layer is mounted: Wireframe and Hologram do
+not mount their registered country-fill classes.
 
-## 5c. Data layers 🌟
+Further decorator interfaces for arcs, markers, hover borders, HTML overlays,
+labels and starfields remain architectural ideas. Possible visual directions
+include ink trails for Paper, particle arcs for Dotted and scanning highlights for
+Hologram. Existing effects described in section 3 do not imply that these proposed
+interfaces are public or implemented. Any future generalization should preserve
+common interaction semantics and explicit per-kind support.
 
-> **Architektura.** "Data layer" to wysokopoziomowa wizualizacja danych nakładana na **dowolny kind** (outline, dotted, …). Użytkownik aktywuje **jeden** data layer na raz przez `globe.setDataLayer(config | null)`; aktywny kind decyduje **jak** ten layer się rysuje, przez per-kind dekoratory zarejestrowane w `KindHandle.decorations.dataLayers`. Dzięki temu **te same dane** wyglądają inaczej w outline (solidne) vs dotted (additive glow) vs (przyszłość) hologram (cyan + scanline) bez dotykania kodu konsumenta.
->
-> Patrz też §5b "Decoration pattern roadmap" — to ten sam pattern, ale dla featurów semantycznych (focus pulse, hover crosshair) zamiast danych.
+## 5c. Data layers
 
-### 5c.1 Public API
+### 5c.1 Lifecycle and country data
 
-```ts
-globe.setDataLayer({ type: 'choropleth' | 'bars' | 'extruded' | 'heatmap', ... });
-globe.setDataLayer(null);          // teardown — disposes the previous handle
-globe.getDataLayer();              // current config | null
+`setDataLayer()` installs a supported layer or replaces the active slot. Calls made
+before geographic loading completes queue the latest request. Passing `null`
+clears the installed layer and any queued request. An unsupported type removes
+the old layer and warns; `getDataLayer()` returns `null` when nothing is installed,
+including while an initial request is pending.
 
-// Backward-compatible shortcut for the most common case:
-globe.setCountryData({ '616': { value: 38, color: '#1e6fff' } }); // routes to setDataLayer({ type: 'choropleth', data })
-```
+Same-type updates can use the handle's `setData()` path when structural settings
+permit it. Texture resolution, mesh construction and other structural fields can
+require rebuilding. Independent markers, arcs, HTML overlays and Cinematic data
+can remain visible alongside the slot.
 
-Konfiguracje per-typ są w `data-layers/types.ts` (`ChoroplethDataLayer`, `BarsDataLayer`, `ExtrudedDataLayer`, `HeatmapDataLayer`). Pojedynczy slot — kolejne `setDataLayer(...)` tear-down'uje poprzedni handle i buduje nowy.
+`setCountryData(map, scale?)` normalizes ids, stores country data and selects the
+choropleth slot, replacing any other active data-layer type. Each entry is an
+object with optional numeric `value`, `color` and `opacity`; explicit color wins
+over the scale. `setCountryData(null)` clears that data and removes an active or
+queued choropleth while preserving another data-layer type. Countries absent from
+a data map are hidden in data fill mode. Fill visibility can fade, but color
+updates do not perform an automatic color tween.
 
-### 5c.2 Per-kind matrix (Phase 1–4 deliverables)
+### 5c.2 Support matrix
 
-| Data layer | outline | dotted | wireframe | paper | hologram |
-|---|:---:|:---:|:---:|:---:|:---:|
-| **choropleth** | ✅ solid fill | — | — *(no surface)* | future *(stamped ink)* | future *(scanline tint)* |
-| **bars** | ✅ solid cylinders | ✅ additive glow | future *(monospace tower)* | future *(ink stack stamps)* | future *(cyan beam + scanline)* |
-| **extruded** | ✅ opaque pillars (DoubleSide) | ✅ additive glow pillars | future | future | future |
-| **heatmap** | ✅ opaque displaced sphere | ✅ additive glow displaced sphere | future | future *(pencil shading)* | future *(scanline tint)* |
-| **hexbin** | ✅ vertex-coloured cells | future *(additive cells)* | future *(grid-aligned cells)* | future *(stamped ink cells)* | future *(scanline tint cells)* |
-| **charts** | ✅ solid bars/pies/donuts | future *(additive glow segments)* | future *(wireframe charts)* | future *(stamped ink charts)* | future *(cyan glowing charts)* |
+| Data layer | Outline | Dotted | Cinematic | Wireframe | Hologram | Paper |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| Choropleth | Yes | Yes | Yes | No | No | No |
+| Bars | Yes | Yes | No | No | No | No |
+| Extruded countries | Yes | Yes | No | No | No | No |
+| Heatmap | Yes | Yes | Yes | No | No | No |
+| Hexbin | Yes | No | No | No | No | No |
+| Charts | Yes | No | No | No | No | No |
 
-Brakująca dekoracja per kind = silent no-op (jednorazowy `console.warn` "kind X has no Y decoration"). Konsument nie crash'uje przy zmianie kindu.
+### 5c.3 Scales and legends
 
-### 5c.3 Mechanika dekoratorów
+Sequential scales require a `palette` and use a two-value domain. Diverging scales
+use minimum, midpoint and maximum; the inferred midpoint is the arithmetic
+midrange, not necessarily zero. Threshold scales use ascending cutpoints and one
+more color than cutpoints. Categorical scales map numeric category values to
+colors. Out-of-domain continuous values clamp to endpoint colors; missing-data
+behavior depends on the layer.
 
-Każda dekoracja to fabryka:
+The 12 built-in palettes are `blues`, `reds`, `greens`, `oranges`, `purples`,
+`viridis`, `magma`, `plasma`, `inferno`, `RdBu`, `BrBG` and `PiYG`. Custom continuous
+palettes accept ordered hex color stops.
 
-```ts
-type DataLayerBuilder = (
-  layer: DataLayer,
-  ctx: { globeGroup: Group; features: ReadonlyArray<CountryFeature>; tokens: ResolvedTokens }
-) => DataLayerHandle; // { type, setData?, update?, dispose }
-```
+`showLegend()` adds a theme-styled DOM legend. Standalone
+`createLegend({ container, scale, ...options })` also works without a globe. Legends can
+show gradients or swatches, titles and formatted values. They cannot infer a
+separate dataset's extent: use the same explicit domain for the layer and legend.
 
-Kind module wystawia komplet w `decorations.dataLayers`:
+### 5c.4 Layer behavior
 
-```ts
-return {
-  decorations: {
-    focusPulse,
-    dataLayers: {
-      choropleth: choroplethBuilder,
-      bars: barsBuilder,
-      extruded: extrudedBuilder,
-      heatmap: heatmapBuilder,
-      hexbin: hexbinBuilder,
-      charts: chartsBuilder,
-    },
-  },
-  ...
-};
-```
-
-`globe.ts` w `setDataLayer(layer)`:
-1. Tear-down poprzedniego `state.dataLayer.handle` przez `dispose()`.
-2. Lookup `state.kindHandle.decorations.dataLayers[layer.type]`.
-3. Brak buildera → warn + no-op (zachowujemy poprzednio sclear'owany slot).
-4. Build → `state.dataLayer = { config, handle }`.
-5. Per-frame tick `handle.update?.(delta, elapsedSeconds)` w głównej pętli rendererowej (obok `kindHandle.update`).
-
-`setDataLayer` wywołane **przed** załadowaniem features (czyli przed `kindHandle`) wpada do `pendingDataLayer` — drainowane w `initCountries` po zbudowaniu kindu. Pozwala konsumentowi wystawić dane już w `GlobeConfig` lub od razu po `createGlobe(...)` bez czekania na `ready`.
-
-### 5c.4 Co nie jest data layerem (a mogłoby się wydawać)
-
-Świadome cięcia, żeby utrzymać API klarowne:
-
-- **Markers, HtmlMarkers, Arcs** — to są **layery niezależne od data-layer slot'u**. Można je używać jednocześnie z dowolnym data layerem (np. choropleth + markers + arcs naraz). Patrz §4.4, §4.5, §4.7. To są features zarządzane bezpośrednio przez `setMarkers / setArcs / setHtmlMarkers`, każdy z własnym slotem.
-- **Country labels, focus pulse, hover crosshair** — to są **decorations dekoracyjne** semantyczne (§5b), nie data layery. Inne API (`setCountryLabelsEnabled`, lifecycle hook'i kindu).
-- **Atmosphere, starfield** — to są **global effects** (§4.10). Włączane raz w configu, nie zmieniane runtime per data layer.
-
-Reguła kciuka: **data layer = zbiór wartości z jednym dominującym sposobem wizualizacji, który zmienia look całego globusa**. Jeśli to "punkty na powierzchni które masz dodać do tego co już jest" → markers/arcs.
-
----
-
-## 6. Roadmap
-
-| Wersja | Cel główny | Highlights |
+| Layer | Data and rendering | Important limits |
 |---|---|---|
-| **v0.1** *(now)* | Fundament wizualny | Outline style, vanilla demo, 3 framework skeletons, build pipeline |
-| **v0.2** | Theme tokens | Token system, 1-2 presety per styl, polished outline + dotted styles |
-| **v0.3** | Markery + arcs | Pin/HTML marker, animated arcs, focus-on-country, country labels |
-| **v0.4** | Style #3-#4 | Wireframe + Choropleth, country data binding, hover/click events |
-| **v0.5** | Style #5-#6 | Paper + Hologram, custom shaders pipeline, easings polish |
-| **v0.55** *(in progress)* | Data layers polish | Shader-based heatmap (5 kernels, country domes, grid+contour overlays, animation system with 33 easings + per-pixel delay map), **multi-series charts (7 sub-types: grouped/stacked bars, pie, donut, radial, gauge, sunburst) with per-segment animations + HTML label overlay + click events**, **hex-bin spatial aggregation (icosphere binning, 7 aggregate modes, 5 stagger orders, pulse-style heartbeat animation, hover highlight + cell borders + click events)**, 4 standalone demo pages |
-| **v0.57** *(done 2026-09-07)* | Cinematic realism pass | Kind cinematic (§3.7): HDR post-processing pipeline, relief/biomy/lód/płycizny, chmury z cieniami, atmosfera scattering, słońce fixed/realtime/orbit + tarcza, zorza, Droga Mleczna, opcjonalne tekstury (Earth 2k w demo), presety night/day/dawn/noir, Studio knobs, scanline rasterizer atlasu (9 s → 10 ms) |
-| **v0.6** | Story engine v1 | Declarative scenes, autoplay, manual controls, easings |
-| **v0.65** | Story ↔ data-layer bridge | **Lifecycle hooks** (§4.9.1) na `DataLayerHandle` (`onEnter / onLeave / onSceneChange`), `heatmap.playAnimation({ trigger, target })` z per-country masking, story scene config może override'ować animation per scena |
-| **v0.7** | A11y + i18n | Keyboard nav, reduced-motion (heatmap timeline'y skaczą do końca), locale country names |
-| **v0.8** | Wrappery + SSR | React/Angular/Vue dopracowane, SSR safety, error boundaries |
-| **v0.9** | Docs site | Examples per use-case (A,B,C,D,F), storybook, playground |
-| **v1.0** | **Public release** | All 6 styles, 3 wrappery, narrative engine, a11y, docs, tests |
-| **v1.x** | Sub-divisions, time | Admin-1, time slider, time-keyframed heat, plugin API, region groupings, heatmap heartbeat/pulse mode, smooth data-update crossfade |
-| **v2.0** | Topographic + Neon | Future styles, day/night, video export, Svelte/Web-Component wrappers, scrollytelling, hex-bin agregacja, particle flow over heat field |
-| **stretch** | WYSIWYG, AR/VR | Scene editor, ARView, branching narratives |
+| Choropleth | Country-id map of values or explicit colors, rendered as polygon fills | Dotted colors fill beneath its dots; it does not color the dots themselves |
+| Bars | Numeric entries anchored to country ids or explicit positions, rendered as cylinders | Heights and widths use globe-relative dimensions; position entries need no country id |
+| Extruded countries | Country values raise polygon tops and side walls | Requires loaded country geometry; no arbitrary extruded GeoJSON input |
+| Heatmap | Position/value samples baked into a density texture on a globe mesh | Radius is in radians, default `0.10`; even Gaussian contributions are bounded by that radius |
+| Hexbin | Position samples aggregated into subdivided icosphere cells | Current cells are triangular faces despite the API name |
+| Charts | Per-location series values rendered as compact multiseries graphics | Entries use a country id or explicit position; extruded charts require a country polygon |
 
-**Realistyczny harmonogram dla solo-deva (3-5h/dzień):** v0.5 ~3 mies., v1.0 ~12-15 mies.,
-v2.0 +12 mies. To jest pełna prawda, nie marketing.
+Heatmap supports Gaussian, Epanechnikov, quartic, dome and uniform kernels; peak,
+absolute and logarithmic normalization; response curves; grid and contour overlays;
+zoom scaling; and country-confined domes. Texture resolution and `meshResolution`
+control different allocations. The legacy `subdivisions` field is currently
+ignored. `absoluteMax` controls saturation for absolute normalization.
 
----
+Hexbin supports `sum`, `count`, `mean`, `min`, `max`, `median` and `p90`
+aggregation. Resolution ranges from 0 to 5 (20 to 20,480 faces), default 3 (1,280
+faces). Options control cell inset, empty cells, height, borders and highlighting.
 
-## 6b. Pre-built feature presets (future) 🚀
+Charts support eight variants: `bars-grouped`, `bars-stacked`, `pie`, `donut`,
+`radial`, `gauge`, `sunburst` and `extruded`. Series keys select entry values;
+missing values become zero and negative values are clamped to zero. Styling,
+animation, hover highlighting and DOM labels are configurable; labels can appear
+on hover or remain visible subject to occlusion.
 
-> Specjalizowane "out-of-the-box" presety które pakują kombinacje data layerów + markers + arcs + opinionated tokens jako jedną instalację. Konsument płaci za to convenience, my płacimy za to spójność wizualną.
+### 5c.5 Animation and interaction limits
 
-### 6b.1 World Cities preset `[v1.x·LAYER·M]` 🚀 *future*
+Heatmap, hexbin and charts enable animation only when requested; omitted or false
+`animation` disables it. Their replayable handles support
+`playDataLayerAnimation()`. Bars and extruded countries instead offer construction
+animations. The declared `trigger: 'manual'` option does not currently hold the
+initial animation; it must not be used as a promise of manual-only playback.
 
-- **Co dostarcza:** zestaw ~1000 największych miast jako `MarkerConfig[]` z `size = log(population)`, always-on `HtmlMarker` labels (declutter na zoom-out), opcjonalny `setDataLayer({ type: 'bars' })` dla per-city populacji.
-- **Inspiracja (globe.gl):** "World Cities", "Population Bars".
-- **API kierunek:** `import { worldCitiesPreset } from '@your-globe/core/presets/world-cities'` → `worldCitiesPreset({ minPopulation: 500_000 })` returns the marker config + suggested data layer.
-- **Decyzja:** wbudowany dataset (lazy-loaded JSON, ~50KB), nie hardcoded.
+All six data-layer types declare event fields, but pointer callbacks are currently
+implemented only for hexbin and charts. Hexbin events identify the cell, aggregate
+value and sample count; chart events identify the entry and series segment. Use
+core country events for country interaction on the other supported kinds. There
+are no built-in scene-entry/exit hooks or country-targeted replay for data layers.
 
-### 6b.2 Airline Routes preset `[v1.x·LAYER·L]` 🚀 *future*
+## 6. Planned and unimplemented ideas
 
-- **Co dostarcza:** najpopularniejsze airline routes jako `ArcConfig[]` (animated, particle flow), pakiet airport markerów, opcjonalny live-flight feed via `subscribe()`.
-- **Inspiracja (globe.gl):** "Airline Routes".
-- **API kierunek:** `import { airlineRoutesPreset } from '@your-globe/core/presets/airline-routes'` → `airlineRoutesPreset({ source: 'openflights', topN: 1000 })`.
-- **Decyzja:** opt-in, dataset pobierany z CDN (zbyt duży na bundle).
+The following are design directions, not available features or scheduled releases.
+Earlier version labels and effort estimates have been retired because they mixed
+shipped work with speculative milestones. This section records useful intent
+without proposing callable APIs.
 
-### 6b.3 Earthquakes / Disasters preset `[v2+·LAYER·M]` 🚀 *future*
+| Area | Future work |
+|---|---|
+| Geographic representation | Flat projections, administrative subdivisions, custom geographic sources, adjacency-aware country highlighting |
+| Additional visual kinds | Dedicated topographic, satellite, neon, hollow-earth or map-tile styles; true hexagonal polygon aggregation |
+| Camera | Momentum, keyboard navigation, dedicated pinch/two-finger gestures, arbitrary-region framing, named views and authored paths |
+| Markers and routes | Automatic clustering, image/3D-model markers, configurable hit areas, richer particle flows, multi-stop routes and route gradients |
+| Stories | Multiple simultaneous country highlights, scroll-driven playback, branching, audio synchronization and a scene editor |
+| Data animation | Explicit story/layer lifecycle hooks, targeted country replay, dataset interpolation and a shared time axis |
+| Accessibility | Keyboard country selection, announcements, reduced-motion policy, accessible snapshot descriptions and audited visual presets |
+| Localization | Optional translated country-name catalogs, shared locale formatting and richer RTL overlay support |
+| Performance | Worker-based geographic preparation, camera-dependent country detail, per-marker visibility optimization and a public diagnostic overlay |
+| Export and sharing | URL state, a distributable iframe wrapper, server snapshots, video/GIF recording and print-oriented output |
+| Extensions | Supported public registration for custom kinds, layers, shaders and data adapters |
+| Frameworks and tooling | Svelte/Web Component wrappers, wrapper fallback UI, a public headless test mode and richer interactive authoring tools |
 
-- **Co dostarcza:** ostatnie trzęsienia ziemi (USGS feed) jako pulse markers + heatmap intensywności + time slider scrubber dla replay.
-- **Inspiracja (globe.gl):** "Recent Earthquakes", "Geographic Heatmap".
+These ideas must account for current support limits instead of assuming every kind
+can render every data layer. In particular, a future decoration or plugin system
+must define lifecycle, disposal, interaction and compatibility contracts.
 
-### 6b.4 Solar Terminator + Clock preset `[v2+·GLOBAL·M]` 🚀 *future*
+### 6b. Pre-built feature presets
 
-- **Co dostarcza:** bieżąca pozycja słońca, global day/night shading (§4.10 jako global effect), zegar UTC HUD, rotacja sceny w czasie rzeczywistym.
-- **Inspiracja (globe.gl):** "Day-Night Cycle".
+Potential application presets could package curated data with markers, arcs,
+scale suggestions and theme choices: world cities/population, airline networks,
+disaster monitoring or a solar clock. They are not published preset modules.
+Cinematic's built-in decorative city and route distributions are already available;
+curated application datasets and external-feed integrations would be additional
+work. Hosts currently load and transform those datasets themselves.
 
----
+## 7. Boundaries
 
-## 7. Non-goals & "won't do" (świadome cięcia)
-
-- **2D map projections (Mercator/Albers/...)** — jest `d3-geo` + `topojson`, nie reimplementujemy.
-  *Mode `flat` w typach jest furtką dla minimalistycznego flat-mode w v2+ — nie pełnego GIS.*
-- **GIS-grade precision** — pixele, nie sub-meter. Nie jest to PostGIS w przeglądarce.
-- **Pełny SSR globusa interaktywnego** — tylko static snapshot.
-- **Wbudowany geocoder / reverse-geocoder** — `Nominatim` / `Mapbox` to ich rzecz.
-- **Symulacje fizyczne** (chmury, pogoda, prądy oceaniczne) — `G·sym` use-case to "show pre-baked data
-  on a globe", nie "simulate".
-- **Pełny game engine** — wspieramy `F·gry` jako use-case wizualny, ale collision detection,
-  game state, networking — to nie nasz scope.
-- **Backend storage / accounts / auth** — to lib frontendowy, nie SaaS.
-- **Real-time PubSub server** — dostarczamy `subscribe(observable)` API, ale nie własny WebSocket server.
-- **Custom map tile servers** — Topographic używa pre-baked tekstury, nie dynamicznych slippy-map tiles.
-
----
+Globio does not provide geocoding, route solving, satellite ephemerides, precise
+GIS measurements, physical weather/orbit simulation, authentication, persistence
+or a real-time backend. It can visualize data produced by those systems. Its
+browser PNG export does not constitute an SSR rendering service, and host-provided
+HTML content must be prepared for insertion into the application's DOM.
 
 ## 8. Glossary
 
-- **Style / kind** — visual preset bundling renderer config + theme tokens. Jeden z 6 v1:
-  cinematic, outline, dotted, wireframe, paper, hologram (choropleth jest data layerem).
-- **Theme** — bundle color tokens + opcjonalnie wybór stylu. Theme = kolory, Style = struktura
-  wizualna. Theme może rozszerzać inny theme.
-- **Token** — nazwana wartość designerska (kolor, gradient, liczba). Pozwala podmieniać kolory bez
-  dotykania renderera.
-- **Layer** — data-bearing visual layer: markers, arcs, heat, polygons. Niezależnie konfigurowane,
-  niezależnie aktualizowane.
-- **Scene** — nazwany stan w narrative engine: pozycja kamery + wybrane highlighty + opcjonalny
-  popup + duration + transition.
-- **POI (Point of Interest)** — marker z label + popup. Skrót.
-- **TopoJSON** — kompaktowy format granic państw, ~5x mniejszy od GeoJSON dzięki współdzieleniu krawędzi.
-- **InstancedMesh** — Three.js technika renderująca tysiące obiektów w jednym draw call.
-- **Choropleth** — mapa z krajami pokolorowanymi wg metryki (np. PKB na czerwono-żółto-zielonej skali).
-- **Great-circle** — najkrótsza ścieżka pomiędzy dwoma punktami na sferze. Domyślny kształt arc-line.
-- **Earcut** — algorytm triangulacji wielokątów (potrzebny do renderowania wypełnień państw).
-- **Differentiator** (🌟) — feature który wyróżnia Globio na tle istniejących bibliotek.
-
----
-
-*Ostatnia aktualizacja: początkowa wersja, kolaboracyjny brainstorming. Wersjonujemy w git wraz
-z resztą repo. Każdy nowy feature dodawany w PR razem z kodem.*
+| Term | Meaning |
+|---|---|
+| Kind | One of the six rendering identities, selected at construction |
+| Theme | Resolved flat token values from defaults, a preset and optional overrides |
+| Data layer | The single supported quantitative visualization slot |
+| Decoration | An internal per-kind implementation of shared behavior |
+| Country id | Usually a zero-padded ISO numeric id from the loaded geometry |
+| Position | A `[latitude, longitude]` tuple in degrees |
+| Globe unit | A distance relative to a sphere of radius 1 |
+| Scene | One timed story step with optional camera, selection and popup changes |
+| Ready | Geographic loading, kind construction and shader preparation have completed |

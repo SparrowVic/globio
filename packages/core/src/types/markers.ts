@@ -6,9 +6,9 @@ export interface MarkerConfig {
   readonly id: string;
   /** `[lat, lng]` in degrees. */
   readonly position: LatLng;
-  /** Override the `markers.color` token for this pin. */
+  /** Override the `markers.defaultColor` token for this pin. */
   readonly color?: string;
-  /** Size multiplier relative to the theme's marker size. Default 1. */
+  /** Size multiplier relative to the active kind's base marker size. Default 1. */
   readonly size?: number;
   /**
    * Multiplier applied while this marker is hovered. Defaults to the

@@ -4325,7 +4325,7 @@
       "path": "zoom",
       "type": "ZoomConfig",
       "optional": true,
-      "description": "Wheel and pinch zoom behaviour.",
+      "description": "Wheel zoom mode, speed and smoothing. Dedicated pinch zoom is not implemented.",
       "ref": "ZoomConfig",
       "children": [
         {
@@ -4465,7 +4465,7 @@
       "name": "setDataLayer",
       "signature": "setDataLayer(layer: DataLayer | null): void",
       "returns": "void",
-      "description": "Mount or replace the active **data layer** — the high-level data visualisation slot orthogonal to the kind. Pass `null` to remove.\n\n`globe.setDataLayer({ type: 'choropleth' | 'bars' | 'extruded' | 'heatmap' | 'hexbin' | 'charts', ... })`\n\nOnly one data layer can be active at a time. Visual rendering is delegated to the active kind's decoration; if the kind doesn't ship a decoration for the requested type, the call is a no-op (with a single console.warn). See `FEATURES.md` section 5c for the catalogue."
+      "description": "Mount or replace the active **data layer** — the high-level data visualisation slot orthogonal to the kind. Pass `null` to remove.\n\n`globe.setDataLayer({ type: 'choropleth', data: { '616': { value: 42 } } })`\n\nOnly one data layer can be active at a time. Visual rendering is delegated to the active kind's decoration. Unsupported types remove the current layer, leave the slot empty and log a warning. Calls before initialization queue the requested layer until the kind is ready. See `FEATURES.md` for support."
     },
     {
       "name": "getDataLayer",
@@ -4825,7 +4825,7 @@
           "path": "opacity",
           "type": "number",
           "optional": true,
-          "description": "Per-country fill opacity. Omitted uses the resolved `countries.fill.defaultOpacity`."
+          "description": "Per-country fill opacity. Omitted uses `countries.fill.defaultOpacity`, falling back to the `countries.fill.opacity` theme token."
         }
       ]
     },
@@ -4860,14 +4860,14 @@
           "path": "color",
           "type": "string",
           "optional": true,
-          "description": "Override the `markers.color` token for this pin."
+          "description": "Override the `markers.defaultColor` token for this pin."
         },
         {
           "name": "size",
           "path": "size",
           "type": "number",
           "optional": true,
-          "description": "Size multiplier relative to the theme's marker size. Default 1.",
+          "description": "Size multiplier relative to the active kind's base marker size. Default 1.",
           "default": "1"
         },
         {
@@ -4951,14 +4951,14 @@
               "path": "marker.color",
               "type": "string",
               "optional": true,
-              "description": "Override the `markers.color` token for this pin."
+              "description": "Override the `markers.defaultColor` token for this pin."
             },
             {
               "name": "size",
               "path": "marker.size",
               "type": "number",
               "optional": true,
-              "description": "Size multiplier relative to the theme's marker size. Default 1.",
+              "description": "Size multiplier relative to the active kind's base marker size. Default 1.",
               "default": "1"
             },
             {
@@ -16265,7 +16265,7 @@
           "path": "zoom",
           "type": "ZoomConfig",
           "optional": true,
-          "description": "Wheel and pinch zoom behaviour.",
+          "description": "Wheel zoom mode, speed and smoothing. Dedicated pinch zoom is not implemented.",
           "ref": "ZoomConfig",
           "children": [
             {

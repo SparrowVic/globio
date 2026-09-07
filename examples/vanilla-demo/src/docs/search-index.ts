@@ -1,8 +1,10 @@
 import { FEATURES } from './features';
+import { DEFAULT_TOKENS } from '@your-globe/core';
+import { tokenAnchor } from './api';
 import type { ApiEntry, ApiJson } from './generated/api-types';
 import { DOCS_TABS, pageHref } from './manifest';
 
-export type SearchKind = 'page' | 'feature' | 'key' | 'method' | 'event';
+export type SearchKind = 'page' | 'feature' | 'key' | 'method' | 'event' | 'token';
 
 export interface SearchEntry {
   readonly kind: SearchKind;
@@ -11,6 +13,8 @@ export interface SearchEntry {
   readonly href: string;
   /** Extra text that counts for matching but is not shown. */
   readonly keywords: string;
+  /** Canonical names that deserve the same prominence as a title match. */
+  readonly aliases?: ReadonlyArray<string>;
 }
 
 export const SEARCH_GROUPS: ReadonlyArray<{ readonly kind: SearchKind; readonly label: string; readonly limit: number }> = [
@@ -19,6 +23,7 @@ export const SEARCH_GROUPS: ReadonlyArray<{ readonly kind: SearchKind; readonly 
   { kind: 'key', label: 'Config keys', limit: 8 },
   { kind: 'method', label: 'Methods', limit: 5 },
   { kind: 'event', label: 'Events', limit: 4 },
+  { kind: 'token', label: 'Theme tokens', limit: 6 },
 ];
 
 const KIND_KEYS = new Set(['outline', 'dotted', 'wireframe', 'hologram', 'paper', 'cinematic']);
@@ -48,13 +53,22 @@ export const buildStaticIndex = (): ReadonlyArray<SearchEntry> => {
     subtitle: f.summary,
     href: pageHref(f.docs.slug) + (f.docs.anchor ? `#${f.docs.anchor}` : ''),
     keywords: [...(f.configPaths ?? []), ...(f.methods ?? []), ...(f.events ?? []), f.id].join(' '),
+    aliases: [f.id],
   }));
-  return [...pages, ...features];
+  const tokens = Object.entries(DEFAULT_TOKENS).map<SearchEntry>(([name, value]) => ({
+    kind: 'token',
+    title: name,
+    subtitle: `Theme token · base default ${JSON.stringify(value)}`,
+    href: `${pageHref('appearance/tokens')}#${tokenAnchor(name)}`,
+    keywords: `theme tokens ${name.replace(/([a-z])([A-Z])/g, '$1 $2')} ${value}`,
+  }));
+  return [...pages, ...features, ...tokens];
 };
 
 /** Where a config key is documented: kind keys on their kind page, the rest on the GlobeConfig page. */
 export const keyHref = (entry: ApiEntry): string => {
   const top = entry.path.split('.')[0] ?? entry.path;
+  if (KIND_KEYS.has(entry.path)) return `${pageHref(`kinds/${top}`)}#options`;
   const anchor = `config-${entry.path.replace(/\./g, '-')}${entry.children ? '' : '-row'}`;
   return KIND_KEYS.has(top) ? `${pageHref(`kinds/${top}`)}#${anchor}` : `${pageHref('api/globe-config')}#${anchor}`;
 };
@@ -70,7 +84,7 @@ export const buildApiIndex = (api: ApiJson): ReadonlyArray<SearchEntry> => {
           title: e.path,
           subtitle: e.description ? firstSentence(e.description) : e.type,
           href: keyHref(e),
-          keywords: `${e.type} ${e.default ?? ''}`,
+          keywords: `${e.type} ${e.default ?? ''} ${e.description} ${e.path.replace(/([a-z])([A-Z])/g, '$1 $2')}`,
         });
       }
       if (e.children) walk(e.children);
@@ -106,6 +120,7 @@ const score = (entry: SearchEntry, tokens: ReadonlyArray<string>, query: string)
   else if (title.startsWith(query)) s += 70;
   else if (title.includes(query)) s += 45;
   else if (title.split(/[.\s]/).some((part) => part.startsWith(query))) s += 40;
+  if (entry.aliases?.some((alias) => alias.toLowerCase() === query)) s = Math.max(s, 90);
   if (keywords.includes(query)) s += 20;
   if (subtitle.includes(query)) s += 12;
   s += Math.max(0, 10 - Math.floor(title.length / 8));

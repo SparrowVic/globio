@@ -65,7 +65,7 @@ export function TypesPage({ tab, group, page }: DocLocation) {
               <code key={k}>{k}</code>
             ))}
           </div>
-          <Callout tone="note">Unknown paths are a type error, so a typo never silently falls back to a default.</Callout>
+          <Callout tone="note">TypeScript validates token keys in typed config objects. Plain JavaScript receives no compile-time validation.</Callout>
         </DocSection>
       )}
     </DocPage>

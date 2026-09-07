@@ -22,7 +22,7 @@ export interface FeatureDoc {
   /** Instance methods and events that belong to the feature. */
   readonly methods?: ReadonlyArray<string>;
   readonly events?: ReadonlyArray<string>;
-  /** At most 160 characters, plain text: tooltips, search results, cards. */
+  /** At most 180 characters, plain text: tooltips, search results, cards. */
   readonly summary: string;
   readonly kinds: ReadonlyArray<GlobeKind> | 'all';
   /** Where the long form lives: a docs page slug and an optional section anchor. */

@@ -34,8 +34,8 @@ export const KIND_CHAPTERS: ReadonlyArray<KindChapterData> = [
     title: 'Dotted',
     tagline: 'Continents as tuned dot fields.',
     description:
-      'Choropleth tints and ripples run through the dots themselves, so data and decoration stay one surface. The look Stripe and Apple made familiar, with real country interaction underneath.',
-    traits: ['dot choropleth', 'ripple pulses', 'point-data friendly'],
+      'Choropleth fills sit behind the dot field, while changed country values can flash the dots. Optional latitude bands, constellation links and country borders add structure, with country interaction underneath.',
+    traits: ['choropleth backdrop', 'ripple pulses', 'point-data friendly'],
   },
   {
     kind: 'wireframe',

@@ -13,6 +13,9 @@ export const loadApi = (): Promise<ApiJson> => {
   pending ??= import('./generated/api.json').then((m) => {
     loaded = m.default as unknown as ApiJson;
     return loaded;
+  }).catch((error: unknown) => {
+    pending = null;
+    throw error;
   });
   return pending;
 };
@@ -24,7 +27,7 @@ export function useApi(): ApiJson | null {
     let alive = true;
     void loadApi().then((a) => {
       if (alive) setApi(a);
-    });
+    }).catch(() => { /* The reference loading placeholder displays the failure. */ });
     return () => {
       alive = false;
     };
@@ -43,6 +46,8 @@ export const findEntry = (entries: ReadonlyArray<ApiEntry>, path: string): ApiEn
 
 export const getType = (api: ApiJson, name: string): ApiType | undefined => api.types[name];
 
-export const configAnchor = (path: string): string => `config-${path.replace(/\./g, '-')}`;
+export const configAnchor = (path: string, prefix = 'config'): string => `${prefix}-${path.replace(/\./g, '-')}`;
+
+export const tokenAnchor = (path: string): string => `token-${path.replace(/\./g, '-')}`;
 
 export const countKeys = (entries: ReadonlyArray<ApiEntry>): number => entries.reduce((n, e) => n + 1 + (e.children ? countKeys(e.children) : 0), 0);

@@ -24,7 +24,7 @@ export function Pausing({ tab, group, page }: DocLocation) {
       <CodePanel code={PAUSING} />
       <DocSection title="Automatic" id="automatic" eyebrow="performance.pauseWhenHidden">
         <ConfigKeys path="performance" only={['pauseWhenHidden']} nested={false} intro={false} />
-        <p>Time-based animation resumes without a jump: clouds, pulses and auto-rotate continue from where they would have been.</p>
+        <p>Frame-driven animation freezes while rendering is paused and resumes with a clamped time step. Story scene timers are independent: pauseStory() is needed to stop automatic scene advancement.</p>
       </DocSection>
       <DocSection title="On demand" id="on-demand" eyebrow="setPaused()">
         <Methods names={['setPaused']} guide={false} />

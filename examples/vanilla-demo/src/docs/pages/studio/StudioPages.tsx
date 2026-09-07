@@ -3,17 +3,48 @@ import { ApiTable, Callout, CodePanel, DocPage, DocSection, Step, Steps } from '
 import type { DocLocation } from '@/docs/manifest';
 
 const EXPORT_USE = {
-  vanilla: `import { createGlobe } from '@your-globe/core';
-import exported from './globe-config.json';   // the Studio download
+  vanilla: `import { createGlobe, type DataLayer, type GlobeConfig } from '@your-globe/core';
+import raw from './globe-config.json';
 
-const globe = createGlobe({ container, ...exported.globe });
+// The Studio file has this shape; JSON imports widen literal strings.
+const exported = raw as { globe: Omit<GlobeConfig, 'container'>; dataLayer: DataLayer | null };
+const globe = createGlobe({ ...exported.globe, container });
 globe.mount();
-if (exported.dataLayer) globe.setDataLayer(exported.dataLayer);`,
-  react: `import exported from './globe-config.json';
+globe.setDataLayer(exported.dataLayer); // queued if countries are still loading`,
+  react: `import { useRef } from 'react';
+import { Globe, type GlobeHandle } from '@your-globe/react';
+import type { DataLayer, GlobeConfig } from '@your-globe/core';
+import raw from './globe-config.json';
 
-<Globe {...exported.globe} onReady={() => ref.current?.getInstance()?.setDataLayer(exported.dataLayer)} />`,
-  vue: `<VueGlobe v-bind="exported.globe" @ready="globeRef?.getInstance()?.setDataLayer(exported.dataLayer)" />`,
-  angular: `<ng-globe [kind]="exported.globe.kind" [theme]="exported.globe.theme" [countries]="exported.globe.countries" (ready)="onReady()" />`,
+const exported = raw as { globe: Omit<GlobeConfig, 'container'>; dataLayer: DataLayer | null };
+
+export function ExportedGlobe() {
+  const ref = useRef<GlobeHandle>(null);
+  return <Globe ref={ref} {...exported.globe}
+    onReady={() => ref.current?.getInstance()?.setDataLayer(exported.dataLayer)} />;
+}`,
+  vue: `<script setup lang="ts">
+import { ref } from 'vue';
+import { VueGlobe } from '@your-globe/vue';
+import type { DataLayer, GlobeConfig } from '@your-globe/core';
+import raw from './globe-config.json';
+
+const globeRef = ref<InstanceType<typeof VueGlobe>>();
+const exported = raw as { globe: Omit<GlobeConfig, 'container'>; dataLayer: DataLayer | null };
+</script>
+
+<template>
+  <VueGlobe ref="globeRef" v-bind="exported.globe"
+    @ready="globeRef?.getInstance()?.setDataLayer(exported.dataLayer)" />
+</template>`,
+  angular: `<!-- Bind each exported field used by your scene; this shows three. -->
+<ng-globe [kind]="exported.globe.kind" [theme]="exported.globe.theme"
+  [countries]="exported.globe.countries" (ready)="onReady()" />
+
+// In your component, with @ViewChild(GlobeComponent) globe!: GlobeComponent:
+onReady() {
+  this.globe.getInstance()?.setDataLayer(this.exported.dataLayer);
+}`,
 };
 
 export function StudioExport({ tab, group, page }: DocLocation) {
@@ -28,14 +59,13 @@ export function StudioExport({ tab, group, page }: DocLocation) {
       <DocSection title="What is inside">
         <ul>
           <li>
-            <code>globe</code> — a full <code>GlobeConfig</code> minus <code>container</code>, including the kind section and the theme as a preset name or an
-            extended preset.
+            <code>globe</code> — a full <code>GlobeConfig</code> minus <code>container</code>, including the kind section and the theme selected in Studio.
           </li>
           <li>
             <code>dataLayer</code> — the active <code>DataLayer</code> with its dataset, or <code>null</code>.
           </li>
         </ul>
-        <p>Custom themes export inline as <code>extends</code> plus <code>tokens</code>; register them with <code>registerThemePreset()</code> to use a short name.</p>
+        <p>Check custom theme names before moving an export to another application. If the exported theme refers to a locally registered name, register its tokens there or replace it with an inline extends/tokens object. The file does not include event handlers, DOM elements or functions.</p>
       </DocSection>
     </DocPage>
   );
@@ -60,7 +90,7 @@ export function StudioPresets({ tab, group, page }: DocLocation) {
           <code>localStorage</code>, so they stay on this machine and browser.
         </p>
         <Callout tone="tip">
-          To move a preset to another machine, export the config as JSON and re-import it by applying the values; a shareable link is on the roadmap.
+          To move a preset to another machine, export the config as JSON and use the exported values in your app. The Studio does not currently provide a JSON import control.
         </Callout>
       </DocSection>
     </DocPage>
@@ -97,7 +127,7 @@ export function StudioShortcuts({ tab, group, page }: DocLocation) {
             cells: { action: a.action, chip: a.chip ? <Kbd>{a.chip}</Kbd> : <span className="docs-dash">—</span>, what: a.what },
           }))}
         />
-        <Callout tone="note">The same five actions sit as buttons in the top bar, so the palette is a convenience, not the only way.</Callout>
+        <Callout tone="note">The action chips are labels, not global single-letter shortcuts. Use the command palette or the corresponding top-bar controls.</Callout>
       </DocSection>
     </DocPage>
   );

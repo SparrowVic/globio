@@ -20,7 +20,7 @@ export function Projection({ tab, group, page }: DocLocation) {
         <Methods names={['toImage']} guide={false} />
         <p>
           The frame is re-rendered at the requested size, so a 1200 by 630 share card comes out sharp regardless of the on-screen canvas. Transparent globes
-          export with an alpha channel.
+          export with an alpha channel. Only WebGL content is captured: country labels, HTML markers, tooltips and legends are separate DOM overlays. Provide both width and height as positive finite values; they are renderer dimensions and the PNG pixel size also depends on device pixel ratio.
         </p>
       </DocSection>
     </DocPage>

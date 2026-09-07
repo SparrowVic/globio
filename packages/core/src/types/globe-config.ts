@@ -133,7 +133,7 @@ export interface GlobeConfig {
   readonly minZoom?: number;
   /** Farthest camera distance in globe radii. Default 6. */
   readonly maxZoom?: number;
-  /** Wheel and pinch zoom behaviour. */
+  /** Wheel zoom mode, speed and smoothing. Dedicated pinch zoom is not implemented. */
   readonly zoom?: ZoomConfig;
   /**
    * Render with a transparent canvas — the host page bleeds through.

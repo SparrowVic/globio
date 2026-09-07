@@ -25,8 +25,7 @@ export function Atmosphere({ tab, group, page }: DocLocation) {
         </p>
         <ConfigKeys path="starfield" intro={false} />
         <Callout tone="perf">
-          Density is vertex work with no overdraw: several thousand stars cost less than one extra country fill. Twinkle adds a per-star uniform update
-          per frame; leave it off on decorative globes.
+          Higher density adds vertices and blended fragments. Twinkle runs in the vertex shader and updates one shared time uniform per frame; measure the effect together with pixel ratio and post-processing.
         </Callout>
       </DocSection>
 

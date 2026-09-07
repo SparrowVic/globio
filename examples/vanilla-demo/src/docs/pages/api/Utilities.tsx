@@ -32,8 +32,8 @@ export function EasingPage({ tab, group, page }: DocLocation) {
 globe.flyTo([52.23, 21.01], 2.4, { duration: 1400, easing: easeOutCubic });
 
 // Your own curve: t in [0, 1] → eased t in [0, 1]
-const overshoot = (t: number) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
-globe.flyTo([35.68, 139.69], undefined, { easing: overshoot });`,
+const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
+globe.flyTo([35.68, 139.69], undefined, { easing: easeOutQuart });`,
         }}
       />
       <DocSection title="Exported curves" id="curves">
@@ -81,10 +81,10 @@ globe.setCountryData(Object.fromEntries(NATO.map((id) => [id, { color: '#6fb4ff'
         </p>
         <p>
           <code>setCountryData</code>, <code>setCountryLabels</code>, <code>focusOnCountry</code>, <code>setActiveCountry</code> and story scenes all run their
-          input through <code>normalizeCountryId</code>, so <code>'32'</code>, <code>32</code> and <code>'032'</code> are the same country.
+          input through <code>normalizeCountryId</code>, so string ids <code>'32'</code> and <code>'032'</code> refer to the same country. The normalizer and object keys accept numbers; methods typed with a string id require strings.
         </p>
       </DocSection>
-      <DocSection title="Region groupings" id="regions" lead="Importable arrays of ids, current as of 2024 to 2026.">
+      <DocSection title="Region groupings" id="regions" lead="Importable static arrays from the package. These are bundled snapshots, not a live membership service.">
         <ApiTable
           columns={[
             { key: 'name', label: 'Export', className: 'docs-col-name' },
