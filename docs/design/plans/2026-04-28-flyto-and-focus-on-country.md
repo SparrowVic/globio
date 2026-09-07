@@ -1,7 +1,5 @@
 # `flyTo` + `focusOnCountry` Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add programmatic camera animation — `globe.flyTo(latLng, distance?, options?)` and `globe.focusOnCountry(id, options?)` — so applications (and the demo) can smoothly fly the camera to any lat/lng or auto-frame any country.
 
 **Architecture:** Tween infrastructure inside `GlobeControls` tracks an active animation `{ start, end, elapsed, duration, easing }`. Each frame the tween advances and lerps `spherical` between start and end via the easing function; on completion, control hands back to the smooth-zoom system. Public `flyTo(LatLng, distance, FlyToOptions)` wraps lat/lng → world point → `Spherical` and starts the tween. `focusOnCountry` looks up the country's lat/lng bounding box, computes a fitting camera distance from globe FOV + bbox angular size, then delegates to `flyTo`.

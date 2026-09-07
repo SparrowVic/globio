@@ -14,9 +14,6 @@ build/
 .cache/
 coverage/
 
-# Brainstorming companion
-.superpowers/
-
 # Editor / OS
 .DS_Store
 .idea/
@@ -41,12 +38,3 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-# Claude Code: local state stays out, shared project skills and the dev-server
-# launch config go in.
-.claude/*
-!.claude/skills/
-!.claude/launch.json
-
-# Browser screenshots taken during visual checks (see .claude/skills)
-tmp-shots/

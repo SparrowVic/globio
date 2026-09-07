@@ -1,7 +1,5 @@
 # Theme Presets Registry + `extends` Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Ship 5 named theme presets bundled with the library + `extends` token inheritance + string shorthand `theme: 'outline-sunset'`, so users get a proper preset registry and can build custom themes on top of curated bases.
 
 **Architecture:** A frozen registry `THEME_PRESETS: Record<ThemePresetName, TokenSet>` lives in `theme/presets.ts`. `ThemeConfig` gains optional `extends?: ThemePresetName`; the resolver uses the named preset's tokens as the merge floor (instead of `DEFAULT_TOKENS`) when `extends` is set. The public `theme` config field accepts `ThemeInput = ThemePresetName | ThemeConfig` — a string is shorthand for `{ extends: name }`. Resolver remains pure and frozen-output; presets are deeply immutable.

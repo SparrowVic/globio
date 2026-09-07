@@ -1,14 +1,12 @@
 # Landing Cinematic Redesign Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to execute task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Rebuild the vanilla-demo landing as a 7-chapter cinematic page with real globe instances, a theme-bleed hero, lat/lng-projected data anchors, real `setDataLayer`/Story-API showcase, and senior-grade micro-detail at desktop 1440 + 1920.
 
 **Architecture:** Restructured `examples/vanilla-demo/src/components/home/landing/` into 7 chapter components + new `atoms/` (shared primitives), `hooks/` (viewport + parallax), `data/` (kind-theme presets). Two `@your-globe/core` extensions land alongside: `GlobeInstance.project(lat, lng)` for screen-projecting data anchors and a richer `DecorationGlobe` that exposes `onReady` for imperative use (drag-rotate, theme remount with crossfade, optional dataLayer mount).
 
 **Tech Stack:** React 18, Tailwind v4, TypeScript, Geist Variable, Font Awesome Pro Sharp Duotone, ReactBits primitives (Aurora, ClickSpark, Magnet, ScrollVelocity, ShinyText, SpotlightCard, StarBorder), `@your-globe/core` (createGlobe, themes, data layers, story API), Three.js (project()).
 
-**Spec:** `docs/superpowers/specs/2026-05-07-landing-cinematic-redesign-design.md`
+**Spec:** `docs/design/specs/2026-05-07-landing-cinematic-redesign-design.md`
 
 ---
 
@@ -16,7 +14,7 @@
 
 ### Created
 ```
-docs/superpowers/specs/2026-05-07-landing-cinematic-redesign-design.md   (already created)
+docs/design/specs/2026-05-07-landing-cinematic-redesign-design.md   (already created)
 
 packages/core/src/types/instance.ts                                       MODIFIED  add project()
 packages/core/src/globe/create-globe.ts                                   MODIFIED  implement project()

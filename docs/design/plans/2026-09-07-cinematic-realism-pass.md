@@ -1,16 +1,14 @@
 # Cinematic Realism Pass Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Turn the `cinematic` globe kind into a filmic, physically-grounded Earth (relief, biomes, ice, clouds with shadows, scattering atmosphere, sun system, aurora, Milky Way, optional real textures) rendered through a new alpha-preserving HDR post-processing pipeline (bloom, streak, grade).
 
 **Architecture:** A shared `PostFxPipeline` in `renderer/postfx` renders the scene to a half-float target and composites bloom/streak/grade back to the canvas. The cinematic kind gains a cloud shell, a scattering atmosphere shell, a sun controller + sun disc, a magnitude-distributed starfield with Milky Way, a baked terrain atlas + coast distance fields, and an optional texture set — all driven by the existing `CinematicWorld` shared-uniform block so every layer reacts to the same light, moon, camera, time and quality signals.
 
 **Tech Stack:** TypeScript strict, Three.js 0.167 (peer dep, WebGL2), GLSL ES 3.00 via ShaderMaterial, tsup, Vite demo (React 18).
 
-**Spec:** `docs/superpowers/specs/2026-09-07-cinematic-realism-pass-design.md`
+**Spec:** `docs/design/specs/2026-09-07-cinematic-realism-pass-design.md`
 
-**Status:** executed 2026-09-07 via subagent-driven development; committed as `58c1072`. Task 3 tokens landed with Task 4, Task 7's wiring and Task 8's config passthrough were done by the controller, the demo assets for Task 10 were downloaded, and the final review's fix wave (sRGB-correct built-ins in the pipeline, texture-set retention, live-update allowlists, quality-gated clouds) is included.
+**Status:** executed 2026-09-07; committed as `58c1072`. Task 3 tokens landed with Task 4, Task 7's wiring and Task 8's config passthrough were done by the controller, the demo assets for Task 10 were downloaded, and the final review's fix wave (sRGB-correct built-ins in the pipeline, texture-set retention, live-update allowlists, quality-gated clouds) is included.
 
 ## Global Constraints
 

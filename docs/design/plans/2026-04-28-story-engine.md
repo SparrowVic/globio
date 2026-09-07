@@ -1,7 +1,5 @@
 # Story / Narrative Engine Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add a declarative scene timeline — `globe.setStory({ scenes: [...] })` — that orchestrates camera moves, country highlights, and HTML popups across a sequence of timed scenes with `play / pause / next / prev / goToScene` controls and per-scene events.
 
 **Architecture:** A `StoryController` class composes the existing primitives (`flyTo`, `focusOnCountry`, `setActiveCountry`, html-markers layer) through a thin `StoryGlobeAdapter` interface. The adapter is implemented in `globe.ts` and bridges controller calls to instance methods + emits events through the existing `GlobeEventEmitter`. Scene-scoped popup is treated as a reserved HTML marker (`__story_popup` id) added on scene enter and removed on exit, so it never conflicts with user-supplied markers. Scene auto-advance uses `setTimeout` driven by `scene.duration`; cancelling on `pause/next/prev/goToScene/setStory` ensures clean state.

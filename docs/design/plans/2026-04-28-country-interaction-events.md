@@ -1,7 +1,5 @@
 # Country Interaction Events Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Per-country `hover` and `click` events emitted from the globe — clicking anywhere on a country's land area fires `countryClick` with `CountryData`; pointer-move over a country fires `countryHover`.
 
 **Architecture:** A new `CountriesPickingLayer` builds one transparent mesh per country ring, triangulated with `earcut` in lat/lng space, mapped to the sphere surface. The mesh group is registered as a `country`-typed raycaster target. On hit, `globe.ts` resolves the mesh's `userData.countryId` to a `CountryData` lookup and emits the matching event with the hit point converted back to lat/lng via the existing `vector3ToLatLng`. The visible borders layer stays untouched — picking is a separate layer behind it.

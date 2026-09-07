@@ -1,7 +1,5 @@
 # Theme Token System Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Build a designerski token system as the colour/style foundation for all current and future Globio styles, then refactor the existing outline rendering to consume tokens (instead of hardcoded config fields).
 
 **Architecture:** Tokens live in a flat namespace with dot-separated keys (`globe.surface`, `borders.color`, `atmosphere.intensity`...). A `resolve(theme?)` function merges user-supplied overrides over `DEFAULT_TOKENS`, producing a frozen `ResolvedTokens` map. `globe.ts` resolves tokens once during `createGlobe()` and passes individual values to renderer layers — layers stay token-unaware. Future plans extend the system: theme presets registry, runtime updates, light/dark variants, custom CSS-var bridge.
