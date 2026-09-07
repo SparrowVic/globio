@@ -39,7 +39,8 @@ not core sources, and a globe draws nothing until its `globio:mount-to-ready` me
      return 'timeout'; }
    ```
    Scroll with `window.scrollTo(0, innerHeight * n)` — chapter n of the planet stage sits at
-   n + 1 viewport heights; wait ~2 s for the cross-fade before shooting.
+   n + 1 viewport heights; wait ~2 s for the cross-fade before shooting. One `evaluate_script`
+   may block ~15 s; keep it under ~25 s.
 5. Read every screenshot with the Read tool. Check the console (`list_console_messages` with
    types error/warn). HMR noise from mid-edit reloads is not a bug: reload once and re-check.
 6. Before claiming done: `pnpm exec tsc --noEmit` in `packages/core` and

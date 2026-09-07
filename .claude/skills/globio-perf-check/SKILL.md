@@ -21,10 +21,15 @@ long task during the scroll and at most one frame over 34 ms.
    than your last core edit, or rebuild once with `pnpm --filter @your-globe/core build`.
 2. Chrome DevTools MCP (preferred over Playwright here — one page, one tool): load the deferred
    schemas first with `ToolSearch` `select:mcp__plugin_chrome-devtools-mcp_chrome-devtools__new_page,…resize_page,…evaluate_script,…list_console_messages`,
-   then `new_page` on `http://localhost:5173/` and `resize_page` 1440×900. Every later call
-   takes the `pageId` that `new_page` prints. Do not use `performance_start_trace` on an
-   already loaded page: without a navigation it returns no insights. The script below is the
-   measurement.
+   then `new_page` on `http://localhost:5173/`, `resize_page` 1440×900 and `navigate_page`
+   type `reload` (a page opened narrower than 1024 px would measure the mobile layout).
+   Every later call takes the `pageId` that `new_page` prints. Do not use
+   `performance_start_trace` on an already loaded page: without a navigation it returns no
+   insights. The script below is the measurement; a single `evaluate_script` of ~16 s is
+   fine, keep one call under ~25 s.
+3. Only one live page: `preview_start` also opens the landing in the app's Browser pane,
+   whose globes compete for the GPU. Point that tab at `about:blank`
+   (`mcp__Claude_Browser__navigate`) or close it before measuring, and restore it after.
 
 ## Measure
 
