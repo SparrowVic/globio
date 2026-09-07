@@ -94,4 +94,32 @@ describe('cinematic data preparation', () => {
     expect(prepared.routes.length).toBeGreaterThan(0);
     expect(prepared.density.length).toBe(256 * 128);
   });
+
+  it('honors zero city and route limits for custom data as well as fallback data', () => {
+    const dataset = {
+      cityLights: [{ id: 'city', lat: 10, lng: 20, value: 4 }],
+      routes: [{ from: [10, 20] as const, to: [30, 40] as const }],
+    };
+
+    for (const source of [null, dataset]) {
+      const prepared = prepareCinematicData(source, { cityCount: 0, maxRoutes: 0 });
+      expect(prepared.cityPoints).toHaveLength(0);
+      expect(prepared.routes).toHaveLength(0);
+      expect(prepared.density.every((value) => value === 0)).toBe(true);
+    }
+  });
+
+  it('limits custom cities by importance while allowing routes to be disabled independently', () => {
+    const prepared = prepareCinematicData({
+      cityLights: [
+        { id: 'small', lat: 10, lng: 20, importance: 1 },
+        { id: 'large', lat: 30, lng: 40, importance: 10 },
+      ],
+      routes: [{ from: 'large', to: [50, 60] }],
+    }, { cityCount: 1, maxRoutes: 0 });
+
+    expect(prepared.cityPoints.map((city) => city.id)).toEqual(['large']);
+    expect(prepared.routes).toHaveLength(0);
+    expect(prepared.density.some((value) => value > 0)).toBe(true);
+  });
 });

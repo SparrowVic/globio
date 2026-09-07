@@ -30,7 +30,6 @@ import { createLegend, type LegendOptions } from '../data/legend';
 import { resolveTheme } from '../theme/resolver';
 import {
   GLOBE_RADIUS,
-  isPointVisibleFromCamera,
   latLngToVector3,
   vector3ToLatLng,
 } from '../utils/coordinates';
@@ -53,6 +52,8 @@ import { canUpdateInPlace } from './data-layer-diff';
 import { computeFocusDistance } from './focus-distance';
 import { computeFramedDistance } from './framing';
 import type { InternalState } from './internal-state';
+import { createCameraMethods } from './camera-methods';
+import { captureGlobeImage } from './image-export';
 
 export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   const tConstruct = perfMark();
@@ -488,13 +489,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // it so hosts can cross-fade to a globe that is actually drawing.
   let compiled: Promise<unknown> = Promise.resolve();
 
-  const initCountries = async (): Promise<void> => {
-    if (!config.countries) return;
+  const initCountries = async (): Promise<boolean> => {
     try {
       const tLoad = perfMark();
       const features = await loadCountries({ resolution: countries.resolution });
       perfMeasure('globio:countries-load', tLoad);
-      if (state.destroyed) return;
+      if (state.destroyed) return false;
       state.features = features as ReadonlyArray<CountryFeature>;
 
       // Dispatch to the active kind module — outline draws borders + fills,
@@ -715,8 +715,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       });
       if (labelsConfig?.enabled) labelsLayer.setEnabled(true);
       state.countryLabelsLayer = labelsLayer;
+      return true;
     } catch (error) {
-      emitter.emit('error', error instanceof Error ? error : new Error(String(error)));
+      if (!state.destroyed) {
+        emitter.emit('error', error instanceof Error ? error : new Error(String(error)));
+      }
+      return false;
     }
   };
 
@@ -789,13 +793,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     emitStoryComplete: (event) => emitter.emit('storyComplete', event),
   });
 
+  let mounted = false;
   const instance: GlobeInstance = {
     mount: () => {
+      if (mounted || state.destroyed) return;
+      mounted = true;
       const tMount = perfMark();
       scene.start();
       void initCountries()
-        .then(() => compiled)
-        .then(() => {
+        .then(async (initialized) => {
+          if (!initialized) return;
+          await compiled;
           if (state.destroyed) return;
           perfMeasure('globio:mount-to-ready', tMount);
           emitter.emit('ready');
@@ -1150,12 +1158,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
     off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.off(event, handler),
-    setRotation: (_position: LatLng) => {
-      // implementacja do uzupełnienia - smooth rotation do danej pozycji
-    },
-    flyTo: (position, distance, options) => {
-      controls.flyTo(globeLocalToWorldLatLng(position), distance, options ?? {});
-    },
+    ...createCameraMethods({
+      camera: scene.camera,
+      globeGroup,
+      controls,
+      toWorldPosition: globeLocalToWorldLatLng,
+      getCanvas: () => scene.getCanvas(),
+    }),
     setActiveCountry: (rawId) => {
       const id = rawId === null ? null : normalizeCountryId(rawId);
       state.activeCountryId = id;
@@ -1354,55 +1363,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     setArcs: (arcs) => arcsLayer.setArcs(arcs),
     addArc: (arc) => arcsLayer.addArc(arc),
     removeArc: (id) => arcsLayer.removeArc(id),
-    toImage: (options) =>
-      new Promise((resolve, reject) => {
-        try {
-          // Force a fresh render so the canvas reflects the latest state.
-          scene.renderFrame();
-          const canvas = scene.renderer.domElement;
-          if (options?.width && options?.height) {
-            // Render at the requested resolution by temporarily resizing the
-            // renderer; the host canvas keeps its CSS size, so visuals don't
-            // flicker if user is watching.
-            const prevSize = scene.renderer.getSize(new Vector2());
-            scene.renderer.setSize(options.width, options.height, false);
-            scene.renderFrame();
-            const url = canvas.toDataURL('image/png');
-            scene.renderer.setSize(prevSize.x, prevSize.y, false);
-            scene.renderFrame();
-            resolve(url);
-          } else {
-            resolve(canvas.toDataURL('image/png'));
-          }
-        } catch (err) {
-          reject(err instanceof Error ? err : new Error(String(err)));
-        }
-      }),
+    toImage: (options) => captureGlobeImage(scene, options),
     resize: () => scene.resize(),
     getCanvas: () => scene.getCanvas(),
-    project: (lat, lng) => {
-      const canvas = scene.getCanvas();
-      if (!canvas) return null;
-      const surface = latLngToVector3([lat, lng], GLOBE_RADIUS);
-      if (!isPointVisibleFromCamera(surface, scene.camera.position)) return null;
-      // The camera's world-inverse matrix is refreshed by the renderer; before
-      // the first frame (or while paused) it is stale, so refresh it here.
-      scene.camera.updateMatrixWorld(true);
-      // Three.js NDC projection mutates the vector in place.
-      surface.project(scene.camera);
-      if (
-        surface.x < -1 ||
-        surface.x > 1 ||
-        surface.y < -1 ||
-        surface.y > 1
-      ) {
-        return null;
-      }
-      const rect = canvas.getBoundingClientRect();
-      const x = ((surface.x + 1) / 2) * rect.width;
-      const y = ((-surface.y + 1) / 2) * rect.height;
-      return [x, y] as const;
-    },
   };
 
   return instance;

@@ -17,30 +17,37 @@ export class StoryController {
   private story: StoryConfig | null = null;
   private currentIndex = -1;
   private playing = false;
+  private completed = false;
+  private sceneEntered = false;
+  // Event handlers can synchronously load a story or navigate to another scene.
+  private revision = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
   private delayTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   public constructor(private readonly adapter: StoryGlobeAdapter) {}
 
   public setStory(story: StoryConfig | null): void {
+    const revision = ++this.revision;
     this.cancelTimer();
     this.cancelDelayTimer();
+    this.playing = false;
     this.exitCurrentScene();
+    if (this.revision !== revision) return;
     this.story = story;
     this.currentIndex = -1;
-    this.playing = false;
+    this.completed = false;
     if (!story) return;
     if (story.startAt) {
       const idx = story.scenes.findIndex((s) => s.id === story.startAt);
-      if (idx >= 0) this.goToIndex(idx);
+      if (idx >= 0 && !this.goToIndex(idx)) return;
     }
     if (story.autoPlay) this.play();
   }
 
   public play(): void {
-    if (!this.story) return;
+    if (!this.story?.scenes.length || this.playing) return;
     this.playing = true;
-    if (this.currentIndex < 0) {
+    if (this.currentIndex < 0 || this.completed) {
       this.goToIndex(0);
     } else {
       this.scheduleAdvance();
@@ -53,7 +60,7 @@ export class StoryController {
   }
 
   public next(): void {
-    if (!this.story) return;
+    if (!this.story?.scenes.length || this.completed) return;
     if (this.currentIndex < 0) {
       this.goToIndex(0);
       return;
@@ -66,11 +73,16 @@ export class StoryController {
       this.goToIndex(0);
       return;
     }
-    // End of story
-    this.exitCurrentScene();
-    this.adapter.emitStoryComplete({ story: this.story });
+    // Finish before publishing events so a handler can start another story.
+    const completedStory = this.story;
+    const revision = ++this.revision;
+    this.completed = true;
     this.playing = false;
     this.cancelTimer();
+    this.cancelDelayTimer();
+    this.exitCurrentScene();
+    if (this.revision !== revision) return;
+    this.adapter.emitStoryComplete({ story: completedStory });
   }
 
   public prev(): void {
@@ -93,15 +105,21 @@ export class StoryController {
     return this.playing;
   }
 
-  private goToIndex(idx: number): void {
+  private goToIndex(idx: number): boolean {
+    const scene = this.story?.scenes[idx];
+    if (!scene) return false;
+    const revision = ++this.revision;
     this.cancelTimer();
     this.cancelDelayTimer();
     this.exitCurrentScene();
+    if (this.revision !== revision) return false;
     this.currentIndex = idx;
-    const scene = this.story?.scenes[idx];
-    if (!scene) return;
+    this.completed = false;
+    this.sceneEntered = true;
     this.enterScene(scene, idx);
+    if (this.revision !== revision) return false;
     if (this.playing) this.scheduleAdvance();
+    return true;
   }
 
   private enterScene(scene: SceneConfig, index: number): void {
@@ -154,14 +172,17 @@ export class StoryController {
   }
 
   private exitCurrentScene(): void {
-    if (!this.story || this.currentIndex < 0) return;
+    if (!this.sceneEntered || !this.story || this.currentIndex < 0) return;
     const scene = this.story.scenes[this.currentIndex];
     if (!scene) return;
+    const index = this.currentIndex;
+    this.sceneEntered = false;
     this.adapter.setStoryPopup(null);
-    this.adapter.emitSceneExit({ scene, index: this.currentIndex });
+    this.adapter.emitSceneExit({ scene, index });
   }
 
   private scheduleAdvance(): void {
+    this.cancelTimer();
     const scene = this.getCurrentScene();
     if (!scene) return;
     this.timeoutId = setTimeout(() => {

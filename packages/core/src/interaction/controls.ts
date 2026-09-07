@@ -68,6 +68,10 @@ export class GlobeControls {
   }
 
   public flyTo(position: LatLng, distance?: number, options: FlyToOptions = {}): void {
+    if (options.duration !== undefined && options.duration <= 0) {
+      this.jumpTo(position, distance);
+      return;
+    }
     const radius = clamp(
       distance ?? this.spherical.radius,
       this.minDistance,

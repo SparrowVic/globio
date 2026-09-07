@@ -135,7 +135,7 @@ export const normalizeCityData = (
   const sorted = [...input]
     .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
     .sort((a, b) => (b.importance ?? b.value ?? 1) - (a.importance ?? a.value ?? 1));
-  const capped = sorted.slice(0, Math.max(0, Math.floor(limit || sorted.length)));
+  const capped = sorted.slice(0, Math.max(0, Math.floor(limit)));
   return capped.map((point, index) => ({
     id: point.id ?? `city-${index}`,
     lat: clampLat(point.lat),
@@ -186,7 +186,7 @@ export const normalizeRoutes = (
 ): ReadonlyArray<CinematicRoute> => {
   const byId = buildPointIndex(cityPoints);
   const normalized: CinematicRoute[] = [];
-  routes.slice(0, Math.max(0, Math.floor(limit || routes.length))).forEach((route, index) => {
+  routes.slice(0, Math.max(0, Math.floor(limit))).forEach((route, index) => {
     const from = resolveEndpoint(route.from, byId);
     const to = resolveEndpoint(route.to, byId);
     if (!from || !to) return;
