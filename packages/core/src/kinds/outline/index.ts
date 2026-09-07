@@ -512,7 +512,7 @@ export const outlineKind: KindModule = {
       update(delta: number) {
         if (glow && glowEnabled) glow.update(delta);
         if (crosshairEnabledNow) crosshair.update(delta);
-        fill.update(delta);
+        // `fill` is ticked centrally by create-globe (state.countryFillLayer).
         if (dimEnabled || dimDirty) {
           const moved = layer.tickOpacity(delta, DEFAULT_DIM_TAU);
           if (!moved) dimDirty = false;

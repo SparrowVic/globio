@@ -57,6 +57,7 @@ const globe = createGlobe({
 });
 
 globe.on('markerClick', ({ marker }) => console.log(marker));
+globe.on('ready', () => console.log('countries loaded, shaders compiled'));
 globe.mount();
 
 // Everything is live-updatable:

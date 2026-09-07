@@ -200,6 +200,11 @@ export class GlobeControls {
   };
 
   private onWheel = (event: WheelEvent): void => {
+    // Zoom locked (`framing.lockZoom` or minZoom === maxZoom): the wheel
+    // cannot change anything, so let the page scroll instead of swallowing
+    // the event — decoration globes sitting under a scrolling page would
+    // otherwise trap the cursor.
+    if (this.minDistance >= this.maxDistance) return;
     this.cancelTween();
     event.preventDefault();
     const factor = Math.exp((event.deltaY * this.zoomSpeed) / 500);

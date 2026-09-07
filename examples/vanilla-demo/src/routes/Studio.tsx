@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 import { Globe2 } from 'lucide-react';
 import {
+  THEME_PRESETS,
   registerThemePreset,
   resolveTheme,
   unregisterThemePreset,
@@ -74,11 +75,17 @@ const initialState = (search: URLSearchParams): ConfiguratorState => {
     : initialStateForPath(window.location.pathname);
   const kind = search.get('kind');
   if (!isGlobeKind(kind)) return base;
+  const theme = search.get('theme');
+  const themeOverride =
+    theme !== null && Object.prototype.hasOwnProperty.call(THEME_PRESETS, theme)
+      ? { theme: theme as ThemePresetName }
+      : {};
   return {
     ...base,
     globe: {
       ...base.globe,
       ...globeDefaultsForKind(kind),
+      ...themeOverride,
     },
   };
 };

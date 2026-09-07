@@ -479,6 +479,9 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // once `state.kindHandle` is built.
   let pendingDataLayer: import('../data-layers/types').DataLayer | null = null;
   let pendingCinematicData: CinematicDataset | null | undefined = undefined;
+  // Resolves once the mounted kind's shaders are compiled; `ready` waits for
+  // it so hosts can cross-fade to a globe that is actually drawing.
+  let compiled: Promise<unknown> = Promise.resolve();
 
   const initCountries = async (): Promise<void> => {
     if (!config.countries) return;
@@ -511,7 +514,8 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // (KHR_parallel_shader_compile where available) instead of letting the
       // next frame block the main thread on a synchronous compile. Frames
       // are held meanwhile; the canvas keeps its last image.
-      scene.holdRendering(compileSceneAsync(scene));
+      compiled = compileSceneAsync(scene);
+      scene.holdRendering(compiled);
       // Adaptive quality: the cinematic kind measures FPS and halves the
       // bloom chain on the low tier.
       (state.kindHandle as CinematicKindHandle | null)?.onQualityTier?.((tier) => {
@@ -774,7 +778,11 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   const instance: GlobeInstance = {
     mount: () => {
       scene.start();
-      void initCountries().then(() => emitter.emit('ready'));
+      void initCountries()
+        .then(() => compiled)
+        .then(() => {
+          if (!state.destroyed) emitter.emit('ready');
+        });
     },
     destroy: () => {
       if (state.destroyed) return;

@@ -256,7 +256,9 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 - **`focusOnRegion(bounds)`** `[v1·GLOBAL·S]` — frame dowolny obszar (osobny plan, używa tej samej infrastruktury).
 - **Inertia / damping** `[v1·GLOBAL·S]` — momentum po puszczeniu drag.
 - **Keyboard navigation** `[v1·GLOBAL·M]` — WASD/strzałki/Tab; bazowe a11y.
-- **Camera distance limits** `[v1·GLOBAL·S·built]`.
+- **Camera distance limits** `[v1·GLOBAL·S·built]` — `minZoom` / `maxZoom` albo `framing.lockZoom`.
+  Gdy zoom jest zablokowany (min == max), kółko myszy nad canvasem NIE jest przechwytywane —
+  strona przewija się dalej, więc dekoracyjny globus nie łapie kursora.
 - **Lock-to-region / sandbox mode** `[v1.x·GLOBAL·M]` — restrykcja navigacji w bounds (np. "globus dziecięcy zamknięty na Europę").
 - **Trackpad-aware gestures** `[v1.x·GLOBAL·M]` — pinch, two-finger pan, smart-zoom.
 - **Camera preset views** `[v1.x·GLOBAL·S]` — `view: 'globe' | 'arctic' | 'antarctic' | 'pacific' | 'europe'`.
@@ -504,7 +506,8 @@ istniejących rozwiązań (`globe.gl`, `three-globe`, `react-globe`):
 
 - **Debug overlay** `[v1·GLOBAL·S]` — FPS, draw calls, scene tree.
 - **Verbose logger toggle** `[v1·GLOBAL·S]` — `debug: true` → console events.
-- **Type-safe events** `[v1·INSTANCE·S·built]`.
+- **Type-safe events** `[v1·INSTANCE·S·built]` — `ready` odpala się dopiero po załadowaniu krajów,
+  zbudowaniu kindu i skompilowaniu shaderów (host może wtedy bezpiecznie zrobić cross-fade).
 - **Source maps + DTS** `[v1·INSTANCE·S·built]`.
 - **Error boundary** `[v1·INSTANCE·S]` — graceful runtime fallback w wrapperach.
 - **Scene inspector** `[v1.x·GLOBAL·M]` — live list layers/markers, toggle visibility.

@@ -81,6 +81,14 @@ export interface DecorationGlobeProps {
    * this DOM node and gets disposed on unmount or kind/theme change.
    */
   readonly onReady?: (api: DecorationGlobeReadyApi) => void;
+  /**
+   * Fired once the globe is actually drawing: country data loaded, kind
+   * built, shaders compiled and a frame presented. Cross-fades key off this
+   * so a new globe never fades in over a blank canvas.
+   */
+  readonly onLive?: () => void;
+  /** Frame-rate cap. Default: 60 when interactive, 30 otherwise. */
+  readonly maxFps?: number;
 }
 
 const STARFIELD_DEFAULTS: StarfieldConfig = {
@@ -121,14 +129,18 @@ export function DecorationGlobe({
   transparent = true,
   interactive = false,
   onReady,
+  onLive,
+  maxFps,
 }: DecorationGlobeProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<GlobeInstance | null>(null);
-  // Pin the latest onReady so the effect's dep array doesn't churn — we
+  // Pin the latest callbacks so the effect's dep array doesn't churn — we
   // don't want to remount the globe just because the parent re-rendered
   // with a new closure.
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
+  const onLiveRef = useRef(onLive);
+  onLiveRef.current = onLive;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -164,12 +176,20 @@ export function DecorationGlobe({
         adaptiveQuality: true,
         // Decorations share the page's frame budget with the hero: 30 fps
         // reads as smooth for a slow auto-rotate and halves their cost.
-        maxFps: interactive ? 60 : 30,
+        maxFps: maxFps ?? (interactive ? 60 : 30),
         pixelRatio: Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5),
         pauseWhenHidden: true,
       },
     });
     instanceRef.current = globe;
+    // `ready` fires after countries load and the kind's shaders compile;
+    // two more frames guarantee something has been presented.
+    let liveRaf = 0;
+    const offReady = globe.on('ready', () => {
+      liveRaf = requestAnimationFrame(() => {
+        liveRaf = requestAnimationFrame(() => onLiveRef.current?.());
+      });
+    });
     globe.mount();
 
     onReadyRef.current?.({
@@ -178,6 +198,8 @@ export function DecorationGlobe({
     });
 
     return () => {
+      offReady();
+      cancelAnimationFrame(liveRaf);
       globe.destroy();
       if (instanceRef.current === globe) instanceRef.current = null;
     };
@@ -196,6 +218,7 @@ export function DecorationGlobe({
     lockZoom,
     transparent,
     interactive,
+    maxFps,
   ]);
 
   return (

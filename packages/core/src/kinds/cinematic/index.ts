@@ -457,7 +457,7 @@ export const cinematicKind: KindModule = {
         surface.update(elapsedSeconds, delta);
         clouds.setTextureMix(surface.getTextureMix());
         clouds.update(elapsedSeconds);
-        fill.update(delta);
+        // `fill` is ticked centrally by create-globe (state.countryFillLayer).
         borders.update(elapsedSeconds, delta);
         cityLights.update(delta, elapsedSeconds);
         network.update(delta, elapsedSeconds);

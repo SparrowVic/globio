@@ -279,7 +279,11 @@ export class DottedCountryFillLayer {
       const target = this.targetOpacities.get(id) ?? this.defaultOpacity;
       entry.material.opacity = target * this.currentT;
     });
-    if (this.currentT === 0) this.group.visible = false;
+    // Only a completed fade-out hides the group. A zero-delta frame right
+    // after `setData` (the first frame after a render hold, or two frames
+    // sharing a timestamp) used to leave `currentT` at 0 and hide the layer
+    // for good, even though it was fading in.
+    if (this.currentT === 0 && this.targetT === 0) this.group.visible = false;
   }
 
   public dispose(): void {

@@ -1,18 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { Nav } from '@/components/home/Nav';
-import { ClickSpark } from '@/components/reactbits';
-import { NoiseOverlay, ScrollProgress } from '@/components/shared';
-
-import { ApiSection } from './ApiSection';
-import { DataStorySection } from './DataStorySection';
-import { FinalCta } from './FinalCta';
-import { HeroStage } from './HeroStage';
-import { KindPersonalitiesSection } from './KindPersonalitiesSection';
-import { LayerAnatomySection } from './LayerAnatomySection';
-import { StudioWorkflowSection } from './StudioWorkflowSection';
+import './landing.css';
+import { useReveal } from './hooks/use-reveal';
+import { PlanetStage } from './stage/PlanetStage';
+import { DataSection, Footer, FrameworksSection, PerformanceSection, StudioSection } from './sections';
 
 export function HomeLanding() {
+  const rootRef = useRef<HTMLElement | null>(null);
+  useReveal(rootRef);
+
   useEffect(() => {
     document.documentElement.style.scrollBehavior = 'smooth';
     return () => {
@@ -21,19 +18,14 @@ export function HomeLanding() {
   }, []);
 
   return (
-    <ClickSpark sparkColor="#ffd57a" sparkSize={8} sparkRadius={22} sparkCount={12} duration={520}>
-      <main className="relative min-h-screen overflow-x-clip bg-[#02030a] text-slate-100 antialiased">
-        <ScrollProgress />
-        <NoiseOverlay />
-        <Nav />
-        <HeroStage />
-        <KindPersonalitiesSection />
-        <LayerAnatomySection />
-        <StudioWorkflowSection />
-        <DataStorySection />
-        <ApiSection />
-        <FinalCta />
-      </main>
-    </ClickSpark>
+    <main ref={rootRef} className="landing relative min-h-screen overflow-x-clip">
+      <Nav />
+      <PlanetStage />
+      <DataSection />
+      <FrameworksSection />
+      <PerformanceSection />
+      <StudioSection />
+      <Footer />
+    </main>
   );
 }

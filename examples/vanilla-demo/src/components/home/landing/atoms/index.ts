@@ -1,10 +1,5 @@
-export { Panel } from './Panel';
-export type { PanelProps } from './Panel';
-export { ThemeSwatch } from './ThemeSwatch';
-export type { ThemeSwatchProps } from './ThemeSwatch';
-export { StatChip } from './StatChip';
-export type { StatChipProps } from './StatChip';
-export { CodeBlock } from './CodeBlock';
-export type { CodeBlockProps } from './CodeBlock';
-export { UseCaseChips } from './UseCaseChips';
-export type { UseCaseChipsProps } from './UseCaseChips';
+export { CodeBlock, type CodeBlockProps } from './CodeBlock';
+export { CopyCommand, type CopyCommandProps } from './CopyCommand';
+export { Graticule } from './Graticule';
+export { StarField } from './StarField';
+export { GlobeMark, Wordmark } from './Wordmark';
