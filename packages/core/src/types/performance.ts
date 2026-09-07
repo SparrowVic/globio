@@ -1,3 +1,4 @@
+/** Renderer and frame-loop settings read when the globe is created. */
 export interface PerformanceConfig {
   /** Multisample antialiasing on the canvas. Default true. */
   readonly antialias?: boolean;

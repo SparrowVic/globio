@@ -1,9 +1,13 @@
 import type { LatLng } from './primitives';
 
+/** Automatic camera orbit while the pointer is not dragging the globe. */
 export interface AutoRotateConfig {
   /** Turn ambient rotation on. It yields while the pointer drags and resumes afterwards. Default false. */
   readonly enabled?: boolean;
-  /** Rotation speed; 1 is roughly one revolution per 30 seconds. Default 0.5. */
+  /**
+   * Orbit-speed multiplier; 1 moves 0.2 radians per second, or one revolution in about 31 seconds.
+   * Default 0.5.
+   */
   readonly speed?: number;
 }
 
@@ -78,16 +82,13 @@ export interface FocusOptions extends FlyToOptions {
  */
 export interface FramingConfig {
   /**
-   * Fraction (0..0.5) of viewport extent reserved as margin around the
-   * visible globe. 0 lets the renderer fill the canvas (legacy behaviour);
-   * 0.15–0.25 leaves room for the atmosphere halo to fade smoothly.
-   * Default 0.
+   * Extra margin factor around the estimated visible globe extent. Omitted skips reframing;
+   * explicit 0 fits the base halo estimate and positive values add breathing room.
    */
   readonly padding?: number;
   /**
-   * When true, also clamps `minZoom` / `maxZoom` to the computed framing
-   * distance so users can't zoom out of the frame. Useful for purely
-   * decorative embeds. Default false.
+   * Use the computed framing distance for omitted zoom limits, preventing zoom in either direction
+   * when neither limit is explicit. Explicit minZoom or maxZoom takes precedence. Default false.
    */
   readonly lockZoom?: boolean;
 }

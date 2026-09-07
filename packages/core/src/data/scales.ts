@@ -1,10 +1,4 @@
-/**
- * Color scales for choropleth-style country data binding. Built-in palettes
- * are defined as small endpoint stops; `interpolatePalette` does linear RGB
- * interpolation between them. Good enough visually for dataviz; for very
- * faithful color science you'd reach for d3-scale-chromatic, but we want
- * zero runtime deps.
- */
+/** Name of a built-in sequential or diverging color palette. */
 
 export type ScalePaletteName =
   | 'blues'
@@ -20,43 +14,71 @@ export type ScalePaletteName =
   | 'BrBG'
   | 'PiYG';
 
-/** Custom palette: ordered list of color stops, evenly distributed across t∈[0,1]. */
+/**
+ * Built-in palette name or ordered CSS-hex color stops, evenly spaced over the interpolation range.
+ * Multi-stop custom palettes use three- or six-digit hex strings.
+ */
 export type ScalePalette = ScalePaletteName | ReadonlyArray<string>;
 
+/**
+ * Continuous palette mapping from a numeric minimum to maximum. Values outside the domain clamp to
+ * the endpoint colors.
+ */
 export interface SequentialScale {
+  /** Select continuous sequential mapping. */
   readonly type: 'sequential';
+  /** Built-in palette name or ordered hex color stops. */
   readonly palette: ScalePalette;
   /** [min, max] of the input value range. Defaults to data extent. */
   readonly domain?: readonly [number, number];
-  /** Color used for entries with no value or value outside domain. */
+  /**
+   * Fallback for missing or NaN values in layers that support this field. Out-of-domain values clamp
+   * to endpoint colors.
+   */
   readonly noDataColor?: string;
 }
 
+/**
+ * Continuous palette mapping with an explicit central value. Each side of the midpoint occupies half
+ * of the palette.
+ */
 export interface DivergingScale {
+  /** Select continuous mapping around a central value. */
   readonly type: 'diverging';
-  /** Two-color or three-color palette. Defaults to RdBu. */
+  /** Built-in palette or any ordered hex color stops. Default `'RdBu'`. */
   readonly palette?: ScalePalette;
-  /** [min, midpoint, max]. Defaults to [-extent, 0, +extent]. */
+  /** Minimum, midpoint and maximum. Defaults to the data minimum, arithmetic midrange and data maximum. */
   readonly domain?: readonly [number, number, number];
+  /** Fallback for missing or NaN values in layers that support this field. */
   readonly noDataColor?: string;
 }
 
+/** Discrete numeric buckets defined by sorted boundaries, with a separate color for each bucket. */
 export interface ThresholdScale {
+  /** Select discrete threshold buckets. */
   readonly type: 'threshold';
-  /** Sorted ascending. N thresholds → N+1 buckets. */
+  /** Ascending numeric boundaries; equality belongs to the higher bucket. N thresholds define N+1 buckets. */
   readonly thresholds: ReadonlyArray<number>;
   /** N+1 colors, one per bucket. */
   readonly colors: ReadonlyArray<string>;
+  /** Fallback for missing or NaN values in layers that support this field. */
   readonly noDataColor?: string;
 }
 
+/** Exact lookup from a numeric category value to a color; object keys are stored as strings. */
 export interface CategoricalScale {
+  /** Select exact numeric-category lookup. */
   readonly type: 'categorical';
-  /** Map from category value → color. */
+  /** Numeric category keys mapped to colors; country value fields accept numbers. */
   readonly colors: Readonly<Record<string | number, string>>;
+  /** Fallback for missing values or unmatched categories in layers that support this field. */
   readonly noDataColor?: string;
 }
 
+/**
+ * Color-scale configuration; the containing data layer determines value interpretation and
+ * missing-data fallback.
+ */
 export type ScaleConfig =
   | SequentialScale
   | DivergingScale

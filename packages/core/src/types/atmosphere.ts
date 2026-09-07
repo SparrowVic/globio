@@ -1,3 +1,4 @@
+/** Shared atmosphere controls interpreted by the active kind's halo or scattering layer. */
 export interface AtmosphereConfig {
   /** Render the rim glow. Default true. */
   readonly enabled?: boolean;
@@ -7,15 +8,13 @@ export interface AtmosphereConfig {
    */
   readonly color?: string;
   /**
-   * Override the theme-driven halo intensity multiplier. 0 = invisible
-   * (same as `enabled: false` but keeps the layer mounted); 1 = theme
-   * default; higher values brighten / widen the rim. Falls back to
-   * `tokens['atmosphere.intensity']`.
+   * Absolute halo-intensity override. Omitted or non-positive values restore the theme intensity;
+   * use `enabled: false` to hide it.
    */
   readonly intensity?: number;
   /**
-   * Mesh radius as a multiplier of `GLOBE_RADIUS`. Range 1.01..1.5 —
-   * tight rim ↔ wide aurora. Default 1.15.
+   * Shell radius as a multiplier of the globe radius; values at or below 1 restore the layer
+   * default. Defaults to 1.18 for dotted, 1.075 for cinematic and 1.15 for the other kinds.
    */
   readonly radiusScale?: number;
   /**
@@ -24,15 +23,13 @@ export interface AtmosphereConfig {
    */
   readonly power?: number;
   /**
-   * Fresnel threshold (where the rim starts). 0 = entire sphere shows
-   * tint; 1 = only the silhouette edge. Default 0.6.
+   * Kind-specific threshold shaping the halo falloff. The shared Fresnel shell uses it as the
+   * normal-facing offset; dotted uses a silhouette threshold. Default 0.6.
    */
   readonly threshold?: number;
   /**
-   * Render side. `'back'` (default) draws on the inside of the
-   * surrounding shell so it reads as a halo behind the globe.
-   * `'front'` drops the rim onto the front-facing portion (haze over
-   * the planet); `'double'` does both for a heavier atmosphere.
+   * Shell render side for outline, wireframe, paper and hologram. Dotted ignores it; cinematic
+   * always renders the front-facing shell. Default `'back'` for the shared halo.
    */
   readonly side?: 'back' | 'front' | 'double';
   /**
@@ -45,6 +42,7 @@ export interface AtmosphereConfig {
    * Optional time-driven brightness oscillation (atmospheric "breath").
    */
   readonly pulse?: {
+    /** Oscillate atmosphere brightness. Default false. */
     readonly enabled?: boolean;
     /** Frequency in Hz. Default 0.25 (slow). */
     readonly speed?: number;
@@ -57,9 +55,8 @@ export interface StarfieldConfig {
   /** Create the star layer. Default false. */
   readonly enabled?: boolean;
   /**
-   * Star count override. Defaults to the active theme's `starfield.density`.
-   * Higher values cost more vertex shader work but no overdraw — typical
-   * range 500..6000.
+   * Star-count override. Defaults to `starfield.density`; larger values increase vertex and fragment
+   * work.
    */
   readonly density?: number;
   /** Base star size in CSS pixels. Defaults to the theme `starfield.size`. */
@@ -84,6 +81,7 @@ export interface StarfieldConfig {
    * field never pulses in unison.
    */
   readonly twinkle?: {
+    /** Animate each star's brightness with its own phase. Default false. */
     readonly enabled?: boolean;
     /** 0..1, brightness amplitude. Default 0.45. */
     readonly intensity?: number;

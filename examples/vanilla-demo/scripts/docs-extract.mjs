@@ -107,11 +107,13 @@ const normalizeDoc = (text) => {
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 };
 
-const DEFAULT_RE = /\bDefaults?(?:\s+(?:to|is|are|value))?\s*:?\s*(`[^`]*`|'[^']*'|"[^"]*"|-?\d[\d.]*(?:\s*(?:ms|px|s|%))?|true|false|null|\[[^\]]*\]|\{[^}]*\}|[^.;\n]+)/;
+// Only explicit values count. Phrases such as "Default angular influence"
+// describe a field, not its default. Use @default for conditional prose.
+const DEFAULT_RE = /\b[Dd]efaults?(?:\s+(?:to|is|are|value))?\s*:?\s*(`[^`]*`|'[^']*'|"[^"]*"|-?\d+(?:\.\d+)?(?:\s*(?:ms|px|s|%))?|true\b|false\b|null\b|\[[^\]]*\]|\{[^}]*\})/;
 
 const INLINE_DEFAULT_RE = /\b(true|false|'[^']*'|-?\d[\d.]*)\s*\(default\)/;
 
-const parseDefault = (doc) => {
+export const parseDefault = (doc) => {
   const m = DEFAULT_RE.exec(doc) ?? INLINE_DEFAULT_RE.exec(doc);
   if (!m) return undefined;
   let value = m[1].trim();
@@ -174,6 +176,26 @@ export function extract() {
   const getDecl = (name) => decls.get(name);
   const referenced = new Set();
 
+  const collectReferences = (node) => {
+    if (!node) return;
+    if (ts.isTypeReferenceNode(node)) {
+      const name = node.typeName.getText();
+      if (getDecl(name)) referenced.add(name);
+    }
+    node.forEachChild(collectReferences);
+  };
+
+  const interfaceMembers = (decl, seen = new Set()) => {
+    if (seen.has(decl.node.name.text)) return [];
+    const visited = new Set([...seen, decl.node.name.text]);
+    const inherited = (decl.node.heritageClauses ?? []).flatMap((clause) => clause.types.flatMap((type) => {
+      const parent = getDecl(type.expression.getText(decl.sf));
+      return parent && ts.isInterfaceDeclaration(parent.node) ? interfaceMembers(parent, visited) : [];
+    }));
+    const ownNames = new Set(decl.node.members.filter(ts.isPropertySignature).map((member) => propName(member.name, decl.sf)));
+    return [...inherited.filter((member) => !ownNames.has(propName(member.name, member.getSourceFile()))), ...decl.node.members];
+  };
+
   const typeText = (typeNode, sf) => {
     if (!typeNode) return 'unknown';
     return collapse(typeNode.getText(sf)).replace(/import\('[^']+'\)\./g, '');
@@ -208,10 +230,12 @@ export function extract() {
     return null;
   };
 
-  const members = (list, sf, pathPrefix, depth, ancestors) => {
+  const members = (list, _sf, pathPrefix, depth, ancestors) => {
     const out = [];
     for (const m of list) {
       if (!ts.isPropertySignature(m)) continue;
+      const sf = m.getSourceFile();
+      collectReferences(m.type);
       const name = propName(m.name, sf);
       const fullPath = pathPrefix ? `${pathPrefix}.${name}` : name;
       const { text, tags } = docInfo(m);
@@ -242,14 +266,14 @@ export function extract() {
           entry.type = literalTypeText(m.type, sf);
         } else if (ref && !ancestors.has(ref.name) && depth < MAX_DEPTH) {
           entry.ref = ref.name;
-          entry.children = members(ref.decl.node.members, ref.decl.sf, fullPath, depth + 1, new Set([...ancestors, ref.name]));
+          entry.children = members(interfaceMembers(ref.decl), ref.decl.sf, fullPath, depth + 1, new Set([...ancestors, ref.name]));
           if (!entry.description) entry.description = docInfo(ref.decl.node).text;
         }
       } else {
         const ref = referencedInterface(m.type);
         if (ref && !ancestors.has(ref.name) && depth < MAX_DEPTH) {
           entry.ref = ref.name;
-          entry.children = members(ref.decl.node.members, ref.decl.sf, fullPath, depth + 1, new Set([...ancestors, ref.name]));
+          entry.children = members(interfaceMembers(ref.decl), ref.decl.sf, fullPath, depth + 1, new Set([...ancestors, ref.name]));
           if (!entry.description) entry.description = docInfo(ref.decl.node).text;
         } else if (m.type && ts.isTypeReferenceNode(m.type)) {
           const name = m.type.typeName.getText();
@@ -304,6 +328,7 @@ export function extract() {
     if (!ts.isPropertySignature(m) || !m.type || !ts.isFunctionTypeNode(m.type)) continue;
     const sf = instanceDecl.sf;
     const fn = m.type;
+    collectReferences(fn);
     const typeParams = fn.typeParameters ? `<${fn.typeParameters.map((p) => collapse(p.getText(sf))).join(', ')}>` : '';
     const params = fn.parameters.map((p) => collapse(p.getText(sf))).join(', ');
     const returns = typeText(fn.type, sf);
@@ -354,7 +379,7 @@ export function extract() {
         kind: 'interface',
         description: text,
         extends: d.node.heritageClauses?.flatMap((h) => h.types.map((t) => collapse(t.getText(d.sf)))) ?? [],
-        members: members(d.node.members, d.sf, '', 0, new Set([name])),
+        members: members(interfaceMembers(d), d.sf, '', 0, new Set([name])),
       };
       for (const extra of referenced) if (!before.has(extra)) wanted.push(extra);
       for (const ext of entry.extends) {
@@ -363,6 +388,9 @@ export function extract() {
       }
       types[name] = entry;
     } else {
+      const before = new Set(referenced);
+      collectReferences(d.node.type);
+      for (const extra of referenced) if (!before.has(extra)) wanted.push(extra);
       const aliasText = typeText(d.node.type, d.sf);
       const entry = { name, kind: 'alias', description: text, type: aliasText };
       if (ts.isUnionTypeNode(d.node.type)) {

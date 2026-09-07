@@ -16,12 +16,23 @@ import type { CinematicDataset } from './kinds';
 // signatures to avoid bundling the data-layers module into anything that
 // only depends on the public type — keeps tree-shaking honest.
 
+/**
+ * Mounted globe lifecycle, camera, data and interaction methods. Create with `createGlobe()`, then
+ * call `mount()` to start rendering.
+ */
 export interface GlobeInstance {
-  /** Attach the canvas to the container, load country geometry and start rendering. */
+  /**
+   * Load country geometry and start rendering once. Repeated calls and calls after destroy are
+   * ignored; the canvas is attached when createGlobe() constructs the instance.
+   */
   readonly mount: () => void;
   /** Release the WebGL context, workers and listeners. The instance is unusable afterwards. */
   readonly destroy: () => void;
-  /** Patch the running config. A new `kind` rebuilds the renderer in place; every other key is applied live. */
+  /**
+   * Merge a partial config and apply supported live layer settings. Recreate the instance for
+   * construction settings such as kind, theme, container, axis tilt, framing, zoom limits and
+   * performance.
+   */
   readonly update: (config: Partial<GlobeConfig>) => void;
   /** Subscribe to an event. Returns the function that unsubscribes. */
   readonly on: <K extends GlobeEventName>(
@@ -41,13 +52,14 @@ export interface GlobeInstance {
   /** The pinned country id, if any. */
   readonly getActiveCountry: () => string | null;
   /**
-   * Apply a country-data map. When `scale` is provided, entries' `value` is
-   * mapped to a color via the scale (sequential/diverging/threshold/
-   * categorical); explicit `color` on an entry always wins over the scale.
-   * Pass `null` to hide the fill layer.
+   * Replace bound country data and the active data-layer slot with a choropleth. Explicit colors win
+   * over a supplied scale; null clears an active choropleth while preserving other layer types.
    */
   readonly setCountryData: (data: CountryDataMap | null, scale?: ScaleConfig) => void;
-  /** The map last passed to `setCountryData()`. */
+  /**
+   * Current bound country-data map with normalized ids, or null. Choropleth layers can also update
+   * this map.
+   */
   readonly getCountryData: () => CountryDataMap | null;
   /**
    * Mount or replace the active **data layer** — the high-level data
@@ -64,11 +76,8 @@ export interface GlobeInstance {
   /** The active data layer config, if any. */
   readonly getDataLayer: () => import('../data-layers/types').DataLayer | null;
   /**
-   * Replace the persistent cinematic dataset used by the cinematic kind's
-   * built-in city lights and route network. This does not occupy the
-   * generic `setDataLayer()` overlay slot, so callers can combine it with
-   * heatmaps, choropleths, charts, etc. Non-cinematic kinds store the data
-   * and apply it when the globe switches back to `kind: 'cinematic'`.
+   * Replace the cinematic city-light and route dataset without occupying the generic data-layer
+   * slot. Other kinds retain the dataset but do not render it.
    */
   readonly setCinematicData: (dataset: CinematicDataset | null) => void;
   /** The dataset last passed to `setCinematicData()`. */
@@ -96,17 +105,17 @@ export interface GlobeInstance {
   readonly hideLegend: () => void;
   /** Load a story, or clear it with `null`. Starts playing when `autoPlay` is set. */
   readonly setStory: (story: StoryConfig | null) => void;
-  /** Start or resume auto-advancing from the current scene. */
+  /** Start or resume auto-advancing with a fresh scene-duration timer. After completion, replay from the first scene. */
   readonly playStory: () => void;
-  /** Stop auto-advancing; the current scene stays. */
+  /** Stop automatic scene advancement; camera motion and delayed transitions continue. Resuming uses the full scene duration. */
   readonly pauseStory: () => void;
-  /** Advance to the next scene. */
+  /** Advance to the next scene. After non-looping completion, further calls do nothing until playback or navigation restarts it. */
   readonly nextScene: () => void;
   /** Go back one scene. */
   readonly prevScene: () => void;
   /** Jump to a scene by id. */
   readonly goToScene: (id: string) => void;
-  /** The scene the story is in, or `null` without a story. */
+  /** Current scene, including the last scene after completion; null before any scene is entered or after clearing the story. */
   readonly getCurrentScene: () => SceneConfig | null;
   /** Whether the story is auto-advancing. */
   readonly isStoryPlaying: () => boolean;
@@ -128,8 +137,21 @@ export interface GlobeInstance {
   readonly addArc: (arc: ArcConfig) => void;
   /** Remove an arc by id. */
   readonly removeArc: (id: string) => void;
-  /** A PNG data URL of the current frame, optionally rendered at another size. */
-  readonly toImage: (options?: { width?: number; height?: number }) => Promise<string>;
+  /**
+   * Return the WebGL canvas as a PNG data URL; HTML markers, labels and DOM overlays are not
+   * included. Custom size requires both finite positive dimensions; invalid dimensions reject.
+   */
+  readonly toImage: (options?: {
+    /**
+     * Requested logical renderer width; provide height too. Pixel ratio determines the resulting PNG
+     * pixel width.
+     */
+    width?: number;
+    /**
+     * Requested logical renderer height; provide width too. Pixel ratio determines the resulting PNG
+     * pixel height.
+     */
+    height?: number }) => Promise<string>;
   /**
    * Pause or resume rendering without tearing anything down. A paused globe
    * keeps its scene, data and WebGL context and costs no frame time; use it
@@ -138,7 +160,7 @@ export interface GlobeInstance {
    * automatic and independent of this switch.
    */
   readonly setPaused: (paused: boolean) => void;
-  /** Re-measure the container. A ResizeObserver does this automatically; call it after a CSS transform. */
+  /** Re-measure the container layout size. A ResizeObserver normally does this automatically. */
   readonly resize: () => void;
   /** The canvas element. */
   readonly getCanvas: () => HTMLCanvasElement;

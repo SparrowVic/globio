@@ -14,6 +14,7 @@
 import type { CountryDataMap, LatLng } from '../types';
 import type { ScaleConfig } from '../data/scales';
 
+/** Discriminant identifying one of the six data-layer configurations. */
 export type DataLayerType =
   | 'choropleth'
   | 'bars'
@@ -22,8 +23,11 @@ export type DataLayerType =
   | 'hexbin'
   | 'charts';
 
+/** Optional pointer callbacks. Currently dispatched by hexbin and charts layers only. */
 export interface DataLayerEvents<TEntry = unknown> {
+  /** Called when the hovered entry changes; null means pointer leave. Implemented by hexbin and charts. */
   readonly onHover?: (entry: TEntry | null) => void;
+  /** Called with the clicked entry. Implemented by hexbin and charts. */
   readonly onClick?: (entry: TEntry) => void;
 }
 
@@ -32,10 +36,22 @@ export interface DataLayerEvents<TEntry = unknown> {
  * 2D fill — colours each country by its scale-mapped value.
  */
 export interface ChoroplethDataLayer {
+  /** Select the choropleth data-layer renderer. */
   readonly type: 'choropleth';
+  /** Country fill entries keyed by ISO numeric country id. */
   readonly data: CountryDataMap;
+  /** Optional value-to-color mapping; explicit entry colors take precedence. */
   readonly scale?: ScaleConfig;
-  readonly events?: DataLayerEvents<{ readonly id: string; readonly value?: number }>;
+  /**
+   * Reserved callback configuration; choropleth does not dispatch these callbacks. Use the globe
+   * country events.
+   */
+  readonly events?: DataLayerEvents<{
+    /** Country id in the reserved event payload. */
+    readonly id: string;
+    /** Optional numeric value in the reserved event payload. */
+    readonly value?: number;
+  }>;
 }
 
 /**
@@ -44,11 +60,19 @@ export interface ChoroplethDataLayer {
  * Great for population-per-city, GDP-per-country, sales-per-region.
  */
 export interface BarsDataLayer {
+  /** Select the bars data-layer renderer. */
   readonly type: 'bars';
+  /** Bar samples at explicit coordinates or resolvable country centroids. */
   readonly data: ReadonlyArray<BarsDataEntry>;
+  /** Optional color mapping. Bar heights still use the data extent, independently of the scale domain. */
   readonly scale?: ScaleConfig;
   /** Min/max bar height in world units (1.0 = globe radius). Default 0.02 → 0.4. */
-  readonly height?: { readonly min?: number; readonly max?: number };
+  readonly height?: {
+    /** Height for the minimum data value, in globe-radius units. Default 0.02. */
+    readonly min?: number;
+    /** Height for the maximum data value, in globe-radius units. Default 0.4. */
+    readonly max?: number;
+  };
   /** Bar diameter in world units. Default 0.012. */
   readonly width?: number;
   /**
@@ -56,18 +80,22 @@ export interface BarsDataLayer {
    * `mountDurationMs` (default 700). 'none' snaps in.
    */
   readonly animateOnMount?: 'rise' | 'none';
+  /** Rise-animation duration in milliseconds; 0 shows final heights immediately. Default 700. */
   readonly mountDurationMs?: number;
+  /** Reserved callback configuration; the bars layer currently does not dispatch it. */
   readonly events?: DataLayerEvents<BarsDataEntry>;
 }
 
 export interface BarsDataEntry {
-  /** Either `id` (resolves to country centroid) OR explicit `position`. */
+  /** Country id used to resolve a centroid when position is omitted. Unresolved entries are skipped. */
   readonly id?: string;
+  /** Explicit latitude/longitude in degrees, taking precedence over the country id. */
   readonly position?: LatLng;
+  /** Numeric value used for the bar height and optional color scale. */
   readonly value: number;
   /** Optional explicit colour overrides the scale lookup. */
   readonly color?: string;
-  /** Free-form payload available in events. */
+  /** Application metadata retained with the entry; bars currently do not emit entry events. */
   readonly data?: Readonly<Record<string, unknown>>;
 }
 
@@ -77,28 +105,38 @@ export interface BarsDataEntry {
  * Side walls connect the surface ring to the elevated top.
  */
 export interface ExtrudedDataLayer {
+  /** Select the extruded data-layer renderer. */
   readonly type: 'extruded';
+  /** Country entries keyed by ISO numeric country id; countries absent from the map are not extruded. */
   readonly data: CountryDataMap;
+  /** Optional color mapping; height uses the data extent independently of the scale domain. */
   readonly scale?: ScaleConfig;
   /** Min/max extrusion height in world units. Default 0.005 → 0.18. */
-  readonly height?: { readonly min?: number; readonly max?: number };
+  readonly height?: {
+    /** Extrusion for the minimum data value, in globe-radius units. Default 0.005. */
+    readonly min?: number;
+    /** Extrusion for the maximum data value, in globe-radius units. Default 0.18. */
+    readonly max?: number;
+  };
   /**
    * Animation on mount: 'rise' grows from 0 → target. 'none' snaps in.
    * Default 'rise', 700ms.
    */
   readonly animateOnMount?: 'rise' | 'none';
+  /** Rise-animation duration in milliseconds; 0 shows final geometry immediately. Default 700. */
   readonly mountDurationMs?: number;
-  readonly events?: DataLayerEvents<{ readonly id: string; readonly value?: number }>;
+  /** Reserved callback configuration; extruded layers do not dispatch it. Use globe country events. */
+  readonly events?: DataLayerEvents<{
+    /** Country id in the reserved event payload. */
+    readonly id: string;
+    /** Optional numeric value in the reserved event payload. */
+    readonly value?: number;
+  }>;
 }
 
 /**
- * Kernel function used to spread each sample's value into a continuous
- * density field. Different kernels give different visual characters:
- *  - `gaussian` — soft, infinite tail. The classical heatmap look.
- *  - `epanechnikov` — bell-curve with a hard edge at the radius. Tight peaks.
- *  - `quartic` — smoother edge than epanechnikov, broader plateau at peak.
- *  - `dome` — rounded crown with a steep wall near the radius cutoff.
- *  - `uniform` — flat disk; binary inside / outside the kernel.
+ * Radial density-kernel shape. Every kernel, including Gaussian, is evaluated only inside the sample
+ * influence radius.
  */
 export type HeatmapKernel = 'gaussian' | 'epanechnikov' | 'quartic' | 'dome' | 'uniform';
 
@@ -250,39 +288,15 @@ export interface HeatmapCountryDomeConfig {
    */
   readonly rounding?: number;
   /**
-   * When true (default), each country's dome stamp is normalised so its
-   * peak hits 1.0 in the density texture, regardless of `entry.value` or
-   * `valuePreScale`. Every country then shows the SAME colour gradient
-   * and contour pattern — large countries (China, Russia, USA) display
-   * the full gradient from edge → centre instead of saturating into a
-   * single flat-top palette colour.
-   *
-   * When false, dome stamps are multiplied by the value pre-scale (the
-   * pre-3bb265a behaviour). Cross-country magnitude is then visible in
-   * the texture but big-population countries tend to saturate the palette
-   * top under typical intensity settings — small countries look like
-   * proper domes while big ones look like solid plates.
+   * Normalize each country dome to the same peak independently of entry value. Disable to retain
+   * value magnitude after pre-scaling. Default true.
    */
   readonly perCountryNormalize?: boolean;
 }
 
 /**
- * Visual style of the heatmap animation:
- *  - `rise`   — domes/blobs grow vertically out of the globe surface,
- *               displacement and alpha both ramp from 0 → 1 (default).
- *  - `pop`    — same as rise but uses an `easeOutBack`-style overshoot
- *               so each peak settles in with a tiny bounce.
- *  - `fade`   — alpha 0 → 1 only; displacement is at full strength
- *               from t=0 (good when `maxHeight` is low / 2D look).
- */
-/**
- * Animation style:
- *  - `'rise'`  — displacement + alpha 0→1 (default).
- *  - `'pop'`   — same envelope as rise; overshoot lives in the easing
- *                curve (`'ease-out-back'` etc.).
- *  - `'fade'`  — alpha-only; geometry sits at full extrusion from t=0.
- *  - `'pulse'` — continuous heartbeat. `t` follows a sin wave on `duration`
- *                period. No end state. Use with low-amplitude curves.
+ * Animation envelope: rise and pop scale height and opacity, fade scales opacity only, and pulse
+ * repeats. Pop uses the selected easing; choose a back or elastic easing for overshoot.
  */
 export type HeatmapAnimationStyle = 'rise' | 'pop' | 'fade' | 'pulse';
 
@@ -324,16 +338,11 @@ export type HeatmapEasingName =
   | 'ease-in-bounce' | 'ease-out-bounce' | 'ease-in-out-bounce';
 
 /**
- * Heatmap animation — drives the per-frame `t∈[0,1]` factor that scales
- * displacement and/or alpha. Can be set on the layer (one timeline shared
- * by every sample) AND/OR overridden per-entry (see {@link HeatmapDataEntry}).
- *
- * Future-proofing: `trigger` is currently always `'init'`, but the field
- * is reserved so storytelling can later call `heatmap.playAnimation({ trigger: 'enter', target: { id } })`
- * without breaking the public type shape.
+ * Shared optional animation settings for heatmap, hexbin and charts. Enable through the layer
+ * animation field; per-entry overrides support delay and opting out.
  */
 export interface HeatmapAnimationConfig {
-  /** Defaults to true when the object is supplied. Pass `false` to disable. */
+  /** Enable the animation when the containing animation object is supplied. Default true. */
   readonly enabled?: boolean;
   /** Visual style — see {@link HeatmapAnimationStyle}. Default `'rise'`. */
   readonly style?: HeatmapAnimationStyle;
@@ -351,47 +360,38 @@ export interface HeatmapAnimationConfig {
   /** Easing curve — see {@link HeatmapEasingName}. Default `'ease-out-cubic'`. */
   readonly easing?: HeatmapEasingName;
   /**
-   * What kicks the animation off. Today only `'init'` is wired (plays
-   * once on construction or on data change). `'manual'` reserves a hook
-   * for storyteller-driven `playAnimation()` calls in a future release.
+   * Init resets heatmap playback when baked data changes. Manual does not currently pause initial
+   * playback; hexbin and charts ignore this field. Use playDataLayerAnimation() to replay.
    */
   readonly trigger?: 'init' | 'manual';
   /**
-   * Stagger ordering — how entries / cells get their `index × stagger`
-   * delay assigned. Default `'sequential'`. Currently used by hex-bin
-   * (per-face) and charts (per-chart); heatmap path uses sequential.
+   * Stagger ordering for hexbin cells and charts. Heatmap always uses input order. Default
+   * `'sequential'`.
    */
   readonly order?: HeatmapAnimationOrder;
   /**
-   * Origin lat/lng for `order: 'radial'`. Cells / entries closest to this
-   * anchor get the smallest delays. Default `[0, 0]` (Africa centre).
+   * Latitude/longitude for radial ordering. Charts default to [0, 0]; hexbin defaults to the
+   * dataset's spherical centroid. Heatmap does not use ordering.
    */
   readonly origin?: LatLng;
 }
 
 /**
- * Volumetric heatmap — many lat/lng samples accumulate into a continuous
- * density field. The density is rendered both as a colour band over the
- * globe AND as a vertical displacement of a high-resolution sphere.
- *
- * Implementation: density is **pre-baked into an equirectangular texture**
- * (default 2048×1024) so the GPU samples it per-pixel. Vertex shader
- * displaces the surface; fragment shader picks colour from a 1D palette
- * texture built from the layer's `scale`. Pixel-perfect smoothness — no
- * triangulation artifacts even at low subdivisions.
- *
- * Good for crime density, cell-tower coverage, earthquake aggregations,
- * population pressure, internet usage — anything that feels "continuous".
+ * Density samples baked into an equirectangular texture and rendered on a latitude/longitude sphere.
+ * Color follows a palette texture; maxHeight optionally displaces vertices for relief.
  */
 export interface HeatmapDataLayer {
+  /** Select the heatmap data-layer renderer. */
   readonly type: 'heatmap';
+  /** Positioned density samples with optional country ids, radius, weight and animation delay. */
   readonly data: ReadonlyArray<HeatmapDataEntry>;
+  /**
+   * Color palette sampled over normalized density from 0 to 1. Use a matching scale domain; raw
+   * sample values are not passed directly to this palette.
+   */
   readonly scale?: ScaleConfig;
 
-  /**
-   * Default angular influence radius (radians) when an entry doesn't
-   * specify its own. Default 0.12 (~6.9°).
-   */
+  /** Default sample influence radius in radians. Default 0.1. */
   readonly radius?: number;
 
   /**
@@ -402,9 +402,8 @@ export interface HeatmapDataLayer {
   readonly maxHeight?: number;
 
   /**
-   * Icosphere subdivision driving the displacement mesh. Colour is
-   * pixel-perfect via the shader regardless. Default 6 (≈40k verts).
-   * 7 (≈160k) is hero-shot quality; 5 (≈10k) is fine for big-picture.
+   * Reserved legacy subdivision option; the current renderer ignores it. Use meshResolution to
+   * control displacement geometry.
    */
   readonly subdivisions?: number;
 
@@ -417,7 +416,9 @@ export interface HeatmapDataLayer {
    * 2048×1024 (~8MB). 4096×2048 for hero shots, 1024×512 for live updates.
    */
   readonly textureResolution?: {
+    /** Density-texture width in pixels. Default 2048. */
     readonly width: number;
+    /** Density-texture height in pixels. Default 1024. */
     readonly height: number;
   };
 
@@ -440,7 +441,10 @@ export interface HeatmapDataLayer {
   /** Density normalisation — see {@link HeatmapNormalize}. Default `'peak'`. */
   readonly normalize?: HeatmapNormalize;
 
-  /** Required when `normalize: 'absolute'`. Density value treated as 1.0. */
+  /**
+   * Saturation density for absolute normalization. Omitted falls back to the current peak; supply a
+   * fixed positive value for comparisons across updates.
+   */
   readonly absoluteMax?: number;
 
   /**
@@ -474,7 +478,12 @@ export interface HeatmapDataLayer {
    * work. Auto-promoted from 256×128 → 1024×512 when `maxHeight > 0`
    * unless explicitly set here. For hero 3D shots try 2048×1024.
    */
-  readonly meshResolution?: { readonly width: number; readonly height: number };
+  readonly meshResolution?: {
+    /** Longitudinal mesh segments. Defaults to 1024 with positive maxHeight, otherwise 256. */
+    readonly width: number;
+    /** Latitudinal mesh segments. Defaults to 512 with positive maxHeight, otherwise 128. */
+    readonly height: number;
+  };
 
   /**
    * Light source direction in world space (normalised, doesn't have to
@@ -531,19 +540,19 @@ export interface HeatmapDataLayer {
   readonly countryDomes?: boolean | HeatmapCountryDomeConfig;
 
   /**
-   * Mount/init animation. `true` enables the default rise (1.2s,
-   * `ease-out-cubic`); object form lets you tune duration / easing /
-   * stagger / style. Set `false` to mount instantly. Per-entry overrides
-   * (`HeatmapDataEntry.animation.delay`) compose with the layer-level
-   * `stagger` to drive a per-pixel delay map at bake time.
+   * Optional mount animation; omitted or false shows the final state immediately. True enables a
+   * 1200 ms rise; an object customizes timing and easing.
    */
   readonly animation?: boolean | HeatmapAnimationConfig;
 
+  /** Reserved callback configuration; continuous heatmaps currently do not dispatch sample pointer events. */
   readonly events?: DataLayerEvents<HeatmapDataEntry>;
 }
 
 export interface HeatmapDataEntry {
+  /** Sample latitude and longitude in degrees, also used when no country polygon matches. */
   readonly position: LatLng;
+  /** Sample density contribution before weight and optional country-dome pre-scaling. */
   readonly value: number;
   /** Optional country id used by country-aware heatmap modes. */
   readonly id?: string;
@@ -564,22 +573,14 @@ export interface HeatmapDataEntry {
 }
 
 /**
- * Hex-bin aggregation — lat/lng point samples are binned into the faces
- * of a subdivided icosphere (visually triangular cells; "hex" is the
- * common name for this kind of geographic binning). Each cell renders
- * as a flat or extruded prism whose colour comes from the aggregated
- * value via `scale` and whose height comes from value→[height.min, max].
- *
- * Subdivision levels: 0=20 cells · 1=80 · 2=320 · 3=1280 · 4=5120 · 5=20480.
- * Level 3 is the sweet-spot default — fine enough to pick up regional
- * patterns, coarse enough to cluster cleanly even with 1k samples.
+ * How samples within one triangular icosphere cell combine into its value: sum, count, mean,
+ * minimum, maximum, median or 90th percentile.
  */
 export type HexBinAggregateMode = 'sum' | 'count' | 'mean' | 'min' | 'max' | 'median' | 'p90';
 
 /**
- * Hex-bin mount animation. This is intentionally the same field shape as
- * heatmap/charts animation; `order: 'radial'` auto-centres on the data's
- * spherical centroid when `origin` is omitted.
+ * Shared layer-animation settings; radial ordering defaults to the dataset's spherical centroid when
+ * origin is omitted.
  */
 export type HexBinAnimationConfig = HeatmapAnimationConfig;
 
@@ -605,6 +606,7 @@ export interface HexBinCellBorderConfig {
  * slightly outward and tinted with `color`.
  */
 export interface HexBinHighlightConfig {
+  /** Show the hovered-cell overlay when the containing highlight object is supplied. Default true. */
   readonly enabled?: boolean;
   /** Highlight tint blended over the cell colour. Default '#ffffff'. */
   readonly color?: string;
@@ -621,25 +623,43 @@ export interface HexBinHighlightConfig {
  * tooltip implementations don't need to reach into the layer internals.
  */
 export interface HexBinHoverPayload {
+  /** Stable triangular face index for the current subdivision resolution. */
   readonly cellIndex: number;
+  /** Aggregated value in this cell; NaN for a cell without samples. */
   readonly value: number;
   /** Number of input samples that landed in this cell. */
   readonly sampleCount: number;
+  /** Whether the cell contains no input samples. */
   readonly empty: boolean;
   /** Cell centroid lat/lng in degrees. */
   readonly position: LatLng;
 }
 
+/**
+ * Point aggregation into triangular icosphere cells with optional extrusion, animation and pointer
+ * interaction.
+ */
 export interface HexBinDataLayer {
+  /** Select the hexbin data-layer renderer. */
   readonly type: 'hexbin';
+  /** Positioned samples aggregated into the nearest icosphere-face centroid. */
   readonly data: ReadonlyArray<HexBinDataEntry>;
+  /** Optional aggregated-value color mapping; noDataColor also styles visible empty cells. */
   readonly scale?: ScaleConfig;
   /** Icosphere subdivision level (0–5). Default 3. */
   readonly resolution?: number;
-  /** How multiple samples landing in the same cell combine. See {@link HexBinAggregateMode}. Default 'sum'. */
+  /**
+   * How multiple samples landing in the same cell combine. See {@link HexBinAggregateMode}. Default
+   * 'sum'.
+   */
   readonly aggregate?: HexBinAggregateMode;
   /** Min/max cell extrusion in world units (1 = globe radius). Default { min: 0, max: 0.06 }. */
-  readonly height?: { readonly min?: number; readonly max?: number };
+  readonly height?: {
+    /** Cell height at the low end of the aggregated-value extent. Default 0. */
+    readonly min?: number;
+    /** Cell height at the high end of the aggregated-value extent. Default 0.06. */
+    readonly max?: number;
+  };
   /** Render cells with no samples using `scale.noDataColor` or the layer default. Default false. */
   readonly showEmpty?: boolean;
   /** Layer opacity multiplier. Default 1. */
@@ -658,7 +678,10 @@ export interface HexBinDataLayer {
   readonly cellBorder?: boolean | HexBinCellBorderConfig;
   /** Pointer-hover highlight overlay. Default disabled. */
   readonly highlight?: boolean | HexBinHighlightConfig;
-  /** Mount/init animation. Set `false` to mount instantly. */
+  /**
+   * Optional cell animation; omitted or false shows final cells immediately. True enables the
+   * default rise animation.
+   */
   readonly animation?: boolean | HexBinAnimationConfig;
   /**
    * Pointer hover/click events. `entry` is a `HexBinHoverPayload`; the
@@ -668,43 +691,15 @@ export interface HexBinDataLayer {
 }
 
 export interface HexBinDataEntry {
+  /** Sample latitude and longitude in degrees. */
   readonly position: LatLng;
   /** Aggregated as `value` — defaults to 1 (so `aggregate: 'count'` works). */
   readonly value?: number;
 }
 
 /**
- * Chart sub-type rendered at each anchor (one anchor = one entry on the
- * globe). Pick by data shape, not aesthetics:
- *  - `'bars-grouped'` — N parallel bars side-by-side, one per series. Best
- *    for comparing 2-4 categorical series across many locations.
- *  - `'bars-stacked'` — single column with N coloured segments stacked
- *    vertically. Best when totals matter as much as composition.
- *  - `'pie'` — flat disc segmented by series share. Best for a single
- *    "share of total" dimension.
- *  - `'donut'` — pie with a hollow centre, slightly more readable for
- *    high segment counts and leaves room for value labels.
- *  - `'radial'` — N bars arranged around a circle, height = value. Best
- *    when series are categorical AND ordered (months, weekdays, …).
- */
-/**
- * Chart sub-type rendered at each anchor.
- *  - `'bars-grouped'` — N parallel bars side-by-side
- *  - `'bars-stacked'` — single column with composition segments
- *  - `'pie'` — flat disc segmented by series share
- *  - `'donut'` — pie with hollow centre (`innerRadius`)
- *  - `'radial'` — N bars arranged around a circle, height = value
- *  - `'gauge'` — 180° arc filling proportional to `series[0]` / `gaugeMax`,
- *               with a background arc behind. Single-value chart.
- *  - `'sunburst'` — two concentric rings: outer = series segments by share,
- *                   inner = single ring at half the radius coloured by the
- *                   sum total mapped through `scale`. Cheap nested overview.
- *  - `'extruded'` — each country's polygon (resolved via entry.id) is
- *                   raised outward from the globe surface as a 3D prism
- *                   with walls. Height = sum of series values, colour
- *                   from the layer scale. The "3D choropleth with charts
- *                   animation system" — bridges the existing extruded
- *                   data layer into the charts API + animation library.
+ * Chart geometry at each anchor: grouped or stacked bars, pie, donut, radial bars, gauge, sunburst
+ * or country-polygon extrusion.
  */
 export type ChartType =
   | 'bars-grouped'
@@ -722,8 +717,11 @@ export type ChartType =
  * specifically.
  */
 export interface ChartSeries {
+  /** Key read from each entry's values map. */
   readonly key: string;
+  /** Optional application-facing series name; it does not create a legend automatically. */
   readonly label?: string;
+  /** Series color override for point charts. Extruded country charts prefer the layer scale when present. */
   readonly color?: string;
 }
 
@@ -733,7 +731,9 @@ export interface ChartSeries {
  * lat/lng anchor (cities, sensors, custom POIs).
  */
 export interface ChartsDataEntry {
+  /** Country id used for centroid lookup and required to resolve country geometry for extruded charts. */
   readonly id?: string;
+  /** Explicit latitude/longitude anchor, taking precedence over the country centroid for point charts. */
   readonly position?: LatLng;
   /**
    * Per-series values keyed by `ChartSeries.key`. Missing keys are treated
@@ -741,7 +741,7 @@ export interface ChartsDataEntry {
    * geometry assumes non-negative semantics.
    */
   readonly values: Readonly<Record<string, number>>;
-  /** Optional display label, used by future labelling overlay. */
+  /** Display text used by the built-in chart labels unless a custom formatter is provided. */
   readonly label?: string;
   /**
    * Per-entry animation override. Same shape as the layer-level
@@ -757,38 +757,19 @@ export interface ChartsDataEntry {
 }
 
 /**
- * Multi-series chart visualisation anchored on the globe — one chart per
- * `ChartsDataEntry`, all sharing the same `chartType` and `series` schema.
- * Rendered as Three.js meshes in a layer group (no shader pipeline like
- * heatmap; volumes here are 10²–10³ charts so per-mesh CPU cost is fine).
- *
- * Architecture matches the rest of `setDataLayer` pipeline: orchestrator
- * builds Three.js objects in a `Group`, decoration owns the dispose path,
- * `tick(delta)` advances the mount animation. Animation reuses the heatmap
- * `HeatmapAnimationConfig` shape so the same easing library / HUD bindings
- * work across both layers.
- *
- * Tuning knobs:
- *  - `size`     — overall chart footprint in world units (1 = globe radius). Default 0.05.
- *  - `height`   — for bars / radial: max bar height. Default 0.08.
- *  - `innerRadius` — for donut: inner hole as fraction of outer (0..0.95). Default 0.45.
- *  - `padAngle`    — for pie/donut: gap between segments in radians. Default 0.
- *  - `rotation`    — chart rotation around its anchor normal (radians). Default 0.
- *  - `faceCamera`  — billboard pies/donuts toward the camera so they read flat regardless of latitude. Default true for pie/donut, false for bars/radial.
- *  - `borderColor` / `borderWidth` — optional outline along bar / segment edges. Disabled when omitted.
- */
-/**
- * Click / hover payload for charts events. `seriesKey` and `seriesIndex`
- * pinpoint the specific bar / segment that was hit; `entry` is the
- * underlying data row.
+ * Pointer payload identifying the hit chart entry and series. Aggregate-only geometry uses null
+ * seriesKey and seriesIndex -1.
  */
 export interface ChartsHoverPayload {
+  /** Original data row represented by the hit chart. */
   readonly entry: ChartsDataEntry;
   /** Index in the original `ChartsDataLayer.data` array. */
   readonly entryIndex: number;
+  /** Hit series key, or null for aggregate-only geometry. */
   readonly seriesKey: string | null;
   /** Index in `ChartsDataLayer.series`; `-1` for aggregate-only segments such as sunburst core. */
   readonly seriesIndex: number;
+  /** Numeric value represented by the hit segment or aggregate geometry. */
   readonly value: number;
 }
 
@@ -798,6 +779,7 @@ export interface ChartsHoverPayload {
  * crisp at any zoom and respect device pixel ratio without GPU text.
  */
 export interface ChartsLabelsConfig {
+  /** Show labels when the containing labels object is supplied. Default true. */
   readonly enabled?: boolean;
   /** Label text. Default: `entry.label ?? entry.id ?? ''`. */
   readonly format?: (entry: ChartsDataEntry) => string;
@@ -820,14 +802,29 @@ export interface ChartsLabelsConfig {
   readonly offsetPx?: number;
 }
 
+/**
+ * Multi-series charts anchored to coordinates or country centroids. Each layer uses one chartType,
+ * shared series definitions and optional animation, labels and pointer callbacks.
+ */
 export interface ChartsDataLayer {
+  /** Select the charts data-layer renderer. */
   readonly type: 'charts';
+  /** Per-location rows containing values keyed by the shared series definitions. */
   readonly data: ReadonlyArray<ChartsDataEntry>;
+  /** Geometry used for every entry in the layer. */
   readonly chartType: ChartType;
+  /** Ordered series definitions; keys select values and colors can override the layer scale. */
   readonly series: ReadonlyArray<ChartSeries>;
+  /** Optional mapping from chart values to colors when a series has no explicit color. */
   readonly scale?: ScaleConfig;
+  /** Chart footprint size in world units, where 1 is the globe radius. Default 0.05. */
   readonly size?: number;
+  /**
+   * Maximum column height in globe-radius units. Defaults to 0.08 for bar/radial charts and 0.12 for
+   * extruded charts.
+   */
   readonly height?: number;
+  /** Donut-hole radius as a fraction of outer radius. Default 0.45. */
   readonly innerRadius?: number;
   /** For `chartType: 'gauge'` — the value that fills the full 180° arc. Default 100. */
   readonly gaugeMax?: number;
@@ -842,8 +839,14 @@ export interface ChartsDataLayer {
    * `'linear'` preserves raw ratios.
    */
   readonly valuePreScale?: 'linear' | 'sqrt' | 'log';
+  /** Gap between pie or donut segments in radians. Default 0. */
   readonly padAngle?: number;
+  /** Rotation about the chart anchor normal in radians. Default 0. */
   readonly rotation?: number;
+  /**
+   * Billboard flat charts toward the camera. Defaults to true for pie, donut, gauge and sunburst;
+   * false for bar and radial charts.
+   */
   readonly faceCamera?: boolean;
   /**
    * Per-segment outline colour. When set together with non-zero
@@ -860,8 +863,12 @@ export interface ChartsDataLayer {
   readonly borderWidth?: number;
   /** HTML label overlay anchored above each chart. */
   readonly labels?: boolean | ChartsLabelsConfig;
+  /** Chart-material opacity multiplier. Default 1. */
   readonly opacity?: number;
-  /** Mount/init animation. Reuses {@link HeatmapAnimationConfig}; set `false` to mount instantly. */
+  /**
+   * Optional chart animation; omitted or false shows final geometry immediately. True enables the
+   * default rise animation.
+   */
   readonly animation?: boolean | HeatmapAnimationConfig;
   /**
    * Extra delay applied per-series within each chart, in ms. With `0`
@@ -875,10 +882,19 @@ export interface ChartsDataLayer {
    * enabled, the hit bar/segment fades up to `color` opacity (default
    * white tint) while the rest dim a touch.
    */
-  readonly highlight?: boolean | { readonly color?: string; readonly opacity?: number; readonly dimRest?: number };
+  readonly highlight?: boolean | {
+    /** Color blended into the hovered segment. Default `#ffffff`. */
+    readonly color?: string;
+    /** Blend strength toward the highlight color, from 0 to 1. Default 0.55. */
+    readonly opacity?: number;
+    /** Multiplier used to dim non-hovered segment colors. Default 0.5. */
+    readonly dimRest?: number;
+  };
+  /** Chart hover and click callbacks carrying the data row and hit series. */
   readonly events?: DataLayerEvents<ChartsHoverPayload>;
 }
 
+/** Configuration for the single active data-visualization slot, passed to setDataLayer(). */
 export type DataLayer =
   | ChoroplethDataLayer
   | BarsDataLayer
@@ -894,11 +910,14 @@ export type DataLayer =
  * for those that animate (mount-rise, particle flows in heatmap, …).
  */
 export interface DataLayerHandle {
+  /** Type of the mounted data-layer decoration. */
   readonly type: DataLayerType;
   /** Replace the layer's data (typically with smooth transition). */
   setData?(layer: DataLayer): void;
   /** Restart the layer's mount animation when supported. Returns false when disabled. */
   playAnimation?(): boolean;
+  /** Advance animation using frame delta and elapsed scene time in seconds. */
   update?(delta: number, elapsedSeconds: number): void;
+  /** Remove the decoration's objects and release its resources. */
   dispose(): void;
 }

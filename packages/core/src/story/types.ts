@@ -7,11 +7,14 @@ import type { EasingFunction, EasingName, LatLng } from '../types';
 export interface SceneConfig {
   /** Stable id for `goToScene()` and event payloads. Must be unique per story. */
   readonly id: string;
-  /** Total scene duration in milliseconds (camera transition + hold). */
+  /**
+   * Auto-advance delay in milliseconds from scene entry, including any transition delay and camera
+   * movement.
+   */
   readonly duration: number;
   /**
-   * Camera transition length in ms. Defaults to `min(1500, duration * 0.6)` —
-   * leaves at least 40% of the scene as a settled "hold" after arrival.
+   * Camera movement duration in milliseconds. Defaults to min(1500, floor(duration * 0.6));
+   * transitionDelay uses the same scene-time budget.
    */
   readonly transitionDuration?: number;
   /**
@@ -40,7 +43,12 @@ export interface SceneConfig {
    * Fly the camera to a lat/lng. Mutually exclusive with `focusOnCountry` —
    * if both are provided, `focusOnCountry` wins.
    */
-  readonly flyTo?: { readonly position: LatLng; readonly distance?: number };
+  readonly flyTo?: {
+    /** Camera target latitude and longitude in degrees. */
+    readonly position: LatLng;
+    /** Target distance in globe-radius units; omitted preserves the current distance. */
+    readonly distance?: number;
+  };
   /**
    * Auto-frame a country (uses bbox-derived distance). Pass a string for
    * default behaviour, or an object to override padding (smaller padding =
@@ -48,7 +56,12 @@ export interface SceneConfig {
    */
   readonly focusOnCountry?:
     | string
-    | { readonly id: string; readonly padding?: number };
+    | {
+        /** Country id whose bounds should be framed. */
+        readonly id: string;
+        /** Viewport padding used to frame the country. Default 0.15. */
+        readonly padding?: number;
+      };
   /**
    * Active country to highlight throughout this scene. Pass `null` to
    * explicitly clear; omit to inherit from the previous scene.
@@ -56,28 +69,41 @@ export interface SceneConfig {
   readonly activeCountry?: string | null;
   /** Optional HTML popup anchored to a position; auto-removed on scene exit. */
   readonly popup?: {
+    /** Popup anchor latitude and longitude in degrees. */
     readonly position: LatLng;
+    /** Trusted HTML markup inserted as the popup content. */
     readonly content: string;
+    /** Anchor edge of the popup element. Default `'center'`. */
     readonly anchor?: 'top' | 'bottom' | 'left' | 'right' | 'center';
   };
 }
 
+/** Ordered scene timeline with optional autoplay, looping and an initial scene id. */
 export interface StoryConfig {
+  /** Ordered scenes with unique ids; an empty array has nothing to play. */
   readonly scenes: ReadonlyArray<SceneConfig>;
   /** Begin auto-advancing on `setStory()`. Default false. */
   readonly autoPlay?: boolean;
   /** Restart from scene 0 after the last scene completes. Default false. */
   readonly loop?: boolean;
-  /** Scene id to start at. Defaults to first scene. */
+  /**
+   * Scene id entered immediately on setStory(), even without autoplay. Omitted waits until playback
+   * or navigation enters a scene.
+   */
   readonly startAt?: string;
 }
 
+/** Scene identity and zero-based position emitted on story entry or exit. */
 export interface StorySceneEvent {
+  /** Scene being entered or exited. */
   readonly scene: SceneConfig;
+  /** Zero-based index in the story scenes array. */
   readonly index: number;
 }
 
+/** Emitted once when a non-looping story completes; the handler may start another story or replay this one. */
 export interface StoryCompleteEvent {
+  /** The completed non-looping story configuration. */
   readonly story: StoryConfig;
 }
 

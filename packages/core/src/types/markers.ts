@@ -26,7 +26,9 @@ export interface MarkerConfig {
    * - `amplitude` fraction of base size added at peak (default 0.4)
    */
   readonly pulse?: boolean | {
+    /** Marker-size oscillation frequency in cycles per second. Default 1.5. */
     readonly speed?: number;
+    /** Fraction of base marker size added at the pulse peak. Default 0.4. */
     readonly amplitude?: number;
   };
 }

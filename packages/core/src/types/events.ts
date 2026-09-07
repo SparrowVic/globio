@@ -12,6 +12,7 @@ export interface SurfaceClickEvent {
   readonly point: LatLng;
 }
 
+/** Typed event-handler signatures accepted by `on()` and `off()`. */
 export interface GlobeEvents {
   /** A country was clicked. Markers take priority when both are under the pointer. */
   readonly countryClick: (event: CountryEvent) => void;
@@ -28,9 +29,12 @@ export interface GlobeEvents {
    * separately, never both.
    */
   readonly surfaceClick: (event: SurfaceClickEvent) => void;
-  /** Countries are loaded and the shaders are compiled; the first real frame is on screen. */
+  /** Country geometry and kind layers initialized successfully and shader preparation finished. */
   readonly ready: () => void;
-  /** Country geometry failed to load, or WebGL is unavailable. */
+  /**
+   * Country geometry loading or kind initialization failed. WebGL construction failures throw from
+   * createGlobe().
+   */
   readonly error: (error: Error) => void;
   /** The story engine entered a scene. */
   readonly sceneEnter: (event: StorySceneEvent) => void;
@@ -40,6 +44,8 @@ export interface GlobeEvents {
   readonly storyComplete: (event: StoryCompleteEvent) => void;
 }
 
+/** Name of a supported globe event. */
 export type GlobeEventName = keyof GlobeEvents;
 
+/** Unsubscribe callback returned by `on()`. */
 export type GlobeEventUnsubscribe = () => void;

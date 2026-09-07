@@ -23,12 +23,16 @@ import type {
 import type { PerformanceConfig } from './performance';
 import type { PostProcessingConfig } from './postfx';
 
+/**
+ * Configuration passed to `createGlobe()`. Most layer styling supports `update()`; construction
+ * settings require a new instance.
+ */
 export interface GlobeConfig {
   /** The element the canvas fills. Size it with CSS; the globe follows it. */
   readonly container: HTMLElement;
   /**
-   * Scene projection. Only `'sphere'` renders today; `'flat'` is reserved
-   * for a future map view. Default `'sphere'`.
+   * Projection selector reserved for future map support; the renderer currently builds a sphere for
+   * both values. Default `'sphere'`.
    */
   readonly mode?: GlobeMode;
   /**
@@ -40,13 +44,13 @@ export interface GlobeConfig {
    */
   readonly kind?: GlobeKind;
   /**
-   * A built-in or registered preset name, or `{ extends, tokens }` to
-   * override individual tokens on top of a preset. Defaults to the active
-   * kind's first preset.
+   * Built-in or registered preset name, or `{ extends, tokens }` for token overrides. Omitted uses
+   * the base token set; selecting a kind does not automatically select its preset.
    */
   readonly theme?: ThemeInput;
   /** Country geometry resolution, hover behaviour and per-instance border and fill styling. */
   readonly countries?: CountriesConfig;
+  /** HTML country-name labels with size and occlusion fading. Disabled until `enabled` is true. */
   readonly countryLabels?: CountryLabelsConfig;
   /**
    * Initial per-country colours and values, keyed by zero-padded ISO 3166-1
@@ -78,10 +82,15 @@ export interface GlobeConfig {
   readonly focusPulse?: {
     /** Master enable. When false, no kind spawns its pulse decorator. Default true. */
     readonly enabled?: boolean;
+    /**
+     * Use the focused country's centroid or a recent click coordinate as pulse origin. Default
+     * `'centroid'`.
+     */
     readonly origin?: 'centroid' | 'click';
+    /** Also fire the pulse on ocean or other surface clicks outside a country. Default false. */
     readonly pulseOnSurfaceClick?: boolean;
   };
-  /** Options read only when `kind` is `'outline'`. */
+  /** Outline-specific styling plus `hoverCrosshair`, shared with dotted, cinematic, paper and hologram. */
   readonly outline?: OutlineConfig;
   /** Options read only when `kind` is `'cinematic'`. */
   readonly cinematic?: CinematicConfig;
@@ -115,7 +124,10 @@ export interface GlobeConfig {
   readonly autoRotate?: AutoRotateConfig;
   /** Antialiasing, pixel ratio, frame-rate ceiling, adaptive quality and pausing. */
   readonly performance?: PerformanceConfig;
-  /** The `[lat, lng]` that faces the camera on mount. Default `[0, 0]`. */
+  /**
+   * Initial camera target in degrees. Omitted keeps the camera on world +Z, facing `[0, -90]` with
+   * zero axis tilt.
+   */
   readonly initialPosition?: LatLng;
   /** Closest camera distance in globe radii. Default 1.5. */
   readonly minZoom?: number;
@@ -131,18 +143,8 @@ export interface GlobeConfig {
    */
   readonly transparent?: boolean;
   /**
-   * How the globe is framed inside its container. The atmosphere shell
-   * extends ~15% beyond the globe's surface and its Fresnel halo fades
-   * even further out — without breathing room those edges visibly clip
-   * against the canvas, especially in transparent / decoration mode.
-   *
-   * - `padding` (0..0.5): fraction of the viewport reserved as margin
-   *   around the visible globe + atmosphere extent. 0 lets the renderer
-   *   fill the canvas (legacy behaviour); 0.15–0.25 leaves room for the
-   *   atmosphere halo to fade smoothly. Default 0.
-   * - `lockZoom`: when true, also clamps `minZoom` / `maxZoom` to the
-   *   computed framing distance so users can't zoom out of the frame.
-   *   Useful for purely decorative embeds. Default false.
+   * Initial camera distance derived from vertical field of view and estimated globe extent,
+   * with optional fixed zoom limits. Omit padding to retain the initial distance.
    */
   readonly framing?: FramingConfig;
 }

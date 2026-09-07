@@ -25,7 +25,9 @@ export interface PostProcessingConfig {
    * (default) halves it — the blur hides the loss and the fill cost drops 4×.
    */
   readonly resolutionScale?: number;
+  /** Blur bright scene regions and add the result as a luminous halo. */
   readonly bloom?: {
+    /** Include this effect while the post-processing pipeline is enabled. Default true. */
     readonly enabled?: boolean;
     /** How much of the blurred bright buffer is added back. Default 0.48. */
     readonly strength?: number;
@@ -36,7 +38,9 @@ export interface PostProcessingConfig {
     /** Softens the threshold knee (fraction of `threshold`). Default 0.5. */
     readonly softKnee?: number;
   };
+  /** Horizontal anamorphic streaks from bright regions. */
   readonly streak?: {
+    /** Include this effect while the post-processing pipeline is enabled. Default true. */
     readonly enabled?: boolean;
     /** Contribution of the horizontal streak in the composite. Default 0.22. */
     readonly strength?: number;
@@ -45,19 +49,25 @@ export interface PostProcessingConfig {
     /** Anamorphic tint. Default `#9fd4ff`. */
     readonly color?: string;
   };
+  /** Darken the frame corners in the composite pass. */
   readonly vignette?: {
+    /** Include this effect while the post-processing pipeline is enabled. Default true. */
     readonly enabled?: boolean;
     /** Corner darkening amount. 0..1, default 0.32. */
     readonly strength?: number;
     /** Widens the falloff towards the centre. 0..1, default 0.45. */
     readonly softness?: number;
   };
+  /** Offset color channels radially near the frame edges. */
   readonly chromaticAberration?: {
+    /** Include this effect while the post-processing pipeline is enabled. Default true. */
     readonly enabled?: boolean;
     /** Radial per-channel UV offset at the frame edge. Default 0.0025. */
     readonly strength?: number;
   };
+  /** Animated film-grain noise in the final composite. */
   readonly grain?: {
+    /** Include this effect while the post-processing pipeline is enabled. Default true. */
     readonly enabled?: boolean;
     /** Film-grain amplitude, attenuated in bright areas. Default 0.035. */
     readonly strength?: number;
