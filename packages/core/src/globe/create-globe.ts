@@ -489,6 +489,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // Resolves once the mounted kind's shaders are compiled; `ready` waits for
   // it so hosts can cross-fade to a globe that is actually drawing.
   let compiled: Promise<unknown> = Promise.resolve();
+  let compilationPending = false;
 
   const initCountries = async (): Promise<boolean> => {
     try {
@@ -525,11 +526,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
       // next frame block the main thread on a synchronous compile. Frames
       // are held meanwhile; the canvas keeps its last image.
       const tCompile = perfMark();
-      compiled = compileSceneAsync(scene).then((value) => {
-        perfMeasure('globio:shader-compile', tCompile);
-        return value;
-      });
-      scene.holdRendering(compiled);
+      const compilation = compileSceneAsync(scene);
+      if (compilation) {
+        compilationPending = true;
+        compiled = compilation.then((value) => {
+          compilationPending = false;
+          perfMeasure('globio:shader-compile', tCompile);
+          return value;
+        });
+        scene.holdRendering(compiled);
+      }
       // Adaptive quality: the cinematic kind measures FPS and halves the
       // bloom chain on the low tier.
       (state.kindHandle as CinematicKindHandle | null)?.onQualityTier?.((tier) => {
@@ -794,6 +800,22 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     emitStoryComplete: (event) => emitter.emit('storyComplete', event),
   });
 
+  const disposeGpuResources = (): void => {
+    markersLayer.dispose();
+    globeMesh.dispose();
+    state.dataLayer?.handle.dispose();
+    state.kindHandle?.dispose();
+    state.countriesPickingLayer?.dispose();
+    state.countryHighlightLayer?.dispose();
+    state.countryActiveLayer?.dispose();
+    state.arcsLayer.dispose();
+    starfieldLayer?.dispose();
+    atmosphereLayer?.dispose();
+    // SceneManager owns the attached post-processing pipeline.
+    postfx = null;
+    scene.destroy();
+  };
+
   let mounted = false;
   const instance: GlobeInstance = {
     mount: () => {
@@ -814,29 +836,27 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     destroy: () => {
       if (state.destroyed) return;
       state.destroyed = true;
+      scene.stop();
+      scene.getCanvas().remove();
       storyController.setStory(null);
       raycaster.destroy();
       controls.destroy();
-      markersLayer.dispose();
-      globeMesh.dispose();
-      state.dataLayer?.handle.dispose();
-      state.kindHandle?.dispose();
       state.legend?.dispose();
-      state.countriesPickingLayer?.dispose();
-      state.countryHighlightLayer?.dispose();
-      state.countryActiveLayer?.dispose();
       state.countryLabelsLayer?.dispose();
       state.countryTooltip?.dispose();
       markerTooltip.dispose();
       state.htmlMarkersLayer.dispose();
-      state.arcsLayer.dispose();
-      starfieldLayer?.dispose();
-      atmosphereLayer?.dispose();
-      // `scene.destroy()` disposes the attached pipeline (SceneManager owns
-      // it once handed over); just drop our reference.
-      postfx = null;
-      scene.destroy();
       emitter.clear();
+      // Three.js compileAsync polls each material's currentProgram from a
+      // timer. Disposing a material or the renderer first removes that
+      // program and throws outside the compilation promise. Keep GPU
+      // resources alive until polling ends, while teardown above removes
+      // the globe from the page and stops all user-facing work immediately.
+      if (compilationPending) {
+        void compiled.then(disposeGpuResources);
+      } else {
+        disposeGpuResources();
+      }
     },
     update: (partial) => {
       const prev = state.config;
@@ -1378,12 +1398,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
  * float render targets, context loss during setup, …) degrades to a plain
  * forward render rather than taking the whole globe down with it.
  */
-/** `renderer.compileAsync` when the three build has it; resolves immediately otherwise. */
-const compileSceneAsync = (scene: SceneManager): Promise<unknown> => {
+/** `renderer.compileAsync` when the three build has it; null when no work starts. */
+const compileSceneAsync = (scene: SceneManager): Promise<unknown> | null => {
   const renderer = scene.renderer as {
     compileAsync?: (target: Object3D, camera: Camera) => Promise<unknown>;
   };
-  if (typeof renderer.compileAsync !== 'function') return Promise.resolve();
+  if (typeof renderer.compileAsync !== 'function') return null;
   return renderer.compileAsync(scene.scene, scene.camera).catch(() => undefined);
 };
 

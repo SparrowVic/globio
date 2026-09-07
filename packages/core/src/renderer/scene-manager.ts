@@ -114,7 +114,10 @@ export class SceneManager {
             const last = entries[entries.length - 1];
             if (!last) return;
             this.inViewport = last.isIntersecting;
-            if (this.inViewport) getFrameScheduler().wake();
+            if (this.inViewport) {
+              this.renderStillFrame();
+              if (!this.userPaused) getFrameScheduler().wake();
+            }
           },
           // A little lead so a globe scrolling in already has its first frame.
           { rootMargin: '15%', threshold: 0 },
@@ -139,6 +142,8 @@ export class SceneManager {
     if (!paused) {
       this.lastTime = performance.now();
       getFrameScheduler().wake();
+    } else {
+      this.renderStillFrame();
     }
   }
 
@@ -147,6 +152,7 @@ export class SceneManager {
     this.running = true;
     this.lastTime = performance.now();
     getFrameScheduler().register(this.frameClient);
+    this.renderStillFrame();
   }
 
   public stop(): void {
@@ -164,8 +170,10 @@ export class SceneManager {
     this.held += 1;
     const release = (): void => {
       this.held = Math.max(0, this.held - 1);
+      if (this.destroyed || !this.running || this.held > 0) return;
       this.lastTime = performance.now();
-      getFrameScheduler().wake();
+      this.renderStillFrame();
+      if (!this.userPaused) getFrameScheduler().wake();
     };
     work.then(release, release);
   }
@@ -240,7 +248,8 @@ export class SceneManager {
     this.pageVisible = !document.hidden;
     if (this.pageVisible) {
       this.lastTime = performance.now();
-      getFrameScheduler().wake();
+      this.renderStillFrame();
+      if (!this.userPaused) getFrameScheduler().wake();
     }
   };
 
@@ -257,6 +266,7 @@ export class SceneManager {
   }
 
   private handleResize(): void {
+    if (this.destroyed) return;
     const { clientWidth, clientHeight } = this.options.container;
     if (clientWidth === 0 || clientHeight === 0) return;
     this.camera.aspect = clientWidth / clientHeight;
@@ -264,6 +274,23 @@ export class SceneManager {
     this.renderer.setSize(clientWidth, clientHeight, false);
     this.syncPostFxSize();
     this.options.onResize?.(clientWidth, clientHeight);
+    this.renderStillFrame();
+  }
+
+  /**
+   * Paused scenes still need their initial geometry and resized buffers
+   * drawn. A zero-time update initializes layer uniforms without advancing
+   * animations; drawing directly leaves the shared scheduler asleep.
+   * Holds and visibility changes retry here once rendering is safe again.
+   */
+  private renderStillFrame(): void {
+    if (
+      !this.userPaused || !this.running || this.destroyed || this.held > 0 ||
+      !this.inViewport || !this.pageVisible
+    ) return;
+    this.options.onRender(0);
+    if (this.destroyed || !this.running || this.held > 0) return;
+    this.renderFrame();
   }
 
   /**

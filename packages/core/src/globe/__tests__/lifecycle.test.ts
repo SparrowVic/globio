@@ -5,7 +5,17 @@ const lifecycle = vi.hoisted(() => ({
   loadCountries: vi.fn(),
   build: vi.fn(),
   start: vi.fn(),
+  stop: vi.fn(),
+  compileAsync: vi.fn(),
+  compileAvailable: true,
+  holdRendering: vi.fn(),
   dispose: vi.fn(),
+  gpuDispose: vi.fn(),
+  sceneDispose: vi.fn(),
+  overlayDispose: vi.fn(),
+  removeCanvas: vi.fn(),
+  destroyControls: vi.fn(),
+  destroyRaycaster: vi.fn(),
 }));
 
 vi.mock('../../data/geo-loader', () => ({ loadCountries: lifecycle.loadCountries }));
@@ -16,11 +26,14 @@ vi.mock('../../kinds/registry', async () => {
     group = new Group();
     object = this.group;
     mesh = this.group;
-    dispose() {}
+    dispose() { lifecycle.gpuDispose(); }
     setVisible() {}
     setResolution() {}
     registerFeatures() {}
     setEnabled() {}
+  }
+  class LabelsLayer extends Layer {
+    override dispose() { lifecycle.overlayDispose(); }
   }
   return {
     PRESET_DEFAULT_KIND: {},
@@ -34,7 +47,7 @@ vi.mock('../../kinds/registry', async () => {
           MarkersLayer: Layer,
           ArcsLayer: Layer,
           SelectionLayer: Layer,
-          LabelsLayer: Layer,
+          LabelsLayer,
         },
       },
     },
@@ -47,12 +60,18 @@ vi.mock('../../renderer/scene-manager', async () => {
     SceneManager: class {
       scene = new Scene();
       camera = new PerspectiveCamera(45, 2, 0.1, 100);
-      renderer = { domElement: { style: {} } };
+      renderer = {
+        domElement: { style: {}, remove: lifecycle.removeCanvas },
+        get compileAsync() {
+          return lifecycle.compileAvailable ? lifecycle.compileAsync : undefined;
+        },
+      };
       start = lifecycle.start;
+      stop = lifecycle.stop;
       constructor() { this.camera.position.set(0, 0, 3); }
-      holdRendering() {}
+      holdRendering = lifecycle.holdRendering;
       setPostFx() {}
-      destroy() {}
+      destroy = lifecycle.sceneDispose;
       getCanvas() { return this.renderer.domElement; }
     },
   };
@@ -63,26 +82,26 @@ vi.mock('../../renderer/postfx/pipeline', () => ({
 }));
 vi.mock('../../renderer/globe-mesh', async () => {
   const { Group } = await import('three');
-  return { GlobeMesh: class { mesh = new Group(); dispose() {} } };
+  return { GlobeMesh: class { mesh = new Group(); dispose = lifecycle.gpuDispose; } };
 });
 vi.mock('../../renderer/countries-picking-layer', async () => {
   const { Group } = await import('three');
-  return { CountriesPickingLayer: class { group = new Group(); dispose() {} } };
+  return { CountriesPickingLayer: class { group = new Group(); dispose = lifecycle.gpuDispose; } };
 });
 vi.mock('../../renderer/country-tooltip', () => ({
-  CountryTooltip: class { dispose() {} },
+  CountryTooltip: class { dispose = lifecycle.overlayDispose; },
 }));
 vi.mock('../../renderer/marker-tooltip', () => ({
-  MarkerTooltip: class { dispose() {} },
+  MarkerTooltip: class { dispose = lifecycle.overlayDispose; },
 }));
 vi.mock('../../renderer/html-markers-layer', () => ({
-  HtmlMarkersLayer: class { dispose() {} },
+  HtmlMarkersLayer: class { dispose = lifecycle.overlayDispose; },
 }));
 vi.mock('../../interaction/controls', () => ({
-  GlobeControls: class { destroy() {} },
+  GlobeControls: class { destroy = lifecycle.destroyControls; },
 }));
 vi.mock('../../interaction/raycaster', () => ({
-  PointerRaycaster: class { setTargets() {} destroy() {} },
+  PointerRaycaster: class { setTargets() {} destroy = lifecycle.destroyRaycaster; },
 }));
 
 const container = { clientWidth: 800, clientHeight: 400 } as HTMLElement;
@@ -94,7 +113,9 @@ const makeGlobe = () => {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  lifecycle.compileAvailable = true;
+  lifecycle.compileAsync.mockResolvedValue(undefined);
   lifecycle.loadCountries.mockResolvedValue([]);
   lifecycle.build.mockReturnValue({ dispose: lifecycle.dispose });
 });
@@ -175,6 +196,93 @@ describe('globe lifecycle', () => {
     globe.mount();
     expect(lifecycle.start).not.toHaveBeenCalled();
     expect(lifecycle.loadCountries).not.toHaveBeenCalled();
+    expect(lifecycle.gpuDispose).toHaveBeenCalled();
+    expect(lifecycle.sceneDispose).toHaveBeenCalledOnce();
+  });
+
+  it('keeps materials alive for compilation while removing a destroyed globe immediately', async () => {
+    let currentProgram: { isReady: () => boolean } | undefined = { isReady: () => true };
+    let checkMaterialsReady!: () => void;
+    lifecycle.gpuDispose.mockImplementation(() => { currentProgram = undefined; });
+    lifecycle.compileAsync.mockImplementation(() => new Promise((resolve) => {
+      // Mirrors Three.js compileAsync's later material-properties lookup.
+      checkMaterialsReady = () => {
+        if (currentProgram!.isReady()) resolve(undefined);
+      };
+    }));
+    const globe = makeGlobe();
+    const ready = vi.fn();
+    const error = vi.fn();
+    globe.on('ready', ready);
+    globe.on('error', error);
+    globe.mount();
+    await vi.waitFor(() => expect(lifecycle.compileAsync).toHaveBeenCalledOnce());
+
+    globe.destroy();
+    globe.destroy();
+    expect(lifecycle.stop).toHaveBeenCalledOnce();
+    expect(lifecycle.removeCanvas).toHaveBeenCalledOnce();
+    expect(lifecycle.destroyControls).toHaveBeenCalledOnce();
+    expect(lifecycle.destroyRaycaster).toHaveBeenCalledOnce();
+    expect(lifecycle.overlayDispose).toHaveBeenCalled();
+    expect(lifecycle.gpuDispose).not.toHaveBeenCalled();
+    expect(lifecycle.dispose).not.toHaveBeenCalled();
+    expect(lifecycle.sceneDispose).not.toHaveBeenCalled();
+
+    await Promise.resolve();
+    expect(lifecycle.gpuDispose).not.toHaveBeenCalled();
+    expect(checkMaterialsReady).not.toThrow();
+    await vi.waitFor(() => expect(lifecycle.sceneDispose).toHaveBeenCalledOnce());
+    expect(lifecycle.gpuDispose).toHaveBeenCalled();
+    expect(lifecycle.dispose).toHaveBeenCalledOnce();
+    expect(ready).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('releases deferred resources when shader compilation rejects without emitting after destroy', async () => {
+    let rejectCompilation!: (error: Error) => void;
+    lifecycle.compileAsync.mockReturnValue(new Promise((_, reject) => { rejectCompilation = reject; }));
+    const globe = makeGlobe();
+    const ready = vi.fn();
+    const error = vi.fn();
+    globe.on('ready', ready);
+    globe.on('error', error);
+    globe.mount();
+    await vi.waitFor(() => expect(lifecycle.compileAsync).toHaveBeenCalledOnce());
+
+    globe.destroy();
+    expect(lifecycle.sceneDispose).not.toHaveBeenCalled();
+    rejectCompilation(new Error('Shader compilation failed'));
+    await vi.waitFor(() => expect(lifecycle.sceneDispose).toHaveBeenCalledOnce());
+    expect(lifecycle.dispose).toHaveBeenCalledOnce();
+    expect(ready).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('destroys resources synchronously after shader compilation has completed', async () => {
+    const globe = makeGlobe();
+    const ready = vi.fn();
+    globe.on('ready', ready);
+    globe.mount();
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce());
+
+    globe.destroy();
+    expect(lifecycle.sceneDispose).toHaveBeenCalledOnce();
+    expect(lifecycle.dispose).toHaveBeenCalledOnce();
+    expect(lifecycle.gpuDispose).toHaveBeenCalled();
+  });
+
+  it('does not defer destruction when the renderer has no async compiler', async () => {
+    lifecycle.compileAvailable = false;
+    const globe = makeGlobe();
+    globe.mount();
+    await vi.waitFor(() => expect(lifecycle.build).toHaveBeenCalledOnce());
+
+    globe.destroy();
+    expect(lifecycle.compileAsync).not.toHaveBeenCalled();
+    expect(lifecycle.holdRendering).not.toHaveBeenCalled();
+    expect(lifecycle.sceneDispose).toHaveBeenCalledOnce();
+    expect(lifecycle.dispose).toHaveBeenCalledOnce();
   });
 
   it('clears country data queued before initialization instead of mounting a stale choropleth', async () => {
