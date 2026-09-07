@@ -47,11 +47,15 @@ export function PlanetStage() {
   const current = KIND_CHAPTERS[active] ?? KIND_CHAPTERS[0];
   const kind = current?.kind ?? 'cinematic';
   const theme = themes[kind];
-  // Every chapter's current theme, in chapter order — what the deck warms.
-  const warm = useMemo<ReadonlyArray<DeckEntry>>(
-    () => KIND_CHAPTERS.map((c) => ({ kind: c.kind, theme: themes[c.kind] })),
-    [themes],
-  );
+  // What the deck builds ahead of time. Desktop: every chapter, so a switch
+  // is always a cross-fade. Touch devices have far less GPU memory, so they
+  // keep only the next chapter warm (about four contexts at most).
+  const warm = useMemo<ReadonlyArray<DeckEntry>>(() => {
+    const entries = KIND_CHAPTERS.map((c) => ({ kind: c.kind, theme: themes[c.kind] }));
+    if (!coarse) return entries;
+    const next = entries[active + 1];
+    return next ? [next] : [];
+  }, [themes, coarse, active]);
   if (!current) return null;
 
   return (
