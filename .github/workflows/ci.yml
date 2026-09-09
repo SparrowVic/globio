@@ -1,0 +1,69 @@
+name: Library CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: library-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  libraries:
+    name: Types, tests, builds and packed consumers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install library workspace
+        run: pnpm install --filter . --filter './packages/*' --frozen-lockfile
+
+      - name: Check generated API documentation
+        run: |
+          pnpm docs:check
+          node --test scripts/docs-extract.test.mjs
+
+      - name: Typecheck packages
+        run: pnpm --recursive --filter './packages/*' --if-present run typecheck
+
+      - name: Run unit tests
+        run: pnpm --recursive --filter './packages/*' --if-present run test
+
+      - name: Build publishable packages
+        run: pnpm --recursive --filter './packages/*' --if-present run build
+
+      - name: Test packed packages in clean consumers
+        run: node scripts/package-smoke.mjs --output '${{ runner.temp }}/globiojs-packages'
+
+      - name: Upload packed packages
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: packed-packages-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/globiojs-packages/*.tgz
+            ${{ runner.temp }}/globiojs-packages/artifacts.json
+          if-no-files-found: ignore
+          retention-days: 7

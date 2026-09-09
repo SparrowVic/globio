@@ -7,5 +7,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ['vue', 'three', '@your-globe/core'],
+  external: ['vue', 'three', '@globiojs/core'],
 });

@@ -1,11 +1,11 @@
 // Zero-cost-when-absent wrappers around the User Timing API. The globe
 // records how long its heavy phases take so a host can read them from
 // `performance.getEntriesByType('measure')` or see them in a DevTools trace:
-//   globio:construct       renderer, controls and shared layers (sync)
-//   globio:countries-load  country geometry fetch + parse (cached per URL)
-//   globio:kind-build      the kind module's synchronous build — the long task
-//   globio:shader-compile  parallel shader compile while frames are held
-//   globio:mount-to-ready  mount() → 'ready' (everything above)
+//   globiojs:construct       renderer, controls and shared layers (sync)
+//   globiojs:countries-load  country geometry fetch + parse (cached per URL)
+//   globiojs:kind-build      the kind module's synchronous build — the long task
+//   globiojs:shader-compile  parallel shader compile while frames are held
+//   globiojs:mount-to-ready  mount() → 'ready' (everything above)
 
 const hasPerf =
   typeof performance !== 'undefined' &&

@@ -132,7 +132,7 @@ export interface StoryGlobeAdapter {
 - [ ] **Step 2: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: no errors.
@@ -393,7 +393,7 @@ describe('StoryController', () => {
 - [ ] **Step 2: Run tests — verify all fail**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: 17 tests fail with module-not-found.
@@ -549,7 +549,7 @@ export class StoryController {
 - [ ] **Step 4: Run tests — verify all pass**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 17 new tests pass alongside the existing 46 (63 total).
@@ -557,7 +557,7 @@ Expected: all 17 new tests pass alongside the existing 46 (63 total).
 - [ ] **Step 5: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors.
@@ -623,7 +623,7 @@ export type {
 - [ ] **Step 4: Build to surface compile errors**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: `globe.ts` will fail (missing methods) — that's Task 4. ESM/CJS may build but DTS fails.
@@ -729,9 +729,9 @@ In the `destroy` block of `instance`, add at the very top (before the existing t
 - [ ] **Step 5: Build + typecheck + tests**
 
 ```bash
-pnpm --filter @your-globe/core build
-pnpm --filter @your-globe/core typecheck
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core build
+pnpm --filter @globiojs/core typecheck
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all green; 63 tests pass.
@@ -900,7 +900,7 @@ Inside `buildGlobe`, after the existing `globe.on('countryClick', ...)`, add:
 - [ ] **Step 4: Rebuild core + manual visual verification**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Open http://localhost:5173/. Click "▶ Play tour":

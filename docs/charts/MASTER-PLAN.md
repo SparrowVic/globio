@@ -484,7 +484,7 @@ Each decoration is a `DataLayerBuilder` factory in the kind's `decorations.dataL
 - 💡 Headless test mode (skip render, expose layer state for assertions)
 
 #### 4.10.3 💡 Sample data
-- 💡 Bundled `import { sampleEnergyMix } from '@your-globe/core/samples/charts'`
+- 💡 Bundled `import { sampleEnergyMix } from '@globiojs/core/samples/charts'`
 - 💡 6-8 curated datasets (energy / population / GDP / KPI / sales / quarterly / climate / migration)
 
 ---

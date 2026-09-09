@@ -1,19 +1,45 @@
 {
-  "name": "@your-globe/vue",
+  "name": "@globiojs/vue",
   "version": "0.1.0",
-  "description": "Vue 3 wrapper for @your-globe/core",
+  "description": "Vue 3 wrapper for @globiojs/core",
+  "keywords": [
+    "3d",
+    "globe",
+    "three.js",
+    "vue",
+    "webgl"
+  ],
+  "homepage": "https://globiojs.dev",
+  "bugs": {
+    "url": "https://github.com/SparrowVic/globiojs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SparrowVic/globiojs.git",
+    "directory": "packages/vue"
+  },
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -21,12 +47,12 @@
     "clean": "rm -rf dist .turbo"
   },
   "peerDependencies": {
-    "@your-globe/core": "workspace:*",
+    "@globiojs/core": "workspace:^",
     "three": ">=0.160.0",
     "vue": ">=3.3.0"
   },
   "devDependencies": {
-    "@your-globe/core": "workspace:*",
+    "@globiojs/core": "workspace:^",
     "three": "^0.160.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
@@ -34,5 +60,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "license": "MIT",
+  "author": "Wiktor Wr\u00f3bel"
 }

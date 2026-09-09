@@ -90,7 +90,7 @@ describe('easing functions', () => {
 - [ ] **Step 2: Run tests — verify they fail**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: 3 new tests fail with module-not-found.
@@ -133,7 +133,7 @@ export type EasingFunction = (t: number) => number;
 - [ ] **Step 5: Run tests — verify they pass**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 3 new tests pass alongside existing 29.
@@ -229,7 +229,7 @@ describe('angularExtent', () => {
 - [ ] **Step 2: Run tests — verify they fail**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: 6 new tests fail.
@@ -297,7 +297,7 @@ export const angularExtent = (b: LatLngBounds): number => {
 - [ ] **Step 4: Run tests — verify they pass**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 38 tests pass (29 existing + 3 easing + 6 bounds).
@@ -351,7 +351,7 @@ The `setRotation` method already exists; just append the two new readonly method
 - [ ] **Step 3: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors. (`globe.ts` will fail to satisfy the interface yet — that's fixed in Task 6. `pnpm typecheck` will fail until then; for this task only run it on `packages/core/src/types.ts` indirectly by relying on subsequent tasks. We accept the temporary type error and move on.)
@@ -503,7 +503,7 @@ private onWheel = (event: WheelEvent): void => {
 - [ ] **Step 5: Build to verify the controls module compiles**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: clean ESM/CJS/DTS build. (DTS may temporarily complain about `globe.ts` not satisfying the new `GlobeInstance` interface from Task 3 — that's fixed in Task 6.)
@@ -577,8 +577,8 @@ public dispose(): void {
 - [ ] **Step 2: Build + typecheck**
 
 ```bash
-pnpm --filter @your-globe/core build
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core build
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: clean. (Still expect the `globe.ts` interface gap from Task 3.)
@@ -707,8 +707,8 @@ export { linear, easeOutCubic, easeInOutCubic } from './utils/easing';
 - [ ] **Step 3: Build + typecheck**
 
 ```bash
-pnpm --filter @your-globe/core build
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core build
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: all clean now.
@@ -799,7 +799,7 @@ $flyHome.addEventListener('click', () => {
 - [ ] **Step 3: Rebuild core (demo consumes `dist/`)**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 - [ ] **Step 4: Manual visual verification**

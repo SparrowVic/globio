@@ -96,7 +96,7 @@ describe('coordinates roundtrip', () => {
 - [ ] **Step 2: Run tests**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: 12 existing pass + 8 new pass = 20 total. If roundtrip fails on any sample, that's a real bug in `vector3ToLatLng`; STOP and surface to user before continuing — every later task depends on it being correct.
@@ -195,7 +195,7 @@ describe('triangulateRing', () => {
 - [ ] **Step 2: Verify tests fail**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 7 new tests fail with module-not-found.
@@ -290,7 +290,7 @@ export const triangulateRing = (
 - [ ] **Step 4: Run tests to verify pass**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 27 tests pass (12 resolver + 8 coordinates + 7 triangulate-ring).
@@ -298,7 +298,7 @@ Expected: all 27 tests pass (12 resolver + 8 coordinates + 7 triangulate-ring).
 - [ ] **Step 5: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors.
@@ -407,7 +407,7 @@ export class CountriesPickingLayer {
 - [ ] **Step 2: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors.
@@ -662,9 +662,9 @@ destroy: () => {
 - [ ] **Step 8: Build + typecheck + tests**
 
 ```bash
-pnpm --filter @your-globe/core build
-pnpm --filter @your-globe/core typecheck
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core build
+pnpm --filter @globiojs/core typecheck
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all green, 27 tests pass.
@@ -713,7 +713,7 @@ In `examples/vanilla-demo/src/main.ts`, inside the `buildGlobe` function, add `c
 - [ ] **Step 2: Rebuild core (demo consumes `dist/`)**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 - [ ] **Step 3: Manual visual verification**

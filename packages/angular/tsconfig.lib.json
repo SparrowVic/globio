@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./.angular/lib",
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSources": true
+  },
+  "angularCompilerOptions": {
+    "compilationMode": "partial"
+  },
+  "exclude": ["**/*.spec.ts", "**/*.test.ts"]
+}

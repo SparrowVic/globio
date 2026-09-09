@@ -1,19 +1,45 @@
 {
-  "name": "@your-globe/react",
+  "name": "@globiojs/react",
   "version": "0.1.0",
-  "description": "React wrapper for @your-globe/core",
+  "description": "React wrapper for @globiojs/core",
+  "keywords": [
+    "3d",
+    "globe",
+    "react",
+    "three.js",
+    "webgl"
+  ],
+  "homepage": "https://globiojs.dev",
+  "bugs": {
+    "url": "https://github.com/SparrowVic/globiojs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SparrowVic/globiojs.git",
+    "directory": "packages/react"
+  },
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -21,13 +47,13 @@
     "clean": "rm -rf dist .turbo"
   },
   "peerDependencies": {
-    "@your-globe/core": "workspace:*",
+    "@globiojs/core": "workspace:^",
     "react": ">=18.0.0",
     "three": ">=0.160.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
-    "@your-globe/core": "workspace:*",
+    "@globiojs/core": "workspace:^",
     "react": "^18.2.0",
     "three": "^0.160.0",
     "tsup": "^8.0.1",
@@ -35,5 +61,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "license": "MIT",
+  "author": "Wiktor Wr\u00f3bel"
 }

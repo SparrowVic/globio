@@ -1,41 +1,53 @@
 {
-  "name": "@your-globe/angular",
+  "name": "@globiojs/angular",
   "version": "0.1.0",
-  "description": "Angular wrapper for @your-globe/core",
-  "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
+  "description": "Angular standalone component for the GlobioJS 3D globe engine",
+  "author": "Wiktor Wróbel",
+  "license": "MIT",
+  "keywords": [
+    "3d",
+    "angular",
+    "data-visualization",
+    "globe",
+    "three.js",
+    "webgl"
+  ],
+  "homepage": "https://github.com/SparrowVic/globiojs#readme",
+  "bugs": {
+    "url": "https://github.com/SparrowVic/globiojs/issues"
   },
-  "files": ["dist", "README.md"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SparrowVic/globiojs.git",
+    "directory": "packages/angular"
+  },
+  "type": "module",
+  "sideEffects": false,
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo"
+    "build": "ng-packagr -p ng-package.json -c tsconfig.lib.json",
+    "dev": "ng-packagr -p ng-package.json -c tsconfig.lib.json --watch",
+    "typecheck": "ngc -p tsconfig.lib.json --noEmit",
+    "check:package": "node ./scripts/verify-package.mjs",
+    "clean": "rm -rf dist .angular .turbo"
   },
   "peerDependencies": {
-    "@angular/common": ">=17.0.0",
-    "@angular/core": ">=17.0.0",
-    "@your-globe/core": "workspace:*",
-    "rxjs": ">=7.0.0",
-    "three": ">=0.160.0"
+    "@angular/common": ">=17.0.0 <23.0.0",
+    "@angular/core": ">=17.0.0 <23.0.0",
+    "@globiojs/core": "^0.1.0"
+  },
+  "dependencies": {
+    "tslib": "^2.6.2"
   },
   "devDependencies": {
-    "@angular/common": "^17.0.0",
-    "@angular/core": "^17.0.0",
-    "@your-globe/core": "workspace:*",
-    "rxjs": "^7.8.0",
-    "three": "^0.160.0",
-    "tsup": "^8.0.1",
-    "typescript": "^5.3.3",
-    "zone.js": "^0.14.0"
+    "@angular/common": "17.3.12",
+    "@angular/compiler": "17.3.12",
+    "@angular/compiler-cli": "17.3.12",
+    "@angular/core": "17.3.12",
+    "@globiojs/core": "workspace:^",
+    "ng-packagr": "17.3.0",
+    "rxjs": "^7.8.2",
+    "three": "^0.167.1",
+    "typescript": "~5.4.5"
   },
   "publishConfig": {
     "access": "public"

@@ -6,7 +6,7 @@
 
 ## Problem
 
-The current vanilla-demo landing was redesigned in commits `a3f2d35` and `846d80d` toward a cinematic, desktop-first product page with real `@your-globe/core` globe instances. The direction is solid (wide hero, central globe, side panels, stat-bar, product board below) but the execution still reads as a strong draft — not as senior-product-design output. Specific issues:
+The current vanilla-demo landing was redesigned in commits `a3f2d35` and `846d80d` toward a cinematic, desktop-first product page with real `@globiojs/core` globe instances. The direction is solid (wide hero, central globe, side panels, stat-bar, product board below) but the execution still reads as a strong draft — not as senior-product-design output. Specific issues:
 
 - Hero has six chaotic orbit ellipses with arbitrary rotations; cluttered and not deliberate.
 - Hero "city labels" (`New York`, `São Paulo`) are positioned by hard-coded `left: 56% top: 31%`; they don't actually correspond to where those cities are on the camera at runtime.

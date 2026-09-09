@@ -40,7 +40,7 @@ import {
   type ThemeInput,
   type WireframeConfig,
   type ZoomConfig,
-} from '@your-globe/core';
+} from '@globiojs/core';
 
 /**
  * `<VueGlobe />` — every `GlobeConfig` key is a prop (kebab-case in

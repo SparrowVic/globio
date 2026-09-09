@@ -33,4 +33,4 @@ export type {
   ThemeInput,
   WireframeConfig,
   ZoomConfig,
-} from '@your-globe/core';
+} from '@globiojs/core';
