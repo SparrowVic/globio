@@ -1,6 +1,6 @@
 {
   "name": "globiojs",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Interactive 3D globes for JavaScript. Convenience entry point for @globiojs/core.",
   "keywords": [
     "3d",
@@ -13,7 +13,7 @@
   ],
   "type": "module",
   "license": "MIT",
-  "author": "Wiktor Wr\u00f3bel",
+  "author": "Wiktor Wróbel",
   "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

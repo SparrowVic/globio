@@ -1,6 +1,6 @@
 {
   "name": "@globiojs/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Framework-agnostic interactive 3D globe core",
   "keywords": [
     "3d",
@@ -72,5 +72,5 @@
     "access": "public"
   },
   "license": "MIT",
-  "author": "Wiktor Wr\u00f3bel"
+  "author": "Wiktor Wróbel"
 }

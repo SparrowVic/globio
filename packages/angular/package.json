@@ -1,6 +1,6 @@
 {
   "name": "@globiojs/angular",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Angular standalone component for the GlobioJS 3D globe engine",
   "author": "Wiktor Wróbel",
   "license": "MIT",
@@ -33,7 +33,7 @@
   "peerDependencies": {
     "@angular/common": ">=17.0.0 <23.0.0",
     "@angular/core": ">=17.0.0 <23.0.0",
-    "@globiojs/core": "^0.1.0"
+    "@globiojs/core": "^1.0.0"
   },
   "dependencies": {
     "tslib": "^2.6.2"
