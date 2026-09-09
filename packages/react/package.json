@@ -1,6 +1,6 @@
 {
   "name": "@globiojs/react",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "React wrapper for @globiojs/core",
   "keywords": [
     "3d",
@@ -63,5 +63,5 @@
     "access": "public"
   },
   "license": "MIT",
-  "author": "Wiktor Wr\u00f3bel"
+  "author": "Wiktor Wróbel"
 }
