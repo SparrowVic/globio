@@ -34,9 +34,9 @@ Before opening a PR, run the checks relevant to your change:
 
 ```sh
 pnpm docs:check
+pnpm build
 pnpm typecheck
 pnpm test
-pnpm build
 pnpm test:packages
 ```
 
