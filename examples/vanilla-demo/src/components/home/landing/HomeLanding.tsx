@@ -4,6 +4,8 @@ import { Nav } from '@/components/home/Nav';
 import { Wordmark } from './atoms/Wordmark';
 import { GITHUB_URL } from './data/links';
 import { ShowcaseHero } from './stage/ShowcaseHero';
+import { VisualWorldsSection } from './sections/VisualWorldsSection';
+import { CapabilitiesSection, FaqSection } from './sections/CapabilitiesSection';
 import { ExperienceSection } from './sections/ExperienceSection';
 import { BuildSection } from './sections/BuildSection';
 import { WorkspaceSection } from './sections/WorkspaceSection';
@@ -12,7 +14,7 @@ import './home.css';
 export function HomeLanding() {
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'Globio · Put a world in their hands';
+    document.title = 'Globio · The world is your canvas';
     const root = document.documentElement;
     const previous = root.style.scrollBehavior;
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -31,9 +33,12 @@ export function HomeLanding() {
       <Nav />
       <main id="home-content">
         <ShowcaseHero />
+        <VisualWorldsSection />
         <ExperienceSection />
-        <BuildSection />
+        <CapabilitiesSection />
         <WorkspaceSection />
+        <BuildSection />
+        <FaqSection />
       </main>
       <footer className="home-footer home-wrap">
         <Link to="/" aria-label="Globio home"><Wordmark /></Link>

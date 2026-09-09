@@ -163,7 +163,7 @@ export function BuildSection() {
     <section id="frameworks" className="home-build" aria-labelledby="home-build-heading">
       <div className="home-wrap home-build__layout">
         <div className="home-build__intro">
-          <h2 id="home-build-heading">Your stack.<br />Our planet.</h2>
+          <h2 id="home-build-heading">Your stack.<br /> Our planet.</h2>
           <p>A TypeScript engine. Components for React, Vue and Angular. Start with a globe, then add your data.</p>
           <Link className="home-text-link" to={`/docs/frameworks/${activeId}`}>
             Read the {active.label} guide <span aria-hidden="true">↗</span>

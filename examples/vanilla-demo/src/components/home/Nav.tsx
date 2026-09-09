@@ -6,8 +6,8 @@ import { Wordmark } from './landing/atoms/Wordmark';
 import { GITHUB_URL } from './landing/data/links';
 
 const ITEMS = [
-  { label: 'Styles', href: '#kinds' },
-  { label: 'What you can build', href: '#data' },
+  { label: 'Explore the worlds', href: '#worlds' },
+  { label: 'Playground', href: '#data' },
   { label: 'Developers', href: '#frameworks' },
 ] as const;
 
@@ -20,12 +20,20 @@ export function Nav() {
     const closeOutside = (event: PointerEvent) => {
       if (!header.current?.contains(event.target as Node)) setOpen(false);
     };
+    const desktop = window.matchMedia('(min-width: 901px)');
+    const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
     document.addEventListener('pointerdown', closeOutside);
-    return () => document.removeEventListener('pointerdown', closeOutside);
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      desktop.removeEventListener('change', closeOnDesktop);
+    };
   }, [open]);
   return (
     <header ref={header} className="home-nav" onKeyDown={(event) => {
       if (event.key === 'Escape' && open) { setOpen(false); toggle.current?.focus(); }
+    }} onBlur={(event) => {
+      if (open && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
     }}>
       <div className="home-wrap home-nav-inner">
         <Link to="/" aria-label="Globio home" className="home-logo"><Wordmark /></Link>

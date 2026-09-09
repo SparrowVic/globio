@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom';
 import { FrameworkProvider } from '@/components/docs/code/framework-context';
+import { HomeLanding } from '@/components/home/landing/HomeLanding';
 import { describe, expect, it, vi } from 'vitest';
 import api from '../generated/api.json';
 import { FEATURES } from '../features';
@@ -39,6 +40,26 @@ const missingTarget = (href: string, currentSlug = ''): string | null => {
 };
 
 describe('rendered documentation links', () => {
+  it('resolves homepage navigation and capability links to actual sections', () => {
+    const markup = renderToStaticMarkup(createElement(StaticRouter, {
+      location: '/', children: createElement(HomeLanding),
+    }));
+    const ids = new Set([...markup.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
+    const missing: string[] = [];
+    for (const [, href] of markup.matchAll(/\bhref="([^"]+)"/g)) {
+      if (!href) continue;
+      if (href.startsWith('#')) {
+        if (!ids.has(decodeURIComponent(href.slice(1)))) missing.push(href);
+      } else if (href.startsWith('/docs/')) {
+        const failure = missingTarget(href);
+        if (failure) missing.push(failure);
+      } else if (href.startsWith('/') && !['/', '/docs', '/studio'].includes(new URL(href, 'https://globio.local').pathname)) {
+        missing.push(href);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
   it('renders every manifest page with unique anchors', () => {
     const duplicates: string[] = [];
     for (const [slug, page] of pages) {

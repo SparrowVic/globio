@@ -294,8 +294,11 @@
   }
 
   .home-build__code {
-    height: 480px;
+    height: 420px;
+    font-size: 14px;
   }
+
+  .home-build__install > code { font-size: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
