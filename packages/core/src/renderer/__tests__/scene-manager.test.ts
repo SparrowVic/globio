@@ -13,6 +13,7 @@ vi.mock('three', async (importOriginal) => {
       pixelRatio = 1;
       render = vi.fn();
       dispose = vi.fn();
+      forceContextLoss = vi.fn();
       setClearAlpha() {}
       setSize(width: number, height: number) { this.size.set(width, height); }
       getSize(target: Vector2) { return target.copy(this.size); }
@@ -95,6 +96,24 @@ const deferred = () => {
   const promise = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
   return { promise, resolve, reject };
 };
+
+describe('scene disposal', () => {
+  it('releases the WebGL context after disposing renderer resources, only once', () => {
+    const { scene, render } = setup();
+    scene.start();
+    scene.destroy();
+    scene.destroy();
+
+    const dispose = vi.mocked(scene.renderer.dispose);
+    const release = vi.mocked(scene.renderer.forceContextLoss);
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledOnce();
+    expect(dispose.mock.invocationCallOrder[0]).toBeLessThan(release.mock.invocationCallOrder[0]!);
+    stepFrame();
+    expect(render).not.toHaveBeenCalled();
+    expect(frames.size).toBe(0);
+  });
+});
 
 describe('paused scene rendering', () => {
   it('renders a still frame when paused before the first scheduled frame', () => {

@@ -235,6 +235,10 @@ export class SceneManager {
     this.postfx?.dispose();
     this.postfx = null;
     this.renderer.dispose();
+    // dispose() releases Three.js resources but leaves the browser's WebGL
+    // context alive until GC. Explicitly release it so repeated route/kind
+    // changes cannot exhaust the browser's active-context limit.
+    this.renderer.forceContextLoss();
     if (this.renderer.domElement.parentElement === this.options.container) {
       this.options.container.removeChild(this.renderer.domElement);
     }
