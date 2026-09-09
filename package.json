@@ -11,7 +11,7 @@
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",
     "changeset": "changeset",
-    "version-packages": "changeset version",
+    "version-packages": "node scripts/version-packages.mjs",
     "release": "node scripts/publish-packages.mjs",
     "docs:extract": "node scripts/docs-extract.mjs",
     "docs:check": "node scripts/docs-extract.mjs --check",
