@@ -15,8 +15,10 @@ protected by the `npm-production` GitHub environment.
 
 ## One-time npm and GitHub setup
 
-1. Rename or transfer the source repository to `SparrowVic/globiojs`. Package
-   repository metadata and npm provenance are validated against that location.
+1. Rename or transfer the source repository to `SparrowVic/globiojs` and make
+   it public before the first release. Package repository metadata and npm
+   provenance are validated against that exact location, and npm provenance is
+   available only for public source repositories.
 2. Create the `globiojs` npm organization and choose its public-packages plan.
    The organization owns the `@globiojs` scope. The unscoped `globiojs` package
    is a separate registry name and its first publication is performed by an npm
@@ -82,7 +84,7 @@ configure the same GitHub Actions identity:
 | Repository | `globiojs` |
 | Workflow filename | `publish.yml` |
 | Environment | `npm-production` |
-| Allowed operation | direct publish |
+| Allowed actions | `npm publish` (direct publish) |
 
 This must be repeated for all five packages, including the unscoped `globiojs`
 alias. The publishing job grants `id-token: write` and `contents: read`, uses a
@@ -94,6 +96,11 @@ Trusted publishing requires npm 11.5.1 or newer and Node 22.14.0 or newer. The
 workflow checks both versions before publishing and builds without a dependency
 cache. See the npm documentation for [trusted publishers][trusted-publishers]
 and [provenance][provenance].
+
+After one successful OIDC release, set each package's publishing access to
+**Require two-factor authentication and disallow tokens**, then revoke any
+bootstrap automation token that is no longer needed. Trusted publishing keeps
+working because it uses short-lived OIDC credentials rather than npm tokens.
 
 ## Normal release flow
 
@@ -140,6 +147,12 @@ The Angular package is built with `ng-packagr` and packed from
 `packages/angular/dist`, not from its source package directory. The smoke test
 also checks partial-Ivy declarations and performs a consumer AOT build. This
 matches the [Angular Package Format][angular-package-format].
+
+All reusable GitHub Actions are pinned to full commit SHAs. Dependabot checks
+them monthly. The workflows intentionally use `pnpm/action-setup` v5 while the
+repository is pinned to pnpm 8; action-setup v6 bootstraps pnpm 11 and has known
+self-update failures when targeting older pnpm releases. Revisit that pin when
+the repository moves to pnpm 11 or newer.
 
 [trusted-publishers]: https://docs.npmjs.com/trusted-publishers/
 [provenance]: https://docs.npmjs.com/generating-provenance-statements/

@@ -35,7 +35,12 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Require main and a versioned tree
         run: node scripts/release-guard.mjs
 
@@ -50,15 +55,15 @@ jobs:
       CI: 'true'
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           package-manager-cache: false
@@ -72,13 +77,13 @@ jobs:
       - name: Install library workspace
         run: pnpm install --filter . --filter './packages/*' --frozen-lockfile
 
-      - name: Check, test and build
+      - name: Build, check and test
         run: |
           pnpm docs:check
           node --test scripts/docs-extract.test.mjs
+          pnpm --recursive --filter './packages/*' --if-present run build
           pnpm --recursive --filter './packages/*' --if-present run typecheck
           pnpm --recursive --filter './packages/*' --if-present run test
-          pnpm --recursive --filter './packages/*' --if-present run build
 
       - name: Test the actual npm tarballs
         run: node scripts/package-smoke.mjs
@@ -102,15 +107,15 @@ jobs:
       NPM_CONFIG_REGISTRY: https://registry.npmjs.org
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           run_install: false
 
       - name: Set up Node.js without a release cache
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           package-manager-cache: false
@@ -146,7 +151,12 @@ jobs:
       NPM_TAG: ${{ inputs.npm_tag }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Create release if it does not exist
         run: |
           RELEASE_TAG="v${RELEASE_VERSION}"

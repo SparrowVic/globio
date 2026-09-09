@@ -88,10 +88,12 @@ const [alias, core, react, vue] = await Promise.all([
   import('@globiojs/react'),
   import('@globiojs/vue'),
 ]);
+const docs = await import('@globiojs/core/docs/api.json', { with: { type: 'json' } });
 assert.equal(typeof alias.createGlobe, 'function');
 assert.equal(alias.createGlobe, core.createGlobe);
 assert.equal(typeof react.Globe, 'object');
 assert.ok(vue.VueGlobe);
+assert.equal(typeof docs.default, 'object');
 console.log('ESM imports: OK');
 `,
   );

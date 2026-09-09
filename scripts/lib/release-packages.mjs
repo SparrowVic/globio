@@ -138,6 +138,9 @@ async function validatePackage(definition, packageRoot, tarballPath) {
   if (!files.some((file) => /^readme(?:\.[^/]+)?$/i.test(file))) {
     fail(`${definition.name}: README is not included in the tarball`);
   }
+  if (!files.some((file) => /^licen[cs]e(?:\.[^/]+)?$/i.test(file))) {
+    fail(`${definition.name}: license file is not included in the tarball`);
+  }
   for (const file of files) {
     if (FORBIDDEN_PUBLISHED_PATHS.some((pattern) => pattern.test(file))) {
       fail(`${definition.name}: development or sensitive file was published: ${file}`);
