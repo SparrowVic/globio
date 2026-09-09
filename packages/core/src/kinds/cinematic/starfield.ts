@@ -70,6 +70,7 @@ uniform float uPixelRatio;
 varying vec3 vColor;
 varying float vAlpha;
 varying float vSpike;
+varying vec4 vClipPosition;
 void main() {
   // Same twinkle contract as the shared StarfieldLayer: per-star sinusoid
   // with a deterministic phase. Intensity 0 ⇒ constant brightness.
@@ -80,6 +81,7 @@ void main() {
   vSpike = aSpike;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
+  vClipPosition = gl_Position;
   gl_PointSize = uBaseSize * aSizeScale * uPixelRatio;
 }
 `;
@@ -88,6 +90,8 @@ const STAR_FRAGMENT_SHADER = `
 varying vec3 vColor;
 varying float vAlpha;
 varying float vSpike;
+varying vec4 vClipPosition;
+uniform float uEdgeFade;
 void main() {
   vec2 uv = gl_PointCoord - vec2(0.5);
   float d = length(uv);
@@ -101,18 +105,24 @@ void main() {
     float horizontal = smoothstep(0.03, 0.0, abs(uv.y)) * smoothstep(0.5, 0.05, abs(uv.x));
     mask = max(mask, max(vertical, horizontal) * 0.35);
   }
-  if (mask <= 0.001) discard;
-  gl_FragColor = vec4(vColor * vAlpha, mask * vAlpha);
+  vec2 screenUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+  float edgeDistance = min(min(screenUv.x, 1.0 - screenUv.x), min(screenUv.y, 1.0 - screenUv.y));
+  float edgeMask = uEdgeFade > 0.0 ? smoothstep(0.0, uEdgeFade, edgeDistance) : 1.0;
+  float alpha = mask * vAlpha * edgeMask;
+  if (alpha <= 0.001) discard;
+  gl_FragColor = vec4(vColor * vAlpha * edgeMask, alpha);
 }
 `;
 
 const BAND_VERTEX_SHADER = `
 varying vec3 vDir;
+varying vec4 vClipPosition;
 void main() {
   // Local direction, so the band is defined in the shell's own frame and
   // stays put while the camera orbits.
   vDir = normalize(position);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  vClipPosition = gl_Position;
 }
 `;
 
@@ -121,7 +131,9 @@ uniform float uIntensity;
 uniform float uTilt;
 uniform vec3 uWarm;
 uniform vec3 uCool;
+uniform float uEdgeFade;
 varying vec3 vDir;
+varying vec4 vClipPosition;
 
 // Hash / value noise / 4-octave fbm. Cheap enough for a full-screen shell
 // and deterministic, so the galaxy is the same on every reload.
@@ -183,7 +195,10 @@ void main() {
   intensity += speckle * band * dust * 0.35;
 
   vec3 tint = mix(uWarm, uCool, smoothstep(0.3, 0.85, intensity));
-  float lum = intensity * uIntensity;
+  vec2 screenUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+  float edgeDistance = min(min(screenUv.x, 1.0 - screenUv.x), min(screenUv.y, 1.0 - screenUv.y));
+  float edgeMask = uEdgeFade > 0.0 ? smoothstep(0.0, uEdgeFade, edgeDistance) : 1.0;
+  float lum = intensity * uIntensity * edgeMask;
   if (lum <= 0.001) discard;
   gl_FragColor = vec4(tint * lum, lum);
 }
@@ -291,6 +306,7 @@ export class CinematicStarfieldLayer {
         uPixelRatio: {
           value: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
         },
+        uEdgeFade: { value: clampEdgeFade(options.edgeFade) },
       },
       vertexShader: STAR_VERTEX_SHADER,
       fragmentShader: STAR_FRAGMENT_SHADER,
@@ -311,6 +327,7 @@ export class CinematicStarfieldLayer {
         uTilt: { value: degToRad(milkyWay?.tilt ?? DEFAULT_MILKY_WAY_TILT_DEG) },
         uWarm: { value: new Color('#d9c9b0') },
         uCool: { value: new Color('#c8d6ec') },
+        uEdgeFade: { value: clampEdgeFade(options.edgeFade) },
       },
       vertexShader: BAND_VERTEX_SHADER,
       fragmentShader: BAND_FRAGMENT_SHADER,
@@ -347,6 +364,15 @@ export class CinematicStarfieldLayer {
   public setSize(size: number): void {
     const uniform = this.material.uniforms['uBaseSize'];
     if (uniform) uniform.value = size;
+  }
+
+  /** Fade stars and the Milky Way together without touching globe glow. */
+  public setEdgeFade(edgeFade: number): void {
+    const value = clampEdgeFade(edgeFade);
+    const starUniform = this.material.uniforms['uEdgeFade'];
+    const bandUniform = this.bandMaterial.uniforms['uEdgeFade'];
+    if (starUniform) starUniform.value = value;
+    if (bandUniform) bandUniform.value = value;
   }
 
   /**
@@ -393,6 +419,8 @@ export class CinematicStarfieldLayer {
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+const clampEdgeFade = (value: number | undefined): number =>
+  value !== undefined && Number.isFinite(value) ? Math.max(0, Math.min(0.5, value)) : 0;
 
 const degToRad = (deg: number): number => (deg * Math.PI) / 180;
 

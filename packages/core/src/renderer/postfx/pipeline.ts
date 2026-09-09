@@ -130,7 +130,7 @@ export interface PostFxPipelineOptions {
  */
 export class PostFxPipeline {
   private readonly renderer: WebGLRenderer;
-  private readonly transparent: boolean;
+  private transparent: boolean;
   private readonly samples: number;
   private readonly hdrType: TextureDataType;
 
@@ -275,6 +275,11 @@ export class PostFxPipeline {
     if (this.failed) this.cfg.enabled = false;
     if (this.cfg.resolutionScale !== prevScale) this.targetsDirty = true;
     this.applyUniformsFromConfig();
+  }
+
+  /** Keep the off-screen scene target in sync with the live canvas alpha mode. */
+  public setTransparent(transparent: boolean): void {
+    this.transparent = transparent;
   }
 
   public render(scene: Scene, camera: Camera): void {

@@ -54,9 +54,11 @@ export class SceneManager {
    */
   private postfx: PostFxPipeline | null = null;
   private readonly sizeScratch = new Vector2();
+  private backgroundColor: string | null;
 
   public constructor(private readonly options: SceneManagerOptions) {
     this.scene = new Scene();
+    this.backgroundColor = options.backgroundColor;
     // null background ⇒ transparent canvas. We leave scene.background
     // unset (Three's default) so the renderer's clear-alpha=0 takes over.
     if (options.backgroundColor !== null) {
@@ -69,14 +71,16 @@ export class SceneManager {
     this.camera.position.set(0, 0, 3);
     this.camera.lookAt(new Vector3(0, 0, 0));
 
-    const transparent = options.backgroundColor === null;
     const rendererParams: WebGLRendererParameters = {
       antialias: options.performance.antialias,
-      alpha: transparent,
+      // Keep an alpha-capable context even for an opaque live canvas. Image
+      // export can then request a transparent frame without rebuilding the
+      // renderer or losing the live scene.
+      alpha: true,
       powerPreference: 'high-performance',
     };
     this.renderer = new WebGLRenderer(rendererParams);
-    if (transparent) this.renderer.setClearAlpha(0);
+    this.renderer.setClearAlpha(this.backgroundColor === null ? 0 : 1);
     this.renderer.setSize(clientWidth, clientHeight, false);
     this.renderer.setPixelRatio(this.resolvePixelRatio(options.performance.pixelRatio));
 
@@ -203,7 +207,38 @@ export class SceneManager {
     if (this.postfx === pipeline) return;
     this.postfx?.dispose();
     this.postfx = pipeline;
+    this.postfx?.setTransparent(this.backgroundColor === null);
     this.syncPostFxSize();
+  }
+
+  /** Current canvas fill. `null` means the host page shows through. */
+  public getCanvasBackground(): string | null {
+    return this.backgroundColor;
+  }
+
+  /**
+   * Change the canvas fill without rebuilding the WebGL context. The
+   * post-processing scene target follows the same alpha mode.
+   */
+  public setCanvasBackground(backgroundColor: string | null): void {
+    if (backgroundColor === this.backgroundColor) return;
+    this.backgroundColor = backgroundColor;
+    this.scene.background = backgroundColor === null ? null : new Color(backgroundColor);
+    this.renderer.setClearAlpha(backgroundColor === null ? 0 : 1);
+    this.postfx?.setTransparent(backgroundColor === null);
+  }
+
+  /**
+   * Ask for a frame after a live mutation. Active scenes already have a
+   * scheduled frame; paused scenes draw immediately when it is safe. Existing
+   * hold and visibility paths perform the deferred redraw when they release.
+   */
+  public requestRender(): void {
+    if (!this.userPaused) {
+      if (this.running && !this.destroyed) getFrameScheduler().wake();
+      return;
+    }
+    this.renderStillFrame();
   }
 
   /**

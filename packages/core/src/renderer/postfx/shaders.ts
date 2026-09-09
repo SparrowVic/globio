@@ -202,7 +202,11 @@ void main() {
     // diagonally instead of letting it scintillate in place.
     vec2 seed = uv * uResolution + vec2(fract(uTime * 0.618) * 97.0, fract(uTime * 0.372) * 61.0);
     float n = hash12(seed) - 0.5;
-    hdr += n * uGrain * (1.0 - clamp(luma(hdr), 0.0, 1.0));
+    // Do not let positive grain manufacture RGB (and therefore alpha below)
+    // in otherwise empty transparent pixels. Opaque frames keep base.a=1,
+    // while bloom-only halo pixels derive coverage from their own light.
+    float grainCoverage = max(base.a, smoothstep(0.0, 0.04, luma(hdr)));
+    hdr += n * uGrain * (1.0 - clamp(luma(hdr), 0.0, 1.0)) * grainCoverage;
   }
 
   vec3 color = softShoulder(max(hdr * uExposure, 0.0));

@@ -45,6 +45,8 @@ export interface StarfieldLayerOptions {
   readonly sizeVariety?: number;
   /** Twinkle animation knobs. Static when `twinkle.enabled` is false. */
   readonly twinkle?: StarfieldTwinkleOptions;
+  /** Viewport-edge fade width, as a 0..0.5 fraction. Default 0. */
+  readonly edgeFade?: number;
   /**
    * Milky Way band knobs. Ignored by this layer — declared here so the
    * per-kind starfields that DO draw a band (currently
@@ -69,6 +71,7 @@ uniform float uTwinkleSpeed;
 uniform float uPixelRatio;
 varying vec3 vColor;
 varying float vAlpha;
+varying vec4 vClipPosition;
 void main() {
   // Per-star sinusoidal pulse with a random per-star phase. Intensity 0 keeps
   // the field static; intensity 1 drops the trough to zero brightness.
@@ -78,6 +81,7 @@ void main() {
   vAlpha = brightness;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
+  vClipPosition = gl_Position;
   gl_PointSize = uBaseSize * aSizeScale * uPixelRatio;
 }
 `;
@@ -85,13 +89,19 @@ void main() {
 const FRAGMENT_SHADER = `
 varying vec3 vColor;
 varying float vAlpha;
+varying vec4 vClipPosition;
+uniform float uEdgeFade;
 void main() {
   // Soft round disc — fade edges via smoothstep so we don't show square sprites.
   vec2 uv = gl_PointCoord - vec2(0.5);
   float d = length(uv);
   float disc = smoothstep(0.5, 0.18, d);
-  if (disc <= 0.001) discard;
-  gl_FragColor = vec4(vColor * vAlpha, disc * vAlpha);
+  vec2 screenUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+  float edgeDistance = min(min(screenUv.x, 1.0 - screenUv.x), min(screenUv.y, 1.0 - screenUv.y));
+  float edgeMask = uEdgeFade > 0.0 ? smoothstep(0.0, uEdgeFade, edgeDistance) : 1.0;
+  float alpha = disc * vAlpha * edgeMask;
+  if (alpha <= 0.001) discard;
+  gl_FragColor = vec4(vColor * vAlpha * edgeMask, alpha);
 }
 `;
 
@@ -184,6 +194,7 @@ export class StarfieldLayer {
         uPixelRatio: {
           value: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
         },
+        uEdgeFade: { value: clampEdgeFade(options.edgeFade) },
       },
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
@@ -224,6 +235,12 @@ export class StarfieldLayer {
     if (uniform) uniform.value = size;
   }
 
+  /** Fade only the celestial backdrop near viewport edges. */
+  public setEdgeFade(edgeFade: number): void {
+    const uniform = this.material.uniforms['uEdgeFade'];
+    if (uniform) uniform.value = clampEdgeFade(edgeFade);
+  }
+
   /**
    * Live update for the twinkle config. Toggling `enabled` drives both the
    * RAF skip in `update()` and the intensity uniform — when disabled we set
@@ -252,3 +269,5 @@ export class StarfieldLayer {
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+const clampEdgeFade = (value: number | undefined): number =>
+  value !== undefined && Number.isFinite(value) ? Math.max(0, Math.min(0.5, value)) : 0;

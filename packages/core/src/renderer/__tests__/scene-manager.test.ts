@@ -11,10 +11,13 @@ vi.mock('three', async (importOriginal) => {
       domElement = { parentElement: null };
       size = new actual.Vector2();
       pixelRatio = 1;
+      clearAlpha = 1;
       render = vi.fn();
       dispose = vi.fn();
       forceContextLoss = vi.fn();
-      setClearAlpha() {}
+      constructor(parameters: Record<string, unknown>) { rendererParameters.push(parameters); }
+      setClearAlpha(value: number) { this.clearAlpha = value; }
+      getClearAlpha() { return this.clearAlpha; }
       setSize(width: number, height: number) { this.size.set(width, height); }
       getSize(target: Vector2) { return target.copy(this.size); }
       setPixelRatio(value: number) { this.pixelRatio = value; }
@@ -28,6 +31,7 @@ let frames: Map<number, FrameRequestCallback>;
 let resizeCallbacks: Array<() => void>;
 let intersectionCallbacks: Array<(visible: boolean) => void>;
 let page: EventTarget & { hidden: boolean };
+let rendererParameters: Array<Record<string, unknown>>;
 const scenes: SceneManager[] = [];
 
 beforeEach(() => {
@@ -35,6 +39,7 @@ beforeEach(() => {
   frames = new Map();
   resizeCallbacks = [];
   intersectionCallbacks = [];
+  rendererParameters = [];
   page = Object.assign(new EventTarget(), { hidden: false });
   vi.stubGlobal('document', page);
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -66,13 +71,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const setup = () => {
+const setup = (backgroundColor: string | null = null) => {
   const container = { clientWidth: 800, clientHeight: 400, appendChild: vi.fn() };
   const onRender = vi.fn();
   const onResize = vi.fn();
   const scene = new SceneManager({
     container: container as unknown as HTMLElement,
-    backgroundColor: null,
+    backgroundColor,
     performance: {
       antialias: true, pixelRatio: 1, maxFps: 40,
       adaptiveQuality: false, pauseWhenHidden: true,
@@ -115,6 +120,56 @@ describe('scene disposal', () => {
   });
 });
 
+describe('canvas backgrounds', () => {
+  it('keeps every renderer alpha-capable and changes clear alpha live', () => {
+    const { scene } = setup('#102030');
+    expect(rendererParameters[0]).toMatchObject({ alpha: true, antialias: true });
+    expect(scene.getCanvasBackground()).toBe('#102030');
+    expect(scene.scene.background).not.toBeNull();
+    expect(scene.renderer.getClearAlpha()).toBe(1);
+
+    scene.setCanvasBackground(null);
+    expect(scene.getCanvasBackground()).toBeNull();
+    expect(scene.scene.background).toBeNull();
+    expect(scene.renderer.getClearAlpha()).toBe(0);
+
+    scene.setCanvasBackground('rebeccapurple');
+    expect(scene.getCanvasBackground()).toBe('rebeccapurple');
+    expect(scene.scene.background).not.toBeNull();
+    expect(scene.renderer.getClearAlpha()).toBe(1);
+  });
+
+  it('keeps an attached post-processing target in the same alpha mode', () => {
+    const { scene } = setup('#102030');
+    const pipeline = {
+      setSize: vi.fn(),
+      setTransparent: vi.fn(),
+      dispose: vi.fn(),
+      render: vi.fn(),
+    };
+
+    scene.setPostFx(pipeline as unknown as PostFxPipeline);
+    expect(pipeline.setTransparent).toHaveBeenLastCalledWith(false);
+    scene.setCanvasBackground(null);
+    expect(pipeline.setTransparent).toHaveBeenLastCalledWith(true);
+  });
+
+  it('redraws a live background change while paused', () => {
+    const { scene, onRender, render } = setup('#102030');
+    scene.setPaused(true);
+    scene.start();
+    onRender.mockClear();
+    render.mockClear();
+
+    scene.setCanvasBackground(null);
+    scene.requestRender();
+
+    expect(onRender).toHaveBeenCalledOnce();
+    expect(onRender).toHaveBeenCalledWith(0);
+    expect(render).toHaveBeenCalledOnce();
+  });
+});
+
 describe('paused scene rendering', () => {
   it('renders a still frame when paused before the first scheduled frame', () => {
     const { scene, onRender, render } = setup();
@@ -144,7 +199,7 @@ describe('paused scene rendering', () => {
     const { scene, container, onRender, onResize, render } = setup();
     const events: string[] = [];
     const pipeline = {
-      setSize: vi.fn(), dispose: vi.fn(),
+      setSize: vi.fn(), setTransparent: vi.fn(), dispose: vi.fn(),
       render: vi.fn(() => events.push('draw')),
     };
     scene.setPostFx(pipeline as unknown as PostFxPipeline);

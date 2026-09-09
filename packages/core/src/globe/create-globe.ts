@@ -54,11 +54,14 @@ import { computeFramedDistance } from './framing';
 import type { InternalState } from './internal-state';
 import { createCameraMethods } from './camera-methods';
 import { captureGlobeImage } from './image-export';
+import { resolveBackgroundEdgeFade, resolveCanvasBackground } from './background';
 
 export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   const tConstruct = perfMark();
   const emitter = new GlobeEventEmitter();
   const tokens = resolveTheme(config.theme);
+  const themeBackground = tokens['background.color'];
+  let backdropEdgeFade = resolveBackgroundEdgeFade(config.background?.edgeFade);
   const performance = { ...DEFAULT_PERFORMANCE, ...config.performance };
   const countries = config.countries
     ? { ...DEFAULT_COUNTRIES, ...config.countries }
@@ -66,7 +69,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
 
   const scene = new SceneManager({
     container: config.container,
-    backgroundColor: config.transparent ? null : tokens['background.color'],
+    backgroundColor: resolveCanvasBackground(config, themeBackground),
     performance,
     onRender: (delta) => {
       state.controls.update(delta);
@@ -147,7 +150,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // caller explicitly turns it on. `let` so `update({ postprocessing })`
   // can spin the pipeline up lazily on first enable.
   const postfxEnabled = config.postprocessing?.enabled ?? resolvedKind === 'cinematic';
-  let postfx = createPostFxPipeline(scene.renderer, config, postfxEnabled, performance.antialias);
+  let postfx = createPostFxPipeline(
+    scene.renderer,
+    config,
+    postfxEnabled,
+    performance.antialias,
+    scene.getCanvasBackground() === null,
+  );
   if (postfx) scene.setPostFx(postfx);
 
   // `let` so `update({ starfield })` can swap the layer in-place when a
@@ -155,7 +164,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
   // rest of the scene keeps rendering uninterrupted, only the points
   // cloud blinks for one frame.
   let starfieldLayer: Public<StarfieldLayer> | null = config.starfield?.enabled
-    ? buildStarfieldLayer(config.starfield, tokens, kindModule.layers.StarfieldLayer)
+    ? buildStarfieldLayer(
+        config.starfield,
+        tokens,
+        kindModule.layers.StarfieldLayer,
+        backdropEdgeFade,
+      )
     : null;
   if (starfieldLayer) scene.scene.add(starfieldLayer.object);
 
@@ -861,6 +875,13 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     update: (partial) => {
       const prev = state.config;
       state.config = mergeRuntimeConfig(state.config, partial);
+      const backgroundChanged =
+        partial.background !== undefined || partial.transparent !== undefined;
+      if (backgroundChanged) {
+        scene.setCanvasBackground(resolveCanvasBackground(state.config, themeBackground));
+        backdropEdgeFade = resolveBackgroundEdgeFade(state.config.background?.edgeFade);
+        starfieldLayer?.setEdgeFade(backdropEdgeFade);
+      }
       if (partial.markers !== undefined) markersLayer.setMarkers(partial.markers);
       if (partial.htmlMarkers !== undefined) htmlMarkersLayer.setMarkers(partial.htmlMarkers);
       if (partial.arcs !== undefined) arcsLayer.setArcs(partial.arcs);
@@ -937,7 +958,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           starfieldLayer?.setVisible(false);
         } else if (!starfieldLayer) {
           // Toggle on for the first time → build the layer fresh.
-          starfieldLayer = buildStarfieldLayer(next, tokens, kindModule.layers.StarfieldLayer);
+          starfieldLayer = buildStarfieldLayer(
+            next,
+            tokens,
+            kindModule.layers.StarfieldLayer,
+            backdropEdgeFade,
+          );
           scene.scene.add(starfieldLayer.object);
         } else if (wantRebuild) {
           // Geometry-baked field changed → swap the layer atomically.
@@ -945,7 +971,12 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           // scene keeps rendering uninterrupted.
           scene.scene.remove(starfieldLayer.object);
           starfieldLayer.dispose();
-          starfieldLayer = buildStarfieldLayer(next, tokens, kindModule.layers.StarfieldLayer);
+          starfieldLayer = buildStarfieldLayer(
+            next,
+            tokens,
+            kindModule.layers.StarfieldLayer,
+            backdropEdgeFade,
+          );
           scene.scene.add(starfieldLayer.object);
         } else {
           // Live uniform updates — no rebuild, no blink.
@@ -1171,11 +1202,16 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
             state.config,
             next.enabled ?? state.resolvedKind === 'cinematic',
             performance.antialias,
+            scene.getCanvasBackground() === null,
           );
           if (postfx) scene.setPostFx(postfx);
         }
         postfx?.setConfig(next);
       }
+      // A paused globe needs one still frame after the whole update
+      // transaction. Request it last so combined background/starfield/PostFX
+      // changes never expose an intermediate frame.
+      if (backgroundChanged) scene.requestRender();
     },
     on: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.on(event, handler),
     off: <K extends GlobeEventName>(event: K, handler: GlobeEvents[K]) => emitter.off(event, handler),
@@ -1385,7 +1421,17 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     setArcs: (arcs) => arcsLayer.setArcs(arcs),
     addArc: (arc) => arcsLayer.addArc(arc),
     removeArc: (id) => arcsLayer.removeArc(id),
-    toImage: (options) => captureGlobeImage(scene, options),
+    toImage: (options) => captureGlobeImage(scene, options, {
+      themeBackground,
+      backdrop: {
+        getVisible: () => starfieldLayer?.object.visible ?? false,
+        setVisible: (visible) => starfieldLayer?.setVisible(visible),
+        getEdgeFade: () => backdropEdgeFade,
+        setEdgeFade: (edgeFade) => starfieldLayer?.setEdgeFade(
+          resolveBackgroundEdgeFade(edgeFade),
+        ),
+      },
+    }),
     resize: () => scene.resize(),
     getCanvas: () => scene.getCanvas(),
   };
@@ -1412,12 +1458,13 @@ const createPostFxPipeline = (
   config: GlobeConfig,
   enabled: boolean,
   antialias: boolean,
+  transparent: boolean,
 ): PostFxPipeline | null => {
   try {
     return new PostFxPipeline({
       renderer,
       config: { ...config.postprocessing, enabled },
-      transparent: config.transparent === true,
+      transparent,
       antialias,
     });
   } catch (err) {
@@ -1450,6 +1497,7 @@ const mergeRuntimeConfig = (
   assignMergedSection(merged, 'cinematic', prev.cinematic, partial.cinematic);
   assignMergedSection(merged, 'starfield', prev.starfield, partial.starfield);
   assignMergedSection(merged, 'postprocessing', prev.postprocessing, partial.postprocessing);
+  assignMergedSection(merged, 'background', prev.background, partial.background);
   assignMergedSection(merged, 'autoRotate', prev.autoRotate, partial.autoRotate);
   assignMergedSection(merged, 'performance', prev.performance, partial.performance);
   assignMergedSection(merged, 'zoom', prev.zoom, partial.zoom);
@@ -1553,6 +1601,7 @@ const buildStarfieldLayer = (
   starfield: StarfieldConfig,
   tokens: ResolvedTokens,
   Ctor: KindLayerRegistry['StarfieldLayer'],
+  edgeFade: number,
 ): Public<StarfieldLayer> => {
   return new Ctor({
     count: starfield.density ?? tokens['starfield.density'],
@@ -1562,5 +1611,6 @@ const buildStarfieldLayer = (
     ...(starfield.sizeVariety !== undefined && { sizeVariety: starfield.sizeVariety }),
     ...(starfield.twinkle !== undefined && { twinkle: starfield.twinkle }),
     ...(starfield.milkyWay !== undefined && { milkyWay: starfield.milkyWay }),
+    edgeFade,
   });
 };

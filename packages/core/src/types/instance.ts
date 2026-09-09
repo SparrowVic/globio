@@ -12,9 +12,43 @@ import type { ArcConfig, HtmlMarkerConfig, MarkerConfig } from './markers';
 import type { FlyToOptions, FocusOptions } from './camera';
 import type { GlobeConfig } from './globe-config';
 import type { CinematicDataset } from './kinds';
+import type { GlobeCanvasBackground } from './background';
 // We import the DataLayer type lazily via `import('...')` in method
 // signatures to avoid bundling the data-layers module into anything that
 // only depends on the public type — keeps tree-shaking honest.
+
+/** Options for exporting a WebGL frame as a PNG data URL. */
+export interface GlobeImageExportOptions {
+  /**
+   * Exact positive-integer PNG pixel width; provide height too. Export temporarily uses pixel ratio
+   * 1 so the live display density cannot multiply this value.
+   */
+  readonly width?: number;
+  /**
+   * Exact positive-integer PNG pixel height; provide width too. Export temporarily uses pixel ratio
+   * 1 so the live display density cannot multiply this value.
+   */
+  readonly height?: number;
+  /**
+   * Canvas fill used for this export only. `'current'` preserves the live
+   * canvas, `'theme'` uses the active theme, and `'transparent'` produces an
+   * alpha canvas. A CSS colour creates an opaque custom fill. Default
+   * `'current'`.
+   */
+  readonly background?: 'current' | GlobeCanvasBackground;
+  /**
+   * Set false to hide the current starfield backdrop for this export,
+   * including the cinematic Milky Way and dotted constellation lines. True
+   * or omitted preserves its current visibility. Does not hide the globe's
+   * atmosphere or glow. Default true.
+   */
+  readonly includeBackdrop?: boolean;
+  /**
+   * Temporary viewport-edge fade for the backdrop, using the same 0..0.5
+   * fraction as `GlobeConfig.background.edgeFade`.
+   */
+  readonly edgeFade?: number;
+}
 
 /**
  * Mounted globe lifecycle, camera, data and interaction methods. Create with `createGlobe()`, then
@@ -139,19 +173,10 @@ export interface GlobeInstance {
   readonly removeArc: (id: string) => void;
   /**
    * Return the WebGL canvas as a PNG data URL; HTML markers, labels and DOM overlays are not
-   * included. Custom size requires both finite positive dimensions; invalid dimensions reject.
+   * included. A custom size is measured in exact PNG pixels and requires both finite positive
+   * integer dimensions; invalid dimensions reject.
    */
-  readonly toImage: (options?: {
-    /**
-     * Requested logical renderer width; provide height too. Pixel ratio determines the resulting PNG
-     * pixel width.
-     */
-    width?: number;
-    /**
-     * Requested logical renderer height; provide width too. Pixel ratio determines the resulting PNG
-     * pixel height.
-     */
-    height?: number }) => Promise<string>;
+  readonly toImage: (options?: GlobeImageExportOptions) => Promise<string>;
   /**
    * Pause or resume rendering without tearing anything down. A paused globe
    * keeps its scene, data and WebGL context and costs no frame time; use it
