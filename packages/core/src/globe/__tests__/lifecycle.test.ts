@@ -16,6 +16,9 @@ const lifecycle = vi.hoisted(() => ({
   removeCanvas: vi.fn(),
   destroyControls: vi.fn(),
   destroyRaycaster: vi.fn(),
+  setCanvasBackground: vi.fn(),
+  requestRender: vi.fn(),
+  mutations: [] as string[],
 }));
 
 vi.mock('../../data/geo-loader', () => ({ loadCountries: lifecycle.loadCountries }));
@@ -27,7 +30,8 @@ vi.mock('../../kinds/registry', async () => {
     object = this.group;
     mesh = this.group;
     dispose() { lifecycle.gpuDispose(); }
-    setVisible() {}
+    setVisible(visible: boolean) { lifecycle.mutations.push(`visible:${visible}`); }
+    setEdgeFade() {}
     setResolution() {}
     registerFeatures() {}
     setEnabled() {}
@@ -44,6 +48,7 @@ vi.mock('../../kinds/registry', async () => {
         build: lifecycle.build,
         layers: {
           AtmosphereLayer: Layer,
+          StarfieldLayer: Layer,
           MarkersLayer: Layer,
           ArcsLayer: Layer,
           SelectionLayer: Layer,
@@ -66,11 +71,22 @@ vi.mock('../../renderer/scene-manager', async () => {
           return lifecycle.compileAvailable ? lifecycle.compileAsync : undefined;
         },
       };
+      background: string | null = '#020617';
       start = lifecycle.start;
       stop = lifecycle.stop;
       constructor() { this.camera.position.set(0, 0, 3); }
       holdRendering = lifecycle.holdRendering;
       setPostFx() {}
+      getCanvasBackground() { return this.background; }
+      setCanvasBackground(value: string | null) {
+        this.background = value;
+        lifecycle.setCanvasBackground(value);
+        lifecycle.mutations.push('background');
+      }
+      requestRender() {
+        lifecycle.requestRender();
+        lifecycle.mutations.push('render');
+      }
       destroy = lifecycle.sceneDispose;
       getCanvas() { return this.renderer.domElement; }
     },
@@ -78,7 +94,9 @@ vi.mock('../../renderer/scene-manager', async () => {
 });
 
 vi.mock('../../renderer/postfx/pipeline', () => ({
-  PostFxPipeline: class {},
+  PostFxPipeline: class {
+    setConfig() { lifecycle.mutations.push('postfx'); }
+  },
 }));
 vi.mock('../../renderer/globe-mesh', async () => {
   const { Group } = await import('three');
@@ -118,6 +136,7 @@ beforeEach(() => {
   lifecycle.compileAsync.mockResolvedValue(undefined);
   lifecycle.loadCountries.mockResolvedValue([]);
   lifecycle.build.mockReturnValue({ dispose: lifecycle.dispose });
+  lifecycle.mutations.length = 0;
 });
 
 afterEach(() => {
@@ -125,6 +144,40 @@ afterEach(() => {
 });
 
 describe('globe lifecycle', () => {
+  it('applies explicit and legacy canvas backgrounds through live updates', () => {
+    const globe = makeGlobe();
+
+    globe.update({ background: { canvas: 'transparent', edgeFade: 0.18 } });
+    expect(lifecycle.setCanvasBackground).toHaveBeenLastCalledWith(null);
+    expect(lifecycle.requestRender).toHaveBeenCalledOnce();
+
+    globe.update({ transparent: true, background: { canvas: '#fff4d6' } });
+    expect(lifecycle.setCanvasBackground).toHaveBeenLastCalledWith('#fff4d6');
+    expect(lifecycle.requestRender).toHaveBeenCalledTimes(2);
+  });
+
+  it('redraws only after every mutation in a combined background update', () => {
+    const globe = createGlobe({
+      container,
+      starfield: { enabled: true },
+    });
+    instances.push(globe);
+    lifecycle.mutations.length = 0;
+
+    globe.update({
+      background: { canvas: 'transparent', edgeFade: 0.18 },
+      starfield: { enabled: false },
+      postprocessing: { enabled: false },
+    });
+
+    expect(lifecycle.mutations).toEqual([
+      'background',
+      'visible:false',
+      'postfx',
+      'render',
+    ]);
+  });
+
   it('loads default geometry and builds the kind when countries is omitted', async () => {
     const globe = makeGlobe();
     const ready = vi.fn();

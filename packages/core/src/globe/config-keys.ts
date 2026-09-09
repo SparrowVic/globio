@@ -29,6 +29,7 @@ export const GLOBE_CONFIG_KEYS = [
   'hologram',
   'starfield',
   'postprocessing',
+  'background',
   'axisTilt',
   'autoRotate',
   'performance',

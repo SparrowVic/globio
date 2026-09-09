@@ -44,6 +44,8 @@ export interface HologramStarfieldLayerOptions {
   readonly sizeVariety?: number;
   /** Twinkle animation knobs. Static when `twinkle.enabled` is false. */
   readonly twinkle?: StarfieldTwinkleOptions;
+  /** Viewport-edge fade width, as a 0..0.5 fraction. Default 0. */
+  readonly edgeFade?: number;
 }
 
 const VERTEX_SHADER = `
@@ -57,6 +59,7 @@ uniform float uTwinkleSpeed;
 uniform float uPixelRatio;
 varying vec3 vColor;
 varying float vAlpha;
+varying vec4 vClipPosition;
 void main() {
   // Per-star sinusoidal pulse with a random per-star phase. Intensity 0 keeps
   // the field static; intensity 1 drops the trough to zero brightness.
@@ -66,6 +69,7 @@ void main() {
   vAlpha = brightness;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
+  vClipPosition = gl_Position;
   gl_PointSize = uBaseSize * aSizeScale * uPixelRatio;
 }
 `;
@@ -73,6 +77,8 @@ void main() {
 const FRAGMENT_SHADER = `
 varying vec3 vColor;
 varying float vAlpha;
+varying vec4 vClipPosition;
+uniform float uEdgeFade;
 void main() {
   // Hologram stars read as projector sparks: a tight core, faint diamond
   // aperture, and tiny horizontal/vertical calibration streaks.
@@ -83,8 +89,12 @@ void main() {
   float hRay = smoothstep(0.032, 0.0, abs(uv.y)) * smoothstep(0.5, 0.08, abs(uv.x));
   float vRay = smoothstep(0.032, 0.0, abs(uv.x)) * smoothstep(0.5, 0.08, abs(uv.y));
   float spark = max(max(core, diamond * 0.5), max(hRay, vRay) * 0.46);
-  if (spark <= 0.001) discard;
-  gl_FragColor = vec4(vColor * (0.82 + spark * 0.28) * vAlpha, spark * vAlpha);
+  vec2 screenUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+  float edgeDistance = min(min(screenUv.x, 1.0 - screenUv.x), min(screenUv.y, 1.0 - screenUv.y));
+  float edgeMask = uEdgeFade > 0.0 ? smoothstep(0.0, uEdgeFade, edgeDistance) : 1.0;
+  float alpha = spark * vAlpha * edgeMask;
+  if (alpha <= 0.001) discard;
+  gl_FragColor = vec4(vColor * (0.82 + spark * 0.28) * vAlpha * edgeMask, alpha);
 }
 `;
 
@@ -167,6 +177,7 @@ export class HologramStarfieldLayer {
         uPixelRatio: {
           value: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
         },
+        uEdgeFade: { value: clampEdgeFade(options.edgeFade) },
       },
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
@@ -207,6 +218,12 @@ export class HologramStarfieldLayer {
     if (uniform) uniform.value = size;
   }
 
+  /** Fade only the holographic sky near viewport edges. */
+  public setEdgeFade(edgeFade: number): void {
+    const uniform = this.material.uniforms['uEdgeFade'];
+    if (uniform) uniform.value = clampEdgeFade(edgeFade);
+  }
+
   /**
    * Live update for the twinkle config. Toggling `enabled` drives both the
    * RAF skip in `update()` and the intensity uniform — when disabled we set
@@ -235,3 +252,5 @@ export class HologramStarfieldLayer {
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+const clampEdgeFade = (value: number | undefined): number =>
+  value !== undefined && Number.isFinite(value) ? Math.max(0, Math.min(0.5, value)) : 0;

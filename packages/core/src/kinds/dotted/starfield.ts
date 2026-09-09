@@ -28,6 +28,8 @@ export interface DottedStarfieldLayerOptions {
   readonly palette?: ReadonlyArray<string>;
   readonly sizeVariety?: number;
   readonly twinkle?: StarfieldTwinkleOptions;
+  /** Viewport-edge fade width, as a 0..0.5 fraction. Default 0. */
+  readonly edgeFade?: number;
   /**
    * Constellation overlay — faint lines between nearby stars, slowly
    * fading in and out so the visible "constellations" shift over
@@ -61,6 +63,7 @@ uniform float uTwinkleSpeed;
 uniform float uPixelRatio;
 varying vec3 vColor;
 varying float vAlpha;
+varying vec4 vClipPosition;
 void main() {
   float wave = sin(uTime * uTwinkleSpeed * 6.28318 + aPhase);
   float brightness = 1.0 - uTwinkleIntensity * 0.5 * (1.0 - wave);
@@ -68,6 +71,7 @@ void main() {
   vAlpha = brightness;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
+  vClipPosition = gl_Position;
   gl_PointSize = uBaseSize * aSizeScale * uPixelRatio;
 }
 `;
@@ -75,12 +79,18 @@ void main() {
 const STAR_FRAG = /* glsl */ `
 varying vec3 vColor;
 varying float vAlpha;
+varying vec4 vClipPosition;
+uniform float uEdgeFade;
 void main() {
   vec2 uv = gl_PointCoord - vec2(0.5);
   float d = length(uv);
   float disc = smoothstep(0.5, 0.18, d);
-  if (disc <= 0.001) discard;
-  gl_FragColor = vec4(vColor * vAlpha, disc * vAlpha);
+  vec2 screenUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+  float edgeDistance = min(min(screenUv.x, 1.0 - screenUv.x), min(screenUv.y, 1.0 - screenUv.y));
+  float edgeMask = uEdgeFade > 0.0 ? smoothstep(0.0, uEdgeFade, edgeDistance) : 1.0;
+  float alpha = disc * vAlpha * edgeMask;
+  if (alpha <= 0.001) discard;
+  gl_FragColor = vec4(vColor * vAlpha * edgeMask, alpha);
 }
 `;
 
@@ -98,22 +108,30 @@ attribute float aPairPhase;
 uniform float uTime;
 uniform float uBaseOpacity;
 varying float vAlpha;
+varying vec4 vClipPosition;
 void main() {
   float wave = sin(uTime * 0.5 + aPairPhase);
   // 0.10 floor + 0.90 wave amplitude so lines never go fully black.
   float weight = 0.10 + 0.45 * (wave + 1.0);
   vAlpha = uBaseOpacity * weight;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  vClipPosition = gl_Position;
 }
 `;
 
 const LINE_FRAG = /* glsl */ `
 precision mediump float;
 uniform vec3 uColor;
+uniform float uEdgeFade;
 varying float vAlpha;
+varying vec4 vClipPosition;
 void main() {
-  if (vAlpha < 0.001) discard;
-  gl_FragColor = vec4(uColor, vAlpha);
+  vec2 screenUv = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+  float edgeDistance = min(min(screenUv.x, 1.0 - screenUv.x), min(screenUv.y, 1.0 - screenUv.y));
+  float edgeMask = uEdgeFade > 0.0 ? smoothstep(0.0, uEdgeFade, edgeDistance) : 1.0;
+  float alpha = vAlpha * edgeMask;
+  if (alpha < 0.001) discard;
+  gl_FragColor = vec4(uColor * edgeMask, alpha);
 }
 `;
 
@@ -199,6 +217,7 @@ export class DottedStarfieldLayer {
         uPixelRatio: {
           value: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
         },
+        uEdgeFade: { value: clampEdgeFade(options.edgeFade) },
       },
       vertexShader: STAR_VERT,
       fragmentShader: STAR_FRAG,
@@ -233,6 +252,7 @@ export class DottedStarfieldLayer {
             uTime: { value: 0 },
             uBaseOpacity: { value: opacity },
             uColor: { value: lineColor.clone() },
+            uEdgeFade: { value: clampEdgeFade(options.edgeFade) },
           },
           vertexShader: LINE_VERT,
           fragmentShader: LINE_FRAG,
@@ -276,6 +296,15 @@ export class DottedStarfieldLayer {
     if (uniform) uniform.value = size;
   }
 
+  /** Fade both dots and constellation lines near viewport edges. */
+  public setEdgeFade(edgeFade: number): void {
+    const value = clampEdgeFade(edgeFade);
+    const starUniform = this.material.uniforms['uEdgeFade'];
+    const lineUniform = this.constellationMaterial?.uniforms['uEdgeFade'];
+    if (starUniform) starUniform.value = value;
+    if (lineUniform) lineUniform.value = value;
+  }
+
   public setTwinkle(twinkle: StarfieldTwinkleOptions | null): void {
     const enabled = twinkle?.enabled ?? false;
     this.twinkleEnabled = enabled;
@@ -298,6 +327,8 @@ export class DottedStarfieldLayer {
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+const clampEdgeFade = (value: number | undefined): number =>
+  value !== undefined && Number.isFinite(value) ? Math.max(0, Math.min(0.5, value)) : 0;
 
 interface ResolvedConstellationCfg {
   readonly enabled: boolean;

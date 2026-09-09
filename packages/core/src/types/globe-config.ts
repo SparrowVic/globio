@@ -22,6 +22,7 @@ import type {
 } from './camera';
 import type { PerformanceConfig } from './performance';
 import type { PostProcessingConfig } from './postfx';
+import type { GlobeBackgroundConfig } from './background';
 
 /**
  * Configuration passed to `createGlobe()`. Most layer styling supports `update()`; construction
@@ -114,6 +115,13 @@ export interface GlobeConfig {
    */
   readonly postprocessing?: PostProcessingConfig;
   /**
+   * Canvas fill and optional viewport-edge fade for scene backdrops. This is
+   * independent from `starfield`: a transparent canvas may still render
+   * stars, while `starfield.enabled: false` removes every celestial backdrop
+   * including the cinematic Milky Way.
+   */
+  readonly background?: GlobeBackgroundConfig;
+  /**
    * Tilt the globe's axis around the Z axis (in degrees, like Earth's 23.5°).
    * Affects only visual appearance — auto-rotate, raycasting, and lat/lng
    * conversions all keep working naturally because everything is rendered
@@ -139,7 +147,10 @@ export interface GlobeConfig {
    * Render with a transparent canvas — the host page bleeds through.
    * Useful when the globe is decoration on top of a page gradient or
    * background image and you don't want the theme's `background.color`
-   * to clip the visual as a square. Default `false`.
+   * to clip the visual as a square. Default `false`. Ignored when
+   * `background.canvas` is provided.
+   *
+   * @deprecated Use `background: { canvas: 'transparent' }`.
    */
   readonly transparent?: boolean;
   /**

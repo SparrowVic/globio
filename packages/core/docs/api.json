@@ -24,11 +24,11 @@
     ]
   },
   "stats": {
-    "configKeys": 548,
-    "configKeysDocumented": 548,
+    "configKeys": 551,
+    "configKeysDocumented": 551,
     "instanceMethods": 43,
     "events": 10,
-    "types": 101
+    "types": 104
   },
   "config": [
     {
@@ -4237,6 +4237,32 @@
       ]
     },
     {
+      "name": "background",
+      "path": "background",
+      "type": "GlobeBackgroundConfig",
+      "optional": true,
+      "description": "Canvas fill and optional viewport-edge fade for scene backdrops. This is independent from `starfield`: a transparent canvas may still render stars, while `starfield.enabled: false` removes every celestial backdrop including the cinematic Milky Way.",
+      "ref": "GlobeBackgroundConfig",
+      "children": [
+        {
+          "name": "canvas",
+          "path": "background.canvas",
+          "type": "GlobeCanvasBackground",
+          "optional": true,
+          "description": "Canvas fill. Defaults to `'theme'`.",
+          "default": "'theme'"
+        },
+        {
+          "name": "edgeFade",
+          "path": "background.edgeFade",
+          "type": "number",
+          "optional": true,
+          "description": "Width of the viewport-edge fade applied to the backdrop layer: stars, the cinematic Milky Way and dotted constellation lines. Expressed as a fraction of each canvas dimension and clamped to 0..0.5. The globe, atmosphere, markers and arcs are never faded. Default 0.",
+          "default": "0"
+        }
+      ]
+    },
+    {
       "name": "axisTilt",
       "path": "axisTilt",
       "type": "number",
@@ -4382,7 +4408,8 @@
       "path": "transparent",
       "type": "boolean",
       "optional": true,
-      "description": "Render with a transparent canvas — the host page bleeds through. Useful when the globe is decoration on top of a page gradient or background image and you don't want the theme's `background.color` to clip the visual as a square. Default `false`.",
+      "description": "Render with a transparent canvas — the host page bleeds through. Useful when the globe is decoration on top of a page gradient or background image and you don't want the theme's `background.color` to clip the visual as a square. Default `false`. Ignored when `background.canvas` is provided.",
+      "deprecated": "Use `background: { canvas: 'transparent' }`.",
       "default": "false"
     },
     {
@@ -4642,9 +4669,9 @@
     },
     {
       "name": "toImage",
-      "signature": "toImage(options?: { /** * Requested logical renderer width; provide height too. Pixel ratio determines the resulting PNG * pixel width. */ width?: number; /** * Requested logical renderer height; provide width too. Pixel ratio determines the resulting PNG * pixel height. */ height?: number }): Promise<string>",
+      "signature": "toImage(options?: GlobeImageExportOptions): Promise<string>",
       "returns": "Promise<string>",
-      "description": "Return the WebGL canvas as a PNG data URL; HTML markers, labels and DOM overlays are not included. Custom size requires both finite positive dimensions; invalid dimensions reject."
+      "description": "Return the WebGL canvas as a PNG data URL; HTML markers, labels and DOM overlays are not included. A custom size is measured in exact PNG pixels and requires both finite positive integer dimensions; invalid dimensions reject."
     },
     {
       "name": "setPaused",
@@ -11838,6 +11865,41 @@
         }
       ]
     },
+    "GlobeBackgroundConfig": {
+      "name": "GlobeBackgroundConfig",
+      "kind": "interface",
+      "description": "Canvas and scene-backdrop settings shared by every globe kind.",
+      "extends": [],
+      "members": [
+        {
+          "name": "canvas",
+          "path": "canvas",
+          "type": "GlobeCanvasBackground",
+          "optional": true,
+          "description": "Canvas fill. Defaults to `'theme'`.",
+          "default": "'theme'"
+        },
+        {
+          "name": "edgeFade",
+          "path": "edgeFade",
+          "type": "number",
+          "optional": true,
+          "description": "Width of the viewport-edge fade applied to the backdrop layer: stars, the cinematic Milky Way and dotted constellation lines. Expressed as a fraction of each canvas dimension and clamped to 0..0.5. The globe, atmosphere, markers and arcs are never faded. Default 0.",
+          "default": "0"
+        }
+      ]
+    },
+    "GlobeCanvasBackground": {
+      "name": "GlobeCanvasBackground",
+      "kind": "alias",
+      "description": "Canvas fill used behind the WebGL scene.\n\n- `'theme'` resolves to the active theme's `background.color` token.\n- `'transparent'` lets the host page show through.\n- Any other string is interpreted as a CSS colour by Three.js.",
+      "type": "'theme' | 'transparent' | (string & {})",
+      "variants": [
+        "'theme'",
+        "'transparent'",
+        "(string & {})"
+      ]
+    },
     "AutoRotateConfig": {
       "name": "AutoRotateConfig",
       "kind": "interface",
@@ -16177,6 +16239,32 @@
           ]
         },
         {
+          "name": "background",
+          "path": "background",
+          "type": "GlobeBackgroundConfig",
+          "optional": true,
+          "description": "Canvas fill and optional viewport-edge fade for scene backdrops. This is independent from `starfield`: a transparent canvas may still render stars, while `starfield.enabled: false` removes every celestial backdrop including the cinematic Milky Way.",
+          "ref": "GlobeBackgroundConfig",
+          "children": [
+            {
+              "name": "canvas",
+              "path": "background.canvas",
+              "type": "GlobeCanvasBackground",
+              "optional": true,
+              "description": "Canvas fill. Defaults to `'theme'`.",
+              "default": "'theme'"
+            },
+            {
+              "name": "edgeFade",
+              "path": "background.edgeFade",
+              "type": "number",
+              "optional": true,
+              "description": "Width of the viewport-edge fade applied to the backdrop layer: stars, the cinematic Milky Way and dotted constellation lines. Expressed as a fraction of each canvas dimension and clamped to 0..0.5. The globe, atmosphere, markers and arcs are never faded. Default 0.",
+              "default": "0"
+            }
+          ]
+        },
+        {
           "name": "axisTilt",
           "path": "axisTilt",
           "type": "number",
@@ -16322,7 +16410,8 @@
           "path": "transparent",
           "type": "boolean",
           "optional": true,
-          "description": "Render with a transparent canvas — the host page bleeds through. Useful when the globe is decoration on top of a page gradient or background image and you don't want the theme's `background.color` to clip the visual as a square. Default `false`.",
+          "description": "Render with a transparent canvas — the host page bleeds through. Useful when the globe is decoration on top of a page gradient or background image and you don't want the theme's `background.color` to clip the visual as a square. Default `false`. Ignored when `background.canvas` is provided.",
+          "deprecated": "Use `background: { canvas: 'transparent' }`.",
           "default": "false"
         },
         {
@@ -16441,6 +16530,51 @@
       "kind": "alias",
       "description": "Unsubscribe callback returned by `on()`.",
       "type": "() => void"
+    },
+    "GlobeImageExportOptions": {
+      "name": "GlobeImageExportOptions",
+      "kind": "interface",
+      "description": "Options for exporting a WebGL frame as a PNG data URL.",
+      "extends": [],
+      "members": [
+        {
+          "name": "width",
+          "path": "width",
+          "type": "number",
+          "optional": true,
+          "description": "Exact positive-integer PNG pixel width; provide height too. Export temporarily uses pixel ratio 1 so the live display density cannot multiply this value."
+        },
+        {
+          "name": "height",
+          "path": "height",
+          "type": "number",
+          "optional": true,
+          "description": "Exact positive-integer PNG pixel height; provide width too. Export temporarily uses pixel ratio 1 so the live display density cannot multiply this value."
+        },
+        {
+          "name": "background",
+          "path": "background",
+          "type": "'current' | GlobeCanvasBackground",
+          "optional": true,
+          "description": "Canvas fill used for this export only. `'current'` preserves the live canvas, `'theme'` uses the active theme, and `'transparent'` produces an alpha canvas. A CSS colour creates an opaque custom fill. Default `'current'`.",
+          "default": "'current'"
+        },
+        {
+          "name": "includeBackdrop",
+          "path": "includeBackdrop",
+          "type": "boolean",
+          "optional": true,
+          "description": "Set false to hide the current starfield backdrop for this export, including the cinematic Milky Way and dotted constellation lines. True or omitted preserves its current visibility. Does not hide the globe's atmosphere or glow. Default true.",
+          "default": "true"
+        },
+        {
+          "name": "edgeFade",
+          "path": "edgeFade",
+          "type": "number",
+          "optional": true,
+          "description": "Temporary viewport-edge fade for the backdrop, using the same 0..0.5 fraction as `GlobeConfig.background.edgeFade`."
+        }
+      ]
     },
     "TokenSet": {
       "name": "TokenSet",

@@ -66,6 +66,11 @@ export type { PerformanceConfig } from './performance';
 
 export type { PostProcessingConfig } from './postfx';
 
+export type {
+  GlobeBackgroundConfig,
+  GlobeCanvasBackground,
+} from './background';
+
 export type { GlobeConfig } from './globe-config';
 
 export type {
@@ -75,4 +80,4 @@ export type {
   SurfaceClickEvent,
 } from './events';
 
-export type { GlobeInstance } from './instance';
+export type { GlobeImageExportOptions, GlobeInstance } from './instance';
