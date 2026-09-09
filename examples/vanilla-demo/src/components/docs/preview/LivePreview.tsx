@@ -7,6 +7,8 @@ import { DecorationGlobe, type DecorationGlobeReadyApi } from '@/components/shar
 import { defaultThemeFor } from '@/components/home/landing/data/kind-themes';
 import { useInViewport } from '@/components/home/landing/hooks/use-in-viewport';
 import { cn } from '@/lib/utils';
+import { studioHref } from '@/lib/studio-link';
+import { isGlobeRuntimeLoadError } from '@/lib/globe-runtime';
 
 export interface LivePreviewProps {
   readonly kind?: GlobeKind;
@@ -53,6 +55,10 @@ export function LivePreview({
   const ref = useRef<HTMLDivElement | null>(null);
   const near = useInViewport(ref, { rootMargin: '200px' });
   const [mounted, setMounted] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [runtimeDownloadFailed, setRuntimeDownloadFailed] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (near) setMounted(true);
   }, [near]);
@@ -62,43 +68,66 @@ export function LivePreview({
   setupRef.current = setup;
   const cleanupRef = useRef<(() => void) | void>(undefined);
   const readyUnsubscribeRef = useRef<(() => void) | undefined>(undefined);
-  const handleReady = useCallback((api: DecorationGlobeReadyApi) => {
+  const contextUnsubscribeRef = useRef<(() => void) | undefined>(undefined);
+  const clearSetup = useCallback(() => {
     readyUnsubscribeRef.current?.();
+    readyUnsubscribeRef.current = undefined;
+    contextUnsubscribeRef.current?.();
+    contextUnsubscribeRef.current = undefined;
     cleanupRef.current?.();
     cleanupRef.current = undefined;
+  }, []);
+  const reportFailure = useCallback((error?: unknown) => {
+    clearSetup();
+    setFailed(true);
+    setRuntimeDownloadFailed(isGlobeRuntimeLoadError(error));
+    setReady(false);
+  }, [clearSetup]);
+  const handleReady = useCallback((api: DecorationGlobeReadyApi) => {
+    clearSetup();
+    setReady(false);
+    const canvas = api.instance.getCanvas();
+    canvas.addEventListener('webglcontextlost', reportFailure);
+    contextUnsubscribeRef.current = () => canvas.removeEventListener('webglcontextlost', reportFailure);
     // DecorationGlobe exposes the mounted instance before its asynchronous
     // country loading and kind construction have completed.
     readyUnsubscribeRef.current = api.instance.on('ready', () => {
       readyUnsubscribeRef.current?.();
       readyUnsubscribeRef.current = undefined;
-      cleanupRef.current = setupRef.current?.(api.instance);
+      try {
+        cleanupRef.current = setupRef.current?.(api.instance);
+      } catch {
+        reportFailure();
+      }
     });
-  }, []);
-  useEffect(
-    () => () => {
-      readyUnsubscribeRef.current?.();
-      readyUnsubscribeRef.current = undefined;
-      cleanupRef.current?.();
-      cleanupRef.current = undefined;
-    },
-    [],
-  );
+  }, [clearSetup, reportFailure]);
+  useEffect(() => clearSetup, [clearSetup]);
+  useEffect(() => { setFailed(false); setReady(false); setRuntimeDownloadFailed(false); }, [kind, preset]);
 
   return (
     <figure ref={ref} className={cn('docs-preview', className)} data-aspect={aspect}>
       <div className="docs-preview-head">
         <span className="docs-preview-label">
-          <span className="docs-live-dot" aria-hidden="true" />
-          live · {kind} · {preset}
+          {ready && <span className="docs-live-dot" aria-hidden="true" />}
+          {ready ? 'live' : 'preview'} · {kind} · {preset}
         </span>
-        <Link to="/studio" className="docs-preview-studio">
+        <Link to={studioHref(kind, preset)} className="docs-preview-studio">
           Open in Studio
           <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="size-2.5" />
         </Link>
       </div>
       <div className="docs-preview-stage">
-        {mounted ? (
+        {failed ? (
+          <div className="docs-preview-fallback">
+            <img src={`/docs/kinds/${kind}.jpg`} alt={`${kind} globe reference`} width={512} height={512} loading="lazy" />
+            <div className="docs-preview-retry">
+              <p role="status">{runtimeDownloadFailed ? 'The globe engine could not download. Reload the page to try again.' : 'The live preview could not start.'}</p>
+              <button type="button" onClick={runtimeDownloadFailed ? () => window.location.reload() : () => { setFailed(false); setAttempt((value) => value + 1); }}>{runtimeDownloadFailed ? 'Reload page' : 'Try preview again'}</button>
+            </div>
+          </div>
+        ) : mounted ? (
           <DecorationGlobe
+            key={attempt}
             kind={kind}
             theme={preset}
             speed={speed}
@@ -115,6 +144,8 @@ export function LivePreview({
             maxFps={30}
             paused={!near}
             onReady={handleReady}
+            onLive={() => setReady(true)}
+            onError={reportFailure}
             className="absolute inset-0"
           />
         ) : (

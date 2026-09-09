@@ -35,6 +35,8 @@ export interface PanelProps {
   readonly badge?: ReactNode;
   /** Initial expanded state. Default `true`. Persisted afterward. */
   readonly defaultCollapsed?: boolean;
+  readonly collapsed?: boolean;
+  readonly onCollapsedChange?: (collapsed: boolean) => void;
   /** Width when expanded. Default `'auto'` — falls back to CSS class. */
   readonly width?: number | 'auto';
   /**
@@ -64,24 +66,34 @@ export function Panel({
   icon,
   badge,
   defaultCollapsed = false,
+  collapsed: controlledCollapsed,
+  onCollapsedChange,
   width,
   maxHeightFraction,
   children,
   className,
 }: PanelProps) {
-  const [collapsed, setCollapsed] = usePanelState(`panel-${id}`, defaultCollapsed);
+  const [savedCollapsed, setSavedCollapsed] = usePanelState(`panel-${id}`, defaultCollapsed);
+  const collapsed = controlledCollapsed ?? savedCollapsed;
+  const toggleId = `studio-panel-${id}-toggle`;
+  const setCollapsed = (next: boolean) => {
+    (onCollapsedChange ?? setSavedCollapsed)(next);
+    requestAnimationFrame(() => document.getElementById(toggleId)?.focus());
+  };
 
   if (collapsed) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            id={toggleId}
             type="button"
             aria-label={`Expand ${title}`}
             onClick={() => setCollapsed(false)}
             className={cn('panel-collapsed-icon', positionClass[position], className)}
           >
             {icon ?? <FontAwesomeIcon icon={faChevronRight} className="size-3.5" />}
+            <span className="studio-panel-toggle-label">{id === 'stage' ? 'Scene' : 'Controls'}</span>
           </button>
         </TooltipTrigger>
         <TooltipContent sideOffset={6}>{title}</TooltipContent>
@@ -120,6 +132,7 @@ export function Panel({
           {badge ? <span className="panel-title-badge">{badge}</span> : null}
         </div>
         <button
+          id={toggleId}
           type="button"
           aria-label={`Collapse ${title}`}
           onClick={() => setCollapsed(true)}

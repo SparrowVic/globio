@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { createGlobe, type GlobeInstance, type GlobeKind, type ThemePresetName } from '@your-globe/core';
+import type { GlobeInstance, GlobeKind, ThemePresetName } from '@your-globe/core';
+import { isGlobeRuntimeLoadError, loadGlobeRuntime } from '@/lib/globe-runtime';
+import { studioHref } from '@/lib/studio-link';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngular, faJs, faReact, faVuejs } from '@fortawesome/free-brands-svg-icons';
 import { KIND_THEMES, defaultThemeFor } from '../data/kind-themes';
@@ -31,7 +33,7 @@ function ShowcaseGlobe({ kind, theme, paused, onStatus, onInstance }: {
   readonly kind: GlobeKind;
   readonly theme: ThemePresetName;
   readonly paused: boolean;
-  readonly onStatus: (status: 'loading' | 'ready' | 'error') => void;
+  readonly onStatus: (status: 'loading' | 'ready' | 'error', error?: unknown) => void;
   readonly onInstance: (instance: GlobeInstance | null) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -59,18 +61,20 @@ function ShowcaseGlobe({ kind, theme, paused, onStatus, onInstance }: {
       globeRef.current = null;
       instanceCallback.current(null);
     };
-    const fail = () => {
+    const fail = (error?: unknown) => {
       if (disposed) return;
       release();
       setLive(false);
-      statusRef.current('error');
+      statusRef.current('error', error);
     };
     setLive(false);
     statusRef.current('loading');
     frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(async () => {
         if (disposed) return;
         try {
+          const { createGlobe } = await loadGlobeRuntime();
+          if (disposed) return;
           globe = createGlobe({
             container, kind, theme, transparent: true,
             initialPosition: [28, -12], axisTilt: 12,
@@ -95,8 +99,8 @@ function ShowcaseGlobe({ kind, theme, paused, onStatus, onInstance }: {
           }));
           cleanups.push(globe.on('error', fail));
           globe.mount();
-        } catch {
-          fail();
+        } catch (error: unknown) {
+          fail(error);
         }
       });
     });
@@ -118,10 +122,15 @@ export function ShowcaseHero() {
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [coarsePointer] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [runtimeDownloadFailed, setRuntimeDownloadFailed] = useState(false);
   const [capture, setCapture] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const instance = useRef<GlobeInstance | null>(null);
   const mounted = useRef(true);
   const onInstance = useCallback((globe: GlobeInstance | null) => { instance.current = globe; }, []);
+  const onStatus = useCallback((next: 'loading' | 'ready' | 'error', error?: unknown) => {
+    setStatus(next);
+    setRuntimeDownloadFailed(isGlobeRuntimeLoadError(error));
+  }, []);
   const scene = useRef<HTMLDivElement>(null);
   const journey = useRef<HTMLDivElement>(null);
   const stylePicker = useRef<HTMLDivElement>(null);
@@ -211,7 +220,7 @@ export function ShowcaseHero() {
         <h1>The world is<br /> <span>your canvas.</span></h1>
         <p className="home-hero-lead">Build something people want to explore.<br /> Extraordinary 3D globes for your next big idea.</p>
         <div className="home-hero-actions">
-          <Link to="/studio" className="home-button home-button-accent">Create your world <span aria-hidden="true">↗</span></Link>
+          <Link to={studioHref(kind, theme)} className="home-button home-button-accent">Create your world <span aria-hidden="true">↗</span></Link>
           <a href="#kinds" onClick={exploreStyles} className="home-button home-button-secondary">Explore six worlds <span aria-hidden="true">↓</span></a>
         </div>
       </div>
@@ -222,14 +231,15 @@ export function ShowcaseHero() {
         </select>
       </label>
       <div ref={stage} className="home-globe-stage" aria-label={`${current.title} globe preview`}>
-        <ShowcaseGlobe key={`${kind}:${theme}`} kind={kind} theme={theme} paused={paused || reducedMotion || !visible} onStatus={setStatus} onInstance={onInstance} />
+        <ShowcaseGlobe key={`${kind}:${theme}`} kind={kind} theme={theme} paused={paused || reducedMotion || !visible} onStatus={onStatus} onInstance={onInstance} />
       </div>
       <div className="home-hero-floor home-wrap">
-        <div className="home-hero-note"><span>Rendered with Globio</span><p className="home-globe-status" role="status">{status === 'loading' ? 'Your world is loading…' : status === 'error' ? 'Showing a preview. Explore this style in Studio.' : reducedMotion || paused || coarsePointer ? 'Six worlds to explore. Choose yours below.' : 'This is a real globe. Go on, give it a spin.'}</p></div>
+        <div className="home-hero-note"><span>Rendered with Globio</span><p className="home-globe-status" role="status">{status === 'loading' ? 'Your world is loading…' : status === 'error' ? runtimeDownloadFailed ? 'The globe engine could not download. Reload the page to try again.' : 'Showing a preview. Explore this style in Studio.' : reducedMotion || paused || coarsePointer ? 'Six worlds to explore. Choose yours below.' : 'This is a real globe. Go on, give it a spin.'}</p></div>
         <div className="home-globe-caption">
           <span>{current.title}<span className="home-caption-separator">/</span>{themeOptions.find((option) => option.preset === theme)?.label}</span>
           <button type="button" onClick={() => setPaused(!paused)} disabled={reducedMotion || status !== 'ready'} aria-pressed={paused || reducedMotion} aria-label={reducedMotion ? 'Globe animation disabled for reduced motion' : paused ? 'Play globe animation' : 'Pause globe animation'}>{reducedMotion ? 'Reduced motion' : paused ? 'Play' : 'Pause'}<span aria-hidden="true">{paused || reducedMotion ? '▷' : 'Ⅱ'}</span></button>
           <button type="button" onClick={captureGlobe} disabled={status !== 'ready' || capture === 'saving'}>{capture === 'saving' ? 'Capturing…' : 'Save PNG'}<span aria-hidden="true">↓</span></button>
+          {status === 'error' && runtimeDownloadFailed && <button type="button" onClick={() => window.location.reload()}>Reload page</button>}
           <span className="home-capture-status" role="status">{capture === 'saved' ? 'Your PNG is ready.' : capture === 'error' ? 'Capture unavailable. Try another style.' : ''}</span>
         </div>
       </div>
@@ -247,7 +257,7 @@ export function ShowcaseHero() {
           {themeOptions.length > 1 && <div className="home-theme-options" role="group" aria-label={`${current.title} theme`}>
             {themeOptions.map((option) => <button key={option.preset} type="button" aria-pressed={theme === option.preset} onClick={() => setTheme(option.preset)}><span style={{ backgroundColor: option.swatch }} aria-hidden="true" />{option.label}</button>)}
           </div>}
-          <Link to={`/docs/kinds/${kind}`} className="home-text-link">Explore {current.title} <span aria-hidden="true">→</span></Link>
+          <Link to={studioHref(kind, theme)} className="home-text-link">Edit in Studio <span aria-hidden="true">↗</span></Link>
           <button type="button" className="home-text-link home-return-preview" onClick={() => stage.current?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' })}>View this globe <span aria-hidden="true">↑</span></button>
         </div>
       </div>

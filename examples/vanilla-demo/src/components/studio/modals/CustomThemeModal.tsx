@@ -4,7 +4,7 @@ import {
   faPalette,
   faSparkles,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
-import { resolveTheme, type PartialTokenSet, type ThemePresetName } from '@your-globe/core';
+import { type PartialTokenSet, type ThemePresetName } from '@your-globe/core';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { idFromName, saveCustomTheme, type CustomTheme } from '@/lib/custom-themes';
+import { createStudioThemeDraft } from '@/lib/studio-document-theme';
 import { cn } from '@/lib/utils';
 
 /**
@@ -64,17 +65,11 @@ const BUILT_IN_BASES: ReadonlyArray<{ readonly value: ThemePresetName; readonly 
 ];
 
 /**
- * Build a draft set of tokens by resolving the chosen base preset and
- * keeping only the keys that the form lets the user edit. Non-edited
- * tokens fall back to the base preset's value via the resolver, so
- * we don't store an explosion of identical defaults in localStorage.
+ * Materialize the base, including tokens outside the curated editor,
+ * because registered custom themes do not inherit their metadata's base.
  */
 const initialDraftFromBase = (base: ThemePresetName): PartialTokenSet => {
-  const resolved = resolveTheme(base);
-  const draft: Record<string, unknown> = {};
-  for (const { key } of COLOR_TOKENS) draft[key] = resolved[key];
-  for (const { key } of NUMBER_TOKENS) draft[key] = resolved[key];
-  return draft as PartialTokenSet;
+  return createStudioThemeDraft(base);
 };
 
 export interface CustomThemeModalProps {
@@ -127,41 +122,48 @@ export function CustomThemeModal({
   const [name, setName] = useState('');
   const [base, setBase] = useState<ThemePresetName>(defaultBase);
   const [tokens, setTokens] = useState<PartialTokenSet>(() => initialDraftFromBase(defaultBase));
+  const [draftReady, setDraftReady] = useState(false);
   // Track whether the close was a save vs a cancel so the parent can
   // distinguish "user kept the changes" from "restore previous theme".
   const wasSavedRef = useRef(false);
+  const wasOpenRef = useRef(false);
+  const openingRef = useRef({ defaultBase, editing });
+  const callbacksRef = useRef({ onPreview, onPreviewEnd });
+  openingRef.current = { defaultBase, editing };
+  callbacksRef.current = { onPreview, onPreviewEnd };
 
   // Re-seed the draft when the modal opens. Edit mode pre-fills from
   // the supplied theme; create mode resets to a clean draft from the
   // chosen base preset.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setDraftReady(false);
+      if (wasOpenRef.current && !wasSavedRef.current) callbacksRef.current.onPreviewEnd?.();
+      wasOpenRef.current = false;
+      return;
+    }
+    wasOpenRef.current = true;
     wasSavedRef.current = false;
-    if (editing) {
-      setName(editing.name);
-      setBase(editing.extends);
-      setTokens({ ...initialDraftFromBase(editing.extends), ...editing.tokens });
+    const opening = openingRef.current;
+    if (opening.editing) {
+      setName(opening.editing.name);
+      setBase(opening.editing.extends);
+      setTokens(createStudioThemeDraft(opening.editing.extends, opening.editing.tokens));
     } else {
       setName('');
-      setBase(defaultBase);
-      setTokens(initialDraftFromBase(defaultBase));
+      setBase(opening.defaultBase);
+      setTokens(initialDraftFromBase(opening.defaultBase));
     }
-  }, [open, defaultBase, editing]);
+    setDraftReady(true);
+  }, [open]);
 
-  // Emit live preview whenever the draft changes (every keystroke / slider
-  // tick) so the globe reflects the user's edits in real time. Only fires
-  // while the modal is open.
+  // Themes are construction-time engine settings. Coalesce slider/color
+  // input so rapid edits do not create a new WebGL context on every tick.
   useEffect(() => {
-    if (!open) return;
-    onPreview?.({ extends: base, tokens });
-  }, [open, base, tokens, onPreview]);
-
-  // On close: if it wasn't a Save, tell the host to restore the previous
-  // theme. Save flow is responsible for unregistering the preview itself.
-  useEffect(() => {
-    if (open) return;
-    if (!wasSavedRef.current) onPreviewEnd?.();
-  }, [open, onPreviewEnd]);
+    if (!open || !draftReady) return;
+    const timer = window.setTimeout(() => callbacksRef.current.onPreview?.({ extends: base, tokens }), 150);
+    return () => window.clearTimeout(timer);
+  }, [open, draftReady, base, tokens]);
 
   const onTokenChange = <T,>(key: string, value: T): void => {
     setTokens((current) => ({ ...current, [key]: value } as PartialTokenSet));
@@ -247,6 +249,7 @@ export function CustomThemeModal({
               <Input
                 id="custom-theme-name"
                 value={name}
+                maxLength={120}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="e.g. Aurora night"
                 autoFocus
@@ -260,6 +263,9 @@ export function CustomThemeModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="border-white/10 bg-slate-950 text-slate-100">
+                  {!BUILT_IN_BASES.some((option) => option.value === base) && (
+                    <SelectItem value={base}>Current custom theme</SelectItem>
+                  )}
                   {BUILT_IN_BASES.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}

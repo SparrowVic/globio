@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { DropdownMenu } from 'radix-ui';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -10,18 +10,11 @@ import {
   faArrowsRotate,
   faBookmark,
   faPlus,
-  faCircleSmall,
 } from '@fortawesome/sharp-duotone-solid-svg-icons';
 import { faCommand } from '@fortawesome/sharp-solid-svg-icons';
 import type { GlobeKind, ThemePresetName } from '@your-globe/core';
 
-import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { Kbd } from '@/components/shared/components/Kbd';
+
 import {
   GroupedSelectField,
   type GroupedSelectGroup,
@@ -86,21 +79,13 @@ export interface TopCommandBarProps {
   readonly onReplay: () => void;
   readonly onHome: () => void;
   readonly onExport: () => void;
+  readonly onImport: () => void;
   readonly onReset: () => void;
   /** Open the ⌘K command palette (drives the right-side hint chip + button). */
   readonly onCommandPalette: () => void;
 }
 
-/**
- * Top command bar — the globe's "core identity" controls live here:
- *   Kind · Theme · Preset · ⌘K · action buttons (Replay / Home / Saved / Export / Reset)
- *
- * Styled to match the marketing-home `Nav` — floating glass pill, animated
- * brand mark with rotating dotted halo, sliding hover indicator on selects,
- * FA Sharp Duotone Solid icons throughout. The visual continuity tells the
- * user "this is the same product, just in editor mode" rather than two
- * disjoint surfaces.
- */
+/** Scene identity stays visible; project transfer and secondary actions have named controls. */
 export function TopCommandBar({
   state,
   customThemes,
@@ -114,6 +99,7 @@ export function TopCommandBar({
   onReplay,
   onHome,
   onExport,
+  onImport,
   onReset,
   onCommandPalette,
 }: TopCommandBarProps) {
@@ -194,242 +180,57 @@ export function TopCommandBar({
     : 'Apply preset…';
 
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center px-3 pt-3">
-      <div
-        className={cn(
-          'pointer-events-auto relative flex h-12 w-full max-w-[1380px] items-center gap-2 rounded-full pl-2 pr-1.5',
-          'border border-white/[0.08] bg-white/[0.04] backdrop-blur-2xl backdrop-saturate-150',
-          'shadow-[0_18px_60px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_0_rgba(255,255,255,0.06)]'
-        )}
-      >
-        {/* Iridescent edge — barely-there gradient that breathes */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-full opacity-40 [mask:linear-gradient(white,transparent_60%)]"
-          style={{
-            background:
-              'linear-gradient(120deg, rgba(255,200,90,0.15) 0%, rgba(255,255,255,0) 35%, rgba(120,180,255,0.12) 70%, rgba(255,255,255,0) 100%)',
-          }}
+    <header className="studio-toolbar">
+      <Link to="/" aria-label="Back to Globio home" className="studio-toolbar-brand">
+        <FontAwesomeIcon icon={faGlobePointer} aria-hidden="true" />
+        <span>Globio <span className="studio-toolbar-product">/ Studio</span></span>
+      </Link>
+      <div className="studio-toolbar-selects">
+        <GroupedSelectField<GlobeKind>
+          label="Kind" configPath="kind" feature="kind" hideLabel value={state.globe.kind}
+          groups={kindGroups} onChange={(kind) => onGlobeChange(globeDefaultsForKind(kind))}
+          triggerClassName="studio-identity-select"
         />
-
-        {/* Brand mark — links back home so the studio doesn't feel like a dead-end. */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              to="/"
-              aria-label="Back to Globio home"
-              className="group relative flex h-9 items-center gap-2 rounded-full px-2.5 transition-colors hover:bg-white/[0.04]"
-            >
-              <span className="relative flex size-7 items-center justify-center">
-                <svg
-                  viewBox="0 0 28 28"
-                  className="absolute inset-0 size-full animate-[spin_18s_linear_infinite] text-amber-200/70"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <circle
-                    cx="14"
-                    cy="14"
-                    r="12"
-                    stroke="currentColor"
-                    strokeWidth="0.6"
-                    strokeDasharray="1.2 2.6"
-                  />
-                </svg>
-                <span
-                  className={cn(
-                    'relative z-10 flex size-5 items-center justify-center rounded-full',
-                    'bg-gradient-to-br from-amber-200 to-orange-300 text-slate-950',
-                    'shadow-[0_0_20px_-2px_rgba(255,200,90,0.7)] transition-shadow group-hover:shadow-[0_0_28px_0_rgba(255,200,90,0.9)]'
-                  )}
-                >
-                  <FontAwesomeIcon icon={faGlobePointer} className="size-2.5" />
-                </span>
-              </span>
-              <span className="hidden text-[12.5px] font-semibold tracking-tight text-white sm:inline">
-                Globio
-              </span>
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[9px] font-medium uppercase tracking-[0.18em] transition-colors',
-                  ready
-                    ? 'border-emerald-300/30 bg-emerald-300/[0.06] text-emerald-200/90'
-                    : 'border-amber-200/30 bg-amber-200/[0.04] text-amber-200/80'
-                )}
-              >
-                <FontAwesomeIcon
-                  icon={faCircleSmall}
-                  className={cn(
-                    'size-1.5',
-                    ready ? 'text-emerald-300' : 'text-amber-300'
-                  )}
-                />
-                <span>{ready ? 'live' : 'loading'}</span>
-              </span>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent sideOffset={6}>Back to home</TooltipContent>
-        </Tooltip>
-
-        {/* Divider */}
-        <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-white/[0.08]" />
-
-        {/* Core identity selects: kind → theme → preset. */}
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <GroupedSelectField<GlobeKind>
-            label="Kind"
-            configPath="kind"
-            feature="kind"
-            hideLabel
-            value={state.globe.kind}
-            groups={kindGroups}
-            onChange={(kind) => onGlobeChange(globeDefaultsForKind(kind))}
-            triggerClassName="h-7 w-[120px] rounded-full border-white/[0.08] bg-white/[0.04] text-[11.5px] font-medium text-slate-100"
-          />
-          <GroupedSelectField<ThemePresetName>
-            label="Theme"
-            configPath="theme"
-            feature="theme"
-            hideLabel
-            value={state.globe.theme}
-            groups={themeGroups}
-            onChange={(theme) => onGlobeChange({ theme })}
-            triggerClassName="h-7 w-[160px] rounded-full border-white/[0.08] bg-white/[0.04] text-[11.5px] text-slate-100"
-          />
-          <GroupedSelectField<string>
-            label="Preset"
-            feature="studio-presets"
-            hideLabel
-            // Force-render the placeholder by leaving `value` undefined —
-            // we want every preset re-application (even the same id) to
-            // fire onChange so users can re-apply over their dirty state.
-            placeholder={presetTriggerLabel}
-            groups={presetGroups}
-            onChange={onPreset}
-            triggerClassName={cn(
-              'h-7 w-[200px] rounded-full text-[11.5px]',
-              state.dirtySincePreset
-                ? 'border-amber-300/40 bg-amber-300/[0.06] text-amber-100'
-                : 'border-white/[0.08] bg-white/[0.04] text-slate-100'
-            )}
-          />
-        </div>
-
-        {/* ⌘K command palette trigger — pill-shaped, kbd hint inside. */}
-        <button
-          type="button"
-          onClick={onCommandPalette}
-          className={cn(
-            'group hidden h-7 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] pl-2.5 pr-1 text-[11.5px] text-slate-300 transition-colors md:inline-flex',
-            'hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-white'
-          )}
-        >
-          <FontAwesomeIcon icon={faCommand} className="size-2.5 opacity-70" />
-          <span className="opacity-80">Search</span>
-          <span className="ml-1 flex items-center gap-0.5">
-            <Kbd className="!h-4 !min-w-[16px] !px-0.5 !text-[9px]">⌘</Kbd>
-            <Kbd className="!h-4 !min-w-[16px] !px-0.5 !text-[9px]">K</Kbd>
-          </span>
+        <GroupedSelectField<ThemePresetName>
+          label="Theme" configPath="theme" feature="theme" hideLabel value={state.globe.theme}
+          groups={themeGroups} onChange={(theme) => onGlobeChange({ theme })}
+          triggerClassName="studio-identity-select"
+        />
+        <GroupedSelectField<string>
+          label="Preset" feature="studio-presets" hideLabel placeholder={presetTriggerLabel}
+          groups={presetGroups} onChange={onPreset}
+          triggerClassName={cn('studio-identity-select', state.dirtySincePreset && 'is-modified')}
+        />
+      </div>
+      <div className="studio-toolbar-actions">
+        <button type="button" className="studio-tool-button studio-search" onClick={onCommandPalette} aria-label="Search Studio commands">
+          <FontAwesomeIcon icon={faCommand} aria-hidden="true" /><span>Search</span>
         </button>
-
-        {/* Divider */}
-        <span
-          aria-hidden="true"
-          className="mx-0.5 hidden h-5 w-px bg-white/[0.08] md:block"
-        />
-
-        {/* Action buttons — replay anim, home, manage saved, export, reset.
-            Grouped right-side; each gets a glow-on-hover + descriptive
-            tooltip so first-time users don't have to guess. */}
-        <div className="flex shrink-0 items-center gap-1">
-          <ActionButton
-            label="Replay layer animation"
-            onClick={onReplay}
-            icon={faPlay}
-            accent="emerald"
-          />
-          <ActionButton
-            label="Reset camera to home view"
-            onClick={onHome}
-            icon={faHouseChimney}
-            accent="sky"
-          />
-          <ActionButton
-            label="Manage saved themes & presets"
-            onClick={onManageSaved}
-            icon={faFolderOpen}
-            accent="amber"
-          />
-          <ActionButton
-            label="Export config as JSON"
-            onClick={onExport}
-            icon={faDownload}
-            accent="cyan"
-          />
-          <ActionButton
-            label="Reset configurator (reload)"
-            onClick={onReset}
-            icon={faArrowsRotate}
-            accent="rose"
-          />
-        </div>
+        <button type="button" className="studio-tool-button" onClick={onImport}>Open project</button>
+        <button type="button" className="studio-tool-button studio-tool-button--primary" onClick={onExport}>Export <FontAwesomeIcon icon={faDownload} aria-hidden="true" /></button>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild><button type="button" className="studio-tool-button studio-more" aria-label="More Studio actions">•••</button></DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content className="studio-action-menu" align="end" sideOffset={8}>
+              <DropdownMenu.Item onSelect={onCommandPalette}>Search commands <span>⌘ / Ctrl K</span></DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item onSelect={onSavePreset}><FontAwesomeIcon icon={faBookmark} />Save current as preset</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={onManageSaved}><FontAwesomeIcon icon={faFolderOpen} />Manage saved themes &amp; presets</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={onCreateTheme}><FontAwesomeIcon icon={faPlus} />Create custom theme</DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item disabled={!ready} onSelect={onReplay}><FontAwesomeIcon icon={faPlay} />Replay layer animation</DropdownMenu.Item>
+              <DropdownMenu.Item disabled={!ready} onSelect={onHome}><FontAwesomeIcon icon={faHouseChimney} />Reset camera to home view</DropdownMenu.Item>
+              <DropdownMenu.Item asChild><Link to="/docs/studio/overview">Studio guide <span>↗</span></Link></DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item onSelect={onReset}><FontAwesomeIcon icon={faArrowsRotate} />Reset configurator (reload)</DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </div>
     </header>
   );
 }
 
-const accentClasses: Record<
-  'emerald' | 'sky' | 'amber' | 'cyan' | 'rose',
-  string
-> = {
-  emerald:
-    'group-hover:text-emerald-200 group-hover:shadow-[0_0_20px_-4px_rgba(110,231,183,0.55)]',
-  sky: 'group-hover:text-sky-200 group-hover:shadow-[0_0_20px_-4px_rgba(125,211,252,0.55)]',
-  amber:
-    'group-hover:text-amber-200 group-hover:shadow-[0_0_20px_-4px_rgba(252,211,77,0.55)]',
-  cyan: 'group-hover:text-cyan-200 group-hover:shadow-[0_0_20px_-4px_rgba(103,232,249,0.55)]',
-  rose: 'group-hover:text-rose-200 group-hover:shadow-[0_0_20px_-4px_rgba(252,165,165,0.55)]',
-};
-
-function ActionButton({
-  label,
-  onClick,
-  icon,
-  accent,
-}: {
-  readonly label: string;
-  readonly onClick: () => void;
-  readonly icon: typeof faPlay;
-  readonly accent: keyof typeof accentClasses;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={onClick}
-          aria-label={label}
-          className={cn(
-            'group relative size-8 rounded-full border-white/[0.08] bg-white/[0.025] text-slate-300',
-            'transition-all duration-300 hover:bg-white/[0.06]',
-            accentClasses[accent]
-          )}
-        >
-          <FontAwesomeIcon icon={icon} className="size-3.5" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent sideOffset={6}>{label}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-/**
- * Footer affordance for the Theme dropdown's Custom group. Styled like
- * an upload-zone — dashed border, centred plus icon — so it reads as
- * "drop in something new" rather than another menu item.
- */
 function CreateCustomThemeButton() {
   return (
     <div
@@ -462,8 +263,3 @@ function SavePresetFooterButton() {
     </div>
   );
 }
-
-// Helper export — used by the studio shell as a pretend ReactNode renderer
-// where we need a top-bar replacement for storybook-style screenshots etc.
-// Intentionally not exported in the components/shared barrel.
-export type { ReactNode };

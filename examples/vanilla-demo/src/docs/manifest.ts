@@ -235,7 +235,7 @@ export const DOCS_TABS: ReadonlyArray<DocTab> = [
         label: 'Studio',
         pages: [
           page('studio/overview', 'Studio overview', 'What the panels do and how a session turns into code.', { eyebrow: '/studio' }),
-          page('studio/export', 'Export the config', 'Download the globe config and data layer as JSON, and drop it into any framework.', { eyebrow: 'Export config as JSON' }),
+          page('studio/export', 'Export and open projects', 'Generate framework code, download runtime JSON, and save or open editable Studio projects.', { eyebrow: 'Export & open' }),
           page('studio/presets', 'Presets and saved themes', 'Start from a preset, save your own themes and presets in the browser.', { eyebrow: 'Apply preset' }),
           page('studio/shortcuts', 'Command palette', 'Every action, kind, theme and preset from one keyboard chord.', { eyebrow: '⌘K' }),
         ],

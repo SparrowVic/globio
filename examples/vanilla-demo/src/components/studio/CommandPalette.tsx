@@ -77,6 +77,7 @@ export interface CommandPaletteProps {
   readonly onHome: () => void;
   readonly onManageSaved: () => void;
   readonly onExport: () => void;
+  readonly onImport: () => void;
   readonly onReset: () => void;
 }
 
@@ -109,6 +110,7 @@ export function CommandPalette({
   onHome,
   onManageSaved,
   onExport,
+  onImport,
   onReset,
 }: CommandPaletteProps) {
   // Global ⌘K binding. Listening on document is fine — we let the user
@@ -169,12 +171,13 @@ export function CommandPalette({
             onSelect={run(onManageSaved)}
           />
           <PaletteItem
-            label="Export config as JSON"
+            label="Export code, config or Studio project"
             icon={faDownload}
             iconClassName="text-cyan-300"
             shortcut="E"
             onSelect={run(onExport)}
           />
+          <PaletteItem label="Open a Studio project" icon={faFolderOpen} onSelect={run(onImport)} />
           <PaletteItem
             label="Reset configurator (reload)"
             icon={faArrowsRotate}

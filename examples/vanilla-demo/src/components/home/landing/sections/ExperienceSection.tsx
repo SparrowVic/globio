@@ -4,6 +4,7 @@ import { ArrowUpRight, ChartNoAxesColumnIncreasing, Globe2, Layers, MapPin, Paus
 import type { ArcConfig, BarsDataLayer, CountryDataMap, GlobeInstance, HeatmapDataLayer, LatLng, MarkerConfig, ScaleConfig, StoryConfig } from '@your-globe/core';
 
 import { DecorationGlobe, type DecorationGlobeReadyApi } from '@/components/shared/components/DecorationGlobe';
+import { isGlobeRuntimeLoadError } from '@/lib/globe-runtime';
 import { useInViewport } from '../hooks/use-in-viewport';
 import './experience.css';
 
@@ -167,6 +168,7 @@ export function ExperienceSection() {
   const [broad, setBroad] = useState(false);
   const [view, setView] = useState<string>('');
   const [status, setStatus] = useState<PreviewStatus>('loading');
+  const [runtimeDownloadFailed, setRuntimeDownloadFailed] = useState(false);
   const [previewAttempt, setPreviewAttempt] = useState(0);
   const [userPaused, setUserPaused] = useState(false);
   const instance = useRef<GlobeInstance | null>(null);
@@ -191,13 +193,14 @@ export function ExperienceSection() {
   else if (status === 'error') statusLabel = 'Preview unavailable';
   else if (status === 'ready') statusLabel = paused ? 'Animation paused' : reducedMotion ? 'Reduced motion' : 'Live example';
 
-  const reportFailure = useCallback(() => {
+  const reportFailure = useCallback((error?: unknown) => {
     failed.current = true;
     initialized.current = false;
     subscriptions.current.forEach((unsubscribe) => unsubscribe());
     subscriptions.current = [];
     instance.current = null;
     setStatus('error');
+    setRuntimeDownloadFailed(isGlobeRuntimeLoadError(error));
   }, []);
   const run = useCallback((action: (globe: GlobeInstance) => void) => {
     if (!initialized.current || !instance.current) return;
@@ -261,6 +264,7 @@ export function ExperienceSection() {
   const retryPreview = () => {
     failed.current = false;
     setStatus('loading');
+    setRuntimeDownloadFailed(false);
     setPreviewAttempt((attempt) => attempt + 1);
   };
   const selectWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -296,11 +300,11 @@ export function ExperienceSection() {
               <figure className="home-experience-figure" aria-busy={near && status === 'loading'}>
                 <div id={`${panelId}-preview`} className="home-experience-art" role="img" aria-label={status === 'ready' ? `${active.label} on an Outline globe. ${caption}. Illustrative sample data.` : 'Outline globe preview'}>
                   {status !== 'ready' && <img src="/docs/kinds/outline.jpg" alt="" width={512} height={512} loading="lazy" decoding="async" className="home-experience-fallback" />}
-                  {near && status !== 'error' && <PreviewBoundary key={previewAttempt} onError={reportFailure}><DecorationGlobe kind="outline" theme="outline-monochrome" speed={0} initialLat={31} initialLng={21} axisTilt={0} starfield={false} atmosphere framingPadding={0.16} interactive={false} resolution="low" maxFps={30} paused={status === 'ready' && (!visible || paused)} onReady={handleReady} onLive={() => { if (initialized.current && !failed.current) setStatus('ready'); }} className={`home-experience-canvas${status === 'ready' ? ' is-ready' : ''}`} /></PreviewBoundary>}
+                  {near && status !== 'error' && <PreviewBoundary key={previewAttempt} onError={reportFailure}><DecorationGlobe kind="outline" theme="outline-monochrome" speed={0} initialLat={31} initialLng={21} axisTilt={0} starfield={false} atmosphere framingPadding={0.16} interactive={false} resolution="low" maxFps={30} paused={status === 'ready' && (!visible || paused)} onReady={handleReady} onError={reportFailure} onLive={() => { if (initialized.current && !failed.current) setStatus('ready'); }} className={`home-experience-canvas${status === 'ready' ? ' is-ready' : ''}`} /></PreviewBoundary>}
                 </div>
                 <figcaption><span role="status">{statusLabel}</span><span>Illustrative sample data</span></figcaption>
               </figure>
-              {status === 'error' && <div className="home-experience-retry"><p>The live globe could not start. You can try again or explore the example in the docs.</p><button type="button" onClick={retryPreview}>Try live preview again</button></div>}
+              {status === 'error' && <div className="home-experience-retry"><p>{runtimeDownloadFailed ? 'The globe engine could not download. Reload the page to try again.' : 'The live globe could not start. You can try again or explore the example in the docs.'}</p><button type="button" onClick={runtimeDownloadFailed ? () => window.location.reload() : retryPreview}>{runtimeDownloadFailed ? 'Reload page' : 'Try live preview again'}</button></div>}
               {mode === 'routes' && !reducedMotion && status === 'ready' && <button className="home-experience-pause" type="button" aria-controls={`${panelId}-preview`} onClick={() => setUserPaused((value) => !value)}>{userPaused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}{userPaused ? 'Play routes' : 'Pause routes'}</button>}
               {mode !== 'stories' && <div className="home-experience-views" role="group" aria-label="Globe viewpoint"><span>View</span>{VIEWS.map((entry) => <button type="button" key={entry.id} aria-pressed={view === entry.id} disabled={status !== 'ready'} onClick={() => selectView(entry)}>{entry.label}</button>)}</div>}
             </div>

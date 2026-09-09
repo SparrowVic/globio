@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { createGlobe, type DataLayer, type GlobeInstance } from '@your-globe/core';
-import type { GlobeConfig } from '@your-globe/core';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { DataLayer, GlobeConfig, GlobeInstance } from '@your-globe/core';
 
 import { structuralGlobeKey } from '@/configurator/builders';
 import type { GlobeRuntimeConfig } from '@/configurator/types';
+import { isGlobeRuntimeLoadError, loadGlobeRuntime } from '@/lib/globe-runtime';
+import { studioHomeDistance } from '@/lib/studio-camera';
 
 export interface FocusBehavior {
   readonly clickToFocus: boolean;
@@ -15,6 +16,7 @@ export interface FocusBehavior {
 
 export function GlobePreview({
   config,
+  themeRevision = 0,
   dataLayer,
   focus,
   onReady,
@@ -22,6 +24,8 @@ export function GlobePreview({
   command,
 }: {
   readonly config: GlobeRuntimeConfig;
+  /** Rebuild edited registry tokens: theme is a construction-time core setting. */
+  readonly themeRevision?: number;
   readonly dataLayer: DataLayer | null;
   readonly focus: FocusBehavior;
   readonly onReady: (ready: boolean) => void;
@@ -29,14 +33,19 @@ export function GlobePreview({
   readonly command: { readonly type: 'none' | 'replay' | 'home'; readonly nonce: number };
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [failure, setFailure] = useState<Error | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const instanceRef = useRef<GlobeInstance | null>(null);
   const configRef = useRef(config);
+  const dataLayerRef = useRef(dataLayer);
+  dataLayerRef.current = dataLayer;
   // Focus settings live in a ref so we can change them at any time without
   // re-subscribing the countryClick handler. The handler reads the latest
   // values at click time.
   const focusRef = useRef(focus);
   const commandRef = useRef(0);
-  const rebuildKey = useMemo(() => structuralGlobeKey(config), [config]);
+  const resetCameraRef = useRef<((duration: number) => void) | null>(null);
+  const rebuildKey = useMemo(() => `${structuralGlobeKey(config)}:${themeRevision}`, [config, themeRevision]);
 
   useEffect(() => {
     configRef.current = config;
@@ -51,46 +60,96 @@ export function GlobePreview({
     if (!container) return undefined;
 
     onReady(false);
-    container.replaceChildren();
-    const globe = createGlobe({ ...configRef.current, container });
-    instanceRef.current = globe;
-
-    const unsubscribeReady = globe.on('ready', () => {
-      onReady(true);
-      onMessage('Globe ready');
-      // Fly to the configured initial position so the user's choice is
-      // honored even on the first ready frame (createGlobe places the
-      // camera there, but a short flyTo gives a consistent intro feel).
-      const home = configRef.current.initialPosition ?? [18, 38];
-      globe.flyTo(home, 2.85, { duration: 1000 });
+    setFailure(null);
+    let cancelled = false;
+    let activeGlobe: GlobeInstance | undefined;
+    let followHome = true;
+    const subscriptions: Array<() => void> = [];
+    const frameHome = (duration: number) => {
+      const current = configRef.current;
+      activeGlobe?.flyTo(
+        current.initialPosition ?? [18, 38],
+        studioHomeDistance(container.clientWidth, container.clientHeight, current),
+        { duration },
+      );
+    };
+    const resetCamera = (duration: number) => { followHome = true; frameHome(duration); };
+    resetCameraRef.current = resetCamera;
+    const stopFollowing = () => { followHome = false; };
+    container.addEventListener('pointerdown', stopFollowing, { passive: true });
+    container.addEventListener('wheel', stopFollowing, { passive: true });
+    let aspect = container.clientWidth / Math.max(1, container.clientHeight);
+    const resize = new ResizeObserver(() => {
+      if (!container.clientWidth || !container.clientHeight) return;
+      const nextAspect = container.clientWidth / container.clientHeight;
+      if (Math.abs(nextAspect - aspect) > 0.02 && followHome) frameHome(0);
+      aspect = nextAspect;
     });
-    const unsubscribeError = globe.on('error', (error) => {
+    resize.observe(container);
+    const dispose = () => {
+      resize.disconnect();
+      container.removeEventListener('pointerdown', stopFollowing);
+      container.removeEventListener('wheel', stopFollowing);
+      if (resetCameraRef.current === resetCamera) resetCameraRef.current = null;
+      subscriptions.splice(0).forEach((unsubscribe) => unsubscribe());
+      activeGlobe?.destroy();
+      if (instanceRef.current === activeGlobe) instanceRef.current = null;
+    };
+    const fail = (reason: unknown) => {
+      if (cancelled) return;
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      dispose();
+      setFailure(error);
+      onReady(false);
       onMessage(error.message);
-    });
-    const unsubscribeCountryClick = globe.on('countryClick', (event) => {
-      const f = focusRef.current;
-      if (!f.clickToFocus) return;
-      globe.focusOnCountry(event.country.id, {
-        padding: f.padding,
-        duration: f.durationMs,
-        elevation: f.elevation,
-        pauseAutoRotateOnFocus: f.pauseAutoRotate,
-        center: event.point,
-      });
-      onMessage(`Focus → ${event.country.name ?? event.country.id}`);
-    });
+    };
 
-    globe.mount();
+    void loadGlobeRuntime().then(({ createGlobe }) => {
+      if (cancelled) return;
+      const globe = createGlobe({ ...configRef.current, container });
+      activeGlobe = globe;
+      instanceRef.current = globe;
+
+      subscriptions.push(
+        globe.on('ready', () => {
+          if (cancelled) return;
+          setFailure(null);
+          onReady(true);
+          onMessage('Globe ready');
+          if (followHome) frameHome(0);
+        }),
+        globe.on('error', fail),
+        globe.on('countryClick', (event) => {
+          const f = focusRef.current;
+          if (!f.clickToFocus) return;
+          globe.focusOnCountry(event.country.id, {
+            padding: f.padding,
+            duration: f.durationMs,
+            elevation: f.elevation,
+            pauseAutoRotateOnFocus: f.pauseAutoRotate,
+            center: event.point,
+          });
+          onMessage(`Focus → ${event.country.name ?? event.country.id}`);
+        }),
+      );
+      const canvas = globe.getCanvas();
+      const contextLost = () => fail(new Error('The WebGL context was lost. Try the preview again.'));
+      canvas.addEventListener('webglcontextlost', contextLost);
+      subscriptions.push(() => canvas.removeEventListener('webglcontextlost', contextLost));
+
+      frameHome(0);
+      globe.mount();
+      // Apply the latest layer even when it changed during the runtime
+      // download, or this rebuild preserved the same dataLayer reference.
+      globe.setDataLayer(dataLayerRef.current);
+    }).catch(fail);
 
     return () => {
-      unsubscribeReady();
-      unsubscribeError();
-      unsubscribeCountryClick();
-      globe.destroy();
-      if (instanceRef.current === globe) instanceRef.current = null;
+      cancelled = true;
+      dispose();
       onReady(false);
     };
-  }, [onMessage, onReady, rebuildKey]);
+  }, [onMessage, onReady, rebuildKey, attempt]);
 
   useEffect(() => {
     // Live-update path for the studio main globe. Mirrors the spread
@@ -164,8 +223,7 @@ export function GlobePreview({
       return;
     }
     if (command.type === 'home') {
-      const home = configRef.current.initialPosition ?? [18, 38];
-      globe.flyTo(home, 2.85, { duration: 0.9 });
+      resetCameraRef.current?.(900);
       onMessage('Camera reset');
     }
   }, [command, onMessage]);
@@ -177,6 +235,20 @@ export function GlobePreview({
     >
       <div ref={containerRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(19,75,104,0)_0%,rgba(4,8,18,0.18)_55%,rgba(2,5,12,0.66)_100%)]" />
+      {failure && <div className="absolute inset-0 flex items-center justify-center p-6">
+        <section className="w-full max-w-sm rounded-lg border border-white/15 bg-[#090b10] p-5 text-slate-100" role="alert">
+          <h2 className="text-base font-medium">Preview unavailable</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            {isGlobeRuntimeLoadError(failure)
+              ? 'The globe engine could not download. Reload the page to try again.'
+              : 'The live globe could not start. Try the preview again, or choose another style.'}
+          </p>
+          <button type="button" className="mt-4 rounded-md border border-white/25 px-3 py-2 text-sm hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+            onClick={() => isGlobeRuntimeLoadError(failure) ? window.location.reload() : setAttempt((value) => value + 1)}>
+            {isGlobeRuntimeLoadError(failure) ? 'Reload page' : 'Try preview again'}
+          </button>
+        </section>
+      </div>}
     </div>
   );
 }

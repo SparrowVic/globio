@@ -68,7 +68,7 @@ export const usePanelState = (
 };
 
 /**
- * Wipe every persisted panel/section state at once. Hooked into the
+ * Wipe the current route's panel/section state. Hooked into the
  * configurator's "Reset" button so a fresh slate is truly fresh.
  */
 export const resetAllPanelState = (): void => {
@@ -77,7 +77,7 @@ export const resetAllPanelState = (): void => {
     const toRemove: string[] = [];
     for (let i = 0; i < window.localStorage.length; i++) {
       const key = window.localStorage.key(i);
-      if (key && key.startsWith('globio-')) toRemove.push(key);
+      if (key && key.startsWith(`globio-${routePrefix()}-`)) toRemove.push(key);
     }
     for (const key of toRemove) window.localStorage.removeItem(key);
   } catch {

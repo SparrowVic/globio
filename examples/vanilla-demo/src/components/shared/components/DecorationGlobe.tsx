@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react';
-import {
-  createGlobe,
-  type ArcConfig,
-  type CinematicConfig,
-  type GlobeInstance,
-  type GlobeKind,
-  type ResolutionLevel,
-  type StarfieldConfig,
-  type ThemePresetName,
+import type {
+  ArcConfig,
+  CinematicConfig,
+  GlobeInstance,
+  GlobeKind,
+  ResolutionLevel,
+  StarfieldConfig,
+  ThemePresetName,
 } from '@your-globe/core';
+import { loadGlobeRuntime } from '@/lib/globe-runtime';
 
 /**
  * Imperative API surfaced to consumers via `onReady`. Lets the host page
@@ -88,6 +88,8 @@ export interface DecorationGlobeProps {
    * so a new globe never fades in over a blank canvas.
    */
   readonly onLive?: () => void;
+  /** Reports a runtime download or WebGL initialization failure. */
+  readonly onError?: (error: Error) => void;
   /** Frame-rate cap. Default: 60 when interactive, 30 otherwise. */
   readonly maxFps?: number;
   /**
@@ -139,6 +141,7 @@ export function DecorationGlobe({
   interactive = false,
   onReady,
   onLive,
+  onError,
   maxFps,
   paused = false,
   resolution,
@@ -152,6 +155,8 @@ export function DecorationGlobe({
   onReadyRef.current = onReady;
   const onLiveRef = useRef(onLive);
   onLiveRef.current = onLive;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
 
@@ -171,55 +176,71 @@ export function DecorationGlobe({
           ? STARFIELD_DEFAULTS
           : { ...STARFIELD_DEFAULTS, ...starfield };
 
-    const globe = createGlobe({
-      container,
-      kind,
-      theme,
-      transparent,
-      framing: { padding: framingPadding, lockZoom },
-      countries: { hoverEnabled: interactive, ...(resolution !== undefined && { resolution }) },
-      autoRotate: { enabled: true, speed },
-      atmosphere: { enabled: atmosphere },
-      starfield: resolvedStarfield,
-      ...(arcs !== undefined && { arcs }),
-      ...(cinematic !== undefined && { cinematic }),
-      focusPulse: { enabled: false },
-      axisTilt,
-      initialPosition: [initialLat, initialLng],
-      performance: {
-        // The cinematic kind anti-aliases inside its post pipeline (MSAA
-        // target), so a second canvas-level AA pass would only cost fill.
-        antialias: kind !== 'cinematic',
-        adaptiveQuality: true,
-        // Decorations share the page's frame budget with the hero: 30 fps
-        // reads as smooth for a slow auto-rotate and halves their cost.
-        maxFps: maxFps ?? (interactive ? 60 : 30),
-        pixelRatio: Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5),
-        pauseWhenHidden: true,
-      },
-    });
-    instanceRef.current = globe;
-    globe.setPaused(pausedRef.current);
-    // `ready` fires after countries load and the kind's shaders compile;
-    // two more frames guarantee something has been presented.
+    let cancelled = false;
+    let globe: GlobeInstance | undefined;
+    let offReady: (() => void) | undefined;
+    let offError: (() => void) | undefined;
     let liveRaf = 0;
-    const offReady = globe.on('ready', () => {
-      liveRaf = requestAnimationFrame(() => {
-        liveRaf = requestAnimationFrame(() => onLiveRef.current?.());
-      });
-    });
-    globe.mount();
+    const dispose = () => {
+      offReady?.();
+      offError?.();
+      cancelAnimationFrame(liveRaf);
+      globe?.destroy();
+      if (instanceRef.current === globe) instanceRef.current = null;
+    };
 
-    onReadyRef.current?.({
-      instance: globe,
-      project: globe.project,
+    void loadGlobeRuntime().then(({ createGlobe }) => {
+      if (cancelled) return;
+      globe = createGlobe({
+        container,
+        kind,
+        theme,
+        transparent,
+        framing: { padding: framingPadding, lockZoom },
+        countries: { hoverEnabled: interactive, ...(resolution !== undefined && { resolution }) },
+        autoRotate: { enabled: true, speed },
+        atmosphere: { enabled: atmosphere },
+        starfield: resolvedStarfield,
+        ...(arcs !== undefined && { arcs }),
+        ...(cinematic !== undefined && { cinematic }),
+        focusPulse: { enabled: false },
+        axisTilt,
+        initialPosition: [initialLat, initialLng],
+        performance: {
+          // Cinematic already anti-aliases inside its post pipeline.
+          antialias: kind !== 'cinematic',
+          adaptiveQuality: true,
+          // Slow ambient rotation needs fewer frames than an interactive globe.
+          maxFps: maxFps ?? (interactive ? 60 : 30),
+          pixelRatio: Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1.5),
+          pauseWhenHidden: true,
+        },
+      });
+      instanceRef.current = globe;
+      globe.setPaused(pausedRef.current);
+      // `ready` fires after countries load and the kind's shaders compile;
+      // two more frames guarantee something has been presented.
+      offReady = globe.on('ready', () => {
+        liveRaf = requestAnimationFrame(() => {
+          liveRaf = requestAnimationFrame(() => {
+            if (!cancelled) onLiveRef.current?.();
+          });
+        });
+      });
+      offError = globe.on('error', (error) => onErrorRef.current?.(error));
+      globe.mount();
+
+      onReadyRef.current?.({ instance: globe, project: globe.project });
+    }).catch((error: unknown) => {
+      dispose();
+      if (!cancelled) {
+        onErrorRef.current?.(error instanceof Error ? error : new Error(String(error)));
+      }
     });
 
     return () => {
-      offReady();
-      cancelAnimationFrame(liveRaf);
-      globe.destroy();
-      if (instanceRef.current === globe) instanceRef.current = null;
+      cancelled = true;
+      dispose();
     };
   }, [
     kind,

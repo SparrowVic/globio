@@ -1,3 +1,5 @@
+import { buildMarkerCardHtml } from '@/lib/studio-document-markers';
+
 import type {
   ArcConfig,
   HtmlMarkerConfig,
@@ -334,100 +336,9 @@ export const buildMarkerCards = (
   return fixtures.map((m) => ({
     id: m.id,
     position: m.position,
-    content: () => makeCardElement(m.label, settings.markerCardStyle, settings.markerCardAccent),
+    content: buildMarkerCardHtml(m.label, settings.markerCardStyle, settings.markerCardAccent),
     anchor: settings.markerCardAnchor,
     offset: [0, settings.markerCardOffsetY] as const,
     hideWhenOccluded: settings.markerCardHideOccluded,
   }));
-};
-
-const makeCardElement = (
-  label: string,
-  style: MarkerCardStyle,
-  accent: string,
-): HTMLElement => {
-  const el = document.createElement('div');
-  el.style.pointerEvents = 'none';
-  el.style.userSelect = 'none';
-  el.style.fontFamily = 'ui-sans-serif, system-ui, sans-serif';
-  el.style.whiteSpace = 'nowrap';
-  el.style.transformOrigin = 'center bottom';
-  if (style === 'minimal') {
-    el.textContent = label;
-    el.style.color = '#ffffff';
-    el.style.fontSize = '11px';
-    el.style.fontWeight = '500';
-    el.style.letterSpacing = '0.03em';
-    el.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.7)';
-  } else if (style === 'pill') {
-    el.textContent = label;
-    el.style.color = '#0a0d18';
-    el.style.background = accent;
-    el.style.fontSize = '10.5px';
-    el.style.fontWeight = '600';
-    el.style.letterSpacing = '0.04em';
-    el.style.padding = '3px 8px';
-    el.style.borderRadius = '999px';
-    el.style.boxShadow = `0 0 12px ${accent}88, 0 1px 3px rgba(0,0,0,0.4)`;
-  } else if (style === 'badge') {
-    el.style.background = 'rgba(10, 13, 24, 0.9)';
-    el.style.border = `1px solid ${accent}`;
-    el.style.padding = '4px 10px';
-    el.style.borderRadius = '6px';
-    el.style.boxShadow = `0 0 14px ${accent}55`;
-    const dot = document.createElement('span');
-    dot.style.display = 'inline-block';
-    dot.style.width = '6px';
-    dot.style.height = '6px';
-    dot.style.borderRadius = '50%';
-    dot.style.background = accent;
-    dot.style.marginRight = '6px';
-    dot.style.verticalAlign = 'middle';
-    dot.style.boxShadow = `0 0 6px ${accent}`;
-    const text = document.createElement('span');
-    text.textContent = label;
-    text.style.color = '#ffffff';
-    text.style.fontSize = '10.5px';
-    text.style.fontWeight = '500';
-    text.style.letterSpacing = '0.04em';
-    text.style.verticalAlign = 'middle';
-    el.appendChild(dot);
-    el.appendChild(text);
-  } else {
-    el.style.background = 'rgba(10, 13, 24, 0.92)';
-    el.style.border = `1px solid ${accent}66`;
-    el.style.padding = '6px 10px 7px';
-    el.style.borderRadius = '8px';
-    el.style.boxShadow = `0 8px 24px -6px rgba(0,0,0,0.6), 0 0 16px ${accent}33`;
-    el.style.position = 'relative';
-    const tag = document.createElement('div');
-    tag.textContent = 'CITY';
-    tag.style.color = accent;
-    tag.style.fontSize = '8.5px';
-    tag.style.fontWeight = '600';
-    tag.style.letterSpacing = '0.18em';
-    tag.style.marginBottom = '2px';
-    const text = document.createElement('div');
-    text.textContent = label;
-    text.style.color = '#ffffff';
-    text.style.fontSize = '12px';
-    text.style.fontWeight = '600';
-    text.style.letterSpacing = '0.02em';
-    el.appendChild(tag);
-    el.appendChild(text);
-    const tail = document.createElement('span');
-    tail.style.cssText = [
-      'position:absolute',
-      'left:50%',
-      'bottom:-4px',
-      'transform:translateX(-50%) rotate(45deg)',
-      'width:6px',
-      'height:6px',
-      'background:rgba(10,13,24,0.92)',
-      `border-right:1px solid ${accent}66`,
-      `border-bottom:1px solid ${accent}66`,
-    ].join(';');
-    el.appendChild(tail);
-  }
-  return el;
 };

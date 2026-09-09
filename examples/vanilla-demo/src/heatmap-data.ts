@@ -613,21 +613,27 @@ const usgsToEntries = (feed: UsgsFeed): Array<HeatmapDataEntry> => {
 
 const cache = new Map<string, Promise<ReadonlyArray<HeatmapDataEntry>>>();
 
-const fetchUsgsFeed = async (
+const fetchUsgsFeed = (
   url: string,
-  cacheKey: string
+  cacheKey: string,
+  source = 'USGS'
 ): Promise<ReadonlyArray<HeatmapDataEntry>> => {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
   const promise = (async () => {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`USGS fetch failed: ${response.status}`);
+      throw new Error(`${source} fetch failed: ${response.status}`);
     }
     const json = (await response.json()) as UsgsFeed;
     const entries = usgsToEntries(json);
     return entries;
-  })();
+  })().catch((error: unknown) => {
+    // Share pending/successful feeds, but allow retry after a temporary
+    // network, server or response-parsing failure.
+    if (cache.get(cacheKey) === promise) cache.delete(cacheKey);
+    throw error;
+  });
   cache.set(cacheKey, promise);
   return promise;
 };
@@ -652,7 +658,7 @@ export const fetchEarthquakesMonth = (): Promise<ReadonlyArray<HeatmapDataEntry>
  * the whole globe" — every tectonic boundary glows, mid-Atlantic ridge,
  * Aleutians, Indonesia, Iran, Mediterranean.
  */
-export const fetchEarthquakesYear = async (): Promise<ReadonlyArray<HeatmapDataEntry>> => {
+export const fetchEarthquakesYear = (): Promise<ReadonlyArray<HeatmapDataEntry>> => {
   const cacheKey = 'usgs-year';
   const cached = cache.get(cacheKey);
   if (cached) return cached;
@@ -664,12 +670,5 @@ export const fetchEarthquakesYear = async (): Promise<ReadonlyArray<HeatmapDataE
   const url =
     `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson` +
     `&starttime=${fmt(start)}&endtime=${fmt(now)}&minmagnitude=2.5&limit=20000&orderby=time-asc`;
-  const promise = (async () => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`USGS FDSN fetch failed: ${response.status}`);
-    const json = (await response.json()) as UsgsFeed;
-    return usgsToEntries(json);
-  })();
-  cache.set(cacheKey, promise);
-  return promise;
+  return fetchUsgsFeed(url, cacheKey, 'USGS FDSN');
 };

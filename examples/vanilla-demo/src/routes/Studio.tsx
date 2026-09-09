@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
@@ -6,9 +6,9 @@ import { Globe2 } from 'lucide-react';
 import {
   THEME_PRESETS,
   registerThemePreset,
-  resolveTheme,
   unregisterThemePreset,
   type GlobeKind,
+  type HeatmapDataEntry,
   type PartialTokenSet,
   type ThemePresetName,
 } from '@your-globe/core';
@@ -28,10 +28,13 @@ import { CustomThemeModal } from '@/components/studio/modals/CustomThemeModal';
 import { ManageSavedModal } from '@/components/studio/modals/ManageSavedModal';
 import { SavePresetModal } from '@/components/studio/modals/SavePresetModal';
 import { CommandPalette } from '@/components/studio/CommandPalette';
+import './studio.css';
+import type { StudioDocument } from '@/lib/studio-document';
 import { resetAllPanelState } from '@/hooks/usePanelState';
 import {
   bootstrapCustomThemes,
   deleteCustomTheme,
+  saveCustomTheme,
   type CustomTheme,
 } from '@/lib/custom-themes';
 import {
@@ -43,12 +46,12 @@ import {
   buildDataLayer,
   buildGlobeConfig,
   dataSummaryForState,
-  exportConfig,
   type DataLayerCallbacks,
 } from '@/configurator/builders';
 import { getChartDataset, getHeatmapDataset } from '@/configurator/datasets';
 import {
   configuratorPresets,
+  defaultThemeForKind,
   globeDefaultsForKind,
   initialStateForPath,
 } from '@/configurator/defaults';
@@ -63,10 +66,12 @@ import type {
   RuntimeStatus,
 } from '@/configurator/types';
 
+const StudioTransferDialog = lazy(() => import('@/components/studio/modals/StudioTransferDialog'));
+
 /**
  * Layer is selectable via `?layer=heatmap|hexbin|charts|none`. Falls back
  * to the path-based heuristic for legacy bookmarks (heatmap.html etc.) and
- * finally to the default (`hexbin`) when nothing is specified.
+ * finally to the default (`none`) when nothing is specified.
  */
 const initialState = (search: URLSearchParams): ConfiguratorState => {
   const layer = search.get('layer');
@@ -77,7 +82,7 @@ const initialState = (search: URLSearchParams): ConfiguratorState => {
   if (!isGlobeKind(kind)) return base;
   const theme = search.get('theme');
   const themeOverride =
-    theme !== null && Object.prototype.hasOwnProperty.call(THEME_PRESETS, theme)
+    theme !== null && theme.startsWith(`${kind}-`) && Object.prototype.hasOwnProperty.call(THEME_PRESETS, theme)
       ? { theme: theme as ThemePresetName }
       : {};
   return {
@@ -127,6 +132,8 @@ export default function Studio() {
     ReadonlyArray<CustomPreset>
   >(() => loadCustomPresets());
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const [themeBase, setThemeBase] = useState(state.globe.theme);
+  const [themeRevision, setThemeRevision] = useState(0);
   const [editingTheme, setEditingTheme] = useState<CustomTheme | undefined>(
     undefined
   );
@@ -134,14 +141,25 @@ export default function Studio() {
   const [manageModalOpen, setManageModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [activeInspector, setActiveInspector] =
-    useState<StudioInspectorId>('layer-arcs');
+    useState<StudioInspectorId>('stage-camera');
+  const [transferMode, setTransferMode] = useState<'export' | 'import' | null>(null);
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 900px)').matches);
+  const [mobilePanel, setMobilePanel] = useState<'stage' | 'inspector' | null>(null);
+  const [importRevision, setImportRevision] = useState(0);
+  const [importedHeatmap, setImportedHeatmap] = useState<{ id: HeatmapSettings['dataset']; data: readonly HeatmapDataEntry[] } | null>(null);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 900px)');
+    const update = () => { setCompact(query.matches); setMobilePanel(null); };
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   // Theme that was active when the user opened the theme modal — used to
   // restore on Cancel after live-preview swapped the globe to '__preview__'.
   const previewPreviousThemeRef = useRef<ThemePresetName | null>(null);
   const [heatmapDataset, setHeatmapDataset] = useState<HeatmapDatasetState>({
     id: state.heatmap.dataset,
     data: [],
-    loading: true,
+    loading: state.activeLayer === 'heatmap',
     error: null,
   });
   const [command, setCommand] = useState<{
@@ -162,6 +180,14 @@ export default function Studio() {
   useEffect(() => {
     let cancelled = false;
     const datasetId = state.heatmap.dataset;
+    if (state.activeLayer !== 'heatmap') {
+      setHeatmapDataset((current) => ({ ...current, loading: false }));
+      return;
+    }
+    if (importedHeatmap?.id === datasetId) {
+      setHeatmapDataset({ id: datasetId, data: importedHeatmap.data, loading: false, error: null });
+      return;
+    }
     setHeatmapDataset((current) => ({
       id: datasetId,
       data: current.id === datasetId ? current.data : [],
@@ -187,7 +213,7 @@ export default function Studio() {
     return () => {
       cancelled = true;
     };
-  }, [state.heatmap.dataset]);
+  }, [state.activeLayer, state.heatmap.dataset, importedHeatmap, importRevision]);
 
   const setRuntimeMessage = useCallback((message: string) => {
     setStatus((current) => ({ ...current, message }));
@@ -267,11 +293,7 @@ export default function Studio() {
   const globeConfig = useMemo(() => buildGlobeConfig(state), [state]);
   const dataLayer = useMemo(
     () => buildDataLayer(state, heatmapDataset.data, callbacks),
-    [callbacks, heatmapDataset.data, state]
-  );
-  const exportedJson = useMemo(
-    () => JSON.stringify(exportConfig(state, heatmapDataset.data), null, 2),
-    [heatmapDataset.data, state]
+    [callbacks, heatmapDataset.data, state.activeLayer, state.heatmap, state.hexbin, state.charts]
   );
 
   useEffect(() => {
@@ -302,6 +324,7 @@ export default function Studio() {
   }, []);
 
   const updateHeatmap = useCallback((patch: Partial<HeatmapSettings>) => {
+    if (patch.dataset !== undefined) setImportedHeatmap(null);
     setState((current) => ({
       ...current,
       ...markDirty(current),
@@ -331,6 +354,7 @@ export default function Studio() {
 
   const applyPreset = useCallback(
     (id: string) => {
+      setImportedHeatmap(null);
       // Built-in preset (partial patch onto current state).
       const builtIn = configuratorPresets.find((entry) => entry.id === id);
       if (builtIn) {
@@ -373,20 +397,38 @@ export default function Studio() {
     setCommand((current) => ({ type, nonce: current.nonce + 1 }));
   }, []);
 
-  const copyJson = useCallback(() => {
-    if (!navigator.clipboard) {
-      setRuntimeMessage('Clipboard API unavailable');
-      return;
+  const importProject = useCallback((project: StudioDocument) => {
+    let themes = [...customThemes];
+    let themeId = project.state.globe.theme;
+    // Keep colliding local themes intact; the imported scene receives its own ID.
+    for (const incoming of project.customThemes) {
+      const existing = themes.find((theme) => theme.id === incoming.id);
+      if (existing && JSON.stringify(existing.tokens) === JSON.stringify(incoming.tokens)) continue;
+      let id = incoming.id;
+      let suffix = 2;
+      while (themes.some((theme) => theme.id === id)) id = `${incoming.id}-${suffix++}`;
+      const saved = { ...incoming, id };
+      saveCustomTheme(saved);
+      themes = [saved, ...themes];
+      if (project.state.globe.theme === incoming.id) themeId = id as ThemePresetName;
     }
-    void navigator.clipboard
-      .writeText(exportedJson)
-      .then(() => setRuntimeMessage('JSON copied'))
-      .catch((error: unknown) => {
-        setRuntimeMessage(
-          error instanceof Error ? error.message : 'Copy failed'
-        );
-      });
-  }, [exportedJson, setRuntimeMessage]);
+    setCustomThemes(themes);
+    const snapshot = project.heatmapData === undefined ? null : {
+      id: project.state.heatmap.dataset, data: project.heatmapData,
+    };
+    setImportedHeatmap(snapshot);
+    setImportRevision((revision) => revision + 1);
+    setHeatmapDataset({
+      id: project.state.heatmap.dataset,
+      data: snapshot?.data ?? [],
+      loading: !snapshot && project.state.activeLayer === 'heatmap', error: null,
+    });
+    setState({ ...project.state, globe: { ...project.state.globe, theme: themeId }, lastPresetId: null, dirtySincePreset: false });
+    setActiveInspector('stage-camera');
+    setMobilePanel(null);
+    setTransferMode(null);
+    setRuntimeMessage('Studio project opened');
+  }, [customThemes, setRuntimeMessage]);
 
   const reset = useCallback(() => {
     setState(initialState(searchParams));
@@ -398,13 +440,36 @@ export default function Studio() {
     setTimeout(() => window.location.reload(), 200);
   }, [searchParams, setRuntimeMessage]);
 
+  const openThemeEditor = (theme?: CustomTheme) => {
+    previewPreviousThemeRef.current = state.globe.theme;
+    setThemeBase(state.globe.theme);
+    setEditingTheme(theme);
+    setThemeModalOpen(true);
+  };
+
+  const previewTheme = useCallback(({ tokens }: { extends: ThemePresetName; tokens: PartialTokenSet }) => {
+    registerThemePreset('__preview__', tokens);
+    setThemeRevision((revision) => revision + 1);
+    setState((current) => ({ ...current, globe: { ...current.globe, theme: '__preview__' as ThemePresetName } }));
+  }, []);
+
+  const endThemePreview = useCallback(() => {
+    const previous = previewPreviousThemeRef.current;
+    previewPreviousThemeRef.current = null;
+    unregisterThemePreset('__preview__');
+    if (previous !== null) {
+      setState((current) => ({ ...current, globe: { ...current.globe, theme: previous } }));
+    }
+  }, []);
+
   const activeInspectorItem = getStudioNavItem(activeInspector);
 
   return (
     <TooltipProvider>
-      <main className="fixed inset-0 overflow-hidden bg-slate-950 text-slate-50">
+      <main className="studio-workspace fixed inset-0 overflow-hidden bg-slate-950 text-slate-50" data-testid="studio-status" data-ready={status.ready}>
         <GlobePreview
           config={globeConfig}
+          themeRevision={themeRevision}
           dataLayer={dataLayer}
           focus={{
             clickToFocus: state.globe.clickToFocus,
@@ -424,12 +489,13 @@ export default function Studio() {
           ready={status.ready}
           onGlobeChange={updateGlobe}
           onPreset={applyPreset}
-          onCreateTheme={() => setThemeModalOpen(true)}
+          onCreateTheme={() => openThemeEditor()}
           onSavePreset={() => setSavePresetModalOpen(true)}
           onManageSaved={() => setManageModalOpen(true)}
           onReplay={() => sendCommand('replay')}
           onHome={() => sendCommand('home')}
-          onExport={copyJson}
+          onExport={() => setTransferMode('export')}
+          onImport={() => setTransferMode('import')}
           onReset={reset}
           onCommandPalette={() => setCommandPaletteOpen(true)}
         />
@@ -444,7 +510,8 @@ export default function Studio() {
           onReplay={() => sendCommand('replay')}
           onHome={() => sendCommand('home')}
           onManageSaved={() => setManageModalOpen(true)}
-          onExport={copyJson}
+          onExport={() => setTransferMode('export')}
+          onImport={() => setTransferMode('import')}
           onReset={reset}
         />
         <CustomThemeModal
@@ -453,43 +520,10 @@ export default function Studio() {
             setThemeModalOpen(next);
             if (!next) setEditingTheme(undefined);
           }}
-          defaultBase={state.globe.theme}
+          defaultBase={themeBase}
           editing={editingTheme}
-          onPreview={({ extends: base, tokens }) => {
-            // Live preview: register a sentinel '__preview__' theme with
-            // the draft tokens layered on the chosen base, swap the globe
-            // to it. Remember the original theme on the first preview tick
-            // so Cancel can restore. We bypass updateGlobe() so the
-            // dirtySincePreset flag isn't toggled by preview alone.
-            if (previewPreviousThemeRef.current === null) {
-              previewPreviousThemeRef.current = state.globe.theme;
-            }
-            // Layer base resolution into a single token set so the preview
-            // matches what `registerThemePreset` would produce on Save.
-            const baseResolved = resolveTheme(base);
-            const merged: PartialTokenSet = { ...baseResolved, ...tokens };
-            registerThemePreset('__preview__', merged);
-            setState((current) => ({
-              ...current,
-              globe: {
-                ...current.globe,
-                theme: '__preview__' as ThemePresetName,
-              },
-            }));
-          }}
-          onPreviewEnd={() => {
-            // Cancel path: restore the theme that was active before the
-            // modal opened, drop the '__preview__' registration.
-            const previous = previewPreviousThemeRef.current;
-            previewPreviousThemeRef.current = null;
-            unregisterThemePreset('__preview__');
-            if (previous !== null) {
-              setState((current) => ({
-                ...current,
-                globe: { ...current.globe, theme: previous },
-              }));
-            }
-          }}
+          onPreview={previewTheme}
+          onPreviewEnd={endThemePreview}
           onSaved={(theme) => {
             // Save path: drop the preview, theme is already registered
             // under its real id by saveCustomTheme. Apply it as the new
@@ -513,12 +547,7 @@ export default function Studio() {
           onOpenChange={setManageModalOpen}
           themes={customThemes}
           presets={customPresets}
-          onEditTheme={(theme) => {
-            // Open the editor pre-filled. ManageModal closes itself on
-            // edit-click, so the user lands directly in the builder.
-            setEditingTheme(theme);
-            setThemeModalOpen(true);
-          }}
+          onEditTheme={openThemeEditor}
           onDeleteTheme={(id) => {
             const next = deleteCustomTheme(id);
             setCustomThemes(next);
@@ -526,7 +555,7 @@ export default function Studio() {
             // built-in for the current kind so the globe doesn't render
             // a now-unregistered preset name.
             if (state.globe.theme === (id as ThemePresetName)) {
-              updateGlobe({ theme: 'outline-dark' });
+              updateGlobe({ theme: defaultThemeForKind[state.globe.kind] });
             }
             setRuntimeMessage('Custom theme deleted');
           }}
@@ -557,6 +586,8 @@ export default function Studio() {
         />
         <Panel
           id="stage"
+          collapsed={compact ? mobilePanel !== 'stage' : undefined}
+          onCollapsedChange={compact ? (closed) => setMobilePanel(closed ? null : 'stage') : undefined}
           position="left"
           title="Interactive Studio"
           icon={<Globe2 className="size-4" />}
@@ -568,11 +599,19 @@ export default function Studio() {
           <StagePanel
             state={state}
             active={activeInspector}
-            onSelect={setActiveInspector}
+            onSelect={(id) => {
+              setActiveInspector(id);
+              if (compact) {
+                setMobilePanel('inspector');
+                requestAnimationFrame(() => document.getElementById('studio-panel-inspector-toggle')?.focus());
+              }
+            }}
           />
         </Panel>
         <Panel
           id="inspector"
+          collapsed={compact ? mobilePanel !== 'inspector' : undefined}
+          onCollapsedChange={compact ? (closed) => setMobilePanel(closed ? null : 'inspector') : undefined}
           position="right"
           title={activeInspectorItem.label}
           icon={
@@ -597,7 +636,13 @@ export default function Studio() {
             onChartsChange={updateCharts}
           />
         </Panel>
-        <StatusDock status={status} exportedJson={exportedJson} />
+        {compact && <div className="studio-mobile-hint">Drag to rotate · Pinch to zoom</div>}
+        <StatusDock status={status} onExport={() => setTransferMode('export')} />
+        {transferMode && <Suspense fallback={<div className="studio-loading-dialog" role="status">Opening project tools…</div>}>
+          <StudioTransferDialog mode={transferMode} state={state} customThemes={customThemes}
+            heatmapData={heatmapDataset.data} heatmapLoading={heatmapDataset.loading}
+            heatmapError={heatmapDataset.error} onClose={() => setTransferMode(null)} onImport={importProject} />
+        </Suspense>}
       </main>
     </TooltipProvider>
   );
