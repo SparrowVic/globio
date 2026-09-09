@@ -1,4 +1,4 @@
-# Globio
+# GlobioJS
 
 Interactive 3D globe library for Angular, React and Vue, built on Three.js — six visual
 kinds, nine canonical layers, data layers, a story engine and a shared HDR post-processing
@@ -10,10 +10,11 @@ This is a monorepo with one framework-agnostic core and three thin framework wra
 
 ```
 packages/
-├── core/        @your-globe/core      vanilla TS, Three.js renderer
-├── react/       @your-globe/react     React 18+ wrapper
-├── angular/     @your-globe/angular   Angular 17+ standalone component
-└── vue/         @your-globe/vue       Vue 3 component
+├── core/        @globiojs/core      vanilla TS, Three.js renderer
+├── react/       @globiojs/react     React 18+ wrapper
+├── angular/     @globiojs/angular   Angular 17+ standalone component
+├── vue/         @globiojs/vue       Vue 3 component
+└── globiojs/    globiojs           convenient Vanilla entry point
 ```
 
 ## Tech stack
@@ -21,7 +22,7 @@ packages/
 - **pnpm workspaces** — package manager + monorepo
 - **Turborepo** — build orchestration with cache
 - **Changesets** — versioning + automated npm publishing
-- **tsup** — bundler (per package)
+- **tsup** — core, React, Vue and Vanilla alias; **ng-packagr** — Angular Package Format
 - **TypeScript** strict mode
 
 ## Getting started
@@ -29,7 +30,9 @@ packages/
 ```bash
 pnpm install
 pnpm build
-pnpm dev        # Vite demo on http://localhost:5173 (landing + /studio + /docs) with tsup --watch for core
+pnpm typecheck
+pnpm test
+pnpm test:packages
 ```
 
 ## Releasing
@@ -40,12 +43,14 @@ After making changes:
 pnpm changeset
 ```
 
-Describe what changed, choose semver bump per package. Commit. On merge to `main`, the Release workflow opens a PR with version bumps. Merging that PR publishes to npm automatically.
+Describe the change and select the version bump. The version workflow prepares a release PR. Publishing is a separate manual workflow after review, using npm trusted publishing. See [the release guide](docs/RELEASING.md) for first-publication setup and the exact process.
+
+The public website, Studio and documentation live in [SparrowVic/globiojs-site](https://github.com/SparrowVic/globiojs-site). This library workspace installs and runs without Font Awesome credentials.
 
 ## Core API
 
 ```ts
-import { createGlobe } from '@your-globe/core';
+import { createGlobe } from '@globiojs/core';
 
 const globe = createGlobe({
   container: document.getElementById('app')!,
@@ -70,8 +75,8 @@ globe.setPaused(true);
 Every globe on a page shares one animation-frame loop; globes that scroll out of view or
 sit in a hidden tab pause automatically when `performance.pauseWhenHidden` is enabled (the default).
 Building geometry and allocating rendering resources can block the main thread; the engine records User
-Timing measures (`globio:construct`, `globio:countries-load`, `globio:kind-build`,
-`globio:shader-compile`, `globio:mount-to-ready`) so you
+Timing measures (`globiojs:construct`, `globiojs:countries-load`, `globiojs:kind-build`,
+`globiojs:shader-compile`, `globiojs:mount-to-ready`) so you
 can see it in DevTools or read it with `performance.getEntriesByType('measure')`.
 
 ## Kinds
@@ -93,7 +98,7 @@ Data layers have a single slot and the following rendering support:
 | Hexbin / charts | Yes | No | No | No |
 
 Unsupported layers log a warning and do not render. `countries.fill` is available on Outline, Dotted and Cinematic. Paper uses its own
-`paper.fill` controls; Wireframe and Hologram do not mount country fills. See `FEATURES.md` for the catalog and `/docs` in the demo
+`paper.fill` controls; Wireframe and Hologram do not mount country fills. See `FEATURES.md` for the catalog and [the documentation](https://globiojs.dev/docs)
 for working examples, reference tables and Studio guidance.
 
 Kind, theme, country resolution, framing, camera limits and renderer options are
@@ -131,12 +136,12 @@ createGlobe({
 ```
 
 No extra dependency is needed for textures — `three` (the peer dependency) loads
-them; the demo ships a 2k set under `examples/vanilla-demo/public/textures/earth`.
+them; the [website repository](https://github.com/SparrowVic/globiojs-site) ships a 2k set under `public/textures/earth`.
 
 ## React
 
 ```tsx
-import { Globe } from '@your-globe/react';
+import { Globe } from '@globiojs/react';
 
 <Globe
   kind="outline"
@@ -158,8 +163,8 @@ component ref in Vue and on the `GlobeComponent` in Angular.
 
 ```ts
 import { Component } from '@angular/core';
-import { GlobeComponent } from '@your-globe/angular';
-import type { MarkerConfig, MarkerEvent } from '@your-globe/core';
+import { GlobeComponent } from '@globiojs/angular';
+import type { MarkerConfig, MarkerEvent } from '@globiojs/core';
 
 @Component({
   standalone: true,
@@ -186,7 +191,7 @@ export class AppComponent {
 
 ```vue
 <script setup lang="ts">
-import { VueGlobe } from '@your-globe/vue';
+import { VueGlobe } from '@globiojs/vue';
 </script>
 
 <template>
@@ -205,10 +210,12 @@ import { VueGlobe } from '@your-globe/vue';
 ## Documentation checks
 
 ```bash
-pnpm --dir examples/vanilla-demo docs:extract
-pnpm --dir examples/vanilla-demo exec vitest run
+pnpm docs:extract
+pnpm docs:check
 ```
 
-The API reference reads JSDoc and types from the source. Regenerate it alongside
-public type changes. Tests cover registry links, page anchors, generated reference
-freshness, Studio tooltip ownership and representative snippet compilation.
+The versioned API manifest is published as `@globiojs/core/docs/api.json`, including config keys, event contracts, wrapper surfaces and supported data layers. Regenerate it whenever the public API changes. The website consumes this manifest from its installed core version and checks its examples against real package declarations.
+
+## License
+
+MIT © Wiktor Wróbel.

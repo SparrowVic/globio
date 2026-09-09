@@ -1,5 +1,5 @@
 // Public-API type surface. Re-exports every interface / type alias the
-// package exposes through `@your-globe/core`. Internal modules are free to
+// package exposes through `@globiojs/core`. Internal modules are free to
 // import either from here (`'../types'`) or directly from a specific file
 // when they only need one slice — both resolve identically post-bundle.
 

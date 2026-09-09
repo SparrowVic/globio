@@ -46,7 +46,7 @@ Zero duplicate'u. Dodanie 5-tego panelu = jedna instancja `<Panel position="bott
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ TOP BAR (slim 44px)                                           │
-│ [Globio]  [Preset ▾]                  [⏵ Replay] [⌂] [⬇] [⟳] │
+│ [GlobioJS]  [Preset ▾]                  [⏵ Replay] [⌂] [⬇] [⟳] │
 └──────────────────────────────────────────────────────────────┘
 ┌──────────────────┐                          ┌──────────────────┐
 │ LEFT: STAGE      │                          │ RIGHT: DATA      │
@@ -236,7 +236,7 @@ expanded:
 ### 5.4 TOP BAR (zostaje, lekki refresh)
 
 ```
-[⚙ Globio]  [Preset ▾]              [⏵ Replay] [⌂ Home] [⬇ Export] [⟳ Reset]
+[⚙ GlobioJS]  [Preset ▾]              [⏵ Replay] [⌂ Home] [⬇ Export] [⟳ Reset]
                                      ^ icon-only buttons z tooltipami
 ```
 

@@ -136,7 +136,7 @@ export const THEME_PRESETS: Readonly<Record<ThemePresetName, TokenSet>> = Object
 - [ ] **Step 2: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors.
@@ -208,7 +208,7 @@ export type ThemeInput = ThemePresetName | ThemeConfig;
 - [ ] **Step 2: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors. (Resolver will still typecheck because its existing param type `ThemeConfig` remains valid; we'll widen it in Task 3.)
@@ -279,7 +279,7 @@ describe('resolveTheme: extends + shorthand', () => {
 - [ ] **Step 2: Run tests to verify the new ones fail**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: 3 of the 5 new tests fail (extends/shorthand can't work yet because resolver doesn't accept string and doesn't read presets); 2 pass (frozen check + key-coverage check, since those only depend on the registry).
@@ -323,7 +323,7 @@ export const resolveTheme = (input?: ThemeInput): ResolvedTokens => {
 - [ ] **Step 4: Run tests to verify all pass**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 12 tests pass (7 existing + 5 new).
@@ -331,7 +331,7 @@ Expected: all 12 tests pass (7 existing + 5 new).
 - [ ] **Step 5: Typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors.
@@ -406,7 +406,7 @@ export {
 - [ ] **Step 3: Build to verify exports**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: clean build, `dist/index.d.ts` mentions `ThemePresetName`, `ThemeInput`, `THEME_PRESETS`.
@@ -466,7 +466,7 @@ readonly theme?: ThemeInput;
 `globe.ts` calls `resolveTheme(config.theme)`. Since the resolver now accepts `ThemeInput | undefined` (Task 3), it auto-handles the wider type. No edits to globe.ts.
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: zero errors.
@@ -474,7 +474,7 @@ Expected: zero errors.
 - [ ] **Step 3: Build**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: clean build.
@@ -517,7 +517,7 @@ import {
   createGlobe,
   type GlobeInstance,
   type ThemePresetName,
-} from '@your-globe/core';
+} from '@globiojs/core';
 
 const container = document.getElementById('app');
 const status = document.getElementById('status');
@@ -573,7 +573,7 @@ window.addEventListener('beforeunload', () => globe?.destroy());
 - [ ] **Step 3: Rebuild core (demo consumes `dist/`)**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: clean build.
@@ -654,7 +654,7 @@ git commit -m "docs: mark theme presets + extends as built in v0.2.x"
 pnpm test
 ```
 
-Expected: 12 tests pass in `@your-globe/core` (7 from v0.2 + 5 added in Task 3).
+Expected: 12 tests pass in `@globiojs/core` (7 from v0.2 + 5 added in Task 3).
 
 - [ ] **Step 2: Workspace build**
 

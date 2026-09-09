@@ -2,9 +2,9 @@
 
 **Goal:** Rebuild the vanilla-demo landing as a 7-chapter cinematic page with real globe instances, a theme-bleed hero, lat/lng-projected data anchors, real `setDataLayer`/Story-API showcase, and senior-grade micro-detail at desktop 1440 + 1920.
 
-**Architecture:** Restructured `examples/vanilla-demo/src/components/home/landing/` into 7 chapter components + new `atoms/` (shared primitives), `hooks/` (viewport + parallax), `data/` (kind-theme presets). Two `@your-globe/core` extensions land alongside: `GlobeInstance.project(lat, lng)` for screen-projecting data anchors and a richer `DecorationGlobe` that exposes `onReady` for imperative use (drag-rotate, theme remount with crossfade, optional dataLayer mount).
+**Architecture:** Restructured `examples/vanilla-demo/src/components/home/landing/` into 7 chapter components + new `atoms/` (shared primitives), `hooks/` (viewport + parallax), `data/` (kind-theme presets). Two `@globiojs/core` extensions land alongside: `GlobeInstance.project(lat, lng)` for screen-projecting data anchors and a richer `DecorationGlobe` that exposes `onReady` for imperative use (drag-rotate, theme remount with crossfade, optional dataLayer mount).
 
-**Tech Stack:** React 18, Tailwind v4, TypeScript, Geist Variable, Font Awesome Pro Sharp Duotone, ReactBits primitives (Aurora, ClickSpark, Magnet, ScrollVelocity, ShinyText, SpotlightCard, StarBorder), `@your-globe/core` (createGlobe, themes, data layers, story API), Three.js (project()).
+**Tech Stack:** React 18, Tailwind v4, TypeScript, Geist Variable, Font Awesome Pro Sharp Duotone, ReactBits primitives (Aurora, ClickSpark, Magnet, ScrollVelocity, ShinyText, SpotlightCard, StarBorder), `@globiojs/core` (createGlobe, themes, data layers, story API), Three.js (project()).
 
 **Spec:** `docs/design/specs/2026-05-07-landing-cinematic-redesign-design.md`
 
@@ -159,7 +159,7 @@ If `Vector3` isn't already imported, add `import { Vector3 } from 'three';` near
 
 - [ ] **Step 1.3: Build core to verify the change compiles**
 
-Run: `pnpm --filter @your-globe/core typecheck`
+Run: `pnpm --filter @globiojs/core typecheck`
 Expected: exit 0.
 
 If types fail, the most common cause is `scene.camera` or `scene.renderer.domElement` not being on the type used in this scope — capture those references from the local variables already declared in `createGlobe` instead of accessing through `scene`.
@@ -180,7 +180,7 @@ Note: per user instruction, do not commit. Move on.
 Add to `DecorationGlobeProps`:
 
 ```ts
-import type { DataLayer } from '@your-globe/core/data-layers/types';
+import type { DataLayer } from '@globiojs/core/data-layers/types';
 
 export interface DecorationGlobeReadyApi {
   readonly instance: GlobeInstance;
@@ -341,7 +341,7 @@ export function OrbitRing({
 - [ ] **Step 3.3: KindBadge.tsx**
 
 ```tsx
-import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@your-globe/core';
+import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@globiojs/core';
 import { DecorationGlobe } from '@/components/shared';
 import { cn } from '@/lib/utils';
 
@@ -759,7 +759,7 @@ grep -E "'[a-z]+-[a-z]+'" /Users/witek/repos/globio/packages/core/src/theme/pres
 Then assemble:
 
 ```ts
-import type { GlobeKind, ThemePresetName } from '@your-globe/core';
+import type { GlobeKind, ThemePresetName } from '@globiojs/core';
 
 export interface KindThemeEntry {
   readonly preset: ThemePresetName;
@@ -839,7 +839,7 @@ Holds `activeKind` + `activeTheme` state, references to the GlobeInstance for pr
 
 ```tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { GlobeKind, GlobeInstance, StarfieldConfig, ThemePresetName } from '@your-globe/core';
+import type { GlobeKind, GlobeInstance, StarfieldConfig, ThemePresetName } from '@globiojs/core';
 import { KIND_ACCENT, KIND_THEMES } from './data/kind-themes';
 import { HeroLeftRail } from './hero/HeroLeftRail';
 import { HeroCenterStage } from './hero/HeroCenterStage';
@@ -967,7 +967,7 @@ Implement per spec section "Chapter 1 — Hero / Center stage". Code skeleton:
 
 ```tsx
 import { useState, type ReactNode } from 'react';
-import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@your-globe/core';
+import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@globiojs/core';
 import { DecorationGlobe, type DecorationGlobeReadyApi } from '@/components/shared';
 import { HeroOrbitRig } from './HeroOrbitRig';
 import { HeroDataAnchors } from './HeroDataAnchors';
@@ -1179,7 +1179,7 @@ export function HeroFloorGlow({ accent }: HeroFloorGlowProps) {
 - [ ] **Step 6.8: HeroRightRail.tsx + sub-components**
 
 ```tsx
-import type { GlobeKind, ThemePresetName } from '@your-globe/core';
+import type { GlobeKind, ThemePresetName } from '@globiojs/core';
 import { KIND_THEMES, KIND_ACCENT } from '../data/kind-themes';
 import { HeroKindCard } from './HeroKindCard';
 import { HeroThemeSwatchRow } from './HeroThemeSwatchRow';
@@ -1232,7 +1232,7 @@ export function HeroRightRail({ activeKind, activeTheme, onKindChange, onThemeCh
 Same shape as `KindBadge` but inlined here so the active glow uses kind-accent color and the layout matches the right-rail row format.
 
 ```tsx
-import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@your-globe/core';
+import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@globiojs/core';
 import { DecorationGlobe } from '@/components/shared';
 import { cn } from '@/lib/utils';
 
@@ -1286,7 +1286,7 @@ export function HeroKindCard({ kind, theme, label, caption, active, accent, onCl
 - [ ] **Step 6.10: HeroThemeSwatchRow.tsx**
 
 ```tsx
-import type { ThemePresetName } from '@your-globe/core';
+import type { ThemePresetName } from '@globiojs/core';
 import { ThemeSwatch } from '../atoms';
 import type { KindThemeEntry } from '../data/kind-themes';
 
@@ -1321,7 +1321,7 @@ export function HeroThemeSwatchRow({ themes, active, onSelect }: HeroThemeSwatch
 Compact code block, single tab (Vanilla) — full multi-framework playground lives in chapter 6.
 
 ```tsx
-import type { GlobeKind, ThemePresetName } from '@your-globe/core';
+import type { GlobeKind, ThemePresetName } from '@globiojs/core';
 import { CodeBlock } from '../atoms';
 
 export interface HeroCodePreviewProps {
@@ -1330,7 +1330,7 @@ export interface HeroCodePreviewProps {
 }
 
 export function HeroCodePreview({ kind, theme }: HeroCodePreviewProps) {
-  const code = `import { createGlobe } from '@your-globe/core';
+  const code = `import { createGlobe } from '@globiojs/core';
 
 const globe = createGlobe({
   kind: '${kind}',
@@ -1394,7 +1394,7 @@ Expected: exit 0.
 - [ ] **Step 7.1: KindPersonalitiesSection.tsx**
 
 ```tsx
-import type { GlobeKind } from '@your-globe/core';
+import type { GlobeKind } from '@globiojs/core';
 import { SectionHeader } from '@/components/shared';
 import { PersonalityRow } from './personalities/PersonalityRow';
 
@@ -1475,7 +1475,7 @@ import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUpRight } from '@fortawesome/sharp-duotone-solid-svg-icons';
-import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@your-globe/core';
+import type { GlobeKind, ThemePresetName, StarfieldConfig } from '@globiojs/core';
 import { DecorationGlobe } from '@/components/shared';
 import { useInViewport } from '../hooks/use-in-viewport';
 import { KIND_ACCENT, KIND_THEMES } from '../data/kind-themes';
@@ -1744,7 +1744,7 @@ export function LayerCard({ name, contract, icon, accent }: LayerCardProps) {
 A single hologram globe with all layers active and 4 callout annotations.
 
 ```tsx
-import type { StarfieldConfig } from '@your-globe/core';
+import type { StarfieldConfig } from '@globiojs/core';
 import { DecorationGlobe } from '@/components/shared';
 import { cn } from '@/lib/utils';
 
@@ -1920,7 +1920,7 @@ Real `setDataLayer` invocation via `DecorationGlobe`'s `dataLayer` prop. Mock co
 
 ```tsx
 import { useState } from 'react';
-import type { StarfieldConfig } from '@your-globe/core';
+import type { StarfieldConfig } from '@globiojs/core';
 import { DecorationGlobe, type DecorationGlobeReadyApi } from '@/components/shared';
 import { cn } from '@/lib/utils';
 
@@ -1999,7 +1999,7 @@ export function ChoroplethStage({ className, onReady }: ChoroplethStageProps) {
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faPause, faChevronRight } from '@fortawesome/sharp-duotone-solid-svg-icons';
-import type { GlobeInstance } from '@your-globe/core';
+import type { GlobeInstance } from '@globiojs/core';
 import { cn } from '@/lib/utils';
 
 interface SceneEntry {
@@ -2075,7 +2075,7 @@ export function StoryTimeline({ instance }: StoryTimelineProps) {
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChartArea, faFilm, faBolt } from '@fortawesome/sharp-duotone-solid-svg-icons';
-import type { GlobeInstance } from '@your-globe/core';
+import type { GlobeInstance } from '@globiojs/core';
 import { SectionHeader } from '@/components/shared';
 import { ChoroplethStage } from './data-story/ChoroplethStage';
 import { StoryTimeline } from './data-story/StoryTimeline';
@@ -2184,7 +2184,7 @@ const TABS: ReadonlyArray<Tab> = [
     id: 'vanilla',
     label: 'Vanilla',
     icon: faJs,
-    code: `import { createGlobe } from '@your-globe/core';
+    code: `import { createGlobe } from '@globiojs/core';
 
 const globe = createGlobe({
   container,
@@ -2201,7 +2201,7 @@ globe.update({ kind: 'paper', theme: 'paper-default' });`,
     id: 'react',
     label: 'React',
     icon: faReact,
-    code: `import { Globe } from '@your-globe/react';
+    code: `import { Globe } from '@globiojs/react';
 
 function IntelligenceGlobe({ dataset }) {
   return (
@@ -2220,7 +2220,7 @@ function IntelligenceGlobe({ dataset }) {
     label: 'Vue',
     icon: faVuejs,
     code: `<script setup lang="ts">
-import { VueGlobe } from '@your-globe/vue';
+import { VueGlobe } from '@globiojs/vue';
 </script>
 
 <template>
@@ -2237,7 +2237,7 @@ import { VueGlobe } from '@your-globe/vue';
     id: 'angular',
     label: 'Angular',
     icon: faAngular,
-    code: `import { GlobeComponent } from '@your-globe/angular';
+    code: `import { GlobeComponent } from '@globiojs/angular';
 
 @Component({
   standalone: true,

@@ -285,7 +285,7 @@ export class CinematicTextureSet {
 
 ### Task 14: Verification
 
-- [x] Typecheck core + demo; `pnpm --filter @your-globe/core build`; vitest still green.
+- [x] Typecheck core + demo; `pnpm --filter @globiojs/core build`; vitest still green.
 - [x] Browser: landing hero (transparent background intact, bloom halo), Studio cinematic-night / day / dawn / noir, textures on/off, sun orbit, console clean, HUD FPS ≥ 55.
 - [x] `globe.toImage()` from the console returns a bloomed PNG.
 - [x] Report to the owner with screenshots; no commit.

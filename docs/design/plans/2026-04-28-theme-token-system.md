@@ -1,6 +1,6 @@
 # Theme Token System Implementation Plan
 
-**Goal:** Build a designerski token system as the colour/style foundation for all current and future Globio styles, then refactor the existing outline rendering to consume tokens (instead of hardcoded config fields).
+**Goal:** Build a designerski token system as the colour/style foundation for all current and future GlobioJS styles, then refactor the existing outline rendering to consume tokens (instead of hardcoded config fields).
 
 **Architecture:** Tokens live in a flat namespace with dot-separated keys (`globe.surface`, `borders.color`, `atmosphere.intensity`...). A `resolve(theme?)` function merges user-supplied overrides over `DEFAULT_TOKENS`, producing a frozen `ResolvedTokens` map. `globe.ts` resolves tokens once during `createGlobe()` and passes individual values to renderer layers — layers stay token-unaware. Future plans extend the system: theme presets registry, runtime updates, light/dark variants, custom CSS-var bridge.
 
@@ -118,7 +118,7 @@ describe('vitest smoke test', () => {
 - [ ] **Step 5: Run the test suite**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected output (excerpt):
@@ -228,7 +228,7 @@ export const DEFAULT_TOKENS: TokenSet = Object.freeze({
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: no errors. (No imports yet from the rest of the codebase.)
@@ -312,7 +312,7 @@ First delete the smoke test so output is clean:
 
 ```bash
 rm packages/core/src/theme/__tests__/smoke.test.ts
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: All 7 tests fail with "Cannot find module '../resolver'" (or similar).
@@ -347,7 +347,7 @@ export const resolveTheme = (themeConfig?: ThemeConfig): ResolvedTokens => {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 7 tests pass.
@@ -355,7 +355,7 @@ Expected: all 7 tests pass.
 - [ ] **Step 5: Run typecheck**
 
 ```bash
-pnpm --filter @your-globe/core typecheck
+pnpm --filter @globiojs/core typecheck
 ```
 
 Expected: no errors.
@@ -411,7 +411,7 @@ export {
 - [ ] **Step 3: Build to verify exports compile**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: clean build, `dist/index.d.ts` mentions `ThemeConfig`, `resolveTheme`, etc.
@@ -661,7 +661,7 @@ Open `packages/core/src/renderer/atmosphere-layer.ts` and `packages/core/src/ren
 - [ ] **Step 6: Build and verify the whole core compiles**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: clean build, ESM + CJS + DTS produced.
@@ -669,7 +669,7 @@ Expected: clean build, ESM + CJS + DTS produced.
 - [ ] **Step 7: Run tests**
 
 ```bash
-pnpm --filter @your-globe/core test
+pnpm --filter @globiojs/core test
 ```
 
 Expected: all 7 resolver tests still pass.
@@ -762,7 +762,7 @@ Drag — obrót · Scroll — zoom<br />
 Replace the entire contents of `examples/vanilla-demo/src/main.ts` with:
 
 ```ts
-import { createGlobe, type GlobeInstance, type ThemeConfig } from '@your-globe/core';
+import { createGlobe, type GlobeInstance, type ThemeConfig } from '@globiojs/core';
 
 const container = document.getElementById('app');
 const status = document.getElementById('status');
@@ -843,7 +843,7 @@ window.addEventListener('beforeunload', () => globe?.destroy());
 - [ ] **Step 3: Rebuild core (the demo consumes `dist/`)**
 
 ```bash
-pnpm --filter @your-globe/core build
+pnpm --filter @globiojs/core build
 ```
 
 Expected: clean build.
@@ -923,7 +923,7 @@ git commit -m "docs: mark theme token system features as built in v0.2"
 pnpm test
 ```
 
-Expected: all packages run their tests, only `@your-globe/core` has any (7 resolver tests, all pass).
+Expected: all packages run their tests, only `@globiojs/core` has any (7 resolver tests, all pass).
 
 - [ ] **Step 2: Run the full build from the repo root**
 

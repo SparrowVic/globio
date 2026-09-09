@@ -49,7 +49,7 @@ import {
   type ThemeInput,
   type WireframeConfig,
   type ZoomConfig,
-} from '@your-globe/core';
+} from '@globiojs/core';
 
 /**
  * `<ng-globe>` — every `GlobeConfig` key is an input, every globe event an

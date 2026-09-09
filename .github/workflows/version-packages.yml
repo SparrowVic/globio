@@ -1,0 +1,57 @@
+name: Version packages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: version-packages-main
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Create or update Version Packages PR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install library workspace
+        run: pnpm install --filter . --filter './packages/*' --frozen-lockfile
+
+      - name: Configure release commit author
+        run: |
+          git config user.name 'Wiktor Wróbel'
+          git config user.email 'wro.wiktor@gmail.com'
+
+      - name: Create or update release pull request
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          version: node scripts/version-packages.mjs
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+          setupGitUser: false
+          commitMode: git-cli
+          createGithubReleases: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

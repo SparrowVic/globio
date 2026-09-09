@@ -7,5 +7,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ['react', 'three', '@your-globe/core'],
+  external: ['react', 'three', '@globiojs/core'],
 });

@@ -1,4 +1,4 @@
-# Globio — Features Catalog
+# GlobioJS — Features Catalog
 
 This document describes the implementation as of **2026-09-07**. Sections 1–5c
 cover current capabilities and their limits. Section 6 records unimplemented
@@ -13,12 +13,12 @@ and [stories](packages/core/src/story/types.ts).
 
 ## 1. Vision & non-goals
 
-Globio is a browser-based 3D globe library built in TypeScript and Three.js, with
+GlobioJS is a browser-based 3D globe library built in TypeScript and Three.js, with
 React, Vue and Angular wrappers. It combines six visual kinds, typed theme tokens,
 geographic overlays and a scene-based story controller. The host application owns
 its data, application state and business logic.
 
-Globio renders a sphere. It is not a GIS analysis platform, a geocoder, a map-tile
+GlobioJS renders a sphere. It is not a GIS analysis platform, a geocoder, a map-tile
 service or a simulation engine. Interactive rendering requires a DOM and WebGL;
 server-rendered globe snapshots are not implemented. See section 7 for boundaries.
 
@@ -531,7 +531,7 @@ work. Hosts currently load and transform those datasets themselves.
 
 ## 7. Boundaries
 
-Globio does not provide geocoding, route solving, satellite ephemerides, precise
+GlobioJS does not provide geocoding, route solving, satellite ephemerides, precise
 GIS measurements, physical weather/orbit simulation, authentication, persistence
 or a real-time backend. It can visualize data produced by those systems. Its
 browser PNG export does not constitute an SSR rendering service, and host-provided

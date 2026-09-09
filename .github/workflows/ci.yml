@@ -1,0 +1,71 @@
+name: Library CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: library-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  libraries:
+    name: Types, tests, builds and packed consumers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up pnpm
+        # v5 installs the repository's pinned pnpm 8 directly. pnpm/action-setup v6
+        # currently bootstraps pnpm 11 and cannot reliably self-update to older pnpm.
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install library workspace
+        run: pnpm install --filter . --filter './packages/*' --frozen-lockfile
+
+      - name: Check generated API documentation
+        run: |
+          pnpm docs:check
+          node --test scripts/docs-extract.test.mjs
+
+      - name: Build publishable packages
+        run: pnpm --recursive --filter './packages/*' --if-present run build
+
+      - name: Typecheck packages
+        run: pnpm --recursive --filter './packages/*' --if-present run typecheck
+
+      - name: Run unit tests
+        run: pnpm --recursive --filter './packages/*' --if-present run test
+
+      - name: Test packed packages in clean consumers
+        run: node scripts/package-smoke.mjs --output '${{ runner.temp }}/globiojs-packages'
+
+      - name: Upload packed packages
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: packed-packages-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/globiojs-packages/*.tgz
+            ${{ runner.temp }}/globiojs-packages/artifacts.json
+          if-no-files-found: ignore
+          retention-days: 7

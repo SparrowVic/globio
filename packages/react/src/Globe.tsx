@@ -18,7 +18,7 @@ import {
   type StoryCompleteEvent,
   type StorySceneEvent,
   type SurfaceClickEvent,
-} from '@your-globe/core';
+} from '@globiojs/core';
 
 /**
  * `<Globe />` — every `GlobeConfig` key is a prop and every globe event an

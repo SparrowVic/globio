@@ -445,7 +445,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     },
   });
 
-  perfMeasure('globio:construct', tConstruct);
+  perfMeasure('globiojs:construct', tConstruct);
 
   const state: InternalState = {
     config,
@@ -495,7 +495,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
     try {
       const tLoad = perfMark();
       const features = await loadCountries({ resolution: countries.resolution });
-      perfMeasure('globio:countries-load', tLoad);
+      perfMeasure('globiojs:countries-load', tLoad);
       if (state.destroyed) return false;
       state.features = features as ReadonlyArray<CountryFeature>;
 
@@ -520,7 +520,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         globeSurfaceMesh: globeMesh.mesh,
         atmosphereLayer,
       });
-      perfMeasure('globio:kind-build', tBuild);
+      perfMeasure('globiojs:kind-build', tBuild);
       // Compile the freshly mounted layers' shaders in the background
       // (KHR_parallel_shader_compile where available) instead of letting the
       // next frame block the main thread on a synchronous compile. Frames
@@ -531,7 +531,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
         compilationPending = true;
         compiled = compilation.then((value) => {
           compilationPending = false;
-          perfMeasure('globio:shader-compile', tCompile);
+          perfMeasure('globiojs:shader-compile', tCompile);
           return value;
         });
         scene.holdRendering(compiled);
@@ -828,7 +828,7 @@ export const createGlobe = (config: GlobeConfig): GlobeInstance => {
           if (!initialized) return;
           await compiled;
           if (state.destroyed) return;
-          perfMeasure('globio:mount-to-ready', tMount);
+          perfMeasure('globiojs:mount-to-ready', tMount);
           emitter.emit('ready');
         });
     },

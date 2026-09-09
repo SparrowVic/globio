@@ -1,0 +1,170 @@
+name: Publish packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_action:
+        description: Verify the release or publish it to npm
+        required: true
+        type: choice
+        default: verify
+        options:
+          - verify
+          - publish
+      npm_tag:
+        description: npm distribution tag
+        required: true
+        type: choice
+        default: latest
+        options:
+          - latest
+          - next
+
+permissions: {}
+
+concurrency:
+  group: publish-packages
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Validate release source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Require main and a versioned tree
+        run: node scripts/release-guard.mjs
+
+  verify:
+    name: Verify release artifacts
+    needs: guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install supported npm CLI
+        run: npm install --global npm@11.16.0 --registry=https://registry.npmjs.org
+
+      - name: Verify trusted-publishing runtime
+        run: node scripts/check-release-runtime.mjs
+
+      - name: Install library workspace
+        run: pnpm install --filter . --filter './packages/*' --frozen-lockfile
+
+      - name: Build, check and test
+        run: |
+          pnpm docs:check
+          node --test scripts/docs-extract.test.mjs
+          pnpm --recursive --filter './packages/*' --if-present run build
+          pnpm --recursive --filter './packages/*' --if-present run typecheck
+          pnpm --recursive --filter './packages/*' --if-present run test
+
+      - name: Test the actual npm tarballs
+        run: node scripts/package-smoke.mjs
+
+  publish:
+    name: Publish with npm trusted publishing
+    if: inputs.release_action == 'publish'
+    needs: [guard, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: npm-production
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      published-packages: ${{ steps.publish.outputs.published-packages }}
+      release-version: ${{ steps.publish.outputs.release-version }}
+    env:
+      CI: 'true'
+      NPM_CONFIG_PROVENANCE: 'true'
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          run_install: false
+
+      - name: Set up Node.js without a release cache
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install supported npm CLI
+        run: npm install --global npm@11.16.0 --registry=https://registry.npmjs.org
+
+      - name: Verify trusted-publishing runtime
+        run: node scripts/check-release-runtime.mjs
+
+      - name: Install library workspace
+        run: pnpm install --filter . --filter './packages/*' --frozen-lockfile
+
+      - name: Build fresh release artifacts
+        run: pnpm --recursive --filter './packages/*' --if-present run build
+
+      - name: Publish packages
+        id: publish
+        run: node scripts/publish-packages.mjs --publish --tag '${{ inputs.npm_tag }}'
+
+  github-release:
+    name: Create GitHub release
+    if: needs.publish.result == 'success'
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.publish.outputs.release-version }}
+      RELEASE_COMMIT: ${{ github.sha }}
+      NPM_TAG: ${{ inputs.npm_tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Create release if it does not exist
+        run: |
+          RELEASE_TAG="v${RELEASE_VERSION}"
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "GitHub release ${RELEASE_TAG} already exists."
+            exit 0
+          fi
+          node scripts/write-release-notes.mjs "${RUNNER_TEMP}/release-notes.md" "${RELEASE_VERSION}"
+          RELEASE_ARGS=("${RELEASE_TAG}" --target "${RELEASE_COMMIT}" --title "GlobioJS ${RELEASE_TAG}" --notes-file "${RUNNER_TEMP}/release-notes.md")
+          if [[ "${NPM_TAG}" == 'next' ]]; then RELEASE_ARGS+=(--prerelease); fi
+          gh release create "${RELEASE_ARGS[@]}"

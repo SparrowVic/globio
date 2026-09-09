@@ -1,10 +1,10 @@
 {
-  "name": "globe-monorepo",
+  "name": "globiojs-monorepo",
   "version": "0.0.0",
   "private": true,
   "description": "Interactive animated globe library for Angular, React and Vue",
   "scripts": {
-    "build": "turbo run build",
+    "build": "pnpm docs:extract && turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
     "lint": "turbo run lint",
@@ -12,7 +12,10 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo run build --filter=./packages/* && changeset publish"
+    "release": "node scripts/publish-packages.mjs",
+    "docs:extract": "node scripts/docs-extract.mjs",
+    "docs:check": "node scripts/docs-extract.mjs --check",
+    "test:packages": "node scripts/package-smoke.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.1",
@@ -22,7 +25,7 @@
   },
   "packageManager": "pnpm@8.15.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=22.14.0"
   },
   "pnpm": {
     "overrides": {

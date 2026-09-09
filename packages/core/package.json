@@ -1,19 +1,47 @@
 {
-  "name": "@your-globe/core",
+  "name": "@globiojs/core",
   "version": "0.1.0",
   "description": "Framework-agnostic interactive 3D globe core",
+  "keywords": [
+    "3d",
+    "data-visualization",
+    "globe",
+    "three.js",
+    "webgl"
+  ],
+  "homepage": "https://globiojs.dev",
+  "bugs": {
+    "url": "https://github.com/SparrowVic/globiojs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SparrowVic/globiojs.git",
+    "directory": "packages/core"
+  },
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./docs/api.json": "./docs/api.json"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs/api.json"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -42,5 +70,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "license": "MIT",
+  "author": "Wiktor Wr\u00f3bel"
 }

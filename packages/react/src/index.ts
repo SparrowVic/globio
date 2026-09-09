@@ -14,4 +14,4 @@ export type {
   MarkerEvent,
   PerformanceConfig,
   ResolutionLevel,
-} from '@your-globe/core';
+} from '@globiojs/core';

@@ -1,0 +1,56 @@
+{
+  "name": "globiojs",
+  "version": "0.1.0",
+  "description": "Interactive 3D globes for JavaScript. Convenience entry point for @globiojs/core.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Wiktor Wr\u00f3bel",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "homepage": "https://globiojs.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SparrowVic/globiojs.git",
+    "directory": "packages/globiojs"
+  },
+  "bugs": {
+    "url": "https://github.com/SparrowVic/globiojs/issues"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@globiojs/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
