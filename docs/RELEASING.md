@@ -116,11 +116,14 @@ working because it uses short-lived OIDC credentials rather than npm tokens.
    Angular Package Format artifact.
 3. Review and merge the `chore: version packages` pull request created by
    Changesets. This updates versions and changelogs but does not publish. GitHub
-   deliberately does not start new workflows for a pull request created with
-   its own `GITHUB_TOKEN`, so `version-packages.yml` runs the full library and
-   packed-consumer verification after applying the version changes and before it
-   writes Wiktor's release commit. For an additional visible PR check, run
-   **Library CI** manually and select the Version Packages branch.
+   suppresses most workflow runs caused by its own `GITHUB_TOKEN`; the
+   `pull_request` runs it creates for automated `opened`, `synchronize`, or
+   `reopened` events wait for manual approval.
+   `version-packages.yml` therefore uses the documented `workflow_dispatch`
+   exception to start **Library CI** on the Version Packages branch. The version
+   command also runs the full library and packed-consumer verification after
+   applying the version changes and before it writes Wiktor's release commit.
+   Merge only after the dispatched Library CI check succeeds.
 4. Open **Actions → Publish packages → Run workflow** on `main`. Select `verify`
    first. This performs the complete release check without npm write access.
 5. Run it again with `publish` and choose `latest`. Approval of the
