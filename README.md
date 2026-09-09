@@ -35,6 +35,10 @@ pnpm test
 pnpm test:packages
 ```
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch names, commit authorship, local checks and owner approval requirements.
+
 ## Releasing
 
 After making changes:

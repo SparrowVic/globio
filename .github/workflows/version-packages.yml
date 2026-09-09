@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     steps:
@@ -45,6 +46,7 @@ jobs:
           git config user.email 'wro.wiktor@gmail.com'
 
       - name: Create or update release pull request
+        id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: node scripts/version-packages.mjs
@@ -55,3 +57,17 @@ jobs:
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Library CI for the Version Packages PR
+        if: steps.changesets.outputs.pullRequestNumber != ''
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_PR_NUMBER: ${{ steps.changesets.outputs.pullRequestNumber }}
+        run: |
+          VERSION_PR_BRANCH="$(gh pr view "${VERSION_PR_NUMBER}" --json headRefName --jq '.headRefName')"
+          if [[ -z "${VERSION_PR_BRANCH}" ]]; then
+            echo 'Changesets returned a pull request without a head branch.'
+            exit 1
+          fi
+          gh workflow run ci.yml --ref "${VERSION_PR_BRANCH}"
