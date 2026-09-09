@@ -34,4 +34,4 @@ export function World() {
 
 Use `globeRef.current?.getInstance()` for imperative APIs such as `flyTo`, data layers, legends, and stories.
 
-See the [GlobioJS repository](https://github.com/SparrowVic/globio) for the full React guide and API reference.
+See the [GlobioJS repository](https://github.com/SparrowVic/globiojs) for the full React guide and API reference.

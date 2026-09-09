@@ -22,4 +22,3 @@ await writeFile(
   outputPath,
   `# GlobioJS ${version}\n\nPublished packages:\n\n${links.join('\n')}\n`,
 );
-

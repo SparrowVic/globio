@@ -34,4 +34,4 @@ const globe = ref<InstanceType<typeof VueGlobe> | null>(null);
 
 Use `globe.value?.getInstance()` for imperative APIs such as `flyTo`, data layers, legends, and stories.
 
-See the [GlobioJS repository](https://github.com/SparrowVic/globio) for the full Vue guide and API reference.
+See the [GlobioJS repository](https://github.com/SparrowVic/globiojs) for the full Vue guide and API reference.
