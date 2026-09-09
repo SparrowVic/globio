@@ -47,9 +47,9 @@ npm whoami
 pnpm install --frozen-lockfile
 pnpm docs:check
 node --test scripts/docs-extract.test.mjs
+pnpm build
 pnpm typecheck
 pnpm test
-pnpm build
 node scripts/package-smoke.mjs
 ```
 

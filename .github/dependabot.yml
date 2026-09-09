@@ -8,4 +8,7 @@ updates:
       - dependencies
       - github-actions
     open-pull-requests-limit: 5
-
+    ignore:
+      - dependency-name: pnpm/action-setup
+        versions:
+          - '>=6.0.0'

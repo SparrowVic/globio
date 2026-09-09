@@ -13,4 +13,3 @@ Documentation, test-only, CI and internal refactors do not need a changeset.
 Merging a feature pull request never publishes to npm. The version workflow
 opens or updates a separate Version Packages pull request. Publishing remains a
 manual, protected workflow described in `docs/RELEASING.md`.
-
